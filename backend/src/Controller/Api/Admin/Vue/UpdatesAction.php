@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller\Api\Admin\Vue;
+
+use App\Container\EnvironmentAwareTrait;
+use App\Controller\SingleActionInterface;
+use App\Entity\Api\Admin\Vue\UpdateProps;
+use App\Http\Response;
+use App\Http\ServerRequest;
+use App\Service\WebUpdater;
+use App\Version;
+use Psr\Http\Message\ResponseInterface;
+
+final class UpdatesAction implements SingleActionInterface
+{
+    use EnvironmentAwareTrait;
+
+    public function __construct(
+        private readonly Version $version,
+        private readonly WebUpdater $webUpdater,
+    ) {
+    }
+
+    public function __invoke(
+        ServerRequest $request,
+        Response $response,
+        array $params
+    ): ResponseInterface {
+        $settings = $request->getSettings();
+
+        $enableWebUpdates = $this->environment->enableWebUpdater();
+        if ($enableWebUpdates && !$this->webUpdater->ping()) {
+            $enableWebUpdates = false;
+        }
+
+        return $response->withJson(
+            new UpdateProps(
+                releaseChannel: $this->version->getReleaseChannelEnum()->value,
+                enableWebUpdates: $enableWebUpdates,
+                initialUpdateInfo: $settings->update_results
+            )
+        );
+    }
+}

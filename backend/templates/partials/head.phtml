@@ -1,0 +1,41 @@
+<?php
+/**
+ * @var App\Customization $customization
+ * @var App\Environment $environment
+ * @var App\Service\Vite $vite
+ */
+
+if ($environment->isDevelopment()) {
+    echo <<<HTML
+        <script type="module" src="/static/vite_dist/@vite/client"></script>
+    HTML;
+}
+
+$componentDeps = $vite->getScriptAndDependencies('js/layout.js');
+
+echo <<<HTML
+    <script type="module" src="{$componentDeps->js}"></script>
+    <script>
+    function ready(callback) {
+        if (document.readyState !== "loading") callback();
+        else document.addEventListener("DOMContentLoaded", callback);
+    }
+    </script>
+HTML;
+
+foreach ($componentDeps->prefetch as $prefetchDep) {
+    echo <<<HTML
+        <link rel="modulepreload" href="{$prefetchDep}" />
+    HTML;
+}
+
+foreach ($componentDeps->css as $cssDep) {
+    echo <<<HTML
+        <link rel="stylesheet" href="{$cssDep}" />
+    HTML;
+}
+?>
+
+<link rel="apple-touch-icon" sizes="180x180" href="<?= $customization->getBrowserIconUrl(180) ?>">
+<link rel="icon" type="image/png" sizes="192x192" href="<?= $customization->getBrowserIconUrl(192) ?>">
+<meta name="theme-color" content="#2196F3">

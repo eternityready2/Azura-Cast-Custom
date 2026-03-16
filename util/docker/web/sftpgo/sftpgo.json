@@ -1,0 +1,76 @@
+{
+  "common": {
+    "idle_timeout": 15,
+    "upload_mode": 2,
+    "setstat_mode": 1,
+    "temp_path": "/tmp/sftpgo_temp",
+    "actions": {
+      "execute_on": [
+        "upload",
+        "pre-delete",
+        "rename"
+      ],
+      "hook": "http://localhost:6010/api/internal/sftp-event"
+    },
+    "defender": {
+      "enabled": true,
+      "driver": "memory",
+      "ban_time": 5,
+      "ban_time_increment": 50,
+      "threshold": 15,
+      "observation_time": 15,
+      "score_valid": 0
+    }
+  },
+  "rate_limiters": [
+    {
+      "average": 10,
+      "period": 1000,
+      "burst": 1,
+      "type": 2,
+      "protocols": [
+        "SSH"
+      ],
+      "generate_defender_events": false,
+      "entries_soft_limit": 100,
+      "entries_hard_limit": 150
+    }
+  ],
+  "sftpd": {
+    "bindings": [
+      {
+        "port": 2022,
+        "address": "",
+        "apply_proxy_config": true
+      }
+    ],
+    "host_keys": [
+      "../storage/sftpgo/id_rsa",
+      "../storage/sftpgo/id_ecdsa",
+      "../storage/sftpgo/id_ed25519"
+    ],
+    "enable_scp": true
+  },
+  "httpd": {
+    "bindings": [
+      {
+        "port": 0
+      }
+    ],
+    "templates_path": "/usr/share/sftpgo/templates",
+    "static_files_path": "/usr/share/sftpgo/static"
+  },
+  "telemetry": {
+    "bind_port": 0
+  },
+  "data_provider": {
+    "driver": "bolt",
+    "name": "sftpgo.db",
+    "users_base_dir": "/var/azuracast/stations",
+    "external_auth_hook": "http://localhost:6010/api/internal/sftp-auth",
+    "external_auth_scope": 0,
+    "auto_backup": {
+      "enabled": false
+    }
+  }
+}

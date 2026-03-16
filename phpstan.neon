@@ -1,0 +1,44 @@
+includes:
+	- phpstan-baseline.neon
+	- vendor/phpstan/phpstan-doctrine/extension.neon
+	- vendor/phpstan/phpstan-doctrine/rules.neon
+
+parameters:
+    level: 8
+
+    doctrine:
+        objectManagerLoader: util/phpstan-doctrine.php
+
+    paths:
+        - backend/bin/console
+        - backend/bin/installer
+        - backend/bin/uptime_wait
+        - backend/config
+        - backend/src
+        - backend/templates
+        - web
+        - plugins
+
+    fileExtensions:
+        - php
+
+    excludePaths:
+        - backend/config/routes.dev.php (?)
+
+    bootstrapFiles:
+        - ./util/phpstan.php
+
+    scanDirectories:
+       - ./vendor/zircote/swagger-php/src/Annotations
+
+    stubFiles:
+        - util/phpstan_di.stub
+        - util/phpstan_phpdi.stub
+
+    universalObjectCratesClasses:
+        - App\Session\NamespaceInterface
+        - App\View
+
+    parallel:
+        jobSize: 20
+        processTimeout: 300.0

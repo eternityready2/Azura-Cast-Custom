@@ -1,0 +1,60 @@
+# Frontend
+node_modules
+
+# Junk/cache files.
+*Thumbs.db
+tmp/cache/*---*
+*.DS_Store
+*.apdisk
+.vagrant
+.idea
+/ubuntu-*-console.log
+.phplint-cache
+.gitinfo
+
+# Local development files.
+/backend/config/routes.dev.php
+/env.ini
+/app/env.ini
+/app/.env
+/azuracast.env
+/util/fixtures/*
+/util/fixtures/**/*
+!/util/fixtures/.gitkeep
+/util/local_ssl/*
+!/util/local_ssl/.gitkeep
+/web/static/yarn-error.log
+/util/package_usage_report*
+/auth.json
+
+# Composer-generated content
+/vendor/*
+/vendor/**/*
+!/vendor/.gitkeep
+
+# NPM built content
+/web/static/vite_dist/**/*
+!/web/static/vite_dist/.gitkeep
+/translations/frontend.pot
+/eslint_report.json
+
+# Ansible deployment files
+/ansible/
+/util/ansible/deploy.retry
+/util/ansible/update.retry
+/tests/_output/*
+
+# Docker files
+/docker-compose.yml
+/docker-compose.new.yml
+/docker-compose.override.yml
+/.env
+
+# Backups
+/*.tar.gz
+/*.zip
+
+# Plugins
+/plugins/*
+/plugins/**/*
+!/plugins/.gitkeep

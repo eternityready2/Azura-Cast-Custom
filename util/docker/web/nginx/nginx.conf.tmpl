@@ -1,0 +1,111 @@
+user azuracast;
+worker_processes auto;
+worker_rlimit_nofile 65000;
+
+error_log /dev/stderr {{if eq .Env.APPLICATION_ENV "development"}}info{{else}}warn{{end}};
+pid /var/run/nginx.pid;
+
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 65000;
+    multi_accept on;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    log_format hls_json escape=json '{'
+        '"msec": "$msec",'
+        '"ua": "$http_user_agent",'
+        '"ip": "$remote_addr",'
+        '"ip_xff": "$http_x_forwarded_for",'
+        '"uri": "$request_uri"'
+        '}';
+
+    access_log off;
+    server_tokens off;
+    keepalive_timeout 65;
+
+    sendfile on;
+
+    client_max_body_size {{ default .Env.NGINX_CLIENT_MAX_BODY_SIZE "50M" }};
+    client_body_temp_path /tmp/nginx_client 1 1;
+    large_client_header_buffers 8 64k;
+    client_header_buffer_size 16k;
+
+    fastcgi_temp_path /tmp/nginx_fastcgi 1 1;
+
+    fastcgi_cache_path /tmp/nginx_cache levels=1:2 keys_zone=app:50m max_size=1g inactive=60m use_temp_path=off;
+    fastcgi_cache_key "$scheme$request_method$host$request_uri";
+
+    proxy_max_temp_file_size 0;
+
+    map $http_x_forwarded_proto $proxy_x_forwarded_proto {
+      default $http_x_forwarded_proto;
+      ''      $scheme;
+    }
+
+    map $http_x_forwarded_port $proxy_x_forwarded_port {
+      default $http_x_forwarded_port;
+      ''      $server_port;
+    }
+
+    map $http_upgrade $proxy_connection {
+      default upgrade;
+      '' close;
+    }
+
+    map $scheme $proxy_x_forwarded_ssl {
+      default off;
+      https on;
+    }
+
+    # Enable Gzip compression
+    gzip on;
+
+    gzip_vary on;
+    gzip_buffers 128 4k;
+
+    # Compression level (1-9)
+    gzip_comp_level 5;
+
+    # Don't compress anything under 256 bytes
+    gzip_min_length 256;
+
+    # Compress output of these MIME-types
+    gzip_types
+        application/atom+xml
+        application/javascript
+        application/json
+        application/rss+xml
+        application/vnd.ms-fontobject
+        application/x-font-ttf
+        application/x-font-opentype
+        application/x-font-truetype
+        application/x-javascript
+        application/x-web-app-manifest+json
+        application/xhtml+xml
+        application/xml
+        font/eot
+        font/opentype
+        font/otf
+        image/svg+xml
+        image/x-icon
+        image/vnd.microsoft.icon
+        text/css
+        text/plain
+        text/javascript
+        text/x-component;
+
+    # Disable gzip for bad browsers
+    gzip_disable "MSIE [1-6]\.(?!.*SV1)";
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}

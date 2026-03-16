@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+echo "AzuraCast Dev Install"
+
+azuracast_install "$@"
+
+gosu azuracast npm ci --include=dev

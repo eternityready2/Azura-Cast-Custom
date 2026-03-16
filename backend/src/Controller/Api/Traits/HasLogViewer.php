@@ -1,0 +1,114 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller\Api\Traits;
+
+use App\Entity\Api\LogContents;
+use App\Exception\NotFoundException;
+use App\Http\Response;
+use App\Http\ServerRequest;
+use Psr\Http\Message\ResponseInterface;
+use RuntimeException;
+use SensitiveParameter;
+
+trait HasLogViewer
+{
+    public static int $maximum_log_size = 1048576;
+
+    protected function streamLogToResponse(
+        ServerRequest $request,
+        Response $response,
+        string $logPath,
+        bool $tailFile = true,
+        #[SensitiveParameter]
+        array $filteredTerms = []
+    ): ResponseInterface {
+        clearstatcache();
+
+        if (!is_file($logPath)) {
+            throw NotFoundException::file();
+        }
+
+        if (!$tailFile) {
+            $log = file_get_contents($logPath) ?: '';
+            $logContents = $this->processLog(
+                rawLog: $log,
+                filteredTerms: $filteredTerms
+            );
+
+            return $response->withJson(
+                new LogContents(
+                    $logContents,
+                    true
+                )
+            );
+        }
+
+        $params = $request->getQueryParams();
+        $lastViewedSize = (int)($params['position'] ?? 0);
+
+        $logSize = filesize($logPath) ?: 0;
+        if ($lastViewedSize > $logSize) {
+            $lastViewedSize = $logSize;
+        }
+
+        $logVisibleSize = ($logSize - $lastViewedSize);
+        $cutFirstLine = false;
+
+        if ($logVisibleSize > self::$maximum_log_size) {
+            $logVisibleSize = self::$maximum_log_size;
+            $cutFirstLine = true;
+        }
+
+        $logContents = '';
+
+        if ($logVisibleSize > 0) {
+            $fp = fopen($logPath, 'rb');
+            if (false === $fp) {
+                throw new RuntimeException(sprintf('Could not open file at path "%s".', $logPath));
+            }
+
+            fseek($fp, -$logVisibleSize, SEEK_END);
+            $logContentsRaw = fread($fp, $logVisibleSize) ?: '';
+            fclose($fp);
+
+            $logContents = $this->processLog(
+                rawLog: $logContentsRaw,
+                cutFirstLine: $cutFirstLine,
+                cutEmptyLastLine: true,
+                filteredTerms: $filteredTerms
+            );
+        }
+
+        return $response->withJson(
+            new LogContents(
+                $logContents,
+                false,
+                $logSize
+            )
+        );
+    }
+
+    private function processLog(
+        string $rawLog,
+        bool $cutFirstLine = false,
+        bool $cutEmptyLastLine = false,
+        #[SensitiveParameter]
+        array $filteredTerms = []
+    ): string {
+        $logParts = explode("\n", $rawLog);
+
+        if ($cutFirstLine) {
+            array_shift($logParts);
+        }
+        if ($cutEmptyLastLine && end($logParts) === '') {
+            array_pop($logParts);
+        }
+
+        $log = implode("\n", $logParts);
+        $log = mb_convert_encoding($log, 'UTF-8', 'UTF-8');
+
+        return str_replace($filteredTerms, '(PASSWORD)', $log);
+    }
+}
