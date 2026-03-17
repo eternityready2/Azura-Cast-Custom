@@ -76,6 +76,7 @@ final class PodcastEpisodeApiGenerator
                 break;
 
             case PodcastSources::Manual:
+            case PodcastSources::Import:
                 $return->playlist_media = null;
                 $return->playlist_media_id = null;
 

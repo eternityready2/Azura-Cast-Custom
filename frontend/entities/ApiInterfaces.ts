@@ -186,6 +186,7 @@ export enum StationBackendPerformanceModes {
 export enum PodcastSources {
   Manual = "manual",
   Playlist = "playlist",
+  Import = "import",
 }
 
 export enum PlaylistTypes {
@@ -1073,6 +1074,14 @@ export type ApiPodcast = HasLinks & {
   source?: string;
   playlist_id?: number | null;
   playlist_auto_publish?: boolean;
+  /** RSS/Atom feed URL for import source */
+  feed_url?: string | null;
+  /** Enable automatic download of new episodes from feed */
+  auto_import_enabled?: boolean;
+  /** Keep only the last N episodes (0 = keep all). Older episodes are deleted. */
+  auto_keep_episodes?: number;
+  /** Where to store episode files: 'podcast' or 'media' (station media folder for playlists). */
+  episode_storage_type?: 'podcast' | 'media';
   title?: string;
   link?: string | null;
   description?: string;

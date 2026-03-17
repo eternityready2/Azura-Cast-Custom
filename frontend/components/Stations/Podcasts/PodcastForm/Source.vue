@@ -53,11 +53,81 @@
                 </loading>
             </div>
         </section>
+
+        <section
+            v-show="form.source === 'manual' || form.source === 'import'"
+            class="card mb-3"
+            role="region"
+        >
+            <div class="card-header text-bg-secondary">
+                <h2 class="card-title">
+                    {{ $gettext('Episode File Folder') }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <p>
+                    {{ $gettext('Choose where episode files are stored. Media folder makes episodes available in the Media library and in scheduled playlists.') }}
+                </p>
+                <form-group-select
+                    id="form_edit_episode_storage_type"
+                    class="col-md-12"
+                    :field="r$.episode_storage_type"
+                    :options="episodeStorageTypeOptions"
+                    :label="$gettext('Store episode files in')"
+                />
+            </div>
+        </section>
+
+        <section
+            v-show="form.source === 'import'"
+            class="card mb-3"
+            role="region"
+        >
+            <div class="card-header text-bg-primary">
+                <h2 class="card-title">
+                    {{ $gettext('Import from RSS/Feed') }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <p>
+                    {{ $gettext('Episodes will be automatically downloaded from the feed. You can replace old episodes with new ones by keeping only the last N episodes.') }}
+                </p>
+
+                <div class="row g-3 mb-3">
+                    <form-group-field
+                        id="form_edit_feed_url"
+                        class="col-md-12"
+                        :field="r$.feed_url"
+                        :label="$gettext('Feed URL')"
+                        :description="$gettext('RSS or Atom feed URL (e.g. https://example.com/feed.xml)')"
+                    />
+
+                    <form-group-checkbox
+                        id="form_edit_auto_import_enabled"
+                        class="col-md-12"
+                        :field="r$.auto_import_enabled"
+                        :label="$gettext('Enable Auto-Download')"
+                        :description="$gettext('Automatically fetch and import new episodes when the sync task runs.')"
+                    />
+
+                    <form-group-field
+                        id="form_edit_auto_keep_episodes"
+                        class="col-md-12"
+                        :field="r$.auto_keep_episodes"
+                        type="number"
+                        :min="0"
+                        :label="$gettext('Keep Last N Episodes')"
+                        :description="$gettext('Keep only the most recent N episodes (0 = keep all). Older episodes will be deleted and replaced.')"
+                    />
+                </div>
+            </div>
+        </section>
     </tab>
 </template>
 
 <script setup lang="ts">
 import FormGroupSelect from "~/components/Form/FormGroupSelect.vue";
+import FormGroupField from "~/components/Form/FormGroupField.vue";
 import Tab from "~/components/Common/Tab.vue";
 import FormGroupMultiCheck from "~/components/Form/FormGroupMultiCheck.vue";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
@@ -87,6 +157,11 @@ const sourceOptions = [
         value: 'playlist',
         text: $gettext('Synchronize with Playlist'),
         description: $gettext('Automatically create new podcast episodes when media is added to a specified playlist.')
+    },
+    {
+        value: 'import',
+        text: $gettext('Import from RSS/Feed'),
+        description: $gettext('Auto-download and import podcast episodes from an RSS or Atom feed URL.')
     }
 ];
 
@@ -107,4 +182,9 @@ const loadPlaylists = async () => {
 };
 
 onMounted(loadPlaylists);
+
+const episodeStorageTypeOptions = [
+    { value: 'podcast', text: $gettext('Podcast folder (default)') },
+    { value: 'media', text: $gettext('Station media folder (for playlists)') }
+];
 </script>

@@ -45,6 +45,10 @@ final class PodcastApiGenerator
         $return->source = $record->source->value;
         $return->playlist_id = $record->playlist?->id;
         $return->playlist_auto_publish = $record->playlist_auto_publish;
+        $return->feed_url = $record->feed_url;
+        $return->auto_import_enabled = $record->auto_import_enabled;
+        $return->auto_keep_episodes = $record->auto_keep_episodes;
+        $return->episode_storage_type = $record->episode_storage_type->value;
 
         $return->title = $record->title;
         $return->link = $record->link;

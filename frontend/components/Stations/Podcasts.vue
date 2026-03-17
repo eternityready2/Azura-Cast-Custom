@@ -55,6 +55,12 @@
                             {{ $gettext('Playlist-Based') }}
                         </span>
                         <span
+                            v-if="item.source === 'import'"
+                            class="badge text-bg-info"
+                        >
+                            {{ $gettext('RSS Import') }}
+                        </span>
+                        <span
                             v-if="!item.is_published"
                             class="badge text-bg-info"
                         >

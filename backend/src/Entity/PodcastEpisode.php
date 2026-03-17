@@ -93,7 +93,7 @@ final class PodcastEpisode implements IdentifiableEntityInterface
         }
 
         return match ($this->podcast->source) {
-            PodcastSources::Manual => ($this->media !== null),
+            PodcastSources::Manual, PodcastSources::Import => ($this->media !== null),
             PodcastSources::Playlist => ($this->playlist_media !== null)
         };
     }

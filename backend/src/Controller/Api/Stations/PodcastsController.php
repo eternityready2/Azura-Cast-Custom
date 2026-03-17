@@ -8,6 +8,7 @@ use App\Controller\Api\AbstractApiCrudController;
 use App\Controller\Api\Traits\CanSearchResults;
 use App\Entity\Api\Podcast as ApiPodcast;
 use App\Entity\ApiGenerator\PodcastApiGenerator;
+use App\Entity\Enums\PodcastEpisodeStorageType;
 use App\Entity\Podcast;
 use App\Entity\PodcastCategory;
 use App\Entity\Repository\PodcastRepository;
@@ -296,6 +297,13 @@ final class PodcastsController extends AbstractApiCrudController
         if (isset($data['playlist_id'])) {
             $data['playlist'] = $data['playlist_id'];
             unset($data['playlist_id']);
+        }
+
+        if (isset($data['episode_storage_type'])) {
+            $v = Types::stringOrNull($data['episode_storage_type']);
+            $data['episode_storage_type'] = $v === 'media'
+                ? PodcastEpisodeStorageType::Media
+                : PodcastEpisodeStorageType::Podcast;
         }
 
         $record = parent::fromArray($data, $record, $context);

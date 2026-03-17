@@ -72,9 +72,9 @@ final class ListEpisodesAction implements SingleActionInterface
             ->andWhere('e.publish_at <= :publishTime')
             ->setParameter('publishTime', time())
             ->andWhere(
-                '(p.source = :sourceManual AND pm.id IS NOT NULL) OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL)'
+                '(p.source IN (:sourcesWithMedia) AND pm.id IS NOT NULL) OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL)'
             )
-            ->setParameter('sourceManual', PodcastSources::Manual->value)
+            ->setParameter('sourcesWithMedia', [PodcastSources::Manual->value, PodcastSources::Import->value])
             ->setParameter('sourcePlaylist', PodcastSources::Playlist->value)
             ->orderBy('e.publish_at', 'DESC');
 

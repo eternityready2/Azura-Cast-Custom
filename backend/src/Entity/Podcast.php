@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Enums\PodcastEpisodeStorageType;
 use App\Entity\Enums\PodcastSources;
 use Azura\Normalizer\Attributes\DeepNormalize;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -41,6 +42,24 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
 
     #[ORM\Column(type: 'string', length: 50, enumType: PodcastSources::class)]
     public PodcastSources $source = PodcastSources::Manual;
+
+    /** RSS/Atom feed URL for import source. */
+    #[ORM\Column(length: 500, nullable: true)]
+    public ?string $feed_url = null {
+        set => $this->truncateNullableString($value, 500);
+    }
+
+    /** Enable automatic download of new episodes from feed. */
+    #[ORM\Column]
+    public bool $auto_import_enabled = false;
+
+    /** Keep only the last N episodes (0 = keep all). Older episodes are deleted and replaced. */
+    #[ORM\Column(type: 'smallint', options: ['default' => 0])]
+    public int $auto_keep_episodes = 0;
+
+    /** Where to store episode files: podcast folder (default) or station media folder (for use in playlists). */
+    #[ORM\Column(type: 'string', length: 50, enumType: PodcastEpisodeStorageType::class, options: ['default' => 'podcast'])]
+    public PodcastEpisodeStorageType $episode_storage_type = PodcastEpisodeStorageType::Podcast;
 
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank]

@@ -7,9 +7,8 @@ namespace App\Entity\Enums;
 use OpenApi\Attributes as OA;
 
 #[OA\Schema(type: 'string')]
-enum PodcastSources: string
+enum PodcastEpisodeStorageType: string
 {
-    case Manual = 'manual';
-    case Playlist = 'playlist';
-    case Import = 'import';
+    case Podcast = 'podcast';
+    case Media = 'media';
 }

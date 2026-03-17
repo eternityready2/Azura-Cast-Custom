@@ -69,6 +69,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
                 App\Sync\Task\CheckFolderPlaylistsTask::class,
                 App\Sync\Task\CheckMediaTask::class,
                 App\Sync\Task\CheckPodcastPlaylistsTask::class,
+                App\Sync\Task\ImportPodcastFeedsTask::class,
                 App\Sync\Task\CheckRequestsTask::class,
                 App\Sync\Task\CheckUpdatesTask::class,
                 App\Sync\Task\CleanupHistoryTask::class,

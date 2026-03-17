@@ -62,7 +62,7 @@ final readonly class DeleteMediaAction implements SingleActionInterface
     ): ResponseInterface {
         $podcast = $request->getPodcast();
 
-        if ($podcast->source !== PodcastSources::Manual) {
+        if ($podcast->source !== PodcastSources::Manual && $podcast->source !== PodcastSources::Import) {
             throw new InvalidArgumentException('Media cannot be manually set on this podcast.');
         }
 

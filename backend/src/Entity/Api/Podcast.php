@@ -31,6 +31,18 @@ final class Podcast
     #[OA\Property]
     public bool $playlist_auto_publish = false;
 
+    #[OA\Property(description: 'RSS/Atom feed URL for import source')]
+    public ?string $feed_url = null;
+
+    #[OA\Property(description: 'Enable automatic download of new episodes from feed')]
+    public bool $auto_import_enabled = false;
+
+    #[OA\Property(description: 'Keep only the last N episodes (0 = keep all). Older episodes are deleted.')]
+    public int $auto_keep_episodes = 0;
+
+    #[OA\Property(description: 'Where to store episode files: podcast folder or station media folder (for playlists).')]
+    public string $episode_storage_type = 'podcast';
+
     #[OA\Property]
     public string $title;
 

@@ -65,7 +65,7 @@ final readonly class PostMediaAction implements SingleActionInterface
         $podcast = $request->getPodcast();
         $station = $request->getStation();
 
-        if ($podcast->source !== PodcastSources::Manual) {
+        if ($podcast->source !== PodcastSources::Manual && $podcast->source !== PodcastSources::Import) {
             throw new InvalidArgumentException('Media cannot be manually set on this podcast.');
         }
 

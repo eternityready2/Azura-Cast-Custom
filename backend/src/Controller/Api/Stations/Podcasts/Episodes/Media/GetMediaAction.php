@@ -77,6 +77,7 @@ final readonly class GetMediaAction implements SingleActionInterface
         if ($episode instanceof PodcastEpisode) {
             switch ($podcast->source) {
                 case PodcastSources::Playlist:
+                case PodcastSources::Import:
                     $playlistMedia = $episode->playlist_media;
 
                     if ($playlistMedia instanceof StationMedia) {
@@ -88,8 +89,11 @@ final readonly class GetMediaAction implements SingleActionInterface
                             $playlistMedia->path
                         );
                     }
-                    break;
-
+                    if ($podcast->source === PodcastSources::Playlist) {
+                        break;
+                    }
+                    // Fall through for Import when episode uses podcast storage (PodcastMedia)
+                    // no break
                 case PodcastSources::Manual:
                     $podcastMedia = $episode->media;
 
