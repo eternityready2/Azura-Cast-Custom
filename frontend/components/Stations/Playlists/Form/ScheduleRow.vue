@@ -116,7 +116,7 @@
                     :options="recurrenceTypeOptions"
                 />
                 <form-group-field
-                    v-if="row.recurrence_type === 'biweekly' || row.recurrence_type === 'custom'"
+                    v-if="row.recurrence_type === 'custom'"
                     :id="'edit_form_recurrence_interval_'+index"
                     class="col-md-4"
                     :field="r$.recurrence_interval"
@@ -124,7 +124,7 @@
                     min="1"
                     max="52"
                     :label="$gettext('Every (weeks)')"
-                    :description="$gettext('2 = every 2 weeks, 3 = every 3 weeks. Set Start date for correct alignment.')"
+                    :description="$gettext('E.g. 3 = every 3 weeks. Set Start date for correct alignment.')"
                 />
                 <template v-if="row.recurrence_type === 'monthly'">
                     <form-group-select
@@ -150,14 +150,8 @@
                             class="col-md-4"
                             :field="r$.recurrence_monthly_week"
                             :label="$gettext('Week of Month')"
+                            :description="$gettext('Use the Scheduled Play Days of Week checkboxes above to pick the day (e.g. Monday for 3rd Monday).')"
                             :options="recurrenceMonthlyWeekOptions"
-                        />
-                        <form-group-select
-                            :id="'edit_form_recurrence_monthly_dow_'+index"
-                            class="col-md-4"
-                            :field="r$.recurrence_monthly_day_of_week"
-                            :label="$gettext('Day of Week')"
-                            :options="dayOptions"
                         />
                     </template>
                 </template>

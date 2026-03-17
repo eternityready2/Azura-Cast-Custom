@@ -65,7 +65,7 @@ const {
         if (data.schedule_items?.length) {
             data.schedule_items = data.schedule_items.map((item: Record<string, unknown>) => {
                 const endType = item.recurrence_end_type ?? 'never';
-                return {
+                const merged: Record<string, unknown> = {
                     ...item,
                     recurrence_type: item.recurrence_type ?? 'weekly',
                     recurrence_interval: item.recurrence_interval ?? 1,
@@ -73,6 +73,10 @@ const {
                     recurrence_end_after: endType === 'after' ? (item.recurrence_end_after ?? null) : null,
                     recurrence_end_date: null
                 };
+                if (merged.recurrence_type === 'monthly' && merged.recurrence_monthly_pattern === 'day_of_week' && merged.recurrence_monthly_day_of_week != null && (!merged.days || (merged.days as number[]).length === 0)) {
+                    merged.days = [Number(merged.recurrence_monthly_day_of_week)];
+                }
+                return merged;
             });
         }
         r$.value.$reset({
@@ -86,11 +90,14 @@ const {
             data.schedule_items = data.schedule_items.map((item: Record<string, unknown>) => {
                 const out = { ...item };
                 out.recurrence_type = item.recurrence_type ?? 'weekly';
-                out.recurrence_interval = Number(item.recurrence_interval) || 1;
+                out.recurrence_interval = (item.recurrence_type === 'biweekly' ? 2 : Number(item.recurrence_interval)) || 1;
                 out.recurrence_end_type = item.recurrence_end_type ?? 'never';
                 out.recurrence_end_after = (item.recurrence_end_type === 'after' && item.recurrence_end_after != null)
                     ? Number(item.recurrence_end_after) : null;
                 out.recurrence_end_date = null;
+                if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && item.days && Array.isArray(item.days) && item.days.length > 0) {
+                    out.recurrence_monthly_day_of_week = Number(item.days[0]);
+                }
                 return out;
             });
         }
