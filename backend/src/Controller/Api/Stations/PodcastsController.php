@@ -299,11 +299,13 @@ final class PodcastsController extends AbstractApiCrudController
             unset($data['playlist_id']);
         }
 
+        $episodeStorageType = PodcastEpisodeStorageType::Podcast;
         if (isset($data['episode_storage_type'])) {
             $v = Types::stringOrNull($data['episode_storage_type']);
-            $data['episode_storage_type'] = $v === 'media'
+            $episodeStorageType = $v === 'media'
                 ? PodcastEpisodeStorageType::Media
                 : PodcastEpisodeStorageType::Podcast;
+            unset($data['episode_storage_type']);
         }
 
         if (array_key_exists('media_folder_path', $data)) {
@@ -312,6 +314,8 @@ final class PodcastsController extends AbstractApiCrudController
         }
 
         $record = parent::fromArray($data, $record, $context);
+
+        $record->episode_storage_type = $episodeStorageType;
 
         if (null !== $newCategories) {
             $categories = $record->categories;
