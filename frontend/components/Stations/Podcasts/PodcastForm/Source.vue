@@ -68,13 +68,49 @@
                 <p>
                     {{ $gettext('Choose where episode files are stored. Media folder makes episodes available in the Media library and in scheduled playlists.') }}
                 </p>
-                <form-group-select
-                    id="form_edit_episode_storage_type"
-                    class="col-md-12"
-                    :field="r$.episode_storage_type"
-                    :options="episodeStorageTypeOptions"
-                    :label="$gettext('Store episode files in')"
-                />
+                <div class="row g-3 mb-3">
+                    <form-group-select
+                        id="form_edit_episode_storage_type"
+                        class="col-md-12"
+                        :field="r$.episode_storage_type"
+                        :options="episodeStorageTypeOptions"
+                        :label="$gettext('Store episode files in')"
+                    />
+                    <form-group-field
+                        v-show="form.episode_storage_type === 'media'"
+                        id="form_edit_media_folder_path"
+                        class="col-md-12"
+                        :field="r$.media_folder_path"
+                        :label="$gettext('Media subfolder (optional)')"
+                        :description="$gettext('Subfolder within station media (e.g. Radio Shows/MyShow). Leave blank for default.')"
+                    />
+                </div>
+            </div>
+        </section>
+
+        <section
+            v-show="form.source === 'import' && form.episode_storage_type === 'media'"
+            class="card mb-3"
+            role="region"
+        >
+            <div class="card-header text-bg-secondary">
+                <h2 class="card-title">
+                    {{ $gettext('Target Playlist for Episodes') }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <p>
+                    {{ $gettext('Optionally assign a playlist. New episodes will be added to this playlist for scheduling.') }}
+                </p>
+                <loading :loading="playlistsLoading">
+                    <form-group-select
+                        id="form_edit_playlist_id_import"
+                        class="col-md-12"
+                        :field="r$.playlist_id"
+                        :options="playlistOptions"
+                        :label="$gettext('Playlist (optional)')"
+                    />
+                </loading>
             </div>
         </section>
 

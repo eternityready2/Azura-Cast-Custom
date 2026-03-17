@@ -69,7 +69,7 @@
                 class="col-md-12"
                 :field="r$.is_enabled"
                 :label="$gettext('Enable on Public Pages')"
-                :description="$gettext('If disabled, the station will not be visible on public-facing pages or APIs.')"
+                :description="$gettext('If disabled, the podcast is hidden on public pages and RSS auto-import is paused until re-enabled.')"
             />
 
             <form-group-checkbox

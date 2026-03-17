@@ -9,6 +9,7 @@ use App\Entity\Podcast;
 use App\Entity\PodcastEpisode;
 use App\Entity\Repository\PodcastEpisodeRepository;
 use App\Entity\Repository\PodcastRepository;
+use App\Entity\Repository\StorageLocationRepository;
 use App\Entity\Station;
 use App\Flysystem\StationFilesystems;
 use GuzzleHttp\Client;
@@ -22,6 +23,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         private readonly Client $httpClient,
         private readonly PodcastRepository $podcastRepository,
         private readonly PodcastEpisodeRepository $podcastEpisodeRepo,
+        private readonly StorageLocationRepository $storageLocationRepo,
         private readonly StationFilesystems $stationFilesystems
     ) {
     }
@@ -35,6 +37,16 @@ final class ImportPodcastFeedsTask extends AbstractTask
     {
         foreach ($this->iterateStations() as $station) {
             $this->importFeedsForStation($station);
+        }
+    }
+
+    /** Run import for a single podcast (e.g. from "Sync now" API). */
+    public function runForPodcast(Podcast $podcast): void
+    {
+        $stations = $this->storageLocationRepo->getStationsForLocation($podcast->storage_location);
+        $station = $stations[0] ?? null;
+        if ($station instanceof Station) {
+            $this->importFeed($podcast, $station);
         }
     }
 

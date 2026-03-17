@@ -36,6 +36,7 @@ final class PodcastEpisodeRepository extends Repository
         private readonly MetadataManager $metadataManager,
         private readonly StorageLocationRepository $storageLocationRepo,
         private readonly StationMediaRepository $stationMediaRepo,
+        private readonly StationPlaylistMediaRepository $playlistMediaRepo,
         private readonly StationFilesystems $stationFilesystems,
     ) {
     }
@@ -192,7 +193,10 @@ final class PodcastEpisodeRepository extends Repository
 
         $this->removeEpisodePlaylistMediaIfImport($episode, $station);
 
-        $path = self::MEDIA_FOLDER_PREFIX . $podcast->id . '/' . $episode->id . '.' . $ext;
+        $folderPrefix = ($podcast->media_folder_path !== null && $podcast->media_folder_path !== '')
+            ? trim($podcast->media_folder_path, '/') . '/'
+            : self::MEDIA_FOLDER_PREFIX . $podcast->id . '/';
+        $path = $folderPrefix . $episode->id . '.' . $ext;
 
         $stationMedia = new StationMedia($mediaStorage, $path);
         $this->stationMediaRepo->loadFromFile($stationMedia, $uploadPath, $fsMedia);
@@ -208,6 +212,10 @@ final class PodcastEpisodeRepository extends Repository
 
         $episode->playlist_media = $stationMedia;
         $episode->media = null;
+
+        if ($podcast->playlist !== null) {
+            $this->playlistMediaRepo->addMediaToPlaylist($stationMedia, $podcast->playlist);
+        }
     }
 
     private function uploadMediaToPodcastFolder(

@@ -233,6 +233,11 @@ return static function (RouteCollectorProxy $group) {
                                         Controller\Api\Stations\PodcastsController::class . ':deleteAction'
                                     );
 
+                                    $group->post(
+                                        '/sync',
+                                        Controller\Api\Stations\Podcasts\SyncAction::class
+                                    )->setName('api:stations:podcast:sync');
+
                                     $group->get(
                                         '/art[-{timestamp}.jpg]',
                                         Controller\Api\Stations\Podcasts\Art\GetArtAction::class

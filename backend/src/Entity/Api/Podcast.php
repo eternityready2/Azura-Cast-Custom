@@ -43,6 +43,9 @@ final class Podcast
     #[OA\Property(description: 'Where to store episode files: podcast folder or station media folder (for playlists).')]
     public string $episode_storage_type = 'podcast';
 
+    #[OA\Property(description: 'Optional subfolder within station media for episode files (e.g. "Radio Shows/MyShow"). Only used when episode_storage_type is media.')]
+    public ?string $media_folder_path = null;
+
     #[OA\Property]
     public string $title;
 

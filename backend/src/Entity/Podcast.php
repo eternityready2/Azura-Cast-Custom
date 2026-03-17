@@ -61,6 +61,12 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
     #[ORM\Column(type: 'string', length: 50, enumType: PodcastEpisodeStorageType::class, options: ['default' => 'podcast'])]
     public PodcastEpisodeStorageType $episode_storage_type = PodcastEpisodeStorageType::Podcast;
 
+    /** Optional subfolder path within station media for this podcast's episodes (e.g. "Radio Shows/MyShow"). Empty = use default podcast_imports/{id}. */
+    #[ORM\Column(length: 500, nullable: true)]
+    public ?string $media_folder_path = null {
+        set => $this->truncateNullableString($value, 500);
+    }
+
     #[ORM\Column(length: 255)]
     #[Assert\NotBlank]
     public string $title {

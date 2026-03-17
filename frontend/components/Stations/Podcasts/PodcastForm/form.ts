@@ -36,6 +36,7 @@ export const useStationsPodcastsForm = defineStore(
             auto_import_enabled: false,
             auto_keep_episodes: 0,
             episode_storage_type: 'podcast',
+            media_folder_path: null,
             artwork_file: null,
         });
 
@@ -75,6 +76,7 @@ export const useStationsPodcastsForm = defineStore(
                         fields.auto_import_enabled,
                         fields.auto_keep_episodes,
                         fields.episode_storage_type,
+                        fields.media_folder_path,
                     ]
                 })
             }

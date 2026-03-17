@@ -306,6 +306,11 @@ final class PodcastsController extends AbstractApiCrudController
                 : PodcastEpisodeStorageType::Podcast;
         }
 
+        if (array_key_exists('media_folder_path', $data)) {
+            $raw = $data['media_folder_path'];
+            $data['media_folder_path'] = (is_string($raw) && trim($raw) === '') ? null : $raw;
+        }
+
         $record = parent::fromArray($data, $record, $context);
 
         if (null !== $newCategories) {

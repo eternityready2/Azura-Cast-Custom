@@ -1082,6 +1082,8 @@ export type ApiPodcast = HasLinks & {
   auto_keep_episodes?: number;
   /** Where to store episode files: 'podcast' or 'media' (station media folder for playlists). */
   episode_storage_type?: 'podcast' | 'media';
+  /** Optional subfolder within station media for episode files (e.g. "Radio Shows/MyShow"). Only when episode_storage_type is media. */
+  media_folder_path?: string | null;
   title?: string;
   link?: string | null;
   description?: string;
