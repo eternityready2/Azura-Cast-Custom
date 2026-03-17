@@ -143,6 +143,7 @@
                         min="1"
                         max="31"
                         :label="$gettext('Day of Month')"
+                        :description="$gettext('Day of the month (1–31). E.g. 15 = on the 15th of each month. Scheduled Play Days of Week above are ignored for this pattern.')"
                     />
                     <template v-if="row.recurrence_monthly_pattern === 'day_of_week'">
                         <form-group-select
