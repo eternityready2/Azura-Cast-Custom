@@ -199,6 +199,12 @@ final class ScheduleRecurrence
         return $occurrenceDates;
     }
 
+    /**
+     * Anchor date for bi-weekly/custom interval: "every N weeks" is computed from this date.
+     * When start_date is set, that is the anchor; otherwise the range start is used (less predictable).
+     * Callers (e.g. Liquidsoap) use a range starting near "now", so for custom/biweekly we recommend
+     * start_date to be set so the pattern aligns as the user expects.
+     */
     private static function anchorDate(
         StationSchedule $schedule,
         DateTimeZone $tz,
@@ -368,6 +374,7 @@ final class ScheduleRecurrence
     /**
      * Convert occurrence dates to DateRange using schedule start_time/end_time.
      * Handles overnight (start_time > end_time) by extending end to next day.
+     * Handles "play once" (start_time === end_time) with a 15-minute window so the schedule is only active at that time.
      *
      * @param CarbonImmutable[] $occurrenceDates
      * @return DateRange[]
@@ -381,7 +388,9 @@ final class ScheduleRecurrence
         foreach ($occurrenceDates as $day) {
             $start = StationSchedule::getDateTime($schedule->start_time, $tz, $day);
             $end = StationSchedule::getDateTime($schedule->end_time, $tz, $day);
-            if ($end->lessThan($start) || $start->equalTo($end)) {
+            if ($start->equalTo($end)) {
+                $end = $start->addMinutes(15);
+            } elseif ($end->lessThan($start)) {
                 $end = $end->addDay();
             }
             $ranges[] = new DateRange($start, $end);

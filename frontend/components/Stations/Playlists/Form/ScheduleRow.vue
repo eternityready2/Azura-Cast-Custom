@@ -77,6 +77,7 @@
                     :field="r$.end_date"
                     input-type="date"
                     :label="$gettext('End Date')"
+                    :description="$gettext('Use this and Start date to limit when the schedule runs. Recurrence (e.g. bi-weekly) still uses this as the last day.')"
                 />
 
                 <form-group-checkbox
@@ -100,15 +101,18 @@
                 <div class="col-12">
                     <hr class="my-3">
                     <h6 class="text-muted mb-2">
-                        {{ $gettext('Recurrence') }}
+                        {{ $gettext('Repeat') }}
                     </h6>
+                    <p class="text-muted small mb-2">
+                        {{ $gettext('How often this time slot repeats. Use Start date above for bi-weekly or custom so the pattern aligns correctly. Use End date above to stop the schedule on a specific date.') }}
+                    </p>
                 </div>
                 <form-group-select
                     :id="'edit_form_recurrence_type_'+index"
                     class="col-md-4"
                     :field="r$.recurrence_type"
-                    :label="$gettext('Recurrence Type')"
-                    :description="$gettext('Weekly = every week; Bi-weekly = every 2 weeks; Monthly = by date or weekday; Custom = every N weeks.')"
+                    :label="$gettext('Repeat')"
+                    :description="$gettext('Weekly = every week; Bi-weekly = every 2 weeks; Custom = every N weeks; Monthly = by date or weekday (e.g. 1st Monday).')"
                     :options="recurrenceTypeOptions"
                 />
                 <form-group-field
@@ -119,8 +123,8 @@
                     input-type="number"
                     min="1"
                     max="52"
-                    :label="$gettext('Repeat Every (weeks)')"
-                    :description="$gettext('E.g. 2 = every 2 weeks, 3 = every 3 weeks.')"
+                    :label="$gettext('Every (weeks)')"
+                    :description="$gettext('2 = every 2 weeks, 3 = every 3 weeks. Set Start date for correct alignment.')"
                 />
                 <template v-if="row.recurrence_type === 'monthly'">
                     <form-group-select
@@ -161,7 +165,8 @@
                     :id="'edit_form_recurrence_end_type_'+index"
                     class="col-md-4"
                     :field="r$.recurrence_end_type"
-                    :label="$gettext('End Condition')"
+                    :label="$gettext('Stop Recurrence')"
+                    :description="$gettext('Optional: stop after a number of occurrences. Otherwise use End date above to limit the range.')"
                     :options="recurrenceEndTypeOptions"
                 />
                 <form-group-field
@@ -171,15 +176,7 @@
                     :field="r$.recurrence_end_after"
                     input-type="number"
                     min="1"
-                    :label="$gettext('End After (occurrences)')"
-                />
-                <form-group-field
-                    v-if="row.recurrence_end_type === 'on_date'"
-                    :id="'edit_form_recurrence_end_date_'+index"
-                    class="col-md-4"
-                    :field="r$.recurrence_end_date"
-                    input-type="date"
-                    :label="$gettext('End Date')"
+                    :label="$gettext('Stop After (occurrences)')"
                 />
             </div>
         </div>
@@ -271,9 +268,8 @@ const recurrenceMonthlyWeekOptions = [
 ];
 
 const recurrenceEndTypeOptions = [
-    {value: 'never', text: $gettext('Never')},
-    {value: 'after', text: $gettext('After number of occurrences')},
-    {value: 'on_date', text: $gettext('On date')}
+    {value: 'never', text: $gettext('Never (use End date above to limit range)')},
+    {value: 'after', text: $gettext('After number of occurrences')}
 ];
 
 const doRemove = () => {

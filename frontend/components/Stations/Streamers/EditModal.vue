@@ -74,12 +74,17 @@ const {
     resetForm,
     (data) => {
         if (data.schedule_items?.length) {
-            data.schedule_items = data.schedule_items.map((item: Record<string, unknown>) => ({
-                ...item,
-                recurrence_type: item.recurrence_type ?? 'weekly',
-                recurrence_interval: item.recurrence_interval ?? 1,
-                recurrence_end_type: item.recurrence_end_type ?? 'never'
-            }));
+            data.schedule_items = data.schedule_items.map((item: Record<string, unknown>) => {
+                const endType = item.recurrence_end_type ?? 'never';
+                return {
+                    ...item,
+                    recurrence_type: item.recurrence_type ?? 'weekly',
+                    recurrence_interval: item.recurrence_interval ?? 1,
+                    recurrence_end_type: (endType === 'on_date' ? 'never' : endType) as string,
+                    recurrence_end_after: endType === 'after' ? (item.recurrence_end_after ?? null) : null,
+                    recurrence_end_date: null
+                };
+            });
         }
         record.value = mergeExisting(record.value, data);
 
@@ -89,7 +94,20 @@ const {
     },
     async () => {
         const {valid} = await validater$.$validate();
-        return {valid, data: form.value};
+        const data = { ...form.value };
+        if (data.schedule_items?.length) {
+            data.schedule_items = data.schedule_items.map((item: Record<string, unknown>) => {
+                const out = { ...item };
+                out.recurrence_type = item.recurrence_type ?? 'weekly';
+                out.recurrence_interval = Number(item.recurrence_interval) || 1;
+                out.recurrence_end_type = item.recurrence_end_type ?? 'never';
+                out.recurrence_end_after = (item.recurrence_end_type === 'after' && item.recurrence_end_after != null)
+                    ? Number(item.recurrence_end_after) : null;
+                out.recurrence_end_date = null;
+                return out;
+            });
+        }
+        return { valid, data };
     }
 );
 
