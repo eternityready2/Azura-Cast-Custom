@@ -76,7 +76,7 @@ final class PodcastEpisodeRepository extends Repository
 
     private function getStationForPodcast(Podcast $podcast): ?Station
     {
-        $stations = $this->storageLocationRepo->getStationsForLocation($podcast->storage_location);
+        $stations = $this->storageLocationRepo->getStationsUsingLocation($podcast->storage_location);
         return $stations[0] ?? null;
     }
 

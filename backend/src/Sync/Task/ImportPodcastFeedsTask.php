@@ -43,7 +43,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
     /** Run import for a single podcast (e.g. from "Sync now" API). */
     public function runForPodcast(Podcast $podcast): void
     {
-        $stations = $this->storageLocationRepo->getStationsForLocation($podcast->storage_location);
+        $stations = $this->storageLocationRepo->getStationsUsingLocation($podcast->storage_location);
         $station = $stations[0] ?? null;
         if ($station instanceof Station) {
             $this->importFeed($podcast, $station);
