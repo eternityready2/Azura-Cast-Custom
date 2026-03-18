@@ -313,9 +313,25 @@ final class PodcastsController extends AbstractApiCrudController
             $data['media_folder_path'] = (is_string($raw) && trim($raw) === '') ? null : $raw;
         }
 
+        $autoKeepEpisodes = null;
+        if (array_key_exists('auto_keep_episodes', $data)) {
+            $autoKeepEpisodes = max(0, min(32767, Types::int($data['auto_keep_episodes'])));
+            unset($data['auto_keep_episodes']);
+        }
+
+        $boolFields = ['auto_import_enabled', 'playlist_auto_publish', 'is_enabled', 'explicit'];
+        foreach ($boolFields as $boolKey) {
+            if (array_key_exists($boolKey, $data) && !is_bool($data[$boolKey])) {
+                $data[$boolKey] = Types::bool($data[$boolKey], broadenValidBools: true);
+            }
+        }
+
         $record = parent::fromArray($data, $record, $context);
 
         $record->episode_storage_type = $episodeStorageType;
+        if (null !== $autoKeepEpisodes) {
+            $record->auto_keep_episodes = $autoKeepEpisodes;
+        }
 
         if (null !== $newCategories) {
             $categories = $record->categories;
