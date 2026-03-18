@@ -40,14 +40,51 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
     }
 
-    /** Run import for a single podcast (e.g. from "Sync now" API). */
-    public function runForPodcast(Podcast $podcast): void
+    /**
+     * Run import for a single podcast (e.g. from "Sync now" API).
+     *
+     * @return array{
+     *     success: bool,
+     *     message: string,
+     *     episodes_added: int,
+     *     log: list<array{level: string, message: string}>
+     * }
+     */
+    public function runForPodcastWithSyncLog(Podcast $podcast): array
     {
+        $log = [];
         $stations = $this->storageLocationRepo->getStationsUsingLocation($podcast->storage_location);
         $station = $stations[0] ?? null;
-        if ($station instanceof Station) {
-            $this->importFeed($podcast, $station);
+        if (!$station instanceof Station) {
+            $log[] = [
+                'level' => 'error',
+                'message' => 'No station is configured to use this podcast’s storage location. Assign podcast storage on a station first.',
+            ];
+
+            return [
+                'success' => false,
+                'message' => 'No station found for this podcast storage.',
+                'episodes_added' => 0,
+                'log' => $log,
+            ];
         }
+
+        $result = $this->importFeed($podcast, $station, $log);
+        $added = $result['added'];
+        $ok = $result['ok'];
+
+        $message = $ok
+            ? ($added > 0
+                ? sprintf('Imported %d new episode(s).', $added)
+                : 'Sync completed. No new episodes (feed OK).')
+            : ($result['message'] ?? 'Sync failed.');
+
+        return [
+            'success' => $ok,
+            'message' => $message,
+            'episodes_added' => $added,
+            'log' => $log,
+        ];
     }
 
     private function importFeedsForStation(Station $station): void
@@ -71,17 +108,26 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
     }
 
-    private function importFeed(Podcast $podcast, Station $station): void
+    /**
+     * @param list<array{level: string, message: string}>|null $syncLog
+     *
+     * @return array{added: int, ok: bool, message?: string}
+     */
+    private function importFeed(Podcast $podcast, Station $station, ?array &$syncLog = null): array
     {
         $feedUrl = $podcast->feed_url;
         if (empty($feedUrl)) {
-            return;
+            $this->syncLogLine($syncLog, 'warning', 'Feed URL is empty; nothing to import.');
+
+            return ['added' => 0, 'ok' => true];
         }
 
         $this->logger->info('Importing podcast feed', [
             'podcast' => $podcast->title,
             'feed_url' => $feedUrl,
         ]);
+        $this->syncLogLine($syncLog, 'info', sprintf('Fetching feed: %s', $feedUrl));
+        $this->syncLogLine($syncLog, 'info', sprintf('Podcast: %s', $podcast->title));
 
         try {
             $response = $this->httpClient->get($feedUrl, [
@@ -96,35 +142,58 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 'podcast' => $podcast->title,
                 'error' => $e->getMessage(),
             ]);
-            return;
+            $msg = 'Failed to fetch feed: ' . $e->getMessage();
+            $this->syncLogLine($syncLog, 'error', $msg);
+
+            return ['added' => 0, 'ok' => false, 'message' => $msg];
         }
 
         $body = (string) $response->getBody();
         $xml = @simplexml_load_string($body);
         if ($xml === false) {
             $this->logger->error('Invalid XML in podcast feed', ['podcast' => $podcast->title]);
-            return;
+            $msg = 'Invalid XML in feed response (could not parse as RSS/Atom).';
+            $this->syncLogLine($syncLog, 'error', $msg);
+
+            return ['added' => 0, 'ok' => false, 'message' => $msg];
         }
+
+        $this->syncLogLine($syncLog, 'info', sprintf('Downloaded feed (%d bytes).', strlen($body)));
 
         $items = $this->getRssItems($xml);
         if (empty($items)) {
             $this->logger->debug('No items in podcast feed', ['podcast' => $podcast->title]);
-            return;
+            $this->syncLogLine($syncLog, 'warning', 'No episode items found in feed (no <item> or <entry> elements).');
+
+            return ['added' => 0, 'ok' => true];
         }
+
+        $itemCount = count($items);
+        $this->syncLogLine($syncLog, 'info', sprintf('Found %d item(s) in feed.', $itemCount));
 
         $fs = $this->stationFilesystems->getPodcastsFilesystem($station);
         $existingGuids = $this->getExistingEpisodeGuids($podcast);
         $tempDir = $station->getRadioTempDir();
         $added = 0;
+        $skippedExisting = 0;
+        $skippedNoEnclosure = 0;
+        $downloadErrors = 0;
+        $uploadErrors = 0;
+        $maxErrorLines = 40;
+        $errorLineBudget = $maxErrorLines;
 
         foreach ($items as $item) {
             $guid = $this->getItemGuid($item);
             if ($guid !== null && isset($existingGuids[$guid])) {
+                ++$skippedExisting;
+
                 continue;
             }
 
             $enclosureUrl = $this->getEnclosureUrl($item);
             if ($enclosureUrl === null) {
+                ++$skippedNoEnclosure;
+
                 continue;
             }
 
@@ -153,15 +222,21 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     ],
                 ]);
             } catch (\Throwable $e) {
+                ++$downloadErrors;
                 $this->logger->error('Failed to download episode media', [
                     'episode' => $title,
                     'error' => $e->getMessage(),
                 ]);
+                if ($errorLineBudget > 0) {
+                    $this->syncLogLine($syncLog, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
+                    --$errorLineBudget;
+                }
                 $this->em->remove($episode);
                 $this->em->flush();
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+
                 continue;
             }
 
@@ -175,12 +250,23 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $downloadedPath,
                     $fs
                 );
-                $added++;
+                ++$added;
+                if (null !== $syncLog) {
+                    $this->syncLogLine($syncLog, 'info', sprintf('Imported: %s', $title));
+                }
+                if ($guid !== null) {
+                    $existingGuids[$guid] = true;
+                }
             } catch (\Throwable $e) {
+                ++$uploadErrors;
                 $this->logger->error('Failed to attach media to episode', [
                     'episode' => $title,
                     'error' => $e->getMessage(),
                 ]);
+                if ($errorLineBudget > 0) {
+                    $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
+                    --$errorLineBudget;
+                }
                 $this->em->remove($episode);
                 $this->em->flush();
             }
@@ -190,8 +276,23 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
         }
 
+        $this->syncLogLine($syncLog, 'info', sprintf('Skipped %d item(s) already in library (same GUID).', $skippedExisting));
+        $this->syncLogLine($syncLog, 'info', sprintf('Skipped %d item(s) with no audio enclosure.', $skippedNoEnclosure));
+        if ($downloadErrors > 0) {
+            $truncated = $maxErrorLines - $errorLineBudget;
+            $omitted = max(0, $downloadErrors - $truncated);
+            $suffix = $omitted > 0 ? sprintf(' (%d error line(s) omitted from log.)', $omitted) : '';
+            $this->syncLogLine($syncLog, 'warning', sprintf('%d download error(s).%s', $downloadErrors, $suffix));
+        }
+        if ($uploadErrors > 0) {
+            $this->syncLogLine($syncLog, 'warning', sprintf('%d upload/storage error(s).', $uploadErrors));
+        }
+
         if ($podcast->auto_keep_episodes > 0) {
-            $this->pruneOldEpisodes($podcast, $fs);
+            $removed = $this->pruneOldEpisodes($podcast, $fs);
+            if ($removed > 0) {
+                $this->syncLogLine($syncLog, 'info', sprintf('Pruned %d older episode(s) (keep last %d).', $removed, $podcast->auto_keep_episodes));
+            }
         }
 
         if ($added > 0) {
@@ -199,6 +300,19 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 'podcast' => $podcast->title,
                 'added' => $added,
             ]);
+        }
+        $this->syncLogLine($syncLog, 'info', sprintf('Done. %d new episode(s) imported this run.', $added));
+
+        return ['added' => $added, 'ok' => true];
+    }
+
+    /**
+     * @param list<array{level: string, message: string}>|null $syncLog
+     */
+    private function syncLogLine(?array &$syncLog, string $level, string $message): void
+    {
+        if (null !== $syncLog) {
+            $syncLog[] = ['level' => $level, 'message' => $message];
         }
     }
 
@@ -298,11 +412,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
         return $guids;
     }
 
-    private function pruneOldEpisodes(Podcast $podcast, ExtendedFilesystemInterface $fs): void
+    private function pruneOldEpisodes(Podcast $podcast, ExtendedFilesystemInterface $fs): int
     {
         $keep = $podcast->auto_keep_episodes;
         if ($keep <= 0) {
-            return;
+            return 0;
         }
 
         $episodes = $this->em->createQuery(
@@ -318,11 +432,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $this->podcastEpisodeRepo->delete($episode, $fs);
         }
 
-        if (count($toRemove) > 0) {
+        $n = count($toRemove);
+        if ($n > 0) {
             $this->logger->info('Pruned old podcast episodes', [
                 'podcast' => $podcast->title,
-                'removed' => count($toRemove),
+                'removed' => $n,
             ]);
         }
+
+        return $n;
     }
 }

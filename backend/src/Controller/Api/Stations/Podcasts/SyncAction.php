@@ -60,8 +60,13 @@ final readonly class SyncAction implements SingleActionInterface
             ], 400);
         }
 
-        $this->importTask->runForPodcast($podcast);
+        $result = $this->importTask->runForPodcastWithSyncLog($podcast);
 
-        return $response->withJson(['success' => true, 'message' => 'Sync completed.']);
+        return $response->withJson([
+            'success' => $result['success'],
+            'message' => $result['message'],
+            'episodes_added' => $result['episodes_added'],
+            'log' => $result['log'],
+        ]);
     }
 }
