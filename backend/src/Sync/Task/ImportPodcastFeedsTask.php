@@ -11,7 +11,9 @@ use App\Entity\Repository\PodcastEpisodeRepository;
 use App\Entity\Repository\PodcastRepository;
 use App\Entity\Repository\StorageLocationRepository;
 use App\Entity\Station;
+use App\Exception\CannotProcessMediaException;
 use App\Flysystem\StationFilesystems;
+use App\Media\MimeType;
 use GuzzleHttp\Client;
 use App\Flysystem\ExtendedFilesystemInterface;
 use GuzzleHttp\RequestOptions;
@@ -177,6 +179,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $added = 0;
         $skippedExisting = 0;
         $skippedNoEnclosure = 0;
+        $skippedUnsupportedMedia = 0;
         $downloadErrors = 0;
         $uploadErrors = 0;
         $maxErrorLines = 40;
@@ -193,6 +196,13 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $enclosureUrl = $this->getEnclosureUrl($item);
             if ($enclosureUrl === null) {
                 ++$skippedNoEnclosure;
+
+                continue;
+            }
+
+            $enclosureMimeHint = $this->getEnclosureMimeHint($item);
+            if ($this->isSkippablePodcastEnclosureMime($enclosureMimeHint)) {
+                ++$skippedUnsupportedMedia;
 
                 continue;
             }
@@ -240,6 +250,18 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 continue;
             }
 
+            $fileMime = MimeType::getMimeTypeFromFile($downloadedPath);
+            if (!MimeType::isFileProcessable($downloadedPath) || $this->isSkippablePodcastEnclosureMime($fileMime)) {
+                ++$skippedUnsupportedMedia;
+                $this->em->remove($episode);
+                $this->em->flush();
+                if (file_exists($downloadedPath)) {
+                    @unlink($downloadedPath);
+                }
+
+                continue;
+            }
+
             $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
             $originalName = $title . '.' . $ext;
 
@@ -257,6 +279,26 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 if ($guid !== null) {
                     $existingGuids[$guid] = true;
                 }
+            } catch (CannotProcessMediaException|\InvalidArgumentException $e) {
+                if ($this->isSkippablePodcastImportException($e)) {
+                    ++$skippedUnsupportedMedia;
+                    $this->logger->debug('Skipped podcast episode (unsupported media)', [
+                        'episode' => $title,
+                        'reason' => $e->getMessage(),
+                    ]);
+                } else {
+                    ++$uploadErrors;
+                    $this->logger->error('Failed to attach media to episode', [
+                        'episode' => $title,
+                        'error' => $e->getMessage(),
+                    ]);
+                    if ($errorLineBudget > 0) {
+                        $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
+                        --$errorLineBudget;
+                    }
+                }
+                $this->em->remove($episode);
+                $this->em->flush();
             } catch (\Throwable $e) {
                 ++$uploadErrors;
                 $this->logger->error('Failed to attach media to episode', [
@@ -278,6 +320,16 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
         $this->syncLogLine($syncLog, 'info', sprintf('Skipped %d item(s) already in library (same GUID).', $skippedExisting));
         $this->syncLogLine($syncLog, 'info', sprintf('Skipped %d item(s) with no audio enclosure.', $skippedNoEnclosure));
+        if ($skippedUnsupportedMedia > 0) {
+            $this->syncLogLine(
+                $syncLog,
+                'info',
+                sprintf(
+                    'Skipped %d item(s) with unsupported media (e.g. MP4 video or non-audio file).',
+                    $skippedUnsupportedMedia
+                )
+            );
+        }
         if ($downloadErrors > 0) {
             $truncated = $maxErrorLines - $errorLineBudget;
             $omitted = max(0, $downloadErrors - $truncated);
@@ -364,6 +416,69 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
         }
         return null;
+    }
+
+    /**
+     * MIME from RSS &lt;enclosure type="..."&gt; or Atom link when present.
+     */
+    private function getEnclosureMimeHint(SimpleXMLElement $item): ?string
+    {
+        if (isset($item->enclosure['url'], $item->enclosure['type'])) {
+            $t = trim((string) $item->enclosure['type']);
+
+            return $t !== '' ? $t : null;
+        }
+        if (isset($item->link['href'])) {
+            $type = trim((string) ($item->link['type'] ?? ''));
+
+            return $type !== '' ? $type : null;
+        }
+
+        return null;
+    }
+
+    private function normalizeMimeType(?string $mime): ?string
+    {
+        if ($mime === null || $mime === '') {
+            return null;
+        }
+        $mime = strtolower(trim(explode(';', $mime, 2)[0]));
+
+        return $mime !== '' ? $mime : null;
+    }
+
+    /**
+     * Episodes we skip quietly: MP4 video, HTML/error pages, and other non-MP3/M4A types
+     * handled after download or via upload validation.
+     */
+    private function isSkippablePodcastEnclosureMime(?string $mime): bool
+    {
+        $mime = $this->normalizeMimeType($mime);
+        if ($mime === null) {
+            return false;
+        }
+        if ($mime === 'video/mp4') {
+            return true;
+        }
+        if (str_starts_with($mime, 'text/')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isSkippablePodcastImportException(\Throwable $e): bool
+    {
+        if ($e instanceof CannotProcessMediaException) {
+            return true;
+        }
+        if ($e instanceof \InvalidArgumentException
+            && str_contains($e->getMessage(), 'Invalid Podcast Media mime type')
+            && str_contains($e->getMessage(), 'video/mp4')) {
+            return true;
+        }
+
+        return false;
     }
 
     private function getItemTitle(SimpleXMLElement $item): string
