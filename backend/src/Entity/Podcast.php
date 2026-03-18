@@ -46,7 +46,7 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
     /** RSS/Atom feed URL for import source. */
     #[ORM\Column(length: 500, nullable: true)]
     public ?string $feed_url = null {
-        set => $this->truncateNullableString($value, 500);
+        set => $this->trimTruncateNullableString($value, 500);
     }
 
     /** Enable automatic download of new episodes from feed. */

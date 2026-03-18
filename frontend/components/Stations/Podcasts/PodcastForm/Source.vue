@@ -136,6 +136,7 @@
                         :field="r$.feed_url"
                         :label="$gettext('Feed URL')"
                         :description="$gettext('RSS or Atom feed URL (e.g. https://example.com/feed.xml)')"
+                        input-trim
                     />
 
                     <form-group-checkbox

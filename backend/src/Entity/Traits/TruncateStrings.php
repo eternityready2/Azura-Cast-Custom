@@ -28,4 +28,22 @@ trait TruncateStrings
     {
         return mb_substr($string, 0, $length, 'UTF-8');
     }
+
+    /**
+     * Trim whitespace; empty after trim becomes null. Then truncate to max length.
+     */
+    protected function trimTruncateNullableString(?string $string, int $length): ?string
+    {
+        if ($string === null) {
+            return null;
+        }
+
+        $trimmed = trim($string);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        return $this->truncateString($trimmed, $length);
+    }
 }

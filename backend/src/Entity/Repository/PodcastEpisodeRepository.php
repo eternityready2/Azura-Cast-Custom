@@ -214,6 +214,8 @@ final class PodcastEpisodeRepository extends Repository
         $episode->media = null;
 
         if ($podcast->playlist !== null) {
+            // Flush so StationMedia has a DB id before playlist rows reference it (avoids uninitialized $id).
+            $this->em->flush();
             $this->playlistMediaRepo->addMediaToPlaylist($stationMedia, $podcast->playlist);
         }
     }
