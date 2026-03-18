@@ -1080,6 +1080,10 @@ export type ApiPodcast = HasLinks & {
   auto_import_enabled?: boolean;
   /** Keep only the last N episodes (0 = keep all). Older episodes are deleted. */
   auto_keep_episodes?: number;
+  /** Auto-import: latest_single | backfill_all */
+  import_strategy?: 'latest_single' | 'backfill_all';
+  /** Optional cron when auto-import runs (empty = every ~15 min check). */
+  import_cron?: string | null;
   /** Where to store episode files: 'podcast' or 'media' (station media folder for playlists). */
   episode_storage_type?: 'podcast' | 'media';
   /** Optional subfolder within station media for episode files (e.g. "Radio Shows/MyShow"). Only when episode_storage_type is media. */

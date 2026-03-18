@@ -9,6 +9,7 @@ use App\Controller\Api\Traits\CanSearchResults;
 use App\Entity\Api\Podcast as ApiPodcast;
 use App\Entity\ApiGenerator\PodcastApiGenerator;
 use App\Entity\Enums\PodcastEpisodeStorageType;
+use App\Entity\Enums\PodcastImportStrategy;
 use App\Entity\Podcast;
 use App\Entity\PodcastCategory;
 use App\Entity\Repository\PodcastRepository;
@@ -313,6 +314,25 @@ final class PodcastsController extends AbstractApiCrudController
             $data['media_folder_path'] = (is_string($raw) && trim($raw) === '') ? null : $raw;
         }
 
+        $importStrategySet = false;
+        $importStrategy = PodcastImportStrategy::LatestSingle;
+        if (array_key_exists('import_strategy', $data)) {
+            $v = Types::stringOrNull($data['import_strategy']);
+            $importStrategy = ($v === PodcastImportStrategy::BackfillAll->value)
+                ? PodcastImportStrategy::BackfillAll
+                : PodcastImportStrategy::LatestSingle;
+            unset($data['import_strategy']);
+            $importStrategySet = true;
+        }
+
+        $importCronTouched = array_key_exists('import_cron', $data);
+        $importCronValue = null;
+        if ($importCronTouched) {
+            $raw = Types::stringOrNull($data['import_cron']);
+            $importCronValue = ($raw === null || trim($raw) === '') ? null : trim($raw);
+            unset($data['import_cron']);
+        }
+
         $autoKeepEpisodes = null;
         if (array_key_exists('auto_keep_episodes', $data)) {
             $autoKeepEpisodes = max(0, min(32767, Types::int($data['auto_keep_episodes'])));
@@ -331,6 +351,12 @@ final class PodcastsController extends AbstractApiCrudController
         $record->episode_storage_type = $episodeStorageType;
         if (null !== $autoKeepEpisodes) {
             $record->auto_keep_episodes = $autoKeepEpisodes;
+        }
+        if ($importStrategySet) {
+            $record->import_strategy = $importStrategy;
+        }
+        if ($importCronTouched) {
+            $record->import_cron = $importCronValue;
         }
 
         if (null !== $newCategories) {

@@ -154,7 +154,25 @@
                         type="number"
                         :min="0"
                         :label="$gettext('Keep Last N Episodes')"
-                        :description="$gettext('Keep only the most recent N episodes (0 = keep all). Older episodes will be deleted and replaced.')"
+                        :description="$gettext('After import, keep only the N newest episodes (0 = keep all). Useful with “Import all from feed”.')"
+                    />
+
+                    <form-group-select
+                        id="form_edit_import_strategy"
+                        class="col-md-12"
+                        :field="r$.import_strategy"
+                        :options="importStrategyOptions"
+                        :label="$gettext('Auto-import mode')"
+                        :description="$gettext('Latest only: one episode (newest by date), replaces the previous file. Import all: download every episode not yet in the library.')"
+                    />
+
+                    <form-group-field
+                        id="form_edit_import_cron"
+                        class="col-md-12"
+                        :field="r$.import_cron"
+                        :label="$gettext('Auto-import schedule (cron)')"
+                        :description="$gettext('Leave empty to check the feed about every 15 minutes. Or set a cron, e.g. 30 7 1 * * = 07:30 on the 1st of each month (before your show airs).')"
+                        input-trim
                     />
                 </div>
             </div>
@@ -223,5 +241,10 @@ onMounted(loadPlaylists);
 const episodeStorageTypeOptions = [
     { value: 'podcast', text: $gettext('Podcast folder (default)') },
     { value: 'media', text: $gettext('Station media folder (for playlists)') }
+];
+
+const importStrategyOptions = [
+    { value: 'latest_single', text: $gettext('Latest episode only (replace previous)') },
+    { value: 'backfill_all', text: $gettext('Import all new episodes from feed') }
 ];
 </script>

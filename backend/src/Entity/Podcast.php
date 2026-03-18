@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Entity\Enums\PodcastEpisodeStorageType;
+use App\Entity\Enums\PodcastImportStrategy;
 use App\Entity\Enums\PodcastSources;
 use Azura\Normalizer\Attributes\DeepNormalize;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -56,6 +57,22 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
     /** Keep only the last N episodes (0 = keep all). Older episodes are deleted and replaced. */
     #[ORM\Column(type: 'smallint', options: ['default' => 0])]
     public int $auto_keep_episodes = 0;
+
+    /**
+     * Auto-import behavior: latest_single = one newest episode, replace previous;
+     * backfill_all = import all missing items from feed.
+     */
+    #[ORM\Column(type: 'string', length: 32, enumType: PodcastImportStrategy::class, options: ['default' => 'backfill_all'])]
+    public PodcastImportStrategy $import_strategy = PodcastImportStrategy::BackfillAll;
+
+    /**
+     * Optional cron (e.g. "30 7 1 * *" = 07:30 on the 1st of each month). When set, auto-import runs only when this expression is due.
+     * Empty = run on every global podcast sync tick (~15 min) when auto_import_enabled.
+     */
+    #[ORM\Column(length: 120, nullable: true)]
+    public ?string $import_cron = null {
+        set => $this->trimTruncateNullableString($value, 120);
+    }
 
     /** Where to store episode files: podcast folder (default) or station media folder (for use in playlists). */
     #[ORM\Column(type: 'string', length: 50, enumType: PodcastEpisodeStorageType::class, options: ['default' => 'podcast'])]

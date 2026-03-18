@@ -10,6 +10,7 @@ use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
 use App\Sync\Task\ImportPodcastFeedsTask;
+use App\Utilities\Types;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
 
@@ -17,7 +18,7 @@ use Psr\Http\Message\ResponseInterface;
     path: '/station/{station_id}/podcast/{podcast_id}/sync',
     operationId: 'syncPodcastFeed',
     summary: 'Trigger RSS feed import for this podcast now.',
-    description: 'Runs the same import as the scheduled task (feed URL, auto-download). Only applies when source is "import".',
+    description: 'Runs RSS import. Body: { "full_import": true } imports all missing episodes; false/omitted syncs latest episode only (replaces previous).',
     tags: [OpenApi::TAG_STATIONS_PODCASTS],
     parameters: [
         new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
@@ -60,13 +61,20 @@ final readonly class SyncAction implements SingleActionInterface
             ], 400);
         }
 
-        $result = $this->importTask->runForPodcastWithSyncLog($podcast);
+        $body = $request->getParsedBody();
+        $fullImport = false;
+        if (is_array($body) && array_key_exists('full_import', $body)) {
+            $fullImport = Types::bool($body['full_import'], broadenValidBools: true);
+        }
+
+        $result = $this->importTask->runForPodcastWithSyncLog($podcast, $fullImport);
 
         return $response->withJson([
             'success' => $result['success'],
             'message' => $result['message'],
             'episodes_added' => $result['episodes_added'],
             'log' => $result['log'],
+            'full_import' => $fullImport,
         ]);
     }
 }

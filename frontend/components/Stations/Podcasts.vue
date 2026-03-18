@@ -89,15 +89,30 @@
                         >
                             {{ $gettext('Edit') }}
                         </button>
-                        <button
+                        <div
                             v-if="item.source === 'import'"
-                            type="button"
-                            class="btn btn-info"
-                            :disabled="syncLoading === item.id"
-                            @click="doSync(item)"
+                            class="btn-group btn-group-sm"
+                            role="group"
                         >
-                            {{ syncLoading === item.id ? $gettext('Syncing…') : $gettext('Sync now') }}
-                        </button>
+                            <button
+                                type="button"
+                                class="btn btn-info"
+                                :disabled="syncLoading === item.id"
+                                :title="$gettext('Download only the newest episode (replaces previous file)')"
+                                @click="doSyncLatest(item)"
+                            >
+                                {{ syncLoading === item.id ? $gettext('Syncing…') : $gettext('Sync latest') }}
+                            </button>
+                            <button
+                                type="button"
+                                class="btn btn-outline-info"
+                                :disabled="syncLoading === item.id"
+                                :title="$gettext('Import every episode from the feed not yet in the library')"
+                                @click="doSyncFullFeed(item)"
+                            >
+                                {{ $gettext('Import full feed') }}
+                            </button>
+                        </div>
                         <button
                             type="button"
                             class="btn btn-danger"
@@ -148,6 +163,7 @@ import {useAxios} from "~/vendor/axios.ts";
 import {useQuery} from "@tanstack/vue-query";
 import Loading from "~/components/Common/Loading.vue";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
+import {useDialog} from "~/components/Common/Dialogs/useDialog.ts";
 
 const {getStationApiUrl} = useApiRouter();
 const quotaUrl = getStationApiUrl(`/quota/${StorageLocationTypes.StationPodcasts}`);
@@ -211,8 +227,9 @@ const {doDelete} = useConfirmAndDelete(
 );
 
 const syncLoading = shallowRef<string | null>(null);
+const {confirmDelete} = useDialog();
 
-const doSync = async (item: { id: string }) => {
+const runPodcastSync = async (item: { id: string }, fullImport: boolean) => {
     syncLoading.value = item.id;
     try {
         const url = getStationApiUrl(`/podcast/${item.id}/sync`);
@@ -221,7 +238,7 @@ const doSync = async (item: { id: string }) => {
             message: string;
             episodes_added: number;
             log: SyncLogEntry[];
-        }>(url.value);
+        }>(url.value, fullImport ? {full_import: true} : {});
         await refresh();
         $syncLogModal.value?.show(
             data.log ?? [],
@@ -230,6 +247,21 @@ const doSync = async (item: { id: string }) => {
         );
     } finally {
         syncLoading.value = null;
+    }
+};
+
+const doSyncLatest = async (item: { id: string }) => {
+    await runPodcastSync(item, false);
+};
+
+const doSyncFullFeed = async (item: { id: string }) => {
+    const {value} = await confirmDelete({
+        title: $gettext('Import all episodes from the RSS feed? This can take a long time and use a lot of storage.'),
+        confirmButtonText: $gettext('Import all'),
+        confirmButtonClass: 'btn-primary',
+    });
+    if (value) {
+        await runPodcastSync(item, true);
     }
 };
 </script>

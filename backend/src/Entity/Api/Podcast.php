@@ -40,6 +40,12 @@ final class Podcast
     #[OA\Property(description: 'Keep only the last N episodes (0 = keep all). Older episodes are deleted.')]
     public int $auto_keep_episodes = 0;
 
+    #[OA\Property(description: 'Auto-import: latest_single = one newest episode (replace); backfill_all = all missing from feed.')]
+    public string $import_strategy = 'latest_single';
+
+    #[OA\Property(description: 'Optional cron for auto-import only (e.g. "30 7 1 * *"). Empty = check every sync tick (~15 min).')]
+    public ?string $import_cron = null;
+
     #[OA\Property(description: 'Where to store episode files: podcast folder or station media folder (for playlists).')]
     public string $episode_storage_type = 'podcast';
 

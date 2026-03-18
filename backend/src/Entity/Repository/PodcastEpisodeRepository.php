@@ -320,6 +320,31 @@ final class PodcastEpisodeRepository extends Repository
         $this->em->flush();
     }
 
+    /**
+     * Remove all episodes (and media) for a podcast. Used when switching to single-latest import.
+     *
+     * @return int Number of episodes removed
+     */
+    public function deleteAllEpisodesForPodcast(
+        Podcast $podcast,
+        ExtendedFilesystemInterface $fs
+    ): int {
+        $episodes = $this->em->createQuery(
+            <<<'DQL'
+                SELECT e FROM App\Entity\PodcastEpisode e
+                WHERE e.podcast = :podcast
+            DQL
+        )->setParameter('podcast', $podcast)->getResult();
+
+        $n = 0;
+        foreach ($episodes as $episode) {
+            $this->delete($episode, $fs);
+            ++$n;
+        }
+
+        return $n;
+    }
+
     public function delete(
         PodcastEpisode $episode,
         ?ExtendedFilesystemInterface $fs = null
