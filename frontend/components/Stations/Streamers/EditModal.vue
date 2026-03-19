@@ -53,7 +53,7 @@ const formStore = useStationsStreamersForm();
 const {form, r$, record} = storeToRefs(formStore);
 const {$reset: resetForm, setEditMode} = formStore;
 
-const {r$: validater$} = useAppCollectScope('stations-playlists');
+const {r$: validater$} = useAppCollectScope('stations-streamers');
 
 const {
     loading,

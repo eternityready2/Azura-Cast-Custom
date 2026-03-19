@@ -181,7 +181,7 @@
 import PlaylistTime from "~/components/Common/TimeCode.vue";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
 import {required} from "@regle/rules";
-import {toRef} from "vue";
+import {watch} from "vue";
 import {useTranslate} from "~/vendor/gettext";
 import FormMarkup from "~/components/Form/FormMarkup.vue";
 import FormGroupMultiCheck from "~/components/Form/FormGroupMultiCheck.vue";
@@ -209,21 +209,33 @@ interface PlaylistScheduleRow {
 
 const props = defineProps<{
     index: number,
-    row: PlaylistScheduleRow,
 }>();
+
+const row = defineModel<PlaylistScheduleRow>('row', {required: true});
 
 const emit = defineEmits<{
     (e: 'remove'): void
 }>();
 
 const {r$} = useAppScopedRegle(
-    toRef(props, 'row'),
+    row,
     {
         start_time: {required},
         end_time: {required},
     },
     {
         namespace: 'stations-streamers'
+    }
+);
+
+watch(
+    () => row.value.recurrence_type,
+    (newType: string | null) => {
+        if (newType === 'biweekly') {
+            row.value.recurrence_interval = 2;
+        } else if (newType === 'weekly') {
+            row.value.recurrence_interval = 1;
+        }
     }
 );
 

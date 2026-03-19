@@ -183,7 +183,7 @@
 import PlaylistTime from "~/components/Common/TimeCode.vue";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
 import {minValue, required, requiredIf} from "@regle/rules";
-import {toRef} from "vue";
+import {watch} from "vue";
 import {useTranslate} from "~/vendor/gettext";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
 import FormMarkup from "~/components/Form/FormMarkup.vue";
@@ -213,25 +213,38 @@ interface PlaylistScheduleRow {
 
 const props = defineProps<{
     index: number,
-    row: PlaylistScheduleRow
 }>();
+
+/** v-model:row from parent — required so recurrence and other fields mutate the form store on submit */
+const row = defineModel<PlaylistScheduleRow>('row', {required: true});
 
 const emit = defineEmits<{
     (e: 'remove'): void
 }>();
 
 const {r$} = useAppScopedRegle(
-    toRef(props, 'row'),
+    row,
     {
         start_time: {required},
         end_time: {required},
         recurrence_end_after: {
-            required: requiredIf(() => props.row.recurrence_end_type === 'after'),
+            required: requiredIf(() => row.value.recurrence_end_type === 'after'),
             minValue: minValue(1),
         },
     },
     {
         namespace: 'stations-playlists'
+    }
+);
+
+watch(
+    () => row.value.recurrence_type,
+    (newType: string | null) => {
+        if (newType === 'biweekly') {
+            row.value.recurrence_interval = 2;
+        } else if (newType === 'weekly') {
+            row.value.recurrence_interval = 1;
+        }
     }
 );
 
