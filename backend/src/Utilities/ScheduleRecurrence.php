@@ -115,6 +115,14 @@ final class ScheduleRecurrence
         if ($schedule->recurrence_interval > 1) {
             return true;
         }
+        // "Stop after N occurrences" or "stop on date" require the recurrence path so the limit is applied (e.g. on calendar).
+        $endType = $schedule->recurrence_end_type ?? RecurrenceEndType::Never;
+        if ($endType === RecurrenceEndType::After && $schedule->recurrence_end_after !== null) {
+            return true;
+        }
+        if ($endType === RecurrenceEndType::OnDate) {
+            return true;
+        }
         return false;
     }
 
