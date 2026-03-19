@@ -812,4 +812,327 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
         return $n;
     }
+
+    /**
+     * @return array<string, array{episode_id: string, has_media: bool}>
+     */
+    private function getExistingEpisodeImportMap(Podcast $podcast): array
+    {
+        $episodes = $this->em->createQuery(
+            <<<'DQL'
+                SELECT e FROM App\Entity\PodcastEpisode e
+                WHERE e.podcast = :podcast
+            DQL
+        )->setParameter('podcast', $podcast)->getResult();
+
+        $map = [];
+        foreach ($episodes as $episode) {
+            $link = $episode->link;
+            if ($link !== null && $link !== '') {
+                $map[$link] = [
+                    'episode_id' => $episode->id,
+                    'has_media' => $episode->media !== null || $episode->playlist_media !== null,
+                ];
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return array{success: bool, items: list<array<string, mixed>>, message?: string}
+     */
+    public function getFeedItemsPreview(Podcast $podcast): array
+    {
+        $feedUrl = $podcast->feed_url;
+        if (empty($feedUrl)) {
+            return ['success' => false, 'items' => [], 'message' => 'Podcast has no feed URL.'];
+        }
+
+        try {
+            $response = $this->httpClient->get($feedUrl, [
+                RequestOptions::TIMEOUT => 30,
+                RequestOptions::HTTP_ERRORS => true,
+                RequestOptions::HEADERS => [
+                    'User-Agent' => 'AzuraCast/1.0 (Podcast Feed Preview)',
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'items' => [], 'message' => 'Failed to fetch feed: ' . $e->getMessage()];
+        }
+
+        $body = (string) $response->getBody();
+        $xml = @simplexml_load_string($body);
+        if ($xml === false) {
+            return ['success' => false, 'items' => [], 'message' => 'Invalid XML in feed.'];
+        }
+
+        $items = $this->getRssItems($xml);
+        usort($items, function (SimpleXMLElement $a, SimpleXMLElement $b): int {
+            return $this->getItemPublishAt($b) <=> $this->getItemPublishAt($a);
+        });
+
+        $importMap = $this->getExistingEpisodeImportMap($podcast);
+        $out = [];
+
+        foreach ($items as $item) {
+            $guid = $this->getItemGuid($item);
+            $enclosureUrl = $this->getEnclosureUrl($item);
+            $mimeHint = $this->getEnclosureMimeHint($item);
+            $key = $guid ?: $enclosureUrl;
+            if ($key === null || $key === '') {
+                continue;
+            }
+
+            $imported = false;
+            $episodeId = null;
+            $hasMedia = false;
+            if ($guid !== null && $guid !== '' && isset($importMap[$guid])) {
+                $imported = true;
+                $episodeId = $importMap[$guid]['episode_id'];
+                $hasMedia = $importMap[$guid]['has_media'];
+            } elseif ($enclosureUrl !== null && isset($importMap[$enclosureUrl])) {
+                $imported = true;
+                $episodeId = $importMap[$enclosureUrl]['episode_id'];
+                $hasMedia = $importMap[$enclosureUrl]['has_media'];
+            }
+
+            $noAudio = $enclosureUrl === null
+                || $this->isSkippablePodcastEnclosureMime($mimeHint);
+
+            $out[] = [
+                'key' => $key,
+                'title' => $this->getItemTitle($item),
+                'published_at' => $this->getItemPublishAt($item),
+                'enclosure_url' => $enclosureUrl,
+                'enclosure_type' => $mimeHint,
+                'no_audio' => $noAudio,
+                'imported' => $imported,
+                'episode_id' => $episodeId,
+                'has_media' => $hasMedia,
+            ];
+        }
+
+        return ['success' => true, 'items' => $out];
+    }
+
+    /**
+     * Import specific feed items by the same `key` values returned from getFeedItemsPreview.
+     *
+     * @param list<string> $keys
+     *
+     * @return array{success: bool, episodes_added: int, log: list<array{level: string, message: string}>, message?: string}
+     */
+    public function importFeedItemsByKeys(Podcast $podcast, array $keys): array
+    {
+        $log = [];
+        $keys = array_values(array_unique(array_filter(array_map('strval', $keys))));
+        if ($keys === []) {
+            return [
+                'success' => false,
+                'episodes_added' => 0,
+                'log' => [['level' => 'error', 'message' => 'No episode keys provided.']],
+                'message' => 'No keys.',
+            ];
+        }
+
+        if (count($keys) > 40) {
+            return [
+                'success' => false,
+                'episodes_added' => 0,
+                'log' => [['level' => 'error', 'message' => 'Maximum 40 episodes per request.']],
+                'message' => 'Too many keys.',
+            ];
+        }
+
+        $stations = $this->storageLocationRepo->getStationsUsingLocation($podcast->storage_location);
+        $station = $stations[0] ?? null;
+        if (!$station instanceof Station) {
+            return [
+                'success' => false,
+                'episodes_added' => 0,
+                'log' => [['level' => 'error', 'message' => 'No station for podcast storage.']],
+                'message' => 'No station.',
+            ];
+        }
+
+        $feedUrl = $podcast->feed_url;
+        if (empty($feedUrl)) {
+            return [
+                'success' => false,
+                'episodes_added' => 0,
+                'log' => [['level' => 'error', 'message' => 'No feed URL.']],
+                'message' => 'No feed.',
+            ];
+        }
+
+        try {
+            $response = $this->httpClient->get($feedUrl, [
+                RequestOptions::TIMEOUT => 30,
+                RequestOptions::HTTP_ERRORS => true,
+                RequestOptions::HEADERS => [
+                    'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'episodes_added' => 0,
+                'log' => [['level' => 'error', 'message' => 'Fetch failed: ' . $e->getMessage()]],
+                'message' => $e->getMessage(),
+            ];
+        }
+
+        $xml = @simplexml_load_string((string) $response->getBody());
+        if ($xml === false) {
+            return [
+                'success' => false,
+                'episodes_added' => 0,
+                'log' => [['level' => 'error', 'message' => 'Invalid feed XML.']],
+                'message' => 'Bad XML.',
+            ];
+        }
+
+        $items = $this->getRssItems($xml);
+        $itemByKey = [];
+        foreach ($items as $item) {
+            $guid = $this->getItemGuid($item);
+            $url = $this->getEnclosureUrl($item);
+            $k = $guid ?: $url;
+            if ($k !== null && $k !== '') {
+                $itemByKey[$k] = $item;
+            }
+        }
+
+        $fs = $this->stationFilesystems->getPodcastsFilesystem($station);
+        $tempDir = $station->getRadioTempDir();
+        $existingLinks = $this->getExistingEpisodeGuids($podcast);
+        $added = 0;
+        $errorLineBudget = 20;
+
+        foreach ($keys as $key) {
+            $item = $itemByKey[$key] ?? null;
+            if ($item === null) {
+                $this->syncLogLine($log, 'warning', sprintf('Key not found in feed: %s', mb_substr($key, 0, 80)));
+                continue;
+            }
+
+            $guid = $this->getItemGuid($item);
+            $enclosureUrl = $this->getEnclosureUrl($item);
+            if ($enclosureUrl === null) {
+                $this->syncLogLine($log, 'warning', sprintf('No enclosure [%s]', $this->getItemTitle($item)));
+                continue;
+            }
+
+            if ($this->isSkippablePodcastEnclosureMime($this->getEnclosureMimeHint($item))) {
+                $this->syncLogLine($log, 'info', sprintf('Skipped (non-audio) [%s]', $this->getItemTitle($item)));
+                continue;
+            }
+
+            $linkVal = $guid ?: $enclosureUrl;
+            if ($linkVal !== '' && isset($existingLinks[$linkVal])) {
+                $this->syncLogLine($log, 'info', sprintf('Already imported [%s]', $this->getItemTitle($item)));
+                continue;
+            }
+
+            $title = $this->getItemTitle($item);
+            $description = $this->getItemDescription($item);
+            $publishAt = $this->getItemPublishAt($item);
+
+            $episode = new PodcastEpisode($podcast);
+            $episode->title = $title;
+            $episode->description = $description;
+            $episode->publish_at = $publishAt;
+            $episode->explicit = $podcast->explicit;
+            if ($linkVal !== '') {
+                $episode->link = $linkVal;
+            }
+            $this->em->persist($episode);
+            $this->em->flush();
+
+            $downloadedPath = $tempDir . '/' . 'podcast_sel_' . $episode->id . '_' . md5($enclosureUrl);
+            try {
+                $this->httpClient->get($enclosureUrl, [
+                    RequestOptions::SINK => $downloadedPath,
+                    RequestOptions::TIMEOUT => 300,
+                    RequestOptions::HEADERS => [
+                        'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                if ($errorLineBudget > 0) {
+                    $this->syncLogLine($log, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
+                    --$errorLineBudget;
+                }
+                $this->em->remove($episode);
+                $this->em->flush();
+                if (file_exists($downloadedPath)) {
+                    @unlink($downloadedPath);
+                }
+
+                continue;
+            }
+
+            if (!MimeType::isFileProcessable($downloadedPath) || $this->isSkippablePodcastEnclosureMime(MimeType::getMimeTypeFromFile($downloadedPath))) {
+                $this->syncLogLine($log, 'info', sprintf('Skipped bad file [%s]', $title));
+                $this->em->remove($episode);
+                $this->em->flush();
+                @unlink($downloadedPath);
+
+                continue;
+            }
+
+            $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
+            $originalName = $title . '.' . $ext;
+
+            try {
+                $this->podcastEpisodeRepo->uploadMedia(
+                    $episode,
+                    $originalName,
+                    $downloadedPath,
+                    $fs
+                );
+                ++$added;
+                $this->syncLogLine($log, 'info', sprintf('Imported: %s', $title));
+                if ($linkVal !== '') {
+                    $existingLinks[$linkVal] = true;
+                }
+            } catch (CannotProcessMediaException|\InvalidArgumentException $e) {
+                if ($this->isSkippablePodcastImportException($e)) {
+                    $this->syncLogLine($log, 'info', sprintf('Skipped [%s]: %s', $title, $e->getMessage()));
+                } elseif ($errorLineBudget > 0) {
+                    $this->syncLogLine($log, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
+                    --$errorLineBudget;
+                }
+                $this->em->remove($episode);
+                $this->em->flush();
+            } catch (\Throwable $e) {
+                if ($errorLineBudget > 0) {
+                    $this->syncLogLine($log, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
+                    --$errorLineBudget;
+                }
+                $this->em->remove($episode);
+                $this->em->flush();
+            }
+
+            if (file_exists($downloadedPath)) {
+                @unlink($downloadedPath);
+            }
+        }
+
+        if ($podcast->auto_keep_episodes > 0) {
+            $pruned = $this->pruneOldEpisodes($podcast, $fs);
+            if ($pruned > 0) {
+                $this->syncLogLine($log, 'info', sprintf('Pruned %d older episode(s).', $pruned));
+            }
+        }
+
+        $this->syncLogLine($log, 'info', sprintf('Done. %d episode(s) imported.', $added));
+
+        return [
+            'success' => true,
+            'episodes_added' => $added,
+            'log' => $log,
+        ];
+    }
 }

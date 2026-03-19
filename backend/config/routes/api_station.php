@@ -239,6 +239,16 @@ return static function (RouteCollectorProxy $group) {
                                     )->setName('api:stations:podcast:sync');
 
                                     $group->get(
+                                        '/feed-items',
+                                        Controller\Api\Stations\Podcasts\FeedItemsAction::class
+                                    )->setName('api:stations:podcast:feed-items');
+
+                                    $group->post(
+                                        '/import-selected',
+                                        Controller\Api\Stations\Podcasts\ImportSelectedEpisodesAction::class
+                                    )->setName('api:stations:podcast:import-selected');
+
+                                    $group->get(
                                         '/art[-{timestamp}.jpg]',
                                         Controller\Api\Stations\Podcasts\Art\GetArtAction::class
                                     )->setName('api:stations:podcast:art');

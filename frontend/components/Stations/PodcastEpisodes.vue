@@ -26,7 +26,7 @@
             </div>
         </template>
         <template
-            v-if="!podcastIsManual"
+            v-if="podcastIsPlaylist"
             #info
         >
             <p class="card-text">
@@ -51,6 +51,12 @@
                 @click="doCreate"
             />
         </template>
+
+        <podcast-rss-feed-panel
+            v-if="podcastIsImport"
+            :podcast-id="podcast.id"
+            @imported="relist"
+        />
 
         <episodes-toolbar
             :batch-url="podcast.links.batch"
@@ -172,6 +178,7 @@ import useHasEditModal from "~/functions/useHasEditModal.ts";
 import useStationDateTimeFormatter from "~/functions/useStationDateTimeFormatter.ts";
 import CardPage from "~/components/Common/CardPage.vue";
 import EpisodesToolbar from "~/components/Stations/Podcasts/EpisodesToolbar.vue";
+import PodcastRssFeedPanel from "~/components/Stations/Podcasts/PodcastRssFeedPanel.vue";
 import BatchEditModal from "~/components/Stations/Podcasts/BatchEditModal.vue";
 import {useHasModal} from "~/functions/useHasModal.ts";
 import {useApiItemProvider} from "~/functions/dataTable/useApiItemProvider.ts";
@@ -270,6 +277,10 @@ const {refresh} = episodesItemProvider;
 const podcastIsManual = computed(() => {
     return podcast.value?.source == 'manual';
 });
+
+const podcastIsPlaylist = computed(() => podcast.value?.source === 'playlist');
+
+const podcastIsImport = computed(() => podcast.value?.source === 'import');
 
 const $quota = useTemplateRef('$quota');
 
