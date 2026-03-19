@@ -292,4 +292,69 @@ final class StationScheduleRepository extends Repository
 
         return $events;
     }
+
+    /**
+     * Earliest upcoming start timestamp for the given playlist's schedule (for "sync N hours before air").
+     * Uses station timezone. Looks up to 35 days ahead.
+     *
+     * @return int|null Unix timestamp of next start, or null if playlist has no schedule or no future occurrence
+     */
+    public function getNextStartTimestampForPlaylist(
+        Station $station,
+        StationPlaylist $playlist,
+        ?DateTimeImmutable $now = null
+    ): ?int {
+        $stationTz = $station->getTimezoneObject();
+        $now = CarbonImmutable::instance(Time::nowInTimezone($stationTz, $now));
+        $rangeStart = $now;
+        $rangeEnd = $now->addDays(35);
+
+        $scheduleItems = $this->findByRelation($playlist);
+        if ($scheduleItems === []) {
+            return null;
+        }
+
+        $candidates = [];
+
+        foreach ($scheduleItems as $scheduleItem) {
+            if (ScheduleRecurrence::hasRecurrence($scheduleItem)) {
+                $occurrences = ScheduleRecurrence::getOccurrencesInRange(
+                    $scheduleItem,
+                    $stationTz,
+                    $rangeStart,
+                    $rangeEnd,
+                    20
+                );
+                foreach ($occurrences as $dateRange) {
+                    if ($dateRange->start->getTimestamp() >= $now->getTimestamp()) {
+                        $candidates[] = $dateRange->start->getTimestamp();
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            $i = $rangeStart->startOf('day');
+            while ($i <= $rangeEnd) {
+                $dayOfWeek = $i->dayOfWeekIso;
+                if (
+                    $this->scheduler->shouldSchedulePlayOnCurrentDate($scheduleItem, $stationTz, $i)
+                    && $this->scheduler->isScheduleScheduledToPlayToday($scheduleItem, $dayOfWeek)
+                ) {
+                    $start = StationSchedule::getDateTime($scheduleItem->start_time, $stationTz, $i);
+                    if ($start->getTimestamp() >= $now->getTimestamp()) {
+                        $candidates[] = $start->getTimestamp();
+                        break;
+                    }
+                }
+                $i = $i->addDay();
+            }
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        return min($candidates);
+    }
 }

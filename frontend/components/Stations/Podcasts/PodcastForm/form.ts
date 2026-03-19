@@ -37,6 +37,7 @@ export const useStationsPodcastsForm = defineStore(
             auto_keep_episodes: 0,
             import_strategy: 'latest_single' as const,
             import_cron: null as string | null,
+            import_sync_before_hours: null as number | null,
             episode_storage_type: 'podcast',
             media_folder_path: null,
             artwork_file: null,
@@ -79,6 +80,7 @@ export const useStationsPodcastsForm = defineStore(
                         fields.auto_keep_episodes,
                         fields.import_strategy,
                         fields.import_cron,
+                        fields.import_sync_before_hours,
                         fields.episode_storage_type,
                         fields.media_folder_path,
                     ]

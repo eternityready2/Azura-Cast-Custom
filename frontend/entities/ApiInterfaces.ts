@@ -1084,6 +1084,8 @@ export type ApiPodcast = HasLinks & {
   import_strategy?: 'latest_single' | 'backfill_all';
   /** Optional cron when auto-import runs (empty = every ~15 min check). */
   import_cron?: string | null;
+  /** When set and podcast has a linked playlist: run auto-import only N hours before the playlist's next scheduled start (e.g. 5). Null/0 = use cron or every tick. */
+  import_sync_before_hours?: number | null;
   /** Where to store episode files: 'podcast' or 'media' (station media folder for playlists). */
   episode_storage_type?: 'podcast' | 'media';
   /** Optional subfolder within station media for episode files (e.g. "Radio Shows/MyShow"). Only when episode_storage_type is media. */

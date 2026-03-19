@@ -171,8 +171,19 @@
                         class="col-md-12"
                         :field="r$.import_cron"
                         :label="$gettext('Auto-import schedule (cron)')"
-                        :description="$gettext('Leave empty to check the feed about every 15 minutes. Or set a cron, e.g. 30 7 1 * * = 07:30 on the 1st of each month (before your show airs).')"
+                        :description="$gettext('Leave empty to check the feed about every 15 minutes. Or set a cron, e.g. 30 7 1 * * = 07:30 on the 1st of each month (before your show airs). Ignored when “Sync before air” is set.')"
                         input-trim
+                    />
+
+                    <form-group-field
+                        id="form_edit_import_sync_before_hours"
+                        class="col-md-12"
+                        :field="r$.import_sync_before_hours"
+                        type="number"
+                        :min="0"
+                        :max="168"
+                        :label="$gettext('Sync N hours before air (optional)')"
+                        :description="$gettext('If this podcast has a linked playlist with a schedule: run auto-import only once within this many hours before the next scheduled start (e.g. 5 = about 5 hours before). Leave 0 or empty to use the cron above or every-tick checks.')"
                     />
                 </div>
             </div>

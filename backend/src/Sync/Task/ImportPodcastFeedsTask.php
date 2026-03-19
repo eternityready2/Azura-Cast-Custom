@@ -9,6 +9,7 @@ use App\Entity\Enums\PodcastSources;
 use App\Entity\Podcast;
 use App\Entity\PodcastEpisode;
 use App\Entity\Repository\PodcastEpisodeRepository;
+use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Repository\StorageLocationRepository;
 use App\Entity\Station;
 use Cron\CronExpression;
@@ -25,6 +26,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
     public function __construct(
         private readonly Client $httpClient,
         private readonly PodcastEpisodeRepository $podcastEpisodeRepo,
+        private readonly StationScheduleRepository $stationScheduleRepo,
         private readonly StorageLocationRepository $storageLocationRepo,
         private readonly StationFilesystems $stationFilesystems
     ) {
@@ -99,6 +101,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $podcasts = $this->em->createQuery(
             <<<'DQL'
                 SELECT p FROM App\Entity\Podcast p
+                LEFT JOIN p.playlist pl
                 WHERE p.storage_location = :storageLocation
                 AND p.source = :source
                 AND p.is_enabled = true
@@ -111,23 +114,43 @@ final class ImportPodcastFeedsTask extends AbstractTask
             ->execute();
 
         $now = new \DateTimeImmutable('@' . time());
+        $nowTs = $now->getTimestamp();
 
         foreach ($podcasts as $podcast) {
-            $cronExpr = trim((string) ($podcast->import_cron ?? ''));
-            if ($cronExpr !== '') {
-                try {
-                    $cron = new CronExpression($cronExpr);
-                    if (!$cron->isDue($now)) {
+            $syncBeforeHours = $podcast->import_sync_before_hours;
+            if ($syncBeforeHours !== null && $syncBeforeHours > 0 && $podcast->playlist !== null) {
+                $nextStart = $this->stationScheduleRepo->getNextStartTimestampForPlaylist(
+                    $station,
+                    $podcast->playlist,
+                    $now
+                );
+                if ($nextStart === null) {
+                    continue;
+                }
+                $windowStart = $nextStart - ($syncBeforeHours * 3600);
+                if ($nowTs < $windowStart) {
+                    continue;
+                }
+                if ($nowTs > $nextStart + 3600) {
+                    continue;
+                }
+            } else {
+                $cronExpr = trim((string) ($podcast->import_cron ?? ''));
+                if ($cronExpr !== '') {
+                    try {
+                        $cron = new CronExpression($cronExpr);
+                        if (!$cron->isDue($now)) {
+                            continue;
+                        }
+                    } catch (\Throwable $e) {
+                        $this->logger->warning('Podcast has invalid import_cron; skipping auto-import this run.', [
+                            'podcast' => $podcast->title,
+                            'import_cron' => $cronExpr,
+                            'error' => $e->getMessage(),
+                        ]);
+
                         continue;
                     }
-                } catch (\Throwable $e) {
-                    $this->logger->warning('Podcast has invalid import_cron; skipping auto-import this run.', [
-                        'podcast' => $podcast->title,
-                        'import_cron' => $cronExpr,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    continue;
                 }
             }
 

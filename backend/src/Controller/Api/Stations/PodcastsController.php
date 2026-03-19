@@ -333,6 +333,21 @@ final class PodcastsController extends AbstractApiCrudController
             unset($data['import_cron']);
         }
 
+        $importSyncBeforeHoursTouched = array_key_exists('import_sync_before_hours', $data);
+        $importSyncBeforeHoursValue = null;
+        if ($importSyncBeforeHoursTouched) {
+            $raw = $data['import_sync_before_hours'];
+            if ($raw === null || $raw === '') {
+                $importSyncBeforeHoursValue = null;
+            } else {
+                $importSyncBeforeHoursValue = max(0, min(168, Types::int($raw)));
+                if ($importSyncBeforeHoursValue === 0) {
+                    $importSyncBeforeHoursValue = null;
+                }
+            }
+            unset($data['import_sync_before_hours']);
+        }
+
         $autoKeepEpisodes = null;
         if (array_key_exists('auto_keep_episodes', $data)) {
             $autoKeepEpisodes = max(0, min(32767, Types::int($data['auto_keep_episodes'])));
@@ -357,6 +372,9 @@ final class PodcastsController extends AbstractApiCrudController
         }
         if ($importCronTouched) {
             $record->import_cron = $importCronValue;
+        }
+        if ($importSyncBeforeHoursTouched) {
+            $record->import_sync_before_hours = $importSyncBeforeHoursValue;
         }
 
         if (null !== $newCategories) {

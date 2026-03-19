@@ -46,6 +46,9 @@ final class Podcast
     #[OA\Property(description: 'Optional cron for auto-import only (e.g. "30 7 1 * *"). Empty = check every sync tick (~15 min).')]
     public ?string $import_cron = null;
 
+    #[OA\Property(description: 'When set and podcast has a linked playlist: run auto-import only N hours before the playlist\'s next scheduled start (e.g. 5). Null/0 = use cron or every tick.')]
+    public ?int $import_sync_before_hours = null;
+
     #[OA\Property(description: 'Where to store episode files: podcast folder or station media folder (for playlists).')]
     public string $episode_storage_type = 'podcast';
 
