@@ -214,7 +214,7 @@ const importKeys = async (keys: string[]) => {
             success: boolean;
             episodes_added: number;
             log: SyncLogEntry[];
-        }>(importUrl.value, {keys});
+        }>(importUrl(), {keys});
         $syncLogModal.value?.show(
             data.log ?? [],
             data.episodes_added ?? 0,
