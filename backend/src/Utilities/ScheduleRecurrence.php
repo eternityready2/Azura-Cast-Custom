@@ -36,6 +36,24 @@ final class ScheduleRecurrence
         $rangeEnd = $rangeEnd->setTimezone($tz)->endOf('day');
 
         $effectiveStart = self::effectiveRangeStart($schedule, $tz, $rangeStart);
+        $endType = $schedule->recurrence_end_type ?? RecurrenceEndType::Never;
+        $endAfter = $schedule->recurrence_end_after;
+
+        // When "stop after N occurrences" is set, always count from the schedule's start
+        // so we get the first N plays ever, not the first N in the requested range.
+        if ($endType === RecurrenceEndType::After && $endAfter !== null) {
+            $startDate = $schedule->start_date;
+            if ($startDate !== null && $startDate !== '') {
+                $parsed = CarbonImmutable::createFromFormat('Y-m-d', $startDate, $tz);
+                if ($parsed !== false) {
+                    $fromStart = $parsed->startOf('day');
+                    if ($fromStart->lessThanOrEqualTo($rangeEnd)) {
+                        $effectiveStart = $fromStart;
+                    }
+                }
+            }
+        }
+
         if ($effectiveStart->greaterThan($rangeEnd)) {
             return [];
         }
@@ -52,8 +70,6 @@ final class ScheduleRecurrence
         $recurrenceType = $schedule->recurrence_type;
         $interval = max(1, $schedule->recurrence_interval);
         $days = $schedule->days;
-        $endType = $schedule->recurrence_end_type ?? RecurrenceEndType::Never;
-        $endAfter = $schedule->recurrence_end_after;
         $endDate = $schedule->recurrence_end_date;
 
         if ($recurrenceType === RecurrenceType::Monthly && $schedule->recurrence_monthly_pattern !== null) {
