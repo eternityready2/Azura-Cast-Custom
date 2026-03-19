@@ -101,6 +101,9 @@ const {
                 if (item.recurrence_end_type === 'after') {
                     out.end_date = null;
                 }
+                if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'date') {
+                    out.days = [];
+                }
                 if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && item.days && Array.isArray(item.days) && item.days.length > 0) {
                     out.recurrence_monthly_day_of_week = Number(item.days[0]);
                 }

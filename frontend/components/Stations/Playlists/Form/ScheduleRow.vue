@@ -94,8 +94,9 @@
                     class="col-md-6"
                     :field="r$.days"
                     :label="$gettext('Scheduled Play Days of Week')"
-                    :description="$gettext('Leave blank to play on every day of the week.')"
+                    :description="daysOfWeekFieldDescription"
                     :options="dayOptions"
+                    :disabled="isMonthlyDatePattern"
                     stacked
                 />
 
@@ -144,7 +145,7 @@
                         min="1"
                         max="31"
                         :label="$gettext('Day of Month')"
-                        :description="$gettext('Day of the month (1–31). E.g. 15 = on the 15th of each month. Scheduled Play Days of Week above are ignored for this pattern.')"
+                        :description="$gettext('Day of the month (1–31). E.g. 15 = on the 15th of each month. Days of week above are disabled for this pattern.')"
                     />
                     <template v-if="row.recurrence_monthly_pattern === 'day_of_week'">
                         <form-group-select
@@ -183,7 +184,7 @@
 import PlaylistTime from "~/components/Common/TimeCode.vue";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
 import {minValue, required, requiredIf} from "@regle/rules";
-import {watch} from "vue";
+import {computed, watch} from "vue";
 import {useTranslate} from "~/vendor/gettext";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
 import FormMarkup from "~/components/Form/FormMarkup.vue";
@@ -222,6 +223,26 @@ const emit = defineEmits<{
     (e: 'remove'): void
 }>();
 
+const isMonthlyDatePattern = computed(
+    () => row.value.recurrence_type === 'monthly' && row.value.recurrence_monthly_pattern === 'date'
+);
+
+const isMonthlyDayOfWeekPattern = computed(
+    () => row.value.recurrence_type === 'monthly' && row.value.recurrence_monthly_pattern === 'day_of_week'
+);
+
+const {$gettext} = useTranslate();
+
+const daysOfWeekFieldDescription = computed(() => {
+    if (isMonthlyDatePattern.value) {
+        return $gettext('Not used when monthly pattern is "On day of month" — pick the calendar day below instead.');
+    }
+    if (isMonthlyDayOfWeekPattern.value) {
+        return $gettext('Choose which weekday pairs with "Week of Month" below (e.g. Monday for 3rd Monday). For other repeat types, leave blank for every day.');
+    }
+    return $gettext('Leave blank to play on every day of the week.');
+});
+
 const {r$} = useAppScopedRegle(
     row,
     {
@@ -248,7 +269,14 @@ watch(
     }
 );
 
-const {$gettext} = useTranslate();
+watch(
+    () => [row.value.recurrence_type, row.value.recurrence_monthly_pattern] as const,
+    () => {
+        if (isMonthlyDatePattern.value) {
+            row.value.days = [];
+        }
+    }
+);
 
 const dayOptions = [
     {value: 1, text: $gettext('Monday')},

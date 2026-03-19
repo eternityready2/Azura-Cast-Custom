@@ -14,6 +14,7 @@
                 :class="fieldClass"
                 :type="radio ? 'radio' : 'checkbox'"
                 :name="name"
+                :disabled="disabled"
             >
             <label
                 class="form-check-label"
@@ -46,12 +47,14 @@ const props = withDefaults(
         fieldClass?: string,
         options: SimpleFormOptionInput,
         radio?: boolean,
-        stacked?: boolean
+        stacked?: boolean,
+        disabled?: boolean
     }>(),
     {
         name: (props) => props.id,
         radio: false,
         stacked: false,
+        disabled: false,
     }
 )
 

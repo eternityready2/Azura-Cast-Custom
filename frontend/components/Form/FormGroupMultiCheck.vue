@@ -33,6 +33,7 @@
                     :options="options"
                     :radio="radio"
                     :stacked="stacked"
+                    :disabled="disabled"
                 >
                     <template
                         v-for="(_, slot) of useSlotsExcept(['default', 'label', 'description'])"
@@ -83,14 +84,16 @@ type FormGroupMultiCheckProps = FormFieldProps<T> & FormLabelParentProps & {
     description?: string,
     options: SimpleFormOptionInput,
     radio?: boolean,
-    stacked?: boolean
+    stacked?: boolean,
+    disabled?: boolean
 }
 
 const props = withDefaults(
     defineProps<FormGroupMultiCheckProps>(),
     {
         radio: false,
-        stacked: false
+        stacked: false,
+        disabled: false
     }
 );
 
