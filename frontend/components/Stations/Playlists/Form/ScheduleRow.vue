@@ -114,7 +114,7 @@
                     class="col-md-4"
                     :field="r$.recurrence_type"
                     :label="$gettext('Repeat')"
-                    :description="$gettext('Weekly = every week; Bi-weekly = every 2 weeks; Custom = every N weeks; Monthly = by date or weekday (e.g. 1st Monday).')"
+                    :description="$gettext('Weekly = every week; Bi-weekly = every 2 weeks; Custom = every N weeks; Monthly = by date or specific day of week (e.g. 1st Monday).')"
                     :options="recurrenceTypeOptions"
                 />
                 <form-group-field
@@ -238,7 +238,7 @@ const daysOfWeekFieldDescription = computed(() => {
         return $gettext('Not used when monthly pattern is "On day of month" — pick the calendar day below instead.');
     }
     if (isMonthlyDayOfWeekPattern.value) {
-        return $gettext('For monthly "on weekday", select one or more days; each gets that week-of-month (e.g. 1st + Mon–Wed). For other repeat types, leave blank for every day.');
+        return $gettext('For monthly "specific day of week", select one or more days; each gets that week-of-month (e.g. 1st + Mon–Wed). For other repeat types, leave blank for every day.');
     }
     return $gettext('Leave blank to play on every day of the week.');
 });
@@ -297,7 +297,7 @@ const recurrenceTypeOptions = [
 
 const recurrenceMonthlyPatternOptions = [
     {value: 'date', text: $gettext('On day of month (e.g. 15th)')},
-    {value: 'day_of_week', text: $gettext('On weekday (e.g. 3rd Monday)')}
+    {value: 'day_of_week', text: $gettext('Specific day of week (e.g. 3rd Monday)')}
 ];
 
 const recurrenceMonthlyWeekOptions = [
