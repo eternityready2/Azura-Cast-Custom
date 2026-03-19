@@ -77,6 +77,7 @@ final class ScheduleRecurrence
                 $schedule,
                 $tz,
                 $effectiveStart,
+                $rangeStart,
                 $rangeEnd,
                 $scheduleEndDate,
                 $endType,
@@ -267,6 +268,7 @@ final class ScheduleRecurrence
         StationSchedule $schedule,
         DateTimeZone $tz,
         CarbonImmutable $effectiveStart,
+        CarbonImmutable $rangeStart,
         CarbonImmutable $rangeEnd,
         ?CarbonImmutable $scheduleEndDate,
         RecurrenceEndType $endType,
@@ -280,8 +282,14 @@ final class ScheduleRecurrence
         $year = (int) $effectiveStart->format('Y');
         $month = (int) $effectiveStart->format('m');
         $count = 0;
+        /** Count valid monthly hits strictly before $rangeStart (for "end after N occurrences" from a global anchor). */
+        $occurrencesBeforeRangeStart = 0;
 
-        while ($count < $maxOccurrences) {
+        $monthSteps = 0;
+        $maxMonthSteps = 20000;
+
+        while ($count < $maxOccurrences && $monthSteps < $maxMonthSteps) {
+            ++$monthSteps;
             $candidate = self::nextMonthlyOccurrence($schedule, $tz, $year, $month, $pattern);
             if ($candidate === null) {
                 $month++;
@@ -307,12 +315,45 @@ final class ScheduleRecurrence
                 continue;
             }
 
-            if (self::pastEndCondition($candidate, $endType, $endAfter, $endDate, $occurrenceDates)) {
+            // "End on date" applies to every occurrence, including months before the visible calendar range.
+            if ($endType === RecurrenceEndType::OnDate && $endDate !== null && $endDate !== '') {
+                $recurrenceEnd = CarbonImmutable::createFromFormat('Y-m-d', $endDate);
+                if ($recurrenceEnd !== false && $candidate->greaterThan($recurrenceEnd->endOf('day'))) {
+                    break;
+                }
+            }
+
+            // Calendar window: only emit days inside [rangeStart, rangeEnd]. Still count earlier hits
+            // toward "after N occurrences" when that end rule is set.
+            if ($candidate->lessThan($rangeStart)) {
+                if ($endType === RecurrenceEndType::After && $endAfter !== null) {
+                    ++$occurrencesBeforeRangeStart;
+                    if ($occurrencesBeforeRangeStart >= $endAfter) {
+                        break;
+                    }
+                }
+                $month++;
+                if ($month > 12) {
+                    $month = 1;
+                    $year++;
+                }
+                continue;
+            }
+
+            $totalAfterOccurrences = $occurrencesBeforeRangeStart + count($occurrenceDates);
+            if (self::pastEndCondition(
+                $candidate,
+                $endType,
+                $endAfter,
+                $endDate,
+                $occurrenceDates,
+                $totalAfterOccurrences
+            )) {
                 break;
             }
 
             $occurrenceDates[] = $candidate;
-            $count++;
+            ++$count;
 
             $month++;
             if ($month > 12) {
@@ -346,6 +387,9 @@ final class ScheduleRecurrence
         if ($week === null || $dow === null) {
             return null;
         }
+        // Entity/API may expose these as numeric strings; strict === must match int dayOfWeekIso.
+        $week = (int) $week;
+        $dow = (int) $dow;
         $first = CarbonImmutable::createFromDate($year, $month, 1, $tz);
         $last = $first->endOfMonth();
 
@@ -377,12 +421,18 @@ final class ScheduleRecurrence
     /**
      * @param CarbonImmutable[] $occurrenceDates
      */
+    /**
+     * @param CarbonImmutable[] $occurrenceDates In-range occurrences collected so far (weekly path).
+     * @param int|null $totalAfterOccurrences If set, used for "after N" instead of count($occurrenceDates)
+     *        (monthly path counts occurrences before the requested range toward N).
+     */
     private static function pastEndCondition(
         CarbonImmutable $date,
         RecurrenceEndType $endType,
         ?int $endAfter,
         ?string $endDate,
-        array $occurrenceDates
+        array $occurrenceDates,
+        ?int $totalAfterOccurrences = null
     ): bool {
         if ($endType === RecurrenceEndType::OnDate && $endDate !== null && $endDate !== '') {
             $end = CarbonImmutable::createFromFormat('Y-m-d', $endDate);
@@ -390,8 +440,11 @@ final class ScheduleRecurrence
                 return true;
             }
         }
-        if ($endType === RecurrenceEndType::After && $endAfter !== null && count($occurrenceDates) >= $endAfter) {
-            return true;
+        if ($endType === RecurrenceEndType::After && $endAfter !== null) {
+            $n = $totalAfterOccurrences ?? count($occurrenceDates);
+            if ($n >= $endAfter) {
+                return true;
+            }
         }
         return false;
     }
