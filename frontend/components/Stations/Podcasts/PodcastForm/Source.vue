@@ -167,15 +167,6 @@
                     />
 
                     <form-group-field
-                        id="form_edit_import_cron"
-                        class="col-md-12"
-                        :field="r$.import_cron"
-                        :label="$gettext('Auto-import schedule (cron)')"
-                        :description="$gettext('Leave empty to check the feed about every 15 minutes. Or set a cron, e.g. 30 7 1 * * = 07:30 on the 1st of each month (before your show airs). Ignored when “Sync before air” is set.')"
-                        input-trim
-                    />
-
-                    <form-group-field
                         id="form_edit_import_sync_before_hours"
                         class="col-md-12"
                         :field="r$.import_sync_before_hours"

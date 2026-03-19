@@ -325,14 +325,6 @@ final class PodcastsController extends AbstractApiCrudController
             $importStrategySet = true;
         }
 
-        $importCronTouched = array_key_exists('import_cron', $data);
-        $importCronValue = null;
-        if ($importCronTouched) {
-            $raw = Types::stringOrNull($data['import_cron']);
-            $importCronValue = ($raw === null || trim($raw) === '') ? null : trim($raw);
-            unset($data['import_cron']);
-        }
-
         $importSyncBeforeHoursTouched = array_key_exists('import_sync_before_hours', $data);
         $importSyncBeforeHoursValue = null;
         if ($importSyncBeforeHoursTouched) {
@@ -369,9 +361,6 @@ final class PodcastsController extends AbstractApiCrudController
         }
         if ($importStrategySet) {
             $record->import_strategy = $importStrategy;
-        }
-        if ($importCronTouched) {
-            $record->import_cron = $importCronValue;
         }
         if ($importSyncBeforeHoursTouched) {
             $record->import_sync_before_hours = $importSyncBeforeHoursValue;

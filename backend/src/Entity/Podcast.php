@@ -66,18 +66,9 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
     public PodcastImportStrategy $import_strategy = PodcastImportStrategy::BackfillAll;
 
     /**
-     * Optional cron (e.g. "30 7 1 * *" = 07:30 on the 1st of each month). When set, auto-import runs only when this expression is due.
-     * Empty = run on every global podcast sync tick (~15 min) when auto_import_enabled.
-     */
-    #[ORM\Column(length: 120, nullable: true)]
-    public ?string $import_cron = null {
-        set => $this->trimTruncateNullableString($value, 120);
-    }
-
-    /**
      * When set and podcast has a linked playlist with schedule: run auto-import only within this many hours
      * before the playlist's next scheduled start. E.g. 5 = sync once, ~5 hours before each air time.
-     * Null or 0 = do not use schedule-based sync (use import_cron or every tick).
+     * Null or 0 = do not use schedule-based sync (run on every sync tick).
      */
     #[ORM\Column(type: 'smallint', nullable: true, options: ['default' => null])]
     public ?int $import_sync_before_hours = null;

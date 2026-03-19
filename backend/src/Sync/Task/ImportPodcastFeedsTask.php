@@ -12,7 +12,6 @@ use App\Entity\Repository\PodcastEpisodeRepository;
 use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Repository\StorageLocationRepository;
 use App\Entity\Station;
-use Cron\CronExpression;
 use App\Exception\CannotProcessMediaException;
 use App\Flysystem\StationFilesystems;
 use App\Media\MimeType;
@@ -133,24 +132,6 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 }
                 if ($nowTs > $nextStart + 3600) {
                     continue;
-                }
-            } else {
-                $cronExpr = trim((string) ($podcast->import_cron ?? ''));
-                if ($cronExpr !== '') {
-                    try {
-                        $cron = new CronExpression($cronExpr);
-                        if (!$cron->isDue($now)) {
-                            continue;
-                        }
-                    } catch (\Throwable $e) {
-                        $this->logger->warning('Podcast has invalid import_cron; skipping auto-import this run.', [
-                            'podcast' => $podcast->title,
-                            'import_cron' => $cronExpr,
-                            'error' => $e->getMessage(),
-                        ]);
-
-                        continue;
-                    }
                 }
             }
 

@@ -49,7 +49,6 @@ final class PodcastApiGenerator
         $return->auto_import_enabled = $record->auto_import_enabled;
         $return->auto_keep_episodes = $record->auto_keep_episodes;
         $return->import_strategy = $record->import_strategy->value;
-        $return->import_cron = $record->import_cron;
         $return->import_sync_before_hours = $record->import_sync_before_hours;
         $return->episode_storage_type = $record->episode_storage_type->value;
         $return->media_folder_path = $record->media_folder_path;

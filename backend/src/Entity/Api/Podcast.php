@@ -43,10 +43,7 @@ final class Podcast
     #[OA\Property(description: 'Auto-import: latest_single = one newest episode (replace); backfill_all = all missing from feed.')]
     public string $import_strategy = 'latest_single';
 
-    #[OA\Property(description: 'Optional cron for auto-import only (e.g. "30 7 1 * *"). Empty = check every sync tick (~15 min).')]
-    public ?string $import_cron = null;
-
-    #[OA\Property(description: 'When set and podcast has a linked playlist: run auto-import only N hours before the playlist\'s next scheduled start (e.g. 5). Null/0 = use cron or every tick.')]
+    #[OA\Property(description: 'When set and podcast has a linked playlist: run auto-import only N hours before the playlist\'s next scheduled start (e.g. 5). Null/0 = every sync tick.')]
     public ?int $import_sync_before_hours = null;
 
     #[OA\Property(description: 'Where to store episode files: podcast folder or station media folder (for playlists).')]
