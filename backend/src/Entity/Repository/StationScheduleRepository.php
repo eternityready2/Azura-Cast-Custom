@@ -130,8 +130,19 @@ final class StationScheduleRepository extends Repository
             } else {
                 $week = isset($item['recurrence_monthly_week']) ? (int)$item['recurrence_monthly_week'] : null;
                 $dow = isset($item['recurrence_monthly_day_of_week']) ? (int)$item['recurrence_monthly_day_of_week'] : null;
-                if ($week === null || $week < 1 || $week > 5 || $dow === null || $dow < 1 || $dow > 7) {
-                    throw new ValidationException(__('Monthly day-of-week pattern requires week (1-4 or 5 for last) and day of week (1-7).'));
+                $daysInput = $item['days'] ?? [];
+                if (!is_array($daysInput)) {
+                    $daysInput = [];
+                }
+                $validDays = array_values(array_filter(
+                    array_map(static fn ($x) => (int) $x, $daysInput),
+                    static fn (int $d) => $d >= 1 && $d <= 7
+                ));
+                if ($week === null || $week < 1 || $week > 5) {
+                    throw new ValidationException(__('Monthly day-of-week pattern requires week (1-4 or 5 for last).'));
+                }
+                if ($validDays === [] && ($dow === null || $dow < 1 || $dow > 7)) {
+                    throw new ValidationException(__('Monthly day-of-week pattern requires at least one weekday (1-7), using Scheduled days and/or day of week.'));
                 }
             }
         }

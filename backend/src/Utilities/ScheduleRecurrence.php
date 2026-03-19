@@ -290,8 +290,8 @@ final class ScheduleRecurrence
 
         while ($count < $maxOccurrences && $monthSteps < $maxMonthSteps) {
             ++$monthSteps;
-            $candidate = self::nextMonthlyOccurrence($schedule, $tz, $year, $month, $pattern);
-            if ($candidate === null) {
+            $candidates = self::collectMonthlyCandidatesForMonth($schedule, $tz, $year, $month, $pattern);
+            if ($candidates === []) {
                 $month++;
                 if ($month > 12) {
                     $month = 1;
@@ -300,60 +300,57 @@ final class ScheduleRecurrence
                 continue;
             }
 
-            if ($candidate->greaterThan($rangeEnd)) {
-                break;
-            }
-            if ($scheduleEndDate !== null && $candidate->greaterThan($scheduleEndDate)) {
-                break;
-            }
-            if ($candidate->lessThan($effectiveStart)) {
-                $month++;
-                if ($month > 12) {
-                    $month = 1;
-                    $year++;
+            foreach ($candidates as $candidate) {
+                if ($count >= $maxOccurrences) {
+                    break 2;
                 }
-                continue;
-            }
 
-            // "End on date" applies to every occurrence, including months before the visible calendar range.
-            if ($endType === RecurrenceEndType::OnDate && $endDate !== null && $endDate !== '') {
-                $recurrenceEnd = CarbonImmutable::createFromFormat('Y-m-d', $endDate);
-                if ($recurrenceEnd !== false && $candidate->greaterThan($recurrenceEnd->endOf('day'))) {
-                    break;
+                // Skip outside the requested API window; later months may still fall inside.
+                if ($candidate->greaterThan($rangeEnd)) {
+                    continue;
                 }
-            }
+                if ($scheduleEndDate !== null && $candidate->greaterThan($scheduleEndDate)) {
+                    break 2;
+                }
+                if ($candidate->lessThan($effectiveStart)) {
+                    continue;
+                }
 
-            // Calendar window: only emit days inside [rangeStart, rangeEnd]. Still count earlier hits
-            // toward "after N occurrences" when that end rule is set.
-            if ($candidate->lessThan($rangeStart)) {
-                if ($endType === RecurrenceEndType::After && $endAfter !== null) {
-                    ++$occurrencesBeforeRangeStart;
-                    if ($occurrencesBeforeRangeStart >= $endAfter) {
-                        break;
+                // "End on date" applies to every occurrence, including months before the visible calendar range.
+                if ($endType === RecurrenceEndType::OnDate && $endDate !== null && $endDate !== '') {
+                    $recurrenceEnd = CarbonImmutable::createFromFormat('Y-m-d', $endDate);
+                    if ($recurrenceEnd !== false && $candidate->greaterThan($recurrenceEnd->endOf('day'))) {
+                        break 2;
                     }
                 }
-                $month++;
-                if ($month > 12) {
-                    $month = 1;
-                    $year++;
+
+                // Calendar window: only emit days inside [rangeStart, rangeEnd]. Still count earlier hits
+                // toward "after N occurrences" when that end rule is set.
+                if ($candidate->lessThan($rangeStart)) {
+                    if ($endType === RecurrenceEndType::After && $endAfter !== null) {
+                        ++$occurrencesBeforeRangeStart;
+                        if ($occurrencesBeforeRangeStart >= $endAfter) {
+                            break 2;
+                        }
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            $totalAfterOccurrences = $occurrencesBeforeRangeStart + count($occurrenceDates);
-            if (self::pastEndCondition(
-                $candidate,
-                $endType,
-                $endAfter,
-                $endDate,
-                $occurrenceDates,
-                $totalAfterOccurrences
-            )) {
-                break;
-            }
+                $totalAfterOccurrences = $occurrencesBeforeRangeStart + count($occurrenceDates);
+                if (self::pastEndCondition(
+                    $candidate,
+                    $endType,
+                    $endAfter,
+                    $endDate,
+                    $occurrenceDates,
+                    $totalAfterOccurrences
+                )) {
+                    break 2;
+                }
 
-            $occurrenceDates[] = $candidate;
-            ++$count;
+                $occurrenceDates[] = $candidate;
+                ++$count;
+            }
 
             $month++;
             if ($month > 12) {
@@ -365,31 +362,107 @@ final class ScheduleRecurrence
         return $occurrenceDates;
     }
 
-    private static function nextMonthlyOccurrence(
+    /**
+     * @return CarbonImmutable[]
+     */
+    private static function collectMonthlyCandidatesForMonth(
         StationSchedule $schedule,
         DateTimeZone $tz,
         int $year,
         int $month,
-        RecurrenceMonthlyPattern $pattern
-    ): ?CarbonImmutable {
+        ?RecurrenceMonthlyPattern $pattern
+    ): array {
+        if ($pattern === null) {
+            return [];
+        }
         if ($pattern === RecurrenceMonthlyPattern::Date) {
-            $day = $schedule->recurrence_monthly_day;
-            if ($day === null || $day < 1) {
-                return null;
-            }
-            $lastDay = (int) CarbonImmutable::createFromDate($year, $month, 1, $tz)->endOfMonth()->format('d');
-            $day = min($day, $lastDay);
-            return CarbonImmutable::createFromDate($year, $month, $day, $tz)->startOf('day');
+            $one = self::nextMonthlyDateOccurrence($schedule, $tz, $year, $month);
+
+            return $one !== null ? [$one] : [];
         }
 
         $week = $schedule->recurrence_monthly_week;
-        $dow = $schedule->recurrence_monthly_day_of_week;
-        if ($week === null || $dow === null) {
+        if ($week === null) {
+            return [];
+        }
+        $week = (int) $week;
+        $dows = self::monthlyDayOfWeekDowList($schedule);
+        if ($dows === []) {
+            return [];
+        }
+
+        $dates = [];
+        foreach ($dows as $dow) {
+            $c = self::nthWeekdayOfMonth($tz, $year, $month, $week, $dow);
+            if ($c !== null) {
+                $dates[] = $c;
+            }
+        }
+        usort($dates, static fn (CarbonImmutable $a, CarbonImmutable $b): int => $a <=> $b);
+
+        return $dates;
+    }
+
+    /**
+     * Unique sorted ISO weekdays (1=Mon..7=Sun) for "nth weekday" monthly pattern.
+     * Uses `days` when set; otherwise falls back to recurrence_monthly_day_of_week.
+     *
+     * @return int[]
+     */
+    private static function monthlyDayOfWeekDowList(StationSchedule $schedule): array
+    {
+        $out = [];
+        foreach ($schedule->days ?? [] as $d) {
+            $d = (int) $d;
+            if ($d >= 1 && $d <= 7) {
+                $out[] = $d;
+            }
+        }
+        $out = array_values(array_unique($out));
+        sort($out);
+        if ($out !== []) {
+            return $out;
+        }
+        if ($schedule->recurrence_monthly_day_of_week !== null) {
+            $d = (int) $schedule->recurrence_monthly_day_of_week;
+            if ($d >= 1 && $d <= 7) {
+                return [$d];
+            }
+        }
+
+        return [];
+    }
+
+    private static function nextMonthlyDateOccurrence(
+        StationSchedule $schedule,
+        DateTimeZone $tz,
+        int $year,
+        int $month
+    ): ?CarbonImmutable {
+        $day = $schedule->recurrence_monthly_day;
+        if ($day === null || $day < 1) {
             return null;
         }
-        // Entity/API may expose these as numeric strings; strict === must match int dayOfWeekIso.
-        $week = (int) $week;
-        $dow = (int) $dow;
+        $lastDay = (int) CarbonImmutable::createFromDate($year, $month, 1, $tz)->endOfMonth()->format('d');
+        $day = min((int) $day, $lastDay);
+
+        return CarbonImmutable::createFromDate($year, $month, $day, $tz)->startOf('day');
+    }
+
+    /**
+     * Nth occurrence of $dow (ISO 1=Mon..7=Sun) in the month, or last weekday of month when $week === 5.
+     */
+    private static function nthWeekdayOfMonth(
+        DateTimeZone $tz,
+        int $year,
+        int $month,
+        int $week,
+        int $dow
+    ): ?CarbonImmutable {
+        if ($week < 1 || $week > 5 || $dow < 1 || $dow > 7) {
+            return null;
+        }
+
         $first = CarbonImmutable::createFromDate($year, $month, 1, $tz);
         $last = $first->endOfMonth();
 
@@ -401,6 +474,7 @@ final class ScheduleRecurrence
                     return null;
                 }
             }
+
             return $date->startOf('day');
         }
 
@@ -415,12 +489,10 @@ final class ScheduleRecurrence
             }
             $i = $i->addDay();
         }
+
         return null;
     }
 
-    /**
-     * @param CarbonImmutable[] $occurrenceDates
-     */
     /**
      * @param CarbonImmutable[] $occurrenceDates In-range occurrences collected so far (weekly path).
      * @param int|null $totalAfterOccurrences If set, used for "after N" instead of count($occurrenceDates)

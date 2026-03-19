@@ -153,7 +153,7 @@
                             class="col-md-4"
                             :field="r$.recurrence_monthly_week"
                             :label="$gettext('Week of Month')"
-                            :description="$gettext('Use the Scheduled Play Days of Week checkboxes above to pick the day (e.g. Monday for 3rd Monday).')"
+                            :description="$gettext('Use Scheduled Play Days of Week above: each selected day gets that week-of-month slot (e.g. 1st + Tue+Wed = 1st Tuesday and 1st Wednesday each month).')"
                             :options="recurrenceMonthlyWeekOptions"
                         />
                     </template>
@@ -238,7 +238,7 @@ const daysOfWeekFieldDescription = computed(() => {
         return $gettext('Not used when monthly pattern is "On day of month" — pick the calendar day below instead.');
     }
     if (isMonthlyDayOfWeekPattern.value) {
-        return $gettext('Choose which weekday pairs with "Week of Month" below (e.g. Monday for 3rd Monday). For other repeat types, leave blank for every day.');
+        return $gettext('For monthly "on weekday", select one or more days; each gets that week-of-month (e.g. 1st + Mon–Wed). For other repeat types, leave blank for every day.');
     }
     return $gettext('Leave blank to play on every day of the week.');
 });
