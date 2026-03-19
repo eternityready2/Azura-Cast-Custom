@@ -174,7 +174,7 @@
                         :min="0"
                         :max="168"
                         :label="$gettext('Sync N hours before air (optional)')"
-                        :description="$gettext('If this podcast has a linked playlist with a schedule: run auto-import only once within this many hours before the next scheduled start (e.g. 5 = about 5 hours before). Leave 0 or empty to use the cron above or every-tick checks.')"
+                        :description="$gettext('If this podcast has a linked playlist with a schedule: run auto-import only once within this many hours before the next scheduled start (e.g. 5 = about 5 hours before). Leave 0 or empty for every-tick checks.')"
                     />
                 </div>
             </div>
