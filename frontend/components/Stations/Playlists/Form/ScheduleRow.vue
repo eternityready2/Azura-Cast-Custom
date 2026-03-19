@@ -77,7 +77,8 @@
                     :field="r$.end_date"
                     input-type="date"
                     :label="$gettext('End Date')"
-                    :description="$gettext('Use this and Start date to limit when the schedule runs. Recurrence (e.g. bi-weekly) still uses this as the last day.')"
+                    :description="$gettext('Use this and Start date to limit when the schedule runs. Recurrence (e.g. bi-weekly) still uses this as the last day. Disabled when using Stop after N occurrences.')"
+                    :input-attrs="{ disabled: row.recurrence_end_type === 'after' }"
                 />
 
                 <form-group-checkbox
@@ -181,7 +182,7 @@
 <script setup lang="ts">
 import PlaylistTime from "~/components/Common/TimeCode.vue";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
-import {required} from "@regle/rules";
+import {minValue, required, requiredIf} from "@regle/rules";
 import {toRef} from "vue";
 import {useTranslate} from "~/vendor/gettext";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
@@ -224,6 +225,10 @@ const {r$} = useAppScopedRegle(
     {
         start_time: {required},
         end_time: {required},
+        recurrence_end_after: {
+            required: requiredIf(() => props.row.recurrence_end_type === 'after'),
+            minValue: minValue(1),
+        },
     },
     {
         namespace: 'stations-playlists'

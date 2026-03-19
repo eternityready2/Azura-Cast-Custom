@@ -244,7 +244,7 @@ final class StreamersController extends AbstractScheduledEntityController
                 $streamer = $scheduleItem->streamer;
 
                 return [
-                    'id' => $streamer->id,
+                    'id' => $scheduleItem->id . '_' . $dateRange->start->getTimestamp(),
                     'title' => $streamer->display_name,
                     'start' => $dateRange->start->toIso8601String(),
                     'end' => $dateRange->end->toIso8601String(),

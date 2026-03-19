@@ -73,6 +73,9 @@ const {
                     recurrence_end_after: endType === 'after' ? (item.recurrence_end_after ?? null) : null,
                     recurrence_end_date: null
                 };
+                if (endType === 'after') {
+                    merged.end_date = null;
+                }
                 if (merged.recurrence_type === 'monthly' && merged.recurrence_monthly_pattern === 'day_of_week' && merged.recurrence_monthly_day_of_week != null && (!merged.days || (merged.days as number[]).length === 0)) {
                     merged.days = [Number(merged.recurrence_monthly_day_of_week)];
                 }
@@ -95,6 +98,9 @@ const {
                 out.recurrence_end_after = (item.recurrence_end_type === 'after' && item.recurrence_end_after != null)
                     ? Number(item.recurrence_end_after) : null;
                 out.recurrence_end_date = null;
+                if (item.recurrence_end_type === 'after') {
+                    out.end_date = null;
+                }
                 if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && item.days && Array.isArray(item.days) && item.days.length > 0) {
                     out.recurrence_monthly_day_of_week = Number(item.days[0]);
                 }
