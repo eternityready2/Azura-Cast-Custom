@@ -26,6 +26,7 @@ import FormBasicInfo from "~/components/Stations/Streamers/Form/BasicInfo.vue";
 import FormSchedule from "~/components/Stations/Streamers/Form/Schedule.vue";
 import FormArtwork from "~/components/Stations/Streamers/Form/Artwork.vue";
 import mergeExisting from "~/functions/mergeExisting";
+import normalizeStationScheduleDays from "~/functions/normalizeStationScheduleDays";
 import {BaseEditModalEmits, BaseEditModalProps, useBaseEditModal} from "~/functions/useBaseEditModal";
 import {computed, toRef, useTemplateRef, watch} from "vue";
 import {useTranslate} from "~/vendor/gettext";
@@ -108,11 +109,14 @@ const {
                 out.recurrence_end_after = (item.recurrence_end_type === 'after' && item.recurrence_end_after != null)
                     ? Number(item.recurrence_end_after) : null;
                 out.recurrence_end_date = null;
+                const normalizedDays = normalizeStationScheduleDays(item.days);
                 if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'date') {
                     out.days = [];
+                } else {
+                    out.days = normalizedDays;
                 }
-                if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && item.days && Array.isArray(item.days) && item.days.length > 0) {
-                    out.recurrence_monthly_day_of_week = Number(item.days[0]);
+                if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && normalizedDays.length > 0) {
+                    out.recurrence_monthly_day_of_week = normalizedDays[0];
                 }
                 return out;
             });

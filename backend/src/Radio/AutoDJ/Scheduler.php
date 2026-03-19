@@ -498,6 +498,6 @@ final class Scheduler
         }
         $playOnceDays = $schedule->days;
         return empty($playOnceDays)
-            || in_array($dayToCheck, $playOnceDays, true);
+            || in_array($dayToCheck, $playOnceDays, false);
     }
 }

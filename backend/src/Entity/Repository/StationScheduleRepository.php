@@ -64,7 +64,14 @@ final class StationScheduleRepository extends Repository
             $record->end_time = (int)$item['end_time'];
             $record->start_date = $item['start_date'] ?? null;
             $record->end_date = $item['end_date'] ?? null;
-            $record->days = $item['days'] ?? [];
+            $daysInput = $item['days'] ?? [];
+            if (!is_array($daysInput)) {
+                $daysInput = [];
+            }
+            $record->days = array_values(array_unique(array_filter(
+                array_map(static fn ($d) => (int) $d, $daysInput),
+                static fn (int $d) => $d >= 1 && $d <= 7
+            )));
             $record->loop_once = $item['loop_once'] ?? false;
 
             $record->recurrence_type = isset($item['recurrence_type'])

@@ -192,7 +192,8 @@ final class ScheduleRecurrence
             }
 
             $dayOfWeek = $i->dayOfWeekIso;
-            $inDays = empty($days) || in_array($dayOfWeek, $days, true);
+            // Loose comparison: $days may contain int or numeric strings from JSON/API.
+            $inDays = empty($days) || in_array($dayOfWeek, $days, false);
 
             if (!$inDays) {
                 $i = $i->addDay();

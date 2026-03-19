@@ -30,6 +30,7 @@ import {storeToRefs} from "pinia";
 import {useAppCollectScope} from "~/vendor/regle.ts";
 import {useStationsPlaylistsForm} from "~/components/Stations/Playlists/Form/form.ts";
 import mergeExisting from "~/functions/mergeExisting.ts";
+import normalizeStationScheduleDays from "~/functions/normalizeStationScheduleDays";
 
 const props = defineProps<BaseEditModalProps>();
 
@@ -101,11 +102,14 @@ const {
                 if (item.recurrence_end_type === 'after') {
                     out.end_date = null;
                 }
+                const normalizedDays = normalizeStationScheduleDays(item.days);
                 if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'date') {
                     out.days = [];
+                } else {
+                    out.days = normalizedDays;
                 }
-                if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && item.days && Array.isArray(item.days) && item.days.length > 0) {
-                    out.recurrence_monthly_day_of_week = Number(item.days[0]);
+                if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && normalizedDays.length > 0) {
+                    out.recurrence_monthly_day_of_week = normalizedDays[0];
                 }
                 return out;
             });
