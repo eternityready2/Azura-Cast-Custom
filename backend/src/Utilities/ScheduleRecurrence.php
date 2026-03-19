@@ -39,18 +39,18 @@ final class ScheduleRecurrence
         $endType = $schedule->recurrence_end_type ?? RecurrenceEndType::Never;
         $endAfter = $schedule->recurrence_end_after;
 
-        // When "stop after N occurrences" is set, always count from the schedule's start
+        // When "stop after N occurrences" is set, always count from a global start
         // so we get the first N plays ever, not the first N in the requested range.
         if ($endType === RecurrenceEndType::After && $endAfter !== null) {
             $startDate = $schedule->start_date;
             if ($startDate !== null && $startDate !== '') {
                 $parsed = CarbonImmutable::createFromFormat('Y-m-d', $startDate, $tz);
                 if ($parsed !== false) {
-                    $fromStart = $parsed->startOf('day');
-                    if ($fromStart->lessThanOrEqualTo($rangeEnd)) {
-                        $effectiveStart = $fromStart;
-                    }
+                    $effectiveStart = $parsed->startOf('day');
                 }
+            } else {
+                // No start date: use a fixed anchor so "first N" is consistent for the calendar.
+                $effectiveStart = CarbonImmutable::createFromDate(1970, 1, 1, $tz)->startOf('day');
             }
         }
 
