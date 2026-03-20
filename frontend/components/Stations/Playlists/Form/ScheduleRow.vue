@@ -68,7 +68,7 @@
                     :field="r$.start_date"
                     input-type="date"
                     :label="$gettext('Start Date')"
-                    :description="$gettext('To set this schedule to run only within a certain date range, specify a start and end date.')"
+                    :description="$gettext('Required. Use with End date to limit when the schedule runs; leave End date empty for no end.')"
                 />
 
                 <form-group-field
@@ -96,6 +96,7 @@
                     :label="$gettext('Scheduled Play Days of Week')"
                     :description="daysOfWeekFieldDescription"
                     :options="dayOptions"
+                    :required="!isMonthlyDatePattern"
                     :disabled="isMonthlyDatePattern"
                     stacked
                 />
@@ -183,7 +184,7 @@
 <script setup lang="ts">
 import PlaylistTime from "~/components/Common/TimeCode.vue";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
-import {minValue, required, requiredIf} from "@regle/rules";
+import {applyIf, minLength, minValue, required, requiredIf, withMessage} from "@regle/rules";
 import {computed, watch} from "vue";
 import {useTranslate} from "~/vendor/gettext";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
@@ -231,6 +232,8 @@ const isMonthlyDayOfWeekPattern = computed(
     () => row.value.recurrence_type === 'monthly' && row.value.recurrence_monthly_pattern === 'day_of_week'
 );
 
+const requiresDaysOfWeek = computed(() => !isMonthlyDatePattern.value);
+
 const {$gettext} = useTranslate();
 
 const daysOfWeekFieldDescription = computed(() => {
@@ -238,9 +241,9 @@ const daysOfWeekFieldDescription = computed(() => {
         return $gettext('Not used when monthly pattern is "On day of month" — pick the calendar day below instead.');
     }
     if (isMonthlyDayOfWeekPattern.value) {
-        return $gettext('For monthly "specific day of week", select one or more days; each gets that week-of-month (e.g. 1st + Mon–Wed). For other repeat types, leave blank for every day.');
+        return $gettext('For monthly "specific day of week", select one or more days; each gets that week-of-month (e.g. 1st + Mon–Wed).');
     }
-    return $gettext('Leave blank to play on every day of the week.');
+    return $gettext('Select at least one day of the week.');
 });
 
 const {r$} = useAppScopedRegle(
@@ -248,6 +251,13 @@ const {r$} = useAppScopedRegle(
     {
         start_time: {required},
         end_time: {required},
+        start_date: {required},
+        days: {
+            minLength: withMessage(
+                applyIf(requiresDaysOfWeek, minLength(1)),
+                () => $gettext('Select at least one day of the week.')
+            ),
+        },
         recurrence_end_after: {
             required: requiredIf(() => row.value.recurrence_end_type === 'after'),
             minValue: minValue(1),
