@@ -77,7 +77,8 @@
                     :field="r$.end_date"
                     input-type="date"
                     :label="$gettext('End Date')"
-                    :description="$gettext('Use this and Start date to limit when the schedule runs. Recurrence (e.g. bi-weekly) still uses this as the last day. Disabled when using Stop after N occurrences.')"
+                    :description="$gettext('Required unless stopping after a number of occurrences. Use with Start date to limit when the schedule runs. Recurrence (e.g. bi-weekly) still uses this as the last day.')"
+                    :required="row.recurrence_end_type !== 'after'"
                     :input-attrs="{ disabled: row.recurrence_end_type === 'after' }"
                 />
 
@@ -252,6 +253,9 @@ const {r$} = useAppScopedRegle(
         start_time: {required},
         end_time: {required},
         start_date: {required},
+        end_date: {
+            required: requiredIf(() => row.value.recurrence_end_type !== 'after'),
+        },
         days: {
             minLength: withMessage(
                 applyIf(requiresDaysOfWeek, minLength(1)),
