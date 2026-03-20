@@ -262,6 +262,11 @@ const {r$} = useAppScopedRegle(
             required: requiredIf(() => row.value.recurrence_end_type === 'after'),
             minValue: minValue(1),
         },
+        recurrence_monthly_day: {
+            required: requiredIf(
+                () => row.value.recurrence_type === 'monthly' && row.value.recurrence_monthly_pattern === 'date'
+            ),
+        },
     },
     {
         namespace: 'stations-playlists'
