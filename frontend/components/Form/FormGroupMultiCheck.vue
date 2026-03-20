@@ -24,7 +24,7 @@
         <template #default>
             <slot
                 name="default"
-                v-bind="{ id, field, model }"
+                v-bind="{ id, field, model, fieldClass }"
             >
                 <form-multi-check
                     :id="id"
@@ -34,6 +34,7 @@
                     :radio="radio"
                     :stacked="stacked"
                     :disabled="disabled"
+                    :field-class="fieldClass"
                 >
                     <template
                         v-for="(_, slot) of useSlotsExcept(['default', 'label', 'description'])"
@@ -101,5 +102,5 @@ const slots = useSlots();
 
 const emit = defineEmits<FormFieldEmits<T>>();
 
-const {model, isRequired} = useFormField<T>(props, emit);
+const {model, fieldClass, isRequired} = useFormField<T>(props, emit);
 </script>

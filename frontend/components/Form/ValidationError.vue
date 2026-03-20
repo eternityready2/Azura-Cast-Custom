@@ -2,7 +2,7 @@
     <div
         v-for="(error, index) of field.$errors"
         :key="index"
-        class="invalid-feedback"
+        class="invalid-feedback d-block"
     >
         {{ error }}
     </div>

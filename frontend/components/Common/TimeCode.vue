@@ -35,13 +35,14 @@ const parseTimeCode = (timeCode: string | number | null) => {
     return null;
 }
 
-const convertToTimeCode = (time: string | null): number | null => {
-    if (time === null || time === '') {
+const convertToTimeCode = (time: string | null | undefined): number | null => {
+    if (time === null || time === '' || time === undefined) {
         return null;
     }
 
     const timeParts = time.split(':');
-    return (100 * parseInt(timeParts[0], 10)) + parseInt(timeParts[1], 10);
+    const n = (100 * parseInt(timeParts[0], 10)) + parseInt(timeParts[1], 10);
+    return Number.isNaN(n) ? null : n;
 }
 
 const timeCode = computed({
@@ -49,10 +50,7 @@ const timeCode = computed({
         return parseTimeCode(props.modelValue);
     },
     set: (newValue) => {
-        const newTimeCode = convertToTimeCode(newValue);
-        if (newTimeCode !== null) {
-            emit('update:modelValue', newTimeCode);
-        }
+        emit('update:modelValue', convertToTimeCode(newValue));
     }
 });
 </script>
