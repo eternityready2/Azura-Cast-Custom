@@ -177,6 +177,10 @@ final readonly class PodcastFeedAction implements SingleActionInterface
         if (null !== $podcastMedia) {
             $item['enclosure']['@length'] = $podcastMedia->length;
             $item['enclosure']['@type'] = $podcastMedia->mime_type;
+        } elseif ($episode->remote_enclosure_mime !== null && $episode->remote_enclosure_mime !== '') {
+            $item['enclosure']['@type'] = $episode->remote_enclosure_mime;
+        } elseif ($episode->remote_enclosure_url !== null && $episode->remote_enclosure_url !== '') {
+            $item['enclosure']['@type'] = 'audio/mpeg';
         }
 
         if (null !== $episodeApi->season_number) {

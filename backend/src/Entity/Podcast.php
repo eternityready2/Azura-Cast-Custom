@@ -62,8 +62,8 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
      * Auto-import behavior: latest_single = one newest episode, replace previous;
      * backfill_all = import all missing items from feed.
      */
-    #[ORM\Column(type: 'string', length: 32, enumType: PodcastImportStrategy::class, options: ['default' => 'backfill_all'])]
-    public PodcastImportStrategy $import_strategy = PodcastImportStrategy::BackfillAll;
+    #[ORM\Column(type: 'string', length: 32, enumType: PodcastImportStrategy::class, options: ['default' => 'latest_single'])]
+    public PodcastImportStrategy $import_strategy = PodcastImportStrategy::LatestSingle;
 
     /**
      * When set and podcast has a linked playlist with schedule: run auto-import only within this many hours

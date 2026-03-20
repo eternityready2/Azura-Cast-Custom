@@ -110,6 +110,12 @@ final readonly class GetMediaAction implements SingleActionInterface
                             );
                         }
                     }
+                    if ($podcast->source === PodcastSources::Import) {
+                        $remote = $episode->remote_enclosure_url ?? '';
+                        if ($remote !== '') {
+                            return $response->withRedirect($remote, 302);
+                        }
+                    }
                     break;
             }
         }
