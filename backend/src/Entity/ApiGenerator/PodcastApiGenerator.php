@@ -7,6 +7,7 @@ namespace App\Entity\ApiGenerator;
 use App\Entity\Api\Podcast as ApiPodcast;
 use App\Entity\Api\PodcastCategory as ApiPodcastCategory;
 use App\Entity\Podcast;
+use App\Entity\Repository\PodcastEpisodeRepository;
 use App\Entity\Repository\PodcastRepository;
 use App\Entity\Station;
 use App\Http\ServerRequest;
@@ -26,7 +27,8 @@ final class PodcastApiGenerator
     private array $publishedPodcasts = [];
 
     public function __construct(
-        private readonly PodcastRepository $podcastRepo
+        private readonly PodcastRepository $podcastRepo,
+        private readonly PodcastEpisodeRepository $podcastEpisodeRepo,
     ) {
     }
 
@@ -97,7 +99,7 @@ final class PodcastApiGenerator
         $return->art_updated_at = $record->art_updated_at;
         $return->has_custom_art = (0 !== $record->art_updated_at);
 
-        $return->episodes = $record->episodes->count();
+        $return->episodes = $this->podcastEpisodeRepo->countEpisodesWithTitleForPodcast($record);
 
         $baseRouteParams = [
             'station_id' => $station->id,

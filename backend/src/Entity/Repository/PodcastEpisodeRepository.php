@@ -57,6 +57,19 @@ final class PodcastEpisodeRepository extends Repository
         ]);
     }
 
+    public function countEpisodesWithTitleForPodcast(Podcast $podcast): int
+    {
+        return (int)$this->em->createQuery(
+            <<<'DQL'
+            SELECT COUNT(pe.id)
+            FROM App\Entity\PodcastEpisode pe
+            WHERE pe.podcast = :podcast
+            AND TRIM(pe.title) <> ''
+            DQL
+        )->setParameter('podcast', $podcast)
+            ->getSingleScalarResult();
+    }
+
     /**
      * Remove downloaded/station files for this episode but keep the episode row (e.g. RSS-only remote enclosure).
      */

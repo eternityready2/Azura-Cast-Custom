@@ -102,7 +102,7 @@ final class Podcast
     #[OA\Property]
     public bool $is_published = true;
 
-    #[OA\Property]
+    #[OA\Property(description: 'Number of episodes with a non-empty title')]
     public int $episodes = 0;
 
     /**
