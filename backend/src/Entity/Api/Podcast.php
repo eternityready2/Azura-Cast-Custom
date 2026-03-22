@@ -102,7 +102,9 @@ final class Podcast
     #[OA\Property]
     public bool $is_published = true;
 
-    #[OA\Property(description: 'Number of episodes with a non-empty title')]
+    #[OA\Property(
+        description: 'Episode count: for import-source podcasts with a feed URL, number of <item>/<entry> elements in the remote RSS/Atom feed (cached; falls back to local episodes with a title if the feed cannot be fetched). For other sources, number of local episodes with a non-empty title.'
+    )]
     public int $episodes = 0;
 
     /**

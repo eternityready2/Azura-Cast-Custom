@@ -6,10 +6,12 @@ namespace App\Entity\ApiGenerator;
 
 use App\Entity\Api\Podcast as ApiPodcast;
 use App\Entity\Api\PodcastCategory as ApiPodcastCategory;
+use App\Entity\Enums\PodcastSources;
 use App\Entity\Podcast;
 use App\Entity\Repository\PodcastEpisodeRepository;
 use App\Entity\Repository\PodcastRepository;
 use App\Entity\Station;
+use App\Podcast\PodcastFeedRemoteItemCountService;
 use App\Http\ServerRequest;
 use App\Utilities\Strings;
 use Psr\Http\Message\UriInterface;
@@ -29,6 +31,7 @@ final class PodcastApiGenerator
     public function __construct(
         private readonly PodcastRepository $podcastRepo,
         private readonly PodcastEpisodeRepository $podcastEpisodeRepo,
+        private readonly PodcastFeedRemoteItemCountService $feedRemoteItemCount,
     ) {
     }
 
@@ -99,7 +102,7 @@ final class PodcastApiGenerator
         $return->art_updated_at = $record->art_updated_at;
         $return->has_custom_art = (0 !== $record->art_updated_at);
 
-        $return->episodes = $this->podcastEpisodeRepo->countEpisodesWithTitleForPodcast($record);
+        $return->episodes = $this->resolveEpisodeCountForApi($record);
 
         $baseRouteParams = [
             'station_id' => $station->id,
@@ -145,6 +148,24 @@ final class PodcastApiGenerator
         ];
 
         return $return;
+    }
+
+    private function resolveEpisodeCountForApi(Podcast $record): int
+    {
+        $dbCount = $this->podcastEpisodeRepo->countEpisodesWithTitleForPodcast($record);
+
+        if ($record->source !== PodcastSources::Import) {
+            return $dbCount;
+        }
+
+        $feedUrl = $record->feed_url;
+        if ($feedUrl === null || trim($feedUrl) === '') {
+            return $dbCount;
+        }
+
+        $remote = $this->feedRemoteItemCount->countItemsForFeedUrl(trim($feedUrl));
+
+        return $remote ?? $dbCount;
     }
 
     private function isPublished(

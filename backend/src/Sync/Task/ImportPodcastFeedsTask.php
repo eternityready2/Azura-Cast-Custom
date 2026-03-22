@@ -16,6 +16,8 @@ use App\Entity\Station;
 use App\Exception\CannotProcessMediaException;
 use App\Flysystem\StationFilesystems;
 use App\Media\MimeType;
+use App\Podcast\PodcastFeedRemoteItemCountService;
+use App\Podcast\RssAtomFeedItems;
 use GuzzleHttp\Client;
 use App\Flysystem\ExtendedFilesystemInterface;
 use GuzzleHttp\RequestOptions;
@@ -28,7 +30,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
         private readonly PodcastEpisodeRepository $podcastEpisodeRepo,
         private readonly StationScheduleRepository $stationScheduleRepo,
         private readonly StorageLocationRepository $storageLocationRepo,
-        private readonly StationFilesystems $stationFilesystems
+        private readonly StationFilesystems $stationFilesystems,
+        private readonly PodcastFeedRemoteItemCountService $feedRemoteItemCount,
     ) {
     }
 
@@ -207,6 +210,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $this->syncLogLine($syncLog, 'info', sprintf('Downloaded feed (%d bytes).', strlen($body)));
 
         $items = $this->getRssItems($xml);
+        $this->feedRemoteItemCount->primeCachedCount($feedUrl, count($items));
         if (empty($items)) {
             $this->logger->debug('No items in podcast feed', ['podcast' => $podcast->title]);
             $this->syncLogLine($syncLog, 'warning', 'No episode items found in feed (no <item> or <entry> elements).');
@@ -371,8 +375,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
                         --$errorLineBudget;
                     }
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
+                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
             } catch (\Throwable $e) {
                 ++$uploadErrors;
                 $this->logger->error('Failed to attach media to episode', [
@@ -383,14 +386,15 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
+                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
             }
 
             if (file_exists($downloadedPath)) {
                 @unlink($downloadedPath);
             }
         }
+
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
 
         $this->syncLogLine($syncLog, 'info', sprintf('Skipped %d item(s) already in library (same GUID, with media).', $skippedExisting));
         $this->syncLogLine($syncLog, 'info', sprintf('Skipped %d item(s) with no audio enclosure.', $skippedNoEnclosure));
@@ -535,8 +539,23 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 continue;
             }
             if ($episode->media !== null || $episode->playlist_media !== null) {
-                $this->podcastEpisodeRepo->removeLocalMediaFromEpisode($episode, $fs);
-                ++$stripped;
+                try {
+                    $this->podcastEpisodeRepo->removeLocalMediaFromEpisode($episode, $fs);
+                    ++$stripped;
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed to strip local media from older podcast episode', [
+                        'podcast' => $podcast->title,
+                        'episode_id' => $episode->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $this->syncLogLine(
+                        $syncLog,
+                        'warning',
+                        sprintf('Could not remove local audio from an older episode: %s', $e->getMessage())
+                    );
+
+                    break;
+                }
             }
         }
         if ($stripped > 0) {
@@ -550,7 +569,15 @@ final class ImportPodcastFeedsTask extends AbstractTask
             );
         }
 
-        $this->em->refresh($winnerEpisode);
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
+
+        $winnerEpisode = $this->podcastEpisodeRepo->fetchEpisodeByPodcastAndLink($podcast, $winnerKey);
+        if ($winnerEpisode === null) {
+            $msg = 'Internal error: winner episode missing after catalog sync.';
+            $this->syncLogLine($syncLog, 'error', $msg);
+
+            return ['added' => 0, 'ok' => false, 'message' => $msg];
+        }
 
         $topTitle = $this->getItemTitle($top);
         if ($winnerEpisode->media instanceof PodcastMedia
@@ -691,6 +718,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
         }
 
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
+
         if (file_exists($downloadedPath)) {
             @unlink($downloadedPath);
         }
@@ -728,6 +757,46 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $this->syncLogLine($syncLog, 'info', sprintf('Done. %d episode(s) downloaded to storage this run.', $added));
 
         return ['added' => $added, 'ok' => true];
+    }
+
+    /**
+     * After a failed flush, Doctrine closes the EntityManager; reopen and return a managed podcast
+     * so later queries (e.g. prune) do not throw.
+     */
+    private function ensureEntityManagerOpenForPodcast(Podcast $podcast): Podcast
+    {
+        if ($this->em->isOpen()) {
+            return $podcast;
+        }
+
+        $this->em->open();
+
+        return $this->em->refetch($podcast);
+    }
+
+    /**
+     * Remove a podcast_episode row after a failed import when the EntityManager may already be closed.
+     */
+    private function removeOrphanEpisodeAfterFailedImport(Podcast $podcast, PodcastEpisode $episode): Podcast
+    {
+        $episodeId = $episode->id;
+        if (!$this->em->isOpen()) {
+            $this->em->open();
+            $podcast = $this->em->refetch($podcast);
+        }
+
+        $toRemove = $this->podcastEpisodeRepo->fetchEpisodeForPodcast($podcast, $episodeId);
+        if ($toRemove === null) {
+            return $podcast;
+        }
+
+        try {
+            $this->em->remove($toRemove);
+            $this->em->flush();
+        } catch (\Throwable) {
+        }
+
+        return $podcast;
     }
 
     /**
@@ -857,18 +926,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
      */
     private function getRssItems(SimpleXMLElement $xml): array
     {
-        $items = [];
-        if (isset($xml->channel->item)) {
-            foreach ($xml->channel->item as $item) {
-                $items[] = $item;
-            }
-        }
-        if (isset($xml->entry)) {
-            foreach ($xml->entry as $entry) {
-                $items[] = $entry;
-            }
-        }
-        return $items;
+        return RssAtomFeedItems::fromParsedXml($xml);
     }
 
     private function getItemGuid(SimpleXMLElement $item): ?string
@@ -1080,6 +1138,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
 
         $items = $this->getRssItems($xml);
+        $this->feedRemoteItemCount->primeCachedCount($feedUrl, count($items));
         usort($items, function (SimpleXMLElement $a, SimpleXMLElement $b): int {
             return $this->getItemPublishAt($b) <=> $this->getItemPublishAt($a);
         });
@@ -1206,6 +1265,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
 
         $items = $this->getRssItems($xml);
+        $this->feedRemoteItemCount->primeCachedCount($feedUrl, count($items));
         $itemByKey = [];
         foreach ($items as $item) {
             $guid = $this->getItemGuid($item);

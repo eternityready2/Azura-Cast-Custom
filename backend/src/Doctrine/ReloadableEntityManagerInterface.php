@@ -9,6 +9,11 @@ use Doctrine\ORM\EntityManagerInterface;
 interface ReloadableEntityManagerInterface extends EntityManagerInterface
 {
     /**
+     * Recreate the underlying EntityManager if it was closed (e.g. after a failed flush).
+     */
+    public function open(): void;
+
+    /**
      * Fetch a fresh instance of an entity object, even if the EntityManager has been cleared.
      *
      * phpcs:disable SlevomatCodingStandard.TypeHints.ReturnTypeHint
