@@ -66,7 +66,9 @@
             </div>
             <div class="card-body">
                 <p>
-                    {{ $gettext('Choose where episode files are stored. Media folder makes episodes available in the Media library and in scheduled playlists.') }}
+                    {{
+                        $gettext('Choose where episode files are stored. To use the station Media library, pick an existing folder below—files are saved there with no extra auto-generated paths.')
+                    }}
                 </p>
                 <div class="row g-3 mb-3">
                     <form-group-select
@@ -76,41 +78,18 @@
                         :options="episodeStorageTypeOptions"
                         :label="$gettext('Store episode files in')"
                     />
-                    <form-group-field
-                        v-show="form.episode_storage_type === 'media'"
-                        id="form_edit_media_folder_path"
-                        class="col-md-12"
-                        :field="r$.media_folder_path"
-                        :label="$gettext('Media subfolder (optional)')"
-                        :description="$gettext('Subfolder within station media (e.g. Radio Shows/MyShow). Leave blank for default.')"
-                    />
+                    <loading :loading="mediaFoldersLoading">
+                        <form-group-select
+                            v-show="form.episode_storage_type === 'media'"
+                            id="form_edit_media_folder_path"
+                            class="col-md-12"
+                            :field="r$.media_folder_path"
+                            :options="mediaFolderSelectOptions"
+                            :label="$gettext('Media folder')"
+                            :description="$gettext('Existing folders from your station Media library. Episodes appear there; link them to playlists from the Media or Playlists pages if needed.')"
+                        />
+                    </loading>
                 </div>
-            </div>
-        </section>
-
-        <section
-            v-show="form.source === 'import' && form.episode_storage_type === 'media'"
-            class="card mb-3"
-            role="region"
-        >
-            <div class="card-header text-bg-secondary">
-                <h2 class="card-title">
-                    {{ $gettext('Target Playlist for Episodes') }}
-                </h2>
-            </div>
-            <div class="card-body">
-                <p>
-                    {{ $gettext('Optionally assign a playlist. New episodes will be added to this playlist for scheduling.') }}
-                </p>
-                <loading :loading="playlistsLoading">
-                    <form-group-select
-                        id="form_edit_playlist_id_import"
-                        class="col-md-12"
-                        :field="r$.playlist_id"
-                        :options="playlistOptions"
-                        :label="$gettext('Playlist (optional)')"
-                    />
-                </loading>
             </div>
         </section>
 
@@ -174,7 +153,7 @@
                         :min="0"
                         :max="168"
                         :label="$gettext('Sync N hours before air (optional)')"
-                        :description="$gettext('If this podcast has a linked playlist with a schedule: run auto-import only once within this many hours before the next scheduled start (e.g. 5 = about 5 hours before). Leave 0 or empty for every-tick checks.')"
+                        :description="$gettext('If episodes are tied to a playlist that has a schedule: run auto-import only once within this many hours before the next scheduled start (e.g. 5). Leave 0 or empty for every sync.')"
                     />
                 </div>
             </div>
@@ -184,7 +163,6 @@
 
 <script setup lang="ts">
 import FormGroupSelect from "~/components/Form/FormGroupSelect.vue";
-import FormGroupField from "~/components/Form/FormGroupField.vue";
 import Tab from "~/components/Common/Tab.vue";
 import FormGroupMultiCheck from "~/components/Form/FormGroupMultiCheck.vue";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
@@ -197,6 +175,11 @@ import {storeToRefs} from "pinia";
 import {useStationsPodcastsForm} from "~/components/Stations/Podcasts/PodcastForm/form.ts";
 import {useFormTabClass} from "~/functions/useFormTabClass.ts";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
+
+type MediaFolderRow = {
+    path: string,
+    name: string
+};
 
 const {r$, form} = storeToRefs(useStationsPodcastsForm());
 
@@ -225,9 +208,13 @@ const sourceOptions = [
 const playlistsLoading = ref<boolean>(true);
 const playlistOptions = shallowRef<ApiFormSimpleOptions>([]);
 
+const mediaFoldersLoading = ref<boolean>(true);
+const mediaFolderRows = shallowRef<MediaFolderRow[]>([]);
+
 const {axios} = useAxios();
 const {getStationApiUrl} = useApiRouter();
 const playlistsApiUrl = getStationApiUrl('/podcasts/playlists');
+const mediaFoldersApiUrl = getStationApiUrl('/podcasts/media-folders');
 
 const loadPlaylists = async () => {
     try {
@@ -238,11 +225,30 @@ const loadPlaylists = async () => {
     }
 };
 
-onMounted(loadPlaylists);
+const loadMediaFolders = async () => {
+    try {
+        const {data} = await axios.get<{ directories: MediaFolderRow[] }>(mediaFoldersApiUrl.value);
+        mediaFolderRows.value = data.directories;
+    } finally {
+        mediaFoldersLoading.value = false;
+    }
+};
+
+onMounted(() => {
+    void loadPlaylists();
+    void loadMediaFolders();
+});
+
+const mediaFolderSelectOptions = computed<ApiFormSimpleOptions>(() =>
+    mediaFolderRows.value.map((d) => ({
+        value: d.path,
+        text: d.name
+    }))
+);
 
 const episodeStorageTypeOptions = [
     { value: 'podcast', text: $gettext('Podcast folder (default)') },
-    { value: 'media', text: $gettext('Station media folder (for playlists)') }
+    { value: 'media', text: $gettext('Station media folder') }
 ];
 
 const importStrategyOptions = [

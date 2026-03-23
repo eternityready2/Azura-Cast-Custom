@@ -28,8 +28,6 @@ use LogicException;
  */
 final class PodcastEpisodeRepository extends Repository
 {
-    public const string MEDIA_FOLDER_PREFIX = 'podcast_imports/';
-
     protected string $entityClass = PodcastEpisode::class;
 
     public function __construct(
@@ -239,9 +237,10 @@ final class PodcastEpisodeRepository extends Repository
 
         $this->removeEpisodePlaylistMediaIfImport($episode, $station);
 
-        $folderPrefix = ($podcast->media_folder_path !== null && $podcast->media_folder_path !== '')
-            ? trim($podcast->media_folder_path, '/') . '/'
-            : self::MEDIA_FOLDER_PREFIX . $podcast->id . '/';
+        $rawPath = $podcast->media_folder_path;
+        $folderPrefix = (null !== $rawPath && '' !== trim($rawPath))
+            ? trim($rawPath, '/') . '/'
+            : '';
         $path = $folderPrefix . $episode->id . '.' . $ext;
 
         $stationMedia = new StationMedia($mediaStorage, $path);

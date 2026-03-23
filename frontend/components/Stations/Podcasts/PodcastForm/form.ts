@@ -38,7 +38,7 @@ export const useStationsPodcastsForm = defineStore(
             import_strategy: 'latest_single' as const,
             import_sync_before_hours: null as number | null,
             episode_storage_type: 'podcast',
-            media_folder_path: null,
+            media_folder_path: '',
             artwork_file: null,
         });
 

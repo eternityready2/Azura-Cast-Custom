@@ -220,6 +220,11 @@ return static function (RouteCollectorProxy $group) {
                             $group->get('/podcasts/playlists', Controller\Api\Stations\Podcasts\PlaylistsAction::class)
                                 ->setName('api:stations:podcasts:playlists');
 
+                            $group->get(
+                                '/podcasts/media-folders',
+                                Controller\Api\Stations\Podcasts\ListPodcastMediaFoldersAction::class
+                            )->setName('api:stations:podcasts:media-folders');
+
                             $group->group(
                                 '/podcast/{podcast_id}',
                                 function (RouteCollectorProxy $group) {

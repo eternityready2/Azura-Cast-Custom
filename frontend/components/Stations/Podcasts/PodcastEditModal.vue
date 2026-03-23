@@ -82,7 +82,8 @@ const {
         r$.value.$reset({
             toState: mergeExisting(r$.value.$value, {
                 ...data,
-                categories: data.categories?.map((row) => row.category) ?? []
+                categories: data.categories?.map((row) => row.category) ?? [],
+                media_folder_path: data.media_folder_path ?? ''
             })
         })
     },

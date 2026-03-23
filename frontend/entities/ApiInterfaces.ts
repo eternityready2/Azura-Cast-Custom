@@ -1086,7 +1086,7 @@ export type ApiPodcast = HasLinks & {
   import_sync_before_hours?: number | null;
   /** Where to store episode files: 'podcast' or 'media' (station media folder for playlists). */
   episode_storage_type?: 'podcast' | 'media';
-  /** Optional subfolder within station media for episode files (e.g. "Radio Shows/MyShow"). Only when episode_storage_type is media. */
+  /** Folder path within station media when episode_storage_type is media. Empty = library root. */
   media_folder_path?: string | null;
   title?: string;
   link?: string | null;
