@@ -74,21 +74,6 @@ final class PodcastEpisode implements IdentifiableEntityInterface
     #[Attributes\AuditIgnore]
     public int $art_updated_at = 0;
 
-    /**
-     * Original feed enclosure URL when the episode is listed in RSS but audio is not stored locally
-     * (default “latest only” import keeps one local file; older episodes use this for enclosure URLs).
-     */
-    #[ORM\Column(length: 2048, nullable: true)]
-    public ?string $remote_enclosure_url = null {
-        set => $this->truncateNullableString($value, 2048);
-    }
-
-    /** MIME hint from the feed for remote enclosures (RSS enclosure type). */
-    #[ORM\Column(length: 127, nullable: true)]
-    public ?string $remote_enclosure_mime = null {
-        set => $this->truncateNullableString($value, 127);
-    }
-
     public function __construct(Podcast $podcast)
     {
         $this->podcast = $podcast;
@@ -108,14 +93,8 @@ final class PodcastEpisode implements IdentifiableEntityInterface
         }
 
         return match ($this->podcast->source) {
-            PodcastSources::Manual => ($this->media !== null),
-            PodcastSources::Import => ($this->media !== null) || $this->hasRemoteImportEnclosure(),
+            PodcastSources::Manual, PodcastSources::Import => ($this->media !== null),
             PodcastSources::Playlist => ($this->playlist_media !== null)
         };
-    }
-
-    private function hasRemoteImportEnclosure(): bool
-    {
-        return $this->remote_enclosure_url !== null && $this->remote_enclosure_url !== '';
     }
 }

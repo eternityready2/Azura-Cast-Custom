@@ -47,14 +47,6 @@ final class PodcastEpisodeRepository extends Repository
         ]);
     }
 
-    public function fetchEpisodeByPodcastAndLink(Podcast $podcast, string $link): ?PodcastEpisode
-    {
-        return $this->repository->findOneBy([
-            'podcast' => $podcast,
-            'link' => $link,
-        ]);
-    }
-
     public function countEpisodesWithTitleForPodcast(Podcast $podcast): int
     {
         return (int)$this->em->createQuery(
@@ -66,31 +58,6 @@ final class PodcastEpisodeRepository extends Repository
             DQL
         )->setParameter('podcast', $podcast)
             ->getSingleScalarResult();
-    }
-
-    /**
-     * Remove downloaded/station files for this episode but keep the episode row (e.g. RSS-only remote enclosure).
-     */
-    public function removeLocalMediaFromEpisode(
-        PodcastEpisode $episode,
-        ?ExtendedFilesystemInterface $fs = null
-    ): void {
-        $podcast = $episode->podcast;
-        $fs ??= $this->storageLocationRepo->getAdapter($podcast->storage_location)->getFilesystem();
-
-        $media = $episode->media;
-        if ($media instanceof PodcastMedia) {
-            $this->deleteMedia($media, $fs);
-            $episode->media = null;
-        }
-
-        if ($podcast->source === PodcastSources::Import && $episode->playlist_media instanceof StationMedia) {
-            $this->deleteStationMediaAndFile($episode->playlist_media);
-            $episode->playlist_media = null;
-        }
-
-        $this->em->persist($episode);
-        $this->em->flush();
     }
 
     public function fetchEpisodeForStation(Station $station, string $episodeId): ?PodcastEpisode

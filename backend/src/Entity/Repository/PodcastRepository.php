@@ -51,22 +51,11 @@ final class PodcastRepository extends Repository
             LEFT JOIN pe.media pm
             LEFT JOIN pe.playlist_media sm
             WHERE 
-                (
-                    (p.source = :sourceManual AND pm.id IS NOT NULL)
-                    OR (
-                        p.source = :sourceImport
-                        AND (
-                            pm.id IS NOT NULL
-                            OR (pe.remote_enclosure_url IS NOT NULL AND pe.remote_enclosure_url != '')
-                        )
-                    )
-                    OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL)
-                )
+                ((p.source IN (:sourcesWithMedia) AND pm.id IS NOT NULL) OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL))
                 AND (pe.publish_at <= :time)
             DQL
         )->setParameter('time', time())
-            ->setParameter('sourceManual', PodcastSources::Manual->value)
-            ->setParameter('sourceImport', PodcastSources::Import->value)
+            ->setParameter('sourcesWithMedia', [PodcastSources::Manual->value, PodcastSources::Import->value])
             ->setParameter('sourcePlaylist', PodcastSources::Playlist->value)
             ->enableResultCache(60, 'podcast_ids_' . $station->id)
             ->getSingleColumnResult();

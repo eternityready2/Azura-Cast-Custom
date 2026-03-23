@@ -133,16 +133,6 @@ final class PodcastEpisodeApiGenerator
             absolute: true
         );
 
-        if (
-            $podcast->source === PodcastSources::Import
-            && !($record->media instanceof PodcastMedia)
-            && is_string($record->remote_enclosure_url)
-            && $record->remote_enclosure_url !== ''
-        ) {
-            $downloadUri = new Uri($record->remote_enclosure_url);
-            $return->has_media = true;
-        }
-
         $return->links = [
             'self' => $router->named(
                 routeName: 'api:stations:public:podcast:episode',
