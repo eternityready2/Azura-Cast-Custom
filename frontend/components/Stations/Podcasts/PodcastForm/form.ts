@@ -34,7 +34,7 @@ export const useStationsPodcastsForm = defineStore(
             playlist_auto_publish: true,
             feed_url: '',
             auto_import_enabled: false,
-            auto_keep_episodes: 0,
+            auto_keep_episodes: 1,
             import_strategy: 'latest_single' as const,
             import_sync_before_hours: null as number | null,
             episode_storage_type: 'podcast',
