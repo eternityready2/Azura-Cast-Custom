@@ -65,11 +65,12 @@
             />
 
             <form-group-checkbox
+                v-show="form.source !== 'import'"
                 id="edit_form_is_enabled"
                 class="col-md-12"
                 :field="r$.is_enabled"
                 :label="$gettext('Enable on Public Pages')"
-                :description="$gettext('If disabled, the podcast is hidden on public pages and RSS auto-import is paused until re-enabled.')"
+                :description="$gettext('If disabled, the podcast is hidden on public pages.')"
             />
 
             <form-group-checkbox
@@ -99,7 +100,7 @@ defineProps<{
     categoriesOptions: NestedFormOptionInput,
 }>();
 
-const {r$} = storeToRefs(useStationsPodcastsForm());
+const {r$, form} = storeToRefs(useStationsPodcastsForm());
 
 const tabClass = useFormTabClass(computed(() => r$.value.$groups.basicInfoTab));
 </script>

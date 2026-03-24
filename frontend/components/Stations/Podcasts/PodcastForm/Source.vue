@@ -118,13 +118,21 @@
                         input-trim
                     />
 
+                    <form-group-checkbox
+                        id="edit_form_is_enabled_import"
+                        class="col-md-12"
+                        :field="r$.is_enabled"
+                        :label="$gettext('Enable on Public Pages')"
+                        :description="$gettext('If disabled, the podcast is hidden on public pages and RSS auto-import is paused until re-enabled.')"
+                    />
+
                     <form-group-select
                         id="form_edit_rss_background_sync"
                         v-model="rssModeModel"
                         class="col-md-12"
                         :options="rssBackgroundSyncOptions"
                         :label="$gettext('Background RSS sync')"
-                        :description="$gettext('Manual sync from the podcast list always works. This only controls whether the scheduled task fetches the feed automatically.')"
+                        :description="$gettext('Manual sync from the podcast list always works. Uncheck “Enable on Public Pages” above to pause scheduled fetches. This setting controls how often the task runs when the podcast is enabled.')"
                     />
 
                     <form-group-field
@@ -258,11 +266,6 @@ const episodeStorageTypeOptions = [
 ];
 
 const rssBackgroundSyncOptions = [
-    {
-        value: 'off' as const,
-        text: $gettext('Off (manual sync only)'),
-        description: $gettext('Do not fetch the feed on the scheduled task.')
-    },
     {
         value: 'every' as const,
         text: $gettext('Every scheduled run'),

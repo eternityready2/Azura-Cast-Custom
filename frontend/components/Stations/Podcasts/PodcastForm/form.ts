@@ -7,7 +7,7 @@ import {ref, watch} from "vue";
 import {useTranslate} from "~/vendor/gettext.ts";
 import {PodcastExtraData, PodcastRecord} from "~/entities/Podcasts.ts";
 
-export type RssBackgroundSyncMode = 'off' | 'every' | 'before_air';
+export type RssBackgroundSyncMode = 'every' | 'before_air';
 
 export const useStationsPodcastsForm = defineStore(
     'form-stations-podcasts',
@@ -51,13 +51,17 @@ export const useStationsPodcastsForm = defineStore(
 
         const {$gettext} = useTranslate();
 
+        const syncAutoImportFromIsEnabled = (): void => {
+            const f = form.value;
+            if (f.source === 'import') {
+                f.auto_import_enabled = f.is_enabled;
+            }
+        };
+
         const deriveRssBackgroundSyncMode = (): RssBackgroundSyncMode => {
             const f = form.value;
             if (f.source !== 'import') {
-                return 'off';
-            }
-            if (!f.auto_import_enabled) {
-                return 'off';
+                return 'every';
             }
             const h = f.import_sync_before_hours;
             if (h !== null && h !== undefined && h > 0) {
@@ -67,20 +71,16 @@ export const useStationsPodcastsForm = defineStore(
         };
 
         const syncRssBackgroundModeFromForm = (): void => {
+            syncAutoImportFromIsEnabled();
             rssBackgroundSyncMode.value = deriveRssBackgroundSyncMode();
         };
 
         const setRssBackgroundSyncMode = (mode: RssBackgroundSyncMode): void => {
             rssBackgroundSyncMode.value = mode;
             const f = form.value;
-            if (mode === 'off') {
-                f.auto_import_enabled = false;
-                f.import_sync_before_hours = null;
-            } else if (mode === 'every') {
-                f.auto_import_enabled = true;
+            if (mode === 'every') {
                 f.import_sync_before_hours = null;
             } else {
-                f.auto_import_enabled = true;
                 if (
                     f.import_sync_before_hours === null
                     || f.import_sync_before_hours === undefined
@@ -143,6 +143,7 @@ export const useStationsPodcastsForm = defineStore(
                         fields.playlist_id,
                         fields.playlist_auto_publish,
                         fields.feed_url,
+                        fields.is_enabled,
                         fields.auto_import_enabled,
                         fields.auto_keep_episodes,
                         fields.import_sync_before_hours,
@@ -166,6 +167,13 @@ export const useStationsPodcastsForm = defineStore(
                 if (s === 'import' && prev !== undefined && prev !== 'import') {
                     syncRssBackgroundModeFromForm();
                 }
+            }
+        );
+
+        watch(
+            () => [form.value.is_enabled, form.value.source] as const,
+            () => {
+                syncAutoImportFromIsEnabled();
             }
         );
 
