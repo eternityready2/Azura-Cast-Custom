@@ -462,7 +462,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
             'info',
             $rollingKeepN
                 ? sprintf(
-                    'Mode: keep the %d newest feed items by date (not only items with valid audio); refresh media when possible; remove episodes outside this set.',
+                    'Mode: keep the %d newest feed items by date; only episodes with successfully imported media are kept; refresh media when possible; remove episodes outside this set.',
                     $n
                 )
                 : 'Mode: sync latest feed item only (refresh media when possible; other episodes unchanged).'
@@ -547,6 +547,19 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $description = $this->getItemDescription($item);
             $publishAt = $this->getItemPublishAt($item);
 
+            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf(
+                        'No downloadable audio enclosure for [%s]; skipping.',
+                        $title
+                    )
+                );
+
+                continue;
+            }
+
             $episode = new PodcastEpisode($podcast);
             $episode->title = $title;
             $episode->description = $description;
@@ -557,19 +570,6 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $this->em->flush();
 
             $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
-
-            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
-                $this->syncLogLine(
-                    $syncLog,
-                    'info',
-                    sprintf(
-                        'No downloadable audio enclosure for [%s] — episode row kept as one of the top %d.',
-                        $title,
-                        $n
-                    )
-                );
-                continue;
-            }
 
             $downloadedPath = $tempDir . '/' . 'podcast_import_' . $episode->id . '_' . md5($enclosureUrl);
             try {
@@ -593,10 +593,12 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                unset($importMap[$key]);
+                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Episode row kept without media [%s] (top %d).', $title, $n)
+                    sprintf('Download failed; removed episode placeholder [%s].', $title)
                 );
 
                 continue;
@@ -607,10 +609,12 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                unset($importMap[$key]);
+                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Unsupported file type for [%s] — episode row kept (top %d).', $title, $n)
+                    sprintf('Unsupported file type for [%s]; removed episode placeholder.', $title)
                 );
 
                 continue;
@@ -647,10 +651,12 @@ final class ImportPodcastFeedsTask extends AbstractTask
                         --$errorLineBudget;
                     }
                 }
+                unset($importMap[$key]);
+                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Episode row kept without media after upload error [%s] (top %d).', $title, $n)
+                    sprintf('Upload failed; removed episode placeholder [%s].', $title)
                 );
             } catch (\Throwable $e) {
                 ++$uploadErrors;
@@ -662,10 +668,12 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
+                unset($importMap[$key]);
+                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Episode row kept without media after upload error [%s] (top %d).', $title, $n)
+                    sprintf('Upload failed; removed episode placeholder [%s].', $title)
                 );
             }
 
