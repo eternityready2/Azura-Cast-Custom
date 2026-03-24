@@ -78,24 +78,28 @@ final class ImportPodcastFeedsTask extends AbstractTask
             ];
         }
 
-        $result = $this->importFeed($podcast, $station, $log, $fullBacklog);
-        $added = $result['added'];
-        $ok = $result['ok'];
+        try {
+            $result = $this->importFeed($podcast, $station, $log, $fullBacklog);
+            $added = $result['added'];
+            $ok = $result['ok'];
 
-        $message = $ok
-            ? ($added > 0
-                ? sprintf('Imported %d episode(s).', $added)
-                : ($fullBacklog
-                    ? 'Sync completed. No new episodes (feed OK).'
-                    : 'Sync completed. Already on latest episode.'))
-            : ($result['message'] ?? 'Sync failed.');
+            $message = $ok
+                ? ($added > 0
+                    ? sprintf('Imported %d episode(s).', $added)
+                    : ($fullBacklog
+                        ? 'Sync completed. No new episodes (feed OK).'
+                        : 'Sync completed. Already on latest episode.'))
+                : ($result['message'] ?? 'Sync failed.');
 
-        return [
-            'success' => $ok,
-            'message' => $message,
-            'episodes_added' => $added,
-            'log' => $log,
-        ];
+            return [
+                'success' => $ok,
+                'message' => $message,
+                'episodes_added' => $added,
+                'log' => $log,
+            ];
+        } finally {
+            $this->ensureEntityManagerOpen();
+        }
     }
 
     private function importFeedsForStation(Station $station): void
@@ -139,7 +143,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
 
             $fullBacklog = $podcast->import_strategy === PodcastImportStrategy::BackfillAll;
-            $this->importFeed($podcast, $station, null, $fullBacklog);
+            try {
+                $this->importFeed($podcast, $station, null, $fullBacklog);
+            } finally {
+                $this->ensureEntityManagerOpen();
+            }
         }
     }
 
@@ -439,6 +447,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
         string $tempDir,
         ?array &$syncLog
     ): array {
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
+
         $rollingKeepN = $podcast->auto_keep_episodes > 0;
         $n = $rollingKeepN ? $podcast->auto_keep_episodes : 1;
 
@@ -652,6 +662,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
         if ($rollingKeepN && $targetKeys !== []) {
             $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
+            $podcastId = $podcast->id;
+
             $allEpisodes = $this->em->createQuery(
                 <<<'DQL'
                     SELECT e FROM App\Entity\PodcastEpisode e
@@ -659,15 +671,42 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 DQL
             )->setParameter('podcast', $podcast)->getResult();
 
+            $episodeIdsToRemove = [];
             foreach ($allEpisodes as $episode) {
                 $link = $episode->link;
                 if ($link === null || $link === '' || !isset($targetKeys[$link])) {
+                    $episodeIdsToRemove[] = $episode->id;
+                }
+            }
+
+            foreach ($episodeIdsToRemove as $episodeId) {
+                $this->ensureEntityManagerOpen();
+                $podcast = $this->em->find(Podcast::class, $podcastId);
+                if ($podcast === null) {
+                    break;
+                }
+                $episode = $this->podcastEpisodeRepo->fetchEpisodeForPodcast($podcast, $episodeId);
+                if ($episode === null) {
+                    continue;
+                }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Removing episode outside top %d: %s', $n, $episode->title)
+                );
+                try {
+                    $this->podcastEpisodeRepo->delete($episode, $fs);
+                } catch (\Throwable $e) {
+                    $this->logger->error('Failed to delete podcast episode during rolling sync', [
+                        'episode_id' => $episodeId,
+                        'error' => $e->getMessage(),
+                    ]);
                     $this->syncLogLine(
                         $syncLog,
-                        'info',
-                        sprintf('Removing episode outside top %d: %s', $n, $episode->title)
+                        'warning',
+                        sprintf('Could not remove episode %s: %s', $episodeId, $e->getMessage())
                     );
-                    $this->podcastEpisodeRepo->delete($episode, $fs);
+                    $this->ensureEntityManagerOpen();
                 }
             }
         }
@@ -710,6 +749,18 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $this->em->open();
 
         return $this->em->refetch($podcast);
+    }
+
+    /**
+     * Recreate the EntityManager if a previous flush or operation closed it.
+     */
+    private function ensureEntityManagerOpen(): void
+    {
+        if ($this->em->isOpen()) {
+            return;
+        }
+
+        $this->em->open();
     }
 
     /**

@@ -6,7 +6,9 @@ namespace App\Controller\Api\Stations;
 
 use App\Controller\Api\AbstractApiCrudController;
 use App\Controller\Api\Traits\CanSearchResults;
+use App\Entity\Api\Error;
 use App\Entity\Api\Podcast as ApiPodcast;
+use App\Entity\Api\Status;
 use App\Entity\ApiGenerator\PodcastApiGenerator;
 use App\Entity\Enums\PodcastEpisodeStorageType;
 use App\Entity\Enums\PodcastImportStrategy;
@@ -182,6 +184,26 @@ final class PodcastsController extends AbstractApiCrudController
         return $this->listPaginatedFromQuery($request, $response, $queryBuilder->getQuery());
     }
 
+    public function editAction(
+        ServerRequest $request,
+        Response $response,
+        array $params
+    ): ResponseInterface {
+        $record = $this->getRecord($request, $params);
+
+        if (null === $record) {
+            return $response->withStatus(404)
+                ->withJson(Error::notFound());
+        }
+
+        $updated = $this->editRecord((array)$request->getParsedBody(), $record);
+        if ($updated instanceof Podcast) {
+            $this->runSyncAfterImportPodcastSave($updated);
+        }
+
+        return $response->withJson(Status::updated());
+    }
+
     protected function getRecord(ServerRequest $request, array $params): ?object
     {
         /** @var string $id */
@@ -214,12 +236,17 @@ final class PodcastsController extends AbstractApiCrudController
             $this->em->flush();
         }
 
-        $this->runInitialImportForNewPodcast($record);
+        $this->runSyncAfterImportPodcastSave($record);
+
+        $refetched = $this->em->find(Podcast::class, $record->id);
+        if ($refetched instanceof Podcast) {
+            $record = $refetched;
+        }
 
         return $record;
     }
 
-    private function runInitialImportForNewPodcast(Podcast $podcast): void
+    private function runSyncAfterImportPodcastSave(Podcast $podcast): void
     {
         if ($podcast->source !== PodcastSources::Import) {
             return;
