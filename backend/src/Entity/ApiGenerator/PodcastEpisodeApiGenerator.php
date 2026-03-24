@@ -77,10 +77,9 @@ final class PodcastEpisodeApiGenerator
 
             case PodcastSources::Manual:
             case PodcastSources::Import:
-                $return->playlist_media = null;
-                $return->playlist_media_id = null;
-
                 $mediaRow = $record->media;
+                $playlistMediaRow = $record->playlist_media;
+
                 if ($mediaRow instanceof PodcastMedia) {
                     $media = new ApiPodcastMedia();
                     $media->id = $mediaRow->id;
@@ -91,11 +90,22 @@ final class PodcastEpisodeApiGenerator
 
                     $return->has_media = true;
                     $return->media = $media;
+                    $return->playlist_media = null;
+                    $return->playlist_media_id = null;
 
                     $mediaExtension = Path::getExtension($mediaRow->path);
+                } elseif ($playlistMediaRow instanceof StationMedia) {
+                    $return->media = null;
+                    $return->has_media = true;
+                    $return->playlist_media = $this->songApiGen->__invoke($playlistMediaRow);
+                    $return->playlist_media_id = $playlistMediaRow->unique_id;
+
+                    $mediaExtension = Path::getExtension($playlistMediaRow->path);
                 } else {
                     $return->has_media = false;
                     $return->media = null;
+                    $return->playlist_media = null;
+                    $return->playlist_media_id = null;
                 }
                 break;
         }

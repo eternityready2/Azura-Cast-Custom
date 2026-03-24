@@ -413,7 +413,7 @@ final class PodcastEpisodeRepository extends Repository
             $this->deleteMedia($media, $fs);
         }
 
-        if ($podcast->source === PodcastSources::Import && $episode->playlist_media instanceof StationMedia) {
+        if ($episode->playlist_media instanceof StationMedia) {
             $this->deleteStationMediaAndFile($episode->playlist_media);
             $episode->playlist_media = null;
         }
