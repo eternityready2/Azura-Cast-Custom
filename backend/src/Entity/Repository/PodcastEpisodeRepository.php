@@ -210,6 +210,8 @@ final class PodcastEpisodeRepository extends Repository
             : '';
         $path = $folderPrefix . $episode->id . '.' . $ext;
 
+        $this->removeExistingStationMediaAtPathForReplace($episode, $mediaStorage, $path);
+
         $stationMedia = new StationMedia($mediaStorage, $path);
         $this->stationMediaRepo->loadFromFile($stationMedia, $uploadPath, $fsMedia);
         if (($episode->title ?? '') !== '') {
@@ -272,6 +274,36 @@ final class PodcastEpisodeRepository extends Repository
         $episode->media = $podcastMedia;
     }
 
+    /**
+     * Before inserting station_media at this path, remove any existing row (orphan or stale link)
+     * so path_unique_idx does not fail on refresh/re-import.
+     */
+    private function removeExistingStationMediaAtPathForReplace(
+        PodcastEpisode $episode,
+        StorageLocation $mediaStorage,
+        string $path
+    ): void {
+        $existing = $this->stationMediaRepo->findByPath($path, $mediaStorage);
+        if ($existing === null) {
+            return;
+        }
+
+        $this->em->createQuery(
+            <<<'DQL'
+                UPDATE App\Entity\PodcastEpisode e
+                SET e.playlist_media = NULL
+                WHERE e.playlist_media = :media
+            DQL
+        )->setParameter('media', $existing)->execute();
+
+        if ($episode->playlist_media === $existing) {
+            $episode->playlist_media = null;
+        }
+
+        $this->deleteStationMediaAndFile($existing);
+        $this->em->flush();
+    }
+
     private function removeEpisodePlaylistMediaIfImport(PodcastEpisode $episode, Station $station): void
     {
         if ($episode->podcast->source !== PodcastSources::Import) {
@@ -283,6 +315,7 @@ final class PodcastEpisodeRepository extends Repository
         }
         $this->deleteStationMediaAndFile($playlistMedia);
         $episode->playlist_media = null;
+        $this->em->flush();
     }
 
     private function deleteStationMediaAndFile(StationMedia $media): void
