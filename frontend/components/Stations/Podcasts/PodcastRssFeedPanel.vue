@@ -26,7 +26,7 @@
         <div class="card-body">
             <p class="text-muted small">
                 {{
-                    $gettext('All episodes listed in the RSS feed. Check the box and import to download older episodes. Rows with a download icon already have media in AzuraCast.')
+                    $gettext('All episodes listed in the RSS feed. Check the box and import to download episodes, or re-import to replace media when a checkmark shows the file is already in AzuraCast.')
                 }}
             </p>
             <div
@@ -83,14 +83,14 @@
                                     type="checkbox"
                                     class="form-check-input"
                                     :value="row.key"
-                                    :disabled="row.no_audio || row.has_media"
+                                    :disabled="row.no_audio"
                                 >
                             </td>
                             <td class="text-center">
                                 <span
                                     v-if="row.has_media"
                                     class="text-success fw-bold"
-                                    :title="$gettext('Downloaded to library')"
+                                    :title="$gettext('Media in AzuraCast — use Import to replace from feed')"
                                 >&#10003;</span>
                                 <span
                                     v-else-if="row.imported"
@@ -119,7 +119,7 @@
                                 <button
                                     type="button"
                                     class="btn btn-sm btn-outline-primary"
-                                    :disabled="row.no_audio || row.has_media || importing"
+                                    :disabled="row.no_audio || importing"
                                     @click="importKeys([row.key])"
                                 >
                                     {{ $gettext('Import') }}
@@ -220,8 +220,10 @@ const importKeys = async (keys: string[]) => {
             data.episodes_added ?? 0,
             data.success !== false
         );
-        if (data.success && (data.episodes_added ?? 0) > 0) {
-            notifySuccess($gettext('Episode(s) imported.'));
+        if (data.success) {
+            if ((data.episodes_added ?? 0) > 0) {
+                notifySuccess($gettext('Episode(s) imported.'));
+            }
             emit('imported');
             await loadFeed();
             selectedKeys.value = selectedKeys.value.filter((k) => !keys.includes(k));

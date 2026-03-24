@@ -1309,11 +1309,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $title = $this->getItemTitle($item);
             if ($linkVal !== '') {
                 $existing = $importMap[$linkVal] ?? null;
-                if ($existing !== null && $existing['has_media']) {
-                    $this->syncLogLine($log, 'info', sprintf('Already imported [%s]', $title));
-                    continue;
-                }
-                if ($existing !== null && !$existing['has_media']) {
+                if ($existing !== null) {
                     $episode = $this->podcastEpisodeRepo->fetchEpisodeForPodcast($podcast, $existing['episode_id']);
                     if ($episode !== null) {
                         if ($this->attachFeedItemMediaToExistingEpisode(
@@ -1326,11 +1322,17 @@ final class ImportPodcastFeedsTask extends AbstractTask
                             $errorLineBudget
                         )) {
                             ++$added;
-                            $this->syncLogLine($log, 'info', sprintf('Re-imported media for: %s', $title));
+                            $this->syncLogLine(
+                                $log,
+                                'info',
+                                $existing['has_media']
+                                    ? sprintf('Updated media for: %s', $title)
+                                    : sprintf('Re-imported media for: %s', $title)
+                            );
                             $importMap[$linkVal]['has_media'] = true;
                         }
-                        continue;
                     }
+                    continue;
                 }
             }
 
