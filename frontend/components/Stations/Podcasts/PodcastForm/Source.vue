@@ -120,7 +120,7 @@
 
                     <form-group-select
                         id="form_edit_rss_background_sync"
-                        v-model="rssBackgroundSyncMode"
+                        v-model="rssModeModel"
                         class="col-md-12"
                         :options="rssBackgroundSyncOptions"
                         :label="$gettext('Background RSS sync')"
@@ -162,12 +162,15 @@ import Tab from "~/components/Common/Tab.vue";
 import FormGroupMultiCheck from "~/components/Form/FormGroupMultiCheck.vue";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
 import {useTranslate} from "~/vendor/gettext.ts";
-import {computed, onMounted, ref, shallowRef, watch} from "vue";
+import {computed, onMounted, ref, shallowRef} from "vue";
 import {useAxios} from "~/vendor/axios.ts";
 import Loading from "~/components/Common/Loading.vue";
 import {ApiFormSimpleOptions} from "~/entities/ApiInterfaces.ts";
 import {storeToRefs} from "pinia";
-import {useStationsPodcastsForm} from "~/components/Stations/Podcasts/PodcastForm/form.ts";
+import {
+    useStationsPodcastsForm,
+    type RssBackgroundSyncMode
+} from "~/components/Stations/Podcasts/PodcastForm/form.ts";
 import {useFormTabClass} from "~/functions/useFormTabClass.ts";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
 
@@ -176,9 +179,15 @@ type MediaFolderRow = {
     name: string
 };
 
-type RssBackgroundSyncMode = 'off' | 'every' | 'before_air';
+const formStore = useStationsPodcastsForm();
+const {r$, form, rssBackgroundSyncMode} = storeToRefs(formStore);
 
-const {r$, form} = storeToRefs(useStationsPodcastsForm());
+const rssModeModel = computed({
+    get: (): RssBackgroundSyncMode => rssBackgroundSyncMode.value,
+    set: (mode: RssBackgroundSyncMode) => {
+        formStore.setRssBackgroundSyncMode(mode);
+    }
+});
 
 const tabClass = useFormTabClass(computed(() => r$.value.$groups.sourceTab));
 
@@ -266,45 +275,4 @@ const rssBackgroundSyncOptions = [
     }
 ];
 
-const rssBackgroundSyncMode = computed<RssBackgroundSyncMode>({
-    get(): RssBackgroundSyncMode {
-        const f = form.value;
-        if (!f.auto_import_enabled) {
-            return 'off';
-        }
-        const h = f.import_sync_before_hours;
-        if (h !== null && h !== undefined && h > 0) {
-            return 'before_air';
-        }
-        return 'every';
-    },
-    set(mode: RssBackgroundSyncMode) {
-        const f = form.value;
-        if (mode === 'off') {
-            f.auto_import_enabled = false;
-            f.import_sync_before_hours = null;
-        } else if (mode === 'every') {
-            f.auto_import_enabled = true;
-            f.import_sync_before_hours = null;
-        } else {
-            f.auto_import_enabled = true;
-            if (f.import_sync_before_hours === null || f.import_sync_before_hours < 1) {
-                f.import_sync_before_hours = 5;
-            }
-        }
-    }
-});
-
-/** If user lowers hours below 1 while in before-air mode, treat as “every run”. */
-watch(
-    () => form.value.import_sync_before_hours,
-    (h) => {
-        if (!form.value.auto_import_enabled) {
-            return;
-        }
-        if (h !== null && h !== undefined && h < 1) {
-            form.value.import_sync_before_hours = null;
-        }
-    }
-);
 </script>

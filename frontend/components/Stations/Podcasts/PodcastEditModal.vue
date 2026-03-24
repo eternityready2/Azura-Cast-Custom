@@ -57,7 +57,7 @@ const $modal = useTemplateRef('$modal');
 
 const formStore = useStationsPodcastsForm();
 const {form, record, r$} = storeToRefs(formStore);
-const {$reset: resetForm} = formStore;
+const {$reset: resetForm, syncRssBackgroundModeFromForm} = formStore;
 
 const {
     loading,
@@ -85,7 +85,8 @@ const {
                 categories: data.categories?.map((row) => row.category) ?? [],
                 media_folder_path: data.media_folder_path ?? ''
             })
-        })
+        });
+        syncRssBackgroundModeFromForm();
     },
     async () => {
         const {valid} = await r$.value.$validate();

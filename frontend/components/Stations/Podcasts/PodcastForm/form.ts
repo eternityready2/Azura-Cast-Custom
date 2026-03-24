@@ -1,8 +1,13 @@
 import {useAppRegle} from "~/vendor/regle.ts";
 import {useResettableRef} from "~/functions/useResettableRef.ts";
 import {defineStore} from "pinia";
+import {createRule} from "@regle/core";
 import {required} from "@regle/rules";
+import {ref, watch} from "vue";
+import {useTranslate} from "~/vendor/gettext.ts";
 import {PodcastExtraData, PodcastRecord} from "~/entities/Podcasts.ts";
+
+export type RssBackgroundSyncMode = 'off' | 'every' | 'before_air';
 
 export const useStationsPodcastsForm = defineStore(
     'form-stations-podcasts',
@@ -42,6 +47,66 @@ export const useStationsPodcastsForm = defineStore(
             artwork_file: null,
         });
 
+        const rssBackgroundSyncMode = ref<RssBackgroundSyncMode>('every');
+
+        const {$gettext} = useTranslate();
+
+        const deriveRssBackgroundSyncMode = (): RssBackgroundSyncMode => {
+            const f = form.value;
+            if (f.source !== 'import') {
+                return 'off';
+            }
+            if (!f.auto_import_enabled) {
+                return 'off';
+            }
+            const h = f.import_sync_before_hours;
+            if (h !== null && h !== undefined && h > 0) {
+                return 'before_air';
+            }
+            return 'every';
+        };
+
+        const syncRssBackgroundModeFromForm = (): void => {
+            rssBackgroundSyncMode.value = deriveRssBackgroundSyncMode();
+        };
+
+        const setRssBackgroundSyncMode = (mode: RssBackgroundSyncMode): void => {
+            rssBackgroundSyncMode.value = mode;
+            const f = form.value;
+            if (mode === 'off') {
+                f.auto_import_enabled = false;
+                f.import_sync_before_hours = null;
+            } else if (mode === 'every') {
+                f.auto_import_enabled = true;
+                f.import_sync_before_hours = null;
+            } else {
+                f.auto_import_enabled = true;
+                if (
+                    f.import_sync_before_hours === null
+                    || f.import_sync_before_hours === undefined
+                    || f.import_sync_before_hours < 1
+                ) {
+                    f.import_sync_before_hours = 5;
+                }
+            }
+        };
+
+        const importSyncBeforeHoursValid = createRule({
+            validator: (value: number | null | undefined) => {
+                const f = form.value;
+                if (f.source !== 'import' || rssBackgroundSyncMode.value !== 'before_air') {
+                    return true;
+                }
+                if (value === null || value === undefined) {
+                    return false;
+                }
+                const n = Number(value);
+                return Number.isInteger(n) && n >= 1 && n <= 168;
+            },
+            message: () =>
+                $gettext('Enter a whole number of hours between 1 and 168.')
+        });
+
         const {r$} = useAppRegle(
             form,
             {
@@ -53,6 +118,9 @@ export const useStationsPodcastsForm = defineStore(
                     $each: {}
                 },
                 source: {required},
+                import_sync_before_hours: {
+                    importSyncBeforeHoursValid
+                },
             },
             {
                 validationGroups: (fields) => ({
@@ -85,16 +153,36 @@ export const useStationsPodcastsForm = defineStore(
             }
         );
 
+        watch(
+            [rssBackgroundSyncMode, () => form.value.source],
+            () => {
+                r$.import_sync_before_hours.$validateSync();
+            }
+        );
+
+        watch(
+            () => form.value.source,
+            (s: PodcastRecord['source'], prev: PodcastRecord['source'] | undefined) => {
+                if (s === 'import' && prev !== undefined && prev !== 'import') {
+                    syncRssBackgroundModeFromForm();
+                }
+            }
+        );
+
         const $reset = () => {
             reset();
             resetRecord();
             r$.$reset();
+            syncRssBackgroundModeFromForm();
         }
 
         return {
             record,
             form,
             r$,
+            rssBackgroundSyncMode,
+            setRssBackgroundSyncMode,
+            syncRssBackgroundModeFromForm,
             $reset
         }
     }
