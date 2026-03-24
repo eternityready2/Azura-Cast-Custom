@@ -263,8 +263,8 @@ final class PodcastsController extends AbstractApiCrudController
             return;
         }
 
-        // "Keep Last N Episodes" drives how many files to fetch on save (same field as Source.vue):
-        // N > 0 = download/sync only the N newest feed items; N = 0 = import the full feed ("keep all").
+        // "Keep Last N Episodes" drives how many media files to fetch on save (same field as Source.vue):
+        // N > 0 = download the N newest feed entries that have a downloadable audio enclosure; N = 0 = full-feed import ("keep all").
         $fullBacklog = $fresh->auto_keep_episodes <= 0;
         $this->importPodcastFeedsTask->runForPodcastWithSyncLog($fresh, $fullBacklog);
     }

@@ -462,17 +462,18 @@ final class ImportPodcastFeedsTask extends AbstractTask
             'info',
             $rollingKeepN
                 ? sprintf(
-                    'Mode: keep the %d newest feed items by date; only episodes with successfully imported media are kept; refresh media when possible; remove episodes outside this set.',
+                    'Mode: download media for the %d newest feed entries that have a downloadable audio enclosure; refresh when possible; remove local episodes outside this set.',
                     $n
                 )
-                : 'Mode: sync latest feed item only (refresh media when possible; other episodes unchanged).'
+                : 'Mode: sync the newest feed entry with a downloadable audio enclosure (refresh media when possible; other episodes unchanged).'
         );
 
         usort($items, function (SimpleXMLElement $a, SimpleXMLElement $b): int {
             return $this->getItemPublishAt($b) <=> $this->getItemPublishAt($a);
         });
 
-        // Keep last N = the N newest feed items (by pub date) with a stable key — not only items with "valid" audio MIME.
+        // Newest N entries (by pub date) that have a stable key and a downloadable audio enclosure, so create/save
+        // attempts to fetch N media files—not N arbitrary <item> rows that may be text-only or video-only.
         $topSlice = [];
         foreach ($items as $item) {
             if (count($topSlice) >= $n) {
@@ -482,6 +483,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
             if ($key === '') {
                 continue;
             }
+            $enclosureUrl = $this->getEnclosureUrl($item);
+            $mimeHint = $this->getEnclosureMimeHint($item);
+            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
+                continue;
+            }
             $topSlice[] = $item;
         }
 
@@ -489,7 +495,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $this->syncLogLine(
                 $syncLog,
                 'warning',
-                'No feed items with a GUID or enclosure URL in the newest entries; cannot sync.'
+                'No feed items with a GUID or enclosure URL and a downloadable audio enclosure; cannot sync.'
             );
 
             return ['added' => 0, 'ok' => true];
