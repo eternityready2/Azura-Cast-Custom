@@ -73,7 +73,9 @@
             paginated
             select-fields
             :fields="fields"
-            :provider="episodesItemProvider"
+            :provider="episodesTableProvider"
+            :row-selectable="rowSelectableFn"
+            :skip-refresh-on-sort="podcastIsImport"
             @row-selected="onRowSelected"
         >
             <template #cell(art)="{item}">
@@ -82,6 +84,10 @@
             <template #cell(title)="{item}">
                 <h5 class="m-0">
                     {{ item.title }}
+                    <span
+                        v-if="item._feedCatalogOnly"
+                        class="badge text-bg-secondary ms-1"
+                    >{{ $gettext('RSS catalog') }}</span>
                 </h5>
                 <div v-if="item.is_published">
                     <a
@@ -131,7 +137,9 @@
                     <button
                         type="button"
                         class="btn btn-primary"
-                        @click="doEdit(item.links.self)"
+                        :disabled="!item.links?.self || item._feedCatalogOnly"
+                        :title="item._feedCatalogOnly ? $gettext('Import this episode from the RSS catalog above first.') : undefined"
+                        @click="doEdit(item.links!.self)"
                     >
                         {{ $gettext('Edit') }}
                     </button>
@@ -170,10 +178,10 @@ import EditModal from "~/components/Stations/Podcasts/EpisodeEditModal.vue";
 import AlbumArt from "~/components/Common/AlbumArt.vue";
 import StationsCommonQuota from "~/components/Stations/Common/Quota.vue";
 import {useTranslate} from "~/vendor/gettext";
-import {computed, shallowRef, toRef, useTemplateRef} from "vue";
+import {computed, shallowRef, toRef, useTemplateRef, type ComputedRef} from "vue";
 import AddButton from "~/components/Common/AddButton.vue";
 import useConfirmAndDelete from "~/functions/useConfirmAndDelete.ts";
-import {ApiPodcast, ApiPodcastEpisode} from "~/entities/ApiInterfaces.ts";
+import {ApiPodcast} from "~/entities/ApiInterfaces.ts";
 import useHasEditModal from "~/functions/useHasEditModal.ts";
 import useStationDateTimeFormatter from "~/functions/useStationDateTimeFormatter.ts";
 import CardPage from "~/components/Common/CardPage.vue";
@@ -182,6 +190,12 @@ import PodcastRssFeedPanel from "~/components/Stations/Podcasts/PodcastRssFeedPa
 import BatchEditModal from "~/components/Stations/Podcasts/BatchEditModal.vue";
 import {useHasModal} from "~/functions/useHasModal.ts";
 import {useApiItemProvider} from "~/functions/dataTable/useApiItemProvider.ts";
+import {
+    isImportEpisodeRowSelectable,
+    useImportPodcastFeedMergedProvider,
+    type ImportPodcastEpisodeTableRow,
+} from "~/functions/dataTable/useImportPodcastFeedMergedProvider.ts";
+import {DataTableItemProvider} from "~/functions/useHasDatatable.ts";
 import {QueryKeys, queryKeyWithStation} from "~/entities/Queries.ts";
 import IconBiChevronLeft from "~icons/bi/chevron-left";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
@@ -199,7 +213,7 @@ const {$gettext} = useTranslate();
 
 const {formatTimestampAsDateTime} = useStationDateTimeFormatter();
 
-type Row = Required<ApiPodcastEpisode>
+type Row = ImportPodcastEpisodeTableRow
 
 const fields: DataTableField<Row>[] = [
     {
@@ -229,7 +243,7 @@ const fields: DataTableField<Row>[] = [
     {
         key: 'publish_at',
         label: $gettext('Publish At'),
-        formatter: (_col, _key, item) => formatTimestampAsDateTime(item.publish_at),
+        formatter: (_col, _key, item) => formatTimestampAsDateTime(item.publish_at ?? null),
         sortable: true,
         selectable: true
     },
@@ -261,8 +275,12 @@ const fields: DataTableField<Row>[] = [
     }
 ];
 
-const episodesItemProvider = useApiItemProvider<Row>(
-    computed(() => podcast.value.links.episodes),
+const standardEpisodesUrl = computed(() =>
+    podcast.value.source === 'import' ? null : podcast.value.links.episodes
+);
+
+const standardEpisodesProvider = useApiItemProvider<Row>(
+    standardEpisodesUrl,
     queryKeyWithStation(
         [
             QueryKeys.StationPodcasts,
@@ -272,7 +290,41 @@ const episodesItemProvider = useApiItemProvider<Row>(
     ),
 );
 
-const {refresh} = episodesItemProvider;
+const feedItemsApiUrl = computed(() =>
+    podcast.value.source === 'import'
+        ? getStationApiUrl(`/podcast/${podcast.value.id}/feed-items`).value
+        : null
+);
+
+const importEpisodesUrl = computed(() =>
+    podcast.value.source === 'import' ? podcast.value.links.episodes : null
+);
+
+const importFeedMergedProvider = useImportPodcastFeedMergedProvider(
+    importEpisodesUrl,
+    feedItemsApiUrl,
+    queryKeyWithStation([
+        QueryKeys.StationPodcasts,
+        computed(() => podcast.value.id),
+        'episodes',
+        'import-feed-merged',
+    ])
+);
+
+const episodesTableProvider: ComputedRef<DataTableItemProvider<Row>> = computed(() =>
+    podcast.value.source === 'import' ? importFeedMergedProvider : standardEpisodesProvider
+);
+
+const rowSelectableFn = computed(() =>
+    podcast.value.source === 'import' ? isImportEpisodeRowSelectable : undefined
+);
+
+const relistRefresh = () => {
+    if (podcast.value.source === 'import') {
+        return importFeedMergedProvider.refresh();
+    }
+    return standardEpisodesProvider.refresh();
+};
 
 const podcastIsManual = computed(() => {
     return podcast.value?.source == 'manual';
@@ -286,7 +338,7 @@ const $quota = useTemplateRef('$quota');
 
 const relist = () => {
     $quota.value?.update();
-    void refresh();
+    void relistRefresh();
 };
 
 const $editEpisodeModal = useTemplateRef('$editEpisodeModal');
@@ -298,7 +350,7 @@ const {doDelete} = useConfirmAndDelete(
     () => relist()
 );
 
-const selectedItems = shallowRef<Row[]>([]);
+const selectedItems = shallowRef<ImportPodcastEpisodeTableRow[]>([]);
 
 const onRowSelected = (rows: Row[]) => {
     selectedItems.value = rows;

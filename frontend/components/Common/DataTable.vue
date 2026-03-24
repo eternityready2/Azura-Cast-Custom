@@ -229,6 +229,7 @@
                                 <label class="form-check">
                                     <form-checkbox
                                         autocomplete="off"
+                                        :disabled="!!rowSelectable && !rowSelectable(row)"
                                         :model-value="isRowChecked(row)"
                                         @update:model-value="checkRow(row)"
                                     />
@@ -339,6 +340,10 @@ export interface DataTableProps<Row extends DataTableRow = DataTableRow> {
     selectable?: boolean, // Allow selecting individual rows with checkboxes at the side of each row
     detailed?: boolean, // Allow showing "Detail" panel for selected rows.
     selectFields?: boolean, // Allow selecting which columns are visible.
+    /** When set, rows returning false cannot be selected (checkbox disabled). */
+    rowSelectable?: (row: Row) => boolean,
+    /** If true, column sort updates context only (no provider refresh). Use for client-sorted providers. */
+    skipRefreshOnSort?: boolean,
 }
 
 const props = withDefaults(defineProps<DataTableProps<Row>>(), {
@@ -350,7 +355,8 @@ const props = withDefaults(defineProps<DataTableProps<Row>>(), {
     defaultPerPage: DATATABLE_DEFAULT_CONTEXT.perPage,
     selectable: false,
     detailed: false,
-    selectFields: false
+    selectFields: false,
+    skipRefreshOnSort: false,
 });
 
 const slots = defineSlots<{
@@ -576,12 +582,20 @@ watchDebounced(searchPhrase, (newSearchPhrase) => {
     maxWait: 1000
 });
 
+const selectableVisibleItems = computed<Row[]>(() => {
+    if (!props.rowSelectable) {
+        return visibleItems.value;
+    }
+    return visibleItems.value.filter((row) => props.rowSelectable!(row));
+});
+
 const isAllChecked = computed<boolean>(() => {
-    if (visibleItems.value.length === 0) {
+    const candidates = selectableVisibleItems.value;
+    if (candidates.length === 0) {
         return false;
     }
 
-    return !some(visibleItems.value, (currentVisibleRow) => {
+    return !some(candidates, (currentVisibleRow) => {
         return selectedRows.value.indexOf(currentVisibleRow) === -1;
     });
 });
@@ -611,7 +625,9 @@ const sort = (column: DataTableField) => {
         sortField.value = column;
     }
 
-    refresh();
+    if (!props.skipRefreshOnSort) {
+        refresh();
+    }
 };
 
 const checkRow = (row: Row) => {
@@ -633,7 +649,7 @@ const checkAll = () => {
     const newSelectedRows: Row[] = [];
 
     if (!isAllChecked.value) {
-        forEach(visibleItems.value, (currentRow) => {
+        forEach(selectableVisibleItems.value, (currentRow) => {
             newSelectedRows.push(currentRow);
         });
     }
