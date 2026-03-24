@@ -263,8 +263,9 @@ final class PodcastsController extends AbstractApiCrudController
             return;
         }
 
-        // Match scheduled import: backfill_all = import all missing items; latest_single = top-N / latest-only sync.
-        $fullBacklog = $fresh->import_strategy === PodcastImportStrategy::BackfillAll;
+        // "Keep Last N Episodes" drives how many files to fetch on save (same field as Source.vue):
+        // N > 0 = download/sync only the N newest feed items; N = 0 = import the full feed ("keep all").
+        $fullBacklog = $fresh->auto_keep_episodes <= 0;
         $this->importPodcastFeedsTask->runForPodcastWithSyncLog($fresh, $fullBacklog);
     }
 
