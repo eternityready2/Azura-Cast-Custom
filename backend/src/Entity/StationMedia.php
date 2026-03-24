@@ -227,7 +227,14 @@ final class StationMedia implements
 
     public function __toString(): string
     {
-        return 'StationMedia ' . $this->id . ': ' . $this->artist . ' - ' . $this->title;
+        // Use unique_id (set in constructor), not id (only exists after persist). AuditLog and other
+        // Stringable casts run during flush before auto-increment id is assigned.
+        return sprintf(
+            'StationMedia %s: %s - %s',
+            $this->unique_id,
+            $this->artist ?? '',
+            $this->title ?? ''
+        );
     }
 
     public static function getArtPath(string $uniqueId): string

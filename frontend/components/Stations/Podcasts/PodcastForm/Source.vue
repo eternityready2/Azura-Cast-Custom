@@ -118,12 +118,25 @@
                         input-trim
                     />
 
-                    <form-group-checkbox
-                        id="form_edit_auto_import_enabled"
+                    <form-group-select
+                        id="form_edit_rss_background_sync"
+                        v-model="rssBackgroundSyncMode"
                         class="col-md-12"
-                        :field="r$.auto_import_enabled"
-                        :label="$gettext('Enable Auto-Download')"
-                        :description="$gettext('Automatically fetch and import new episodes when the sync task runs.')"
+                        :options="rssBackgroundSyncOptions"
+                        :label="$gettext('Background RSS sync')"
+                        :description="$gettext('Manual sync from the podcast list always works. This only controls whether the scheduled task fetches the feed automatically.')"
+                    />
+
+                    <form-group-field
+                        v-show="rssBackgroundSyncMode === 'before_air'"
+                        id="form_edit_import_sync_before_hours"
+                        class="col-md-12"
+                        :field="r$.import_sync_before_hours"
+                        type="number"
+                        :min="1"
+                        :max="168"
+                        :label="$gettext('Hours before scheduled playlist start')"
+                        :description="$gettext('When this podcast has a linked playlist with a schedule, import runs only inside this window before the next start. If there is no linked playlist, the server still imports on every scheduled run (same as “Every scheduled run”).')"
                     />
 
                     <form-group-field
@@ -133,28 +146,9 @@
                         type="number"
                         :min="0"
                         :label="$gettext('Keep Last N Episodes')"
-                        :description="$gettext('After import, keep only the N newest episodes (0 = keep all). Useful with “Import all from feed”.')"
+                        :description="$gettext('After each import, keep only the N newest episodes (0 = keep all). Use 1 for a single latest episode, or a higher number for a rolling window.')"
                     />
 
-                    <form-group-select
-                        id="form_edit_import_strategy"
-                        class="col-md-12"
-                        :field="r$.import_strategy"
-                        :options="importStrategyOptions"
-                        :label="$gettext('Auto-import mode')"
-                        :description="$gettext('Latest only: one episode (newest by date), replaces the previous file. Import all: download every episode not yet in the library.')"
-                    />
-
-                    <form-group-field
-                        id="form_edit_import_sync_before_hours"
-                        class="col-md-12"
-                        :field="r$.import_sync_before_hours"
-                        type="number"
-                        :min="0"
-                        :max="168"
-                        :label="$gettext('Sync N hours before air (optional)')"
-                        :description="$gettext('If episodes are tied to a playlist that has a schedule: run auto-import only once within this many hours before the next scheduled start (e.g. 5). Leave 0 or empty for every sync.')"
-                    />
                 </div>
             </div>
         </section>
@@ -168,7 +162,7 @@ import Tab from "~/components/Common/Tab.vue";
 import FormGroupMultiCheck from "~/components/Form/FormGroupMultiCheck.vue";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
 import {useTranslate} from "~/vendor/gettext.ts";
-import {computed, onMounted, ref, shallowRef} from "vue";
+import {computed, onMounted, ref, shallowRef, watch} from "vue";
 import {useAxios} from "~/vendor/axios.ts";
 import Loading from "~/components/Common/Loading.vue";
 import {ApiFormSimpleOptions} from "~/entities/ApiInterfaces.ts";
@@ -181,6 +175,8 @@ type MediaFolderRow = {
     path: string,
     name: string
 };
+
+type RssBackgroundSyncMode = 'off' | 'every' | 'before_air';
 
 const {r$, form} = storeToRefs(useStationsPodcastsForm());
 
@@ -252,8 +248,63 @@ const episodeStorageTypeOptions = [
     { value: 'media', text: $gettext('Station media folder') }
 ];
 
-const importStrategyOptions = [
-    { value: 'latest_single', text: $gettext('Latest episode only (replace previous)') },
-    { value: 'backfill_all', text: $gettext('Import all new episodes from feed') }
+const rssBackgroundSyncOptions = [
+    {
+        value: 'off' as const,
+        text: $gettext('Off (manual sync only)'),
+        description: $gettext('Do not fetch the feed on the scheduled task.')
+    },
+    {
+        value: 'every' as const,
+        text: $gettext('Every scheduled run'),
+        description: $gettext('Fetch and import on each sync run (typically every few minutes).')
+    },
+    {
+        value: 'before_air' as const,
+        text: $gettext('Only within N hours before air'),
+        description: $gettext('Requires a linked playlist with a schedule; imports only inside the window before the next start.')
+    }
 ];
+
+const rssBackgroundSyncMode = computed<RssBackgroundSyncMode>({
+    get(): RssBackgroundSyncMode {
+        const f = form.value;
+        if (!f.auto_import_enabled) {
+            return 'off';
+        }
+        const h = f.import_sync_before_hours;
+        if (h !== null && h !== undefined && h > 0) {
+            return 'before_air';
+        }
+        return 'every';
+    },
+    set(mode: RssBackgroundSyncMode) {
+        const f = form.value;
+        if (mode === 'off') {
+            f.auto_import_enabled = false;
+            f.import_sync_before_hours = null;
+        } else if (mode === 'every') {
+            f.auto_import_enabled = true;
+            f.import_sync_before_hours = null;
+        } else {
+            f.auto_import_enabled = true;
+            if (f.import_sync_before_hours === null || f.import_sync_before_hours < 1) {
+                f.import_sync_before_hours = 5;
+            }
+        }
+    }
+});
+
+/** If user lowers hours below 1 while in before-air mode, treat as “every run”. */
+watch(
+    () => form.value.import_sync_before_hours,
+    (h) => {
+        if (!form.value.auto_import_enabled) {
+            return;
+        }
+        if (h !== null && h !== undefined && h < 1) {
+            form.value.import_sync_before_hours = null;
+        }
+    }
+);
 </script>

@@ -89,7 +89,11 @@ const {
     },
     async () => {
         const {valid} = await r$.value.$validate();
-        return {valid, data: form.value};
+        const data = {...form.value};
+        if (data.source === 'import') {
+            data.import_strategy = 'backfill_all';
+        }
+        return {valid, data};
     }
 );
 

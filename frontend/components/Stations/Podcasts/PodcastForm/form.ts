@@ -77,7 +77,6 @@ export const useStationsPodcastsForm = defineStore(
                         fields.feed_url,
                         fields.auto_import_enabled,
                         fields.auto_keep_episodes,
-                        fields.import_strategy,
                         fields.import_sync_before_hours,
                         fields.episode_storage_type,
                         fields.media_folder_path,
