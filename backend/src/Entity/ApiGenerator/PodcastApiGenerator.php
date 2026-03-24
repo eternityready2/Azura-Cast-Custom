@@ -135,7 +135,7 @@ final class PodcastApiGenerator
                 absolute: !$isInternal
             ),
             'episodes' => $router->named(
-                routeName: 'api:stations:public:podcast:episodes',
+                routeName: 'api:stations:podcast:episodes',
                 routeParams: $baseRouteParams,
                 absolute: !$isInternal
             ),

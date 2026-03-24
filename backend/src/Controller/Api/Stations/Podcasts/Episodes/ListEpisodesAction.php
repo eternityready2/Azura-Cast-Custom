@@ -62,7 +62,7 @@ final class ListEpisodesAction implements SingleActionInterface
         $podcast = $request->getPodcast();
 
         $queryBuilder = $this->em->createQueryBuilder()
-            ->select('e, p, pm')
+            ->select('e, p, pm, sm')
             ->from(PodcastEpisode::class, 'e')
             ->join('e.podcast', 'p')
             ->leftJoin('e.media', 'pm')
@@ -72,7 +72,7 @@ final class ListEpisodesAction implements SingleActionInterface
             ->andWhere('e.publish_at <= :publishTime')
             ->setParameter('publishTime', time())
             ->andWhere(
-                '(p.source IN (:sourcesWithMedia) AND pm.id IS NOT NULL) OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL)'
+                '(p.source IN (:sourcesWithMedia) AND (pm.id IS NOT NULL OR sm.id IS NOT NULL)) OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL)'
             )
             ->setParameter('sourcesWithMedia', [PodcastSources::Manual->value, PodcastSources::Import->value])
             ->setParameter('sourcePlaylist', PodcastSources::Playlist->value)
