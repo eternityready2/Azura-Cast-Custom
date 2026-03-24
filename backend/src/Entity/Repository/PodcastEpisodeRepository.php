@@ -202,7 +202,15 @@ final class PodcastEpisodeRepository extends Repository
 
         $fsMedia = $this->stationFilesystems->getMediaFilesystem($station);
 
-        $this->removeEpisodePlaylistMediaIfImport($episode, $station);
+        $existingPodcastMedia = $episode->media;
+        if ($existingPodcastMedia instanceof PodcastMedia) {
+            $fsPodcast = $this->storageLocationRepo->getAdapter($podcast->storage_location)
+                ->getFilesystem();
+            $this->deleteMedia($existingPodcastMedia, $fsPodcast);
+            $episode->media = null;
+        }
+
+        $this->removeEpisodePlaylistMediaIfPresent($episode);
 
         $rawPath = $podcast->media_folder_path;
         $folderPrefix = (null !== $rawPath && '' !== trim($rawPath))
@@ -251,6 +259,8 @@ final class PodcastEpisodeRepository extends Repository
             throw new StorageLocationFullException();
         }
 
+        $this->removeEpisodePlaylistMediaIfPresent($episode);
+
         $existingMedia = $episode->media;
         if ($existingMedia instanceof PodcastMedia) {
             $this->deleteMedia($existingMedia, $fs);
@@ -272,6 +282,7 @@ final class PodcastEpisodeRepository extends Repository
         $storageLocation->addStorageUsed($size);
         $this->em->persist($storageLocation);
         $episode->media = $podcastMedia;
+        $episode->playlist_media = null;
     }
 
     /**
@@ -304,11 +315,11 @@ final class PodcastEpisodeRepository extends Repository
         $this->em->flush();
     }
 
-    private function removeEpisodePlaylistMediaIfImport(PodcastEpisode $episode, Station $station): void
+    /**
+     * Ensures only one audio attachment: drop station media before attaching new file in media-folder flow.
+     */
+    private function removeEpisodePlaylistMediaIfPresent(PodcastEpisode $episode): void
     {
-        if ($episode->podcast->source !== PodcastSources::Import) {
-            return;
-        }
         $playlistMedia = $episode->playlist_media;
         if (!$playlistMedia instanceof StationMedia) {
             return;
