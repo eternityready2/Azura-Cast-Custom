@@ -1248,20 +1248,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $guid = $this->getItemGuid($item);
             $enclosureUrl = $this->getEnclosureUrl($item);
             $mimeHint = $this->getEnclosureMimeHint($item);
-            $key = $guid ?: $enclosureUrl;
-            if ($key === null || $key === '') {
+            // Must match episode.link and import keys: getItemGuid() ?: enclosure (same as sync).
+            $syncKey = $guid ?: $enclosureUrl;
+            if ($syncKey === null || $syncKey === '') {
                 continue;
             }
 
-            $imported = false;
-            $episodeId = null;
-            if ($guid !== null && $guid !== '' && isset($importMap[$guid])) {
-                $imported = true;
-                $episodeId = $importMap[$guid]['episode_id'];
-            } elseif ($enclosureUrl !== null && isset($importMap[$enclosureUrl])) {
-                $imported = true;
-                $episodeId = $importMap[$enclosureUrl]['episode_id'];
-            }
+            $imported = isset($importMap[$syncKey]);
+            $episodeId = $imported ? $importMap[$syncKey]['episode_id'] : null;
 
             $hasMedia = false;
             if ($imported && $episodeId !== null && $station instanceof Station) {
@@ -1275,7 +1269,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 || $this->isSkippablePodcastEnclosureMime($mimeHint);
 
             $out[] = [
-                'key' => $key,
+                'key' => $syncKey,
                 'title' => $this->getItemTitle($item),
                 'published_at' => $this->getItemPublishAt($item),
                 'enclosure_url' => $enclosureUrl,

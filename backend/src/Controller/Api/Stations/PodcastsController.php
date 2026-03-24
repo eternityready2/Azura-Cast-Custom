@@ -257,10 +257,8 @@ final class PodcastsController extends AbstractApiCrudController
             return;
         }
 
-        if ($podcast->auto_keep_episodes <= 0) {
-            return;
-        }
-
+        // Run feed sync after save so new/updated import podcasts fetch media immediately
+        // (latest-only when auto_keep_episodes is 0, rolling top-N when > 0).
         $this->importPodcastFeedsTask->runForPodcastWithSyncLog($podcast, false);
     }
 
