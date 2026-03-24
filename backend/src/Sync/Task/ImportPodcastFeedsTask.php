@@ -8,6 +8,8 @@ use App\Entity\Enums\PodcastImportStrategy;
 use App\Entity\Enums\PodcastSources;
 use App\Entity\Podcast;
 use App\Entity\PodcastEpisode;
+use App\Entity\PodcastMedia;
+use App\Entity\StationMedia;
 use App\Entity\Repository\PodcastEpisodeRepository;
 use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Repository\StorageLocationRepository;
@@ -1114,6 +1116,25 @@ final class ImportPodcastFeedsTask extends AbstractTask
     }
 
     /**
+     * True when the episode’s audio file exists on the station filesystem (podcast or media storage).
+     */
+    private function episodeAudioFileExistsOnDisk(PodcastEpisode $episode, Station $station): bool
+    {
+        if ($episode->media instanceof PodcastMedia) {
+            $fs = $this->stationFilesystems->getPodcastsFilesystem($station);
+
+            return $fs->fileExists($episode->media->path);
+        }
+        if ($episode->playlist_media instanceof StationMedia) {
+            $fs = $this->stationFilesystems->getMediaFilesystem($station);
+
+            return $fs->fileExists($episode->playlist_media->path);
+        }
+
+        return false;
+    }
+
+    /**
      * @return array{success: bool, items: list<array<string, mixed>>, message?: string}
      */
     public function getFeedItemsPreview(Podcast $podcast): array
@@ -1148,6 +1169,25 @@ final class ImportPodcastFeedsTask extends AbstractTask
         });
 
         $importMap = $this->getExistingEpisodeImportMap($podcast);
+        $stations = $this->storageLocationRepo->getStationsUsingLocation($podcast->storage_location);
+        $station = $stations[0] ?? null;
+
+        $episodeById = [];
+        if ($station instanceof Station) {
+            /** @var list<PodcastEpisode> $preloaded */
+            $preloaded = $this->em->createQuery(
+                <<<'DQL'
+                    SELECT e, pm, plm FROM App\Entity\PodcastEpisode e
+                    LEFT JOIN e.media pm
+                    LEFT JOIN e.playlist_media plm
+                    WHERE e.podcast = :podcast
+                DQL
+            )->setParameter('podcast', $podcast)->getResult();
+            foreach ($preloaded as $ep) {
+                $episodeById[$ep->id] = $ep;
+            }
+        }
+
         $out = [];
 
         foreach ($items as $item) {
@@ -1161,15 +1201,20 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
             $imported = false;
             $episodeId = null;
-            $hasMedia = false;
             if ($guid !== null && $guid !== '' && isset($importMap[$guid])) {
                 $imported = true;
                 $episodeId = $importMap[$guid]['episode_id'];
-                $hasMedia = $importMap[$guid]['has_media'];
             } elseif ($enclosureUrl !== null && isset($importMap[$enclosureUrl])) {
                 $imported = true;
                 $episodeId = $importMap[$enclosureUrl]['episode_id'];
-                $hasMedia = $importMap[$enclosureUrl]['has_media'];
+            }
+
+            $hasMedia = false;
+            if ($imported && $episodeId !== null && $station instanceof Station) {
+                $episode = $episodeById[$episodeId] ?? null;
+                if ($episode instanceof PodcastEpisode) {
+                    $hasMedia = $this->episodeAudioFileExistsOnDisk($episode, $station);
+                }
             }
 
             $noAudio = $enclosureUrl === null

@@ -26,7 +26,7 @@
         <div class="card-body">
             <p class="text-muted small">
                 {{
-                    $gettext('All episodes listed in the RSS feed. Check the box and import to download episodes, or re-import to replace media when a checkmark shows the file is already in AzuraCast.')
+                    $gettext('All episodes listed in the RSS feed. A checkmark means the audio file exists on disk for that episode. Check the box and import to download, or re-import to replace media.')
                 }}
             </p>
             <div
@@ -90,7 +90,7 @@
                                 <span
                                     v-if="row.has_media"
                                     class="text-success fw-bold"
-                                    :title="$gettext('Media in AzuraCast — use Import to replace from feed')"
+                                    :title="$gettext('Audio file found in storage — use Import to download or replace from feed')"
                                 >&#10003;</span>
                                 <span
                                     v-else-if="row.imported"

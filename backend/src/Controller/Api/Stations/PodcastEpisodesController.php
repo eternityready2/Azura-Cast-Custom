@@ -15,6 +15,7 @@ use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
 use App\Service\Flow\UploadedFile;
+use App\Utilities\Types;
 use Doctrine\Common\Collections\Order;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
@@ -195,12 +196,22 @@ class PodcastEpisodesController extends AbstractApiCrudController
         $podcast = $request->getPodcast();
 
         $queryBuilder = $this->em->createQueryBuilder()
-            ->select('e, p, pm')
+            ->select('e, p, pm, plm')
             ->from(PodcastEpisode::class, 'e')
             ->join('e.podcast', 'p')
             ->leftJoin('e.media', 'pm')
+            ->leftJoin('e.playlist_media', 'plm')
             ->where('e.podcast = :podcast')
             ->setParameter('podcast', $podcast);
+
+        if (Types::bool($request->getParam('has_file', false), false, true)) {
+            $queryBuilder->andWhere(
+                $queryBuilder->expr()->orX(
+                    $queryBuilder->expr()->isNotNull('pm'),
+                    $queryBuilder->expr()->isNotNull('plm')
+                )
+            );
+        }
 
         $queryBuilder = $this->searchQueryBuilder(
             $request,

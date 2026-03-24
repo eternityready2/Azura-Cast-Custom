@@ -35,6 +35,16 @@
                 }}
             </p>
         </template>
+        <template
+            v-else-if="podcastIsImport"
+            #info
+        >
+            <p class="card-text text-muted small mb-0">
+                {{
+                    $gettext('This list shows only episodes that have a media file in storage (podcast or station media folder).')
+                }}
+            </p>
+        </template>
         <template #actions>
             <router-link
                 class="btn btn-secondary"
@@ -170,7 +180,7 @@ import EditModal from "~/components/Stations/Podcasts/EpisodeEditModal.vue";
 import AlbumArt from "~/components/Common/AlbumArt.vue";
 import StationsCommonQuota from "~/components/Stations/Common/Quota.vue";
 import {useTranslate} from "~/vendor/gettext";
-import {computed, shallowRef, toRef, useTemplateRef} from "vue";
+import {computed, shallowRef, toRef, toValue, useTemplateRef} from "vue";
 import AddButton from "~/components/Common/AddButton.vue";
 import useConfirmAndDelete from "~/functions/useConfirmAndDelete.ts";
 import {ApiPodcast, ApiPodcastEpisode} from "~/entities/ApiInterfaces.ts";
@@ -267,9 +277,24 @@ const episodesItemProvider = useApiItemProvider<Row>(
         [
             QueryKeys.StationPodcasts,
             computed(() => podcast.value.id),
-            'episodes'
+            'episodes',
+            computed(() => (podcast.value.source === 'import' ? 'has_file' : 'all'))
         ]
-    )
+    ),
+    undefined,
+    (config) => {
+        const p = toValue(podcast);
+        if (p?.source === 'import') {
+            return {
+                ...config,
+                params: {
+                    ...config.params,
+                    has_file: 1
+                }
+            };
+        }
+        return config;
+    }
 );
 
 const {refresh} = episodesItemProvider;
