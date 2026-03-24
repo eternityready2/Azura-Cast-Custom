@@ -343,7 +343,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
 
             $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
-            $originalName = $title . '.' . $ext;
+            $originalName = $this->getImportMediaOriginalFilename($item, $ext);
 
             try {
                 $this->podcastEpisodeRepo->uploadMedia(
@@ -462,36 +462,19 @@ final class ImportPodcastFeedsTask extends AbstractTask
             'info',
             $rollingKeepN
                 ? sprintf(
-                    'Mode: sync top %d episode(s) from feed (refresh media; remove episodes not in this set).',
+                    'Mode: keep the %d newest feed items by date (not only items with valid audio); refresh media when possible; remove episodes outside this set.',
                     $n
                 )
-                : 'Mode: sync latest episode only (refresh media; other episodes unchanged).'
+                : 'Mode: sync latest feed item only (refresh media when possible; other episodes unchanged).'
         );
 
         usort($items, function (SimpleXMLElement $a, SimpleXMLElement $b): int {
             return $this->getItemPublishAt($b) <=> $this->getItemPublishAt($a);
         });
 
-        $candidates = [];
-        foreach ($items as $item) {
-            $url = $this->getEnclosureUrl($item);
-            if ($url === null) {
-                continue;
-            }
-            if ($this->isSkippablePodcastEnclosureMime($this->getEnclosureMimeHint($item))) {
-                continue;
-            }
-            $candidates[] = $item;
-        }
-
-        if ($candidates === []) {
-            $this->syncLogLine($syncLog, 'warning', 'No suitable audio enclosure in feed (newest items may be video-only or invalid).');
-
-            return ['added' => 0, 'ok' => true];
-        }
-
+        // Keep last N = the N newest feed items (by pub date) with a stable key — not only items with "valid" audio MIME.
         $topSlice = [];
-        foreach ($candidates as $item) {
+        foreach ($items as $item) {
             if (count($topSlice) >= $n) {
                 break;
             }
@@ -503,7 +486,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
 
         if ($topSlice === []) {
-            $this->syncLogLine($syncLog, 'warning', 'Top feed item(s) have no GUID or enclosure URL; cannot sync.');
+            $this->syncLogLine(
+                $syncLog,
+                'warning',
+                'No feed items with a GUID or enclosure URL in the newest entries; cannot sync.'
+            );
 
             return ['added' => 0, 'ok' => true];
         }
@@ -555,26 +542,34 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
 
             $enclosureUrl = $this->getEnclosureUrl($item);
-            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($this->getEnclosureMimeHint($item))) {
-                continue;
-            }
-
+            $mimeHint = $this->getEnclosureMimeHint($item);
             $title = $this->getItemTitle($item);
             $description = $this->getItemDescription($item);
             $publishAt = $this->getItemPublishAt($item);
-            $guid = $this->getItemGuid($item);
 
             $episode = new PodcastEpisode($podcast);
             $episode->title = $title;
             $episode->description = $description;
             $episode->publish_at = $publishAt;
             $episode->explicit = $podcast->explicit;
-            $linkVal = $guid ?? $enclosureUrl;
-            if ($linkVal !== '') {
-                $episode->link = $linkVal;
-            }
+            $episode->link = $key;
             $this->em->persist($episode);
             $this->em->flush();
+
+            $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
+
+            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf(
+                        'No downloadable audio enclosure for [%s] — episode row kept as one of the top %d.',
+                        $title,
+                        $n
+                    )
+                );
+                continue;
+            }
 
             $downloadedPath = $tempDir . '/' . 'podcast_import_' . $episode->id . '_' . md5($enclosureUrl);
             try {
@@ -595,28 +590,34 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Episode row kept without media [%s] (top %d).', $title, $n)
+                );
 
                 continue;
             }
 
             if (!MimeType::isFileProcessable($downloadedPath) || $this->isSkippablePodcastEnclosureMime(MimeType::getMimeTypeFromFile($downloadedPath))) {
                 ++$skippedUnsupportedMedia;
-                $this->em->remove($episode);
-                $this->em->flush();
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Unsupported file type for [%s] — episode row kept (top %d).', $title, $n)
+                );
 
                 continue;
             }
 
             $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
-            $originalName = $title . '.' . $ext;
+            $originalName = $this->getImportMediaOriginalFilename($item, $ext);
 
             try {
                 $this->podcastEpisodeRepo->uploadMedia(
@@ -646,8 +647,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
                         --$errorLineBudget;
                     }
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Episode row kept without media after upload error [%s] (top %d).', $title, $n)
+                );
             } catch (\Throwable $e) {
                 ++$uploadErrors;
                 $this->logger->error('Failed to attach media to episode', [
@@ -658,8 +662,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Episode row kept without media after upload error [%s] (top %d).', $title, $n)
+                );
             }
 
             if (file_exists($downloadedPath)) {
@@ -884,7 +891,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
 
         $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
-        $originalName = $title . '.' . $ext;
+        $originalName = $this->getImportMediaOriginalFilename($item, $ext);
 
         try {
             $this->podcastEpisodeRepo->uploadMedia($episode, $originalName, $downloadedPath, $fs);
@@ -950,6 +957,53 @@ final class ImportPodcastFeedsTask extends AbstractTask
             return trim($href) ?: null;
         }
         return null;
+    }
+
+    /**
+     * RSS &lt;guid&gt; only (no item link fallback). Used for stable imported media filenames.
+     */
+    private function getRssGuidOnly(SimpleXMLElement $item): ?string
+    {
+        $guid = $item->guid ?? null;
+        if ($guid === null) {
+            return null;
+        }
+        $s = trim((string) $guid);
+
+        return $s !== '' ? $s : null;
+    }
+
+    private function sanitizeMediaFilenameBase(string $raw): string
+    {
+        $s = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $raw) ?? '';
+        $s = trim($s, '-.');
+        if ($s === '') {
+            return '';
+        }
+        if (mb_strlen($s) > 180) {
+            $s = mb_substr($s, 0, 180);
+        }
+
+        return $s;
+    }
+
+    /**
+     * Preferred name for podcast import uploads: sanitized RSS guid + extension; if no guid, feed-{md5(url)}.
+     */
+    private function getImportMediaOriginalFilename(SimpleXMLElement $item, string $ext): string
+    {
+        $guid = $this->getRssGuidOnly($item);
+        if ($guid !== null) {
+            $base = $this->sanitizeMediaFilenameBase($guid);
+            if ($base !== '') {
+                return $base . '.' . $ext;
+            }
+        }
+
+        $enclosureUrl = $this->getEnclosureUrl($item);
+        $fallback = $enclosureUrl !== null ? 'feed-' . md5($enclosureUrl) : 'media';
+
+        return $fallback . '.' . $ext;
     }
 
     private function getEnclosureUrl(SimpleXMLElement $item): ?string
@@ -1428,7 +1482,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
             }
 
             $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
-            $originalName = $title . '.' . $ext;
+            $originalName = $this->getImportMediaOriginalFilename($item, $ext);
 
             try {
                 $this->podcastEpisodeRepo->uploadMedia(
