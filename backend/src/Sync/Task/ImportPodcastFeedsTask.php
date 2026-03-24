@@ -133,15 +133,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $podcast->playlist,
                     $now
                 );
-                if ($nextStart === null) {
-                    continue;
-                }
-                $windowStart = $nextStart - ($syncBeforeHours * 3600);
-                if ($nowTs < $windowStart) {
-                    continue;
-                }
-                if ($nowTs > $nextStart + 3600) {
-                    continue;
+                if ($nextStart !== null) {
+                    $windowStart = $nextStart - ($syncBeforeHours * 3600);
+                    if ($nowTs < $windowStart) {
+                        continue;
+                    }
+                    if ($nowTs > $nextStart + 3600) {
+                        continue;
+                    }
                 }
             }
 

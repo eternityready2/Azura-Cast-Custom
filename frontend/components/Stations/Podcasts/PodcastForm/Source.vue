@@ -136,7 +136,7 @@
                         :min="1"
                         :max="168"
                         :label="$gettext('Hours before scheduled playlist start')"
-                        :description="$gettext('When this podcast has a linked playlist with a schedule, import runs only inside this window before the next start. If there is no linked playlist, the server still imports on every scheduled run (same as “Every scheduled run”).')"
+                        :description="$gettext('When this podcast has a linked playlist with a schedule, import runs only inside this window before the next start (and up to one hour after). If there is no linked playlist, or the playlist has no schedule with a future start time, the server imports on every scheduled run (same as “Every scheduled run”).')"
                     />
 
                     <form-group-field
