@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api\Stations\Podcasts;
 
 use App\Controller\SingleActionInterface;
+use App\Doctrine\ReloadableEntityManagerInterface;
 use App\Entity\Enums\PodcastSources;
 use App\Http\Response;
 use App\Http\ServerRequest;
@@ -39,7 +40,8 @@ use Psr\Http\Message\ResponseInterface;
 final readonly class SyncAction implements SingleActionInterface
 {
     public function __construct(
-        private ImportPodcastFeedsTask $importTask
+        private ImportPodcastFeedsTask $importTask,
+        private ReloadableEntityManagerInterface $em,
     ) {
     }
 
@@ -67,14 +69,20 @@ final readonly class SyncAction implements SingleActionInterface
             $fullImport = Types::bool($body['full_import'], broadenValidBools: true);
         }
 
-        $result = $this->importTask->runForPodcastWithSyncLog($podcast, $fullImport);
+        try {
+            $result = $this->importTask->runForPodcastWithSyncLog($podcast, $fullImport);
 
-        return $response->withJson([
-            'success' => $result['success'],
-            'message' => $result['message'],
-            'episodes_added' => $result['episodes_added'],
-            'log' => $result['log'],
-            'full_import' => $fullImport,
-        ]);
+            return $response->withJson([
+                'success' => $result['success'],
+                'message' => $result['message'],
+                'episodes_added' => $result['episodes_added'],
+                'log' => $result['log'],
+                'full_import' => $fullImport,
+            ]);
+        } finally {
+            if (!$this->em->isOpen()) {
+                $this->em->open();
+            }
+        }
     }
 }

@@ -62,6 +62,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
     public function runForPodcastWithSyncLog(Podcast $podcast, bool $fullBacklog = false): array
     {
         $log = [];
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
         $stations = $this->storageLocationRepo->getStationsUsingLocation($podcast->storage_location);
         $station = $stations[0] ?? null;
         if (!$station instanceof Station) {
@@ -219,6 +220,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
         $itemCount = count($items);
         $this->syncLogLine($syncLog, 'info', sprintf('Found %d item(s) in feed.', $itemCount));
+
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
 
         $fs = $this->stationFilesystems->getPodcastsFilesystem($station);
         $tempDir = $station->getRadioTempDir();
@@ -520,6 +523,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $errorLineBudget = $maxErrorLines;
 
         foreach ($topSlice as $item) {
+            $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
+
             $key = $this->getItemGuid($item) ?: $this->getEnclosureUrl($item) ?: '';
             if ($key === '') {
                 continue;
@@ -737,18 +742,23 @@ final class ImportPodcastFeedsTask extends AbstractTask
     }
 
     /**
-     * After a failed flush, Doctrine closes the EntityManager; reopen and return a managed podcast
-     * so later queries (e.g. prune) do not throw.
+     * After a failed flush, Doctrine closes the EntityManager; reopen and return a managed podcast.
+     * After {@see ReloadableEntityManagerInterface::open()} replaces the wrapped EM, old entity instances
+     * are detached — always refetch when the podcast is not contained in the current EM.
      */
     private function ensureEntityManagerOpenForPodcast(Podcast $podcast): Podcast
     {
-        if ($this->em->isOpen()) {
+        if (!$this->em->isOpen()) {
+            $this->em->open();
+        }
+
+        if ($this->em->contains($podcast)) {
             return $podcast;
         }
 
-        $this->em->open();
+        $fresh = $this->em->find(Podcast::class, $podcast->id);
 
-        return $this->em->refetch($podcast);
+        return $fresh instanceof Podcast ? $fresh : $podcast;
     }
 
     /**
@@ -815,6 +825,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
         ?array &$syncLog,
         int &$errorLineBudget
     ): bool {
+        $this->ensureEntityManagerOpen();
+        $episodeId = $episode->id;
+        $managedEpisode = $this->em->find(PodcastEpisode::class, $episodeId);
+        if ($managedEpisode === null) {
+            return false;
+        }
+        $episode = $managedEpisode;
+
         $enclosureUrl = $this->getEnclosureUrl($item);
         if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($this->getEnclosureMimeHint($item))) {
             return false;
