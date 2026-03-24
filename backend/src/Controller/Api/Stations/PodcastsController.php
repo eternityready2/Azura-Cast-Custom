@@ -252,14 +252,20 @@ final class PodcastsController extends AbstractApiCrudController
             return;
         }
 
-        $feedUrl = $podcast->feed_url;
+        // Use a managed instance from the DB so feed_url, import_strategy, etc. match what was just saved.
+        $fresh = $this->em->find(Podcast::class, $podcast->id);
+        if (!$fresh instanceof Podcast) {
+            return;
+        }
+
+        $feedUrl = $fresh->feed_url;
         if ($feedUrl === null || trim($feedUrl) === '') {
             return;
         }
 
-        // Run feed sync after save so new/updated import podcasts fetch media immediately
-        // (latest-only when auto_keep_episodes is 0, rolling top-N when > 0).
-        $this->importPodcastFeedsTask->runForPodcastWithSyncLog($podcast, false);
+        // Match scheduled import: backfill_all = import all missing items; latest_single = top-N / latest-only sync.
+        $fullBacklog = $fresh->import_strategy === PodcastImportStrategy::BackfillAll;
+        $this->importPodcastFeedsTask->runForPodcastWithSyncLog($fresh, $fullBacklog);
     }
 
     protected function deleteRecord(object $record): void
