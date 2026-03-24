@@ -98,7 +98,7 @@
                                 type="button"
                                 class="btn btn-info"
                                 :disabled="syncLoading === item.id"
-                                :title="$gettext('Download only the newest episode (replaces previous file)')"
+                                :title="$gettext('Sync using Keep Last N: refresh the newest N feed episodes and remove the rest. If Keep Last N is 0, only the latest episode is refreshed.')"
                                 @click="doSyncLatest(item)"
                             >
                                 {{ syncLoading === item.id ? $gettext('Syncing…') : $gettext('Sync latest') }}

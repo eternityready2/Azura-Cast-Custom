@@ -18,7 +18,7 @@ use Psr\Http\Message\ResponseInterface;
     path: '/station/{station_id}/podcast/{podcast_id}/sync',
     operationId: 'syncPodcastFeed',
     summary: 'Trigger RSS feed import for this podcast now.',
-    description: 'Runs RSS import. Body: { "full_import": true } imports all missing episodes; false/omitted syncs latest episode only (replaces previous).',
+    description: 'Runs RSS import. Body: { "full_import": true } imports all missing episodes; false/omitted syncs the top N feed episodes (N = Keep Last N when N > 0: refresh media and remove others); when N is 0, only the latest feed episode is refreshed and others are kept.',
     tags: [OpenApi::TAG_STATIONS_PODCASTS],
     parameters: [
         new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),

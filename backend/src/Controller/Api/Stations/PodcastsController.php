@@ -10,6 +10,7 @@ use App\Entity\Api\Podcast as ApiPodcast;
 use App\Entity\ApiGenerator\PodcastApiGenerator;
 use App\Entity\Enums\PodcastEpisodeStorageType;
 use App\Entity\Enums\PodcastImportStrategy;
+use App\Entity\Enums\PodcastSources;
 use App\Entity\Podcast;
 use App\Entity\PodcastCategory;
 use App\Entity\Repository\PodcastRepository;
@@ -17,6 +18,7 @@ use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
 use App\Service\Flow\UploadedFile;
+use App\Sync\Task\ImportPodcastFeedsTask;
 use App\Utilities\Types;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
@@ -147,6 +149,7 @@ final class PodcastsController extends AbstractApiCrudController
     public function __construct(
         private readonly PodcastRepository $podcastRepository,
         private readonly PodcastApiGenerator $podcastApiGen,
+        private readonly ImportPodcastFeedsTask $importPodcastFeedsTask,
         Serializer $serializer,
         ValidatorInterface $validator,
     ) {
@@ -211,7 +214,27 @@ final class PodcastsController extends AbstractApiCrudController
             $this->em->flush();
         }
 
+        $this->runInitialImportForNewPodcast($record);
+
         return $record;
+    }
+
+    private function runInitialImportForNewPodcast(Podcast $podcast): void
+    {
+        if ($podcast->source !== PodcastSources::Import) {
+            return;
+        }
+
+        $feedUrl = $podcast->feed_url;
+        if ($feedUrl === null || trim($feedUrl) === '') {
+            return;
+        }
+
+        if ($podcast->auto_keep_episodes <= 0) {
+            return;
+        }
+
+        $this->importPodcastFeedsTask->runForPodcastWithSyncLog($podcast, false);
     }
 
     protected function deleteRecord(object $record): void
