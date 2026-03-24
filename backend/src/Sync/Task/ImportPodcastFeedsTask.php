@@ -290,13 +290,15 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $description = $this->getItemDescription($item);
             $publishAt = $this->getItemPublishAt($item);
 
+            $linkKey = ($guid !== null && $guid !== '') ? $guid : $enclosureUrl;
+
             $episode = new PodcastEpisode($podcast);
             $episode->title = $title;
             $episode->description = $description;
             $episode->publish_at = $publishAt;
             $episode->explicit = $podcast->explicit;
-            if ($guid !== null) {
-                $episode->link = $guid;
+            if ($linkKey !== '') {
+                $episode->link = $linkKey;
             }
             $this->em->persist($episode);
             $this->em->flush();
@@ -320,11 +322,17 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                if ($linkKey !== '') {
+                    $importMap[$linkKey] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Download failed; episode kept without media (retry on next sync): [%s]', $title)
+                );
 
                 continue;
             }
@@ -332,11 +340,17 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $fileMime = MimeType::getMimeTypeFromFile($downloadedPath);
             if (!MimeType::isFileProcessable($downloadedPath) || $this->isSkippablePodcastEnclosureMime($fileMime)) {
                 ++$skippedUnsupportedMedia;
-                $this->em->remove($episode);
-                $this->em->flush();
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                if ($linkKey !== '') {
+                    $importMap[$linkKey] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Unsupported file type; episode kept without media: [%s]', $title)
+                );
 
                 continue;
             }
@@ -355,8 +369,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 if (null !== $syncLog) {
                     $this->syncLogLine($syncLog, 'info', sprintf('Imported: %s', $title));
                 }
-                if ($guid !== null) {
-                    $importMap[$guid] = ['episode_id' => $episode->id, 'has_media' => true];
+                if ($linkKey !== '') {
+                    $importMap[$linkKey] = ['episode_id' => $episode->id, 'has_media' => true];
                 }
             } catch (CannotProcessMediaException|\InvalidArgumentException $e) {
                 if ($this->isSkippablePodcastImportException($e)) {
@@ -376,7 +390,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
                         --$errorLineBudget;
                     }
                 }
-                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
+                if ($linkKey !== '') {
+                    $importMap[$linkKey] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Upload failed; episode kept without media (retry on next sync): [%s]', $title)
+                );
             } catch (\Throwable $e) {
                 ++$uploadErrors;
                 $this->logger->error('Failed to attach media to episode', [
@@ -387,7 +408,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
+                if ($linkKey !== '') {
+                    $importMap[$linkKey] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $syncLog,
+                    'info',
+                    sprintf('Upload failed; episode kept without media (retry on next sync): [%s]', $title)
+                );
             }
 
             if (file_exists($downloadedPath)) {
@@ -598,12 +626,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
-                unset($importMap[$key]);
-                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
+                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Download failed; removed episode placeholder [%s].', $title)
+                    sprintf('Download failed; episode kept without media (retry on next sync): [%s]', $title)
                 );
 
                 continue;
@@ -614,12 +641,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
-                unset($importMap[$key]);
-                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
+                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Unsupported file type for [%s]; removed episode placeholder.', $title)
+                    sprintf('Unsupported file type; episode kept without media: [%s]', $title)
                 );
 
                 continue;
@@ -656,12 +682,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
                         --$errorLineBudget;
                     }
                 }
-                unset($importMap[$key]);
-                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
+                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Upload failed; removed episode placeholder [%s].', $title)
+                    sprintf('Upload failed; episode kept without media (retry on next sync): [%s]', $title)
                 );
             } catch (\Throwable $e) {
                 ++$uploadErrors;
@@ -673,12 +698,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                unset($importMap[$key]);
-                $podcast = $this->removeOrphanEpisodeAfterFailedImport($podcast, $episode);
+                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
                 $this->syncLogLine(
                     $syncLog,
                     'info',
-                    sprintf('Upload failed; removed episode placeholder [%s].', $title)
+                    sprintf('Upload failed; episode kept without media (retry on next sync): [%s]', $title)
                 );
             }
 
@@ -793,31 +817,6 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
 
         $this->em->open();
-    }
-
-    /**
-     * Remove a podcast_episode row after a failed import when the EntityManager may already be closed.
-     */
-    private function removeOrphanEpisodeAfterFailedImport(Podcast $podcast, PodcastEpisode $episode): Podcast
-    {
-        $episodeId = $episode->id;
-        if (!$this->em->isOpen()) {
-            $this->em->open();
-            $podcast = $this->em->refetch($podcast);
-        }
-
-        $toRemove = $this->podcastEpisodeRepo->fetchEpisodeForPodcast($podcast, $episodeId);
-        if ($toRemove === null) {
-            return $podcast;
-        }
-
-        try {
-            $this->em->remove($toRemove);
-            $this->em->flush();
-        } catch (\Throwable) {
-        }
-
-        return $podcast;
     }
 
     /**
@@ -1470,20 +1469,32 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($log, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
+                if ($linkVal !== '') {
+                    $importMap[$linkVal] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $log,
+                    'info',
+                    sprintf('Download failed; episode kept without media: [%s]', $title)
+                );
 
                 continue;
             }
 
             if (!MimeType::isFileProcessable($downloadedPath) || $this->isSkippablePodcastEnclosureMime(MimeType::getMimeTypeFromFile($downloadedPath))) {
                 $this->syncLogLine($log, 'info', sprintf('Skipped bad file [%s]', $title));
-                $this->em->remove($episode);
-                $this->em->flush();
                 @unlink($downloadedPath);
+                if ($linkVal !== '') {
+                    $importMap[$linkVal] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $log,
+                    'info',
+                    sprintf('Unsupported file; episode kept without media: [%s]', $title)
+                );
 
                 continue;
             }
@@ -1510,15 +1521,27 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     $this->syncLogLine($log, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
+                if ($linkVal !== '') {
+                    $importMap[$linkVal] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $log,
+                    'info',
+                    sprintf('Upload failed; episode kept without media: [%s]', $title)
+                );
             } catch (\Throwable $e) {
                 if ($errorLineBudget > 0) {
                     $this->syncLogLine($log, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
                     --$errorLineBudget;
                 }
-                $this->em->remove($episode);
-                $this->em->flush();
+                if ($linkVal !== '') {
+                    $importMap[$linkVal] = ['episode_id' => $episode->id, 'has_media' => false];
+                }
+                $this->syncLogLine(
+                    $log,
+                    'info',
+                    sprintf('Upload failed; episode kept without media: [%s]', $title)
+                );
             }
 
             if (file_exists($downloadedPath)) {
