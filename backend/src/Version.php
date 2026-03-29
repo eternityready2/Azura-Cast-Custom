@@ -33,7 +33,7 @@ final class Version
         }
 
         $details = $this->getDetails();
-        return ('stable' === $details['branch'])
+        return ('main' === $details['branch'])
             ? ReleaseChannel::Stable
             : ReleaseChannel::RollingRelease;
     }
@@ -130,11 +130,14 @@ final class Version
         $details = $this->getDetails();
         $releaseChannel = $this->getReleaseChannelEnum();
 
-        if (ReleaseChannel::RollingRelease === $releaseChannel) {
-            $versionNum = 'v' . self::STABLE_VERSION;
+        $versionNum = (str_starts_with($details['commit'] ?? '', 'v')) 
+            ? $details['commit'] 
+            : 'v' . self::STABLE_VERSION;
 
+        if (ReleaseChannel::RollingRelease === $releaseChannel) {
             if ($asHtml) {
                 $commitLink = 'https://github.com/eternityready2/Azura-Cast-Custom/commit/' . $details['commit'];
+                
                 return sprintf(
                     'Release <strong>%s</strong> #<a href="%s" target="_blank">%s</a>',
                     $versionNum,
@@ -146,7 +149,7 @@ final class Version
             return 'Release ' . $versionNum . ' (#' . $details['commit_short'] . ')';
         }
 
-        return 'v' . self::STABLE_VERSION . ' Stable';
+        return $versionNum . ' Stable';
     }
 
     public function getCommitHash(): ?string
