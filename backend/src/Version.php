@@ -28,14 +28,17 @@ final class Version
 
     public function getReleaseChannelEnum(): ReleaseChannel
     {
+        $details = $this->getDetails();
+
+        if ('main' === $details['branch']) {
+            return ReleaseChannel::Stable;
+        }
+
         if ($this->environment->isDocker()) {
             return $this->environment->getReleaseChannelEnum();
         }
 
-        $details = $this->getDetails();
-        return ('main' === $details['branch'])
-            ? ReleaseChannel::Stable
-            : ReleaseChannel::RollingRelease;
+        return ReleaseChannel::RollingRelease;
     }
 
     public function getDetails(): array
