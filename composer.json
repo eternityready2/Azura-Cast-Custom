@@ -172,11 +172,11 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "bin": [
-    "backend/bin/console"
+    "bin/console"
   ],
   "scripts": {
     "ci-import-locales": [
-      "backend/bin/console locale:import"
+      "bin/console locale:import"
     ],
     "cleanup-and-test": [
       "@phpcbf",
