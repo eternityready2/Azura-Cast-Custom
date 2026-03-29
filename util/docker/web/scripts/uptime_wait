@@ -5,4 +5,4 @@ if [ `whoami` != 'azuracast' ]; then
 fi
 
 cd /var/azuracast/www
-exec php bin/uptime_wait "$@"
+exec php backend/bin/uptime_wait "$@"
