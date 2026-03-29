@@ -79,7 +79,7 @@ final class Environment
 
     public function __construct(array $elements = [])
     {
-        $this->baseDir = dirname(__DIR__, 2);
+        $this->baseDir = '/var/azuracast/www';
         $this->backendDir = dirname(__DIR__);
         $this->parentDir = dirname($this->baseDir);
         $this->isDocker = file_exists($this->parentDir . '/.docker');
