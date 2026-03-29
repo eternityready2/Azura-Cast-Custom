@@ -14,8 +14,8 @@ use Throwable;
 
 final class Version
 {
-    /** @var string La versión base que Nathan quiere mostrar */
-    public const STABLE_VERSION = '0.23.4';
+    /** @var string */
+    public const STABLE_VERSION = '0.23.5';
 
     private string $repoDir;
 
@@ -129,27 +129,25 @@ final class Version
     {
         $details = $this->getDetails();
         $releaseChannel = $this->getReleaseChannelEnum();
-
-        $versionNum = (str_starts_with($details['commit'] ?? '', 'v')) 
+        $versionNum = (isset($details['commit']) && str_starts_with($details['commit'], 'v')) 
             ? $details['commit'] 
             : 'v' . self::STABLE_VERSION;
 
-        if (ReleaseChannel::RollingRelease === $releaseChannel) {
-            if ($asHtml) {
-                $commitLink = 'https://github.com/eternityready2/Azura-Cast-Custom/commit/' . $details['commit'];
-                
-                return sprintf(
-                    'Release <strong>%s</strong> #<a href="%s" target="_blank">%s</a>',
-                    $versionNum,
-                    $commitLink,
-                    $details['commit_short']
-                );
-            }
+        $channelText = (ReleaseChannel::Stable === $releaseChannel) ? 'Stable' : 'Rolling Release';
 
-            return 'Release ' . $versionNum . ' (#' . $details['commit_short'] . ')';
+        if ($asHtml && isset($details['commit'])) {
+            $commitLink = 'https://github.com/eternityready2/Azura-Cast-Custom/commit/' . $details['commit'];
+            
+            return sprintf(
+                'Release <strong>%s</strong> (%s) #<a href="%s" target="_blank">%s</a>',
+                $versionNum,
+                $channelText,
+                $commitLink,
+                $details['commit_short']
+            );
         }
 
-        return $versionNum . ' Stable';
+        return $versionNum . ' ' . $channelText;
     }
 
     public function getCommitHash(): ?string
