@@ -8,7 +8,7 @@ Run the migration to add recurrence columns to `station_schedules`:
 
 ```bash
 docker exec -it azuracast bash
-cd /var/eternityready2/Azura-Cast-Custom_src
+cd /var/azuracast/azuracast_src
 php bin/console migrations:migrate --no-interaction
 ```
 

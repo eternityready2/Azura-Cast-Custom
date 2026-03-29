@@ -157,7 +157,7 @@ final class Version
 
         if (ReleaseChannel::RollingRelease === $releaseChannel) {
             if ($asHtml) {
-                $commitLink = 'https://github.com/eternityready2/Azura-Cast-Custom/commit/' . $details['commit'];
+                $commitLink = 'https://github.com/AzuraCast/AzuraCast/commit/' . $details['commit'];
                 $commitText = sprintf(
                     '#<a href="%s" target="_blank">%s</a> (%s)',
                     $commitLink,

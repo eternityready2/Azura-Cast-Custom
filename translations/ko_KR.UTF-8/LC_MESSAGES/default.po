@@ -219,14 +219,14 @@ msgstr "이름"
 #: frontend/components/Login.vue:40
 #: frontend/components/Login.vue:50
 #: frontend/components/Setup/Register.vue:67
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:21
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:21
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:25
 msgid "E-mail Address"
 msgstr "이메일 주소"
 
 #: frontend/components/Account/EditModal.vue:44
 #: frontend/components/Stations/Podcasts/PodcastForm/BasicInfo.vue:36
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:106
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:106
 msgid "Language"
 msgstr "언어"
 
@@ -452,7 +452,7 @@ msgstr "참고: 백업을 복원하면 기존 데이터베이스가 정리됩니
 #: frontend/components/Admin/BackupsWrapper.vue:3
 #: frontend/components/Admin/menu.ts:54
 #: frontend/components/Admin/StorageLocations.vue:170
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:53
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:53
 msgid "Backups"
 msgstr "백업"
 
@@ -732,7 +732,7 @@ msgstr "자동 할당 값"
 #: frontend/components/Admin/CustomFields.vue:105
 #: frontend/components/Admin/Settings/SecurityPrivacyTab.vue:125
 #: frontend/components/Stations/Playlists.vue:354
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Repository/StorageLocationRepository.php:74
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Repository/StorageLocationRepository.php:74
 msgid "None"
 msgstr "없음"
 
@@ -779,7 +779,7 @@ msgstr "사용자 지정 필드 편집"
 
 #: frontend/components/Admin/Debug.vue:3
 #: frontend/components/Admin/menu.ts:62
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:63
 msgid "System Debugger"
 msgstr "시스템 디버거"
 
@@ -999,7 +999,7 @@ msgstr "GeoLite 라이선스 키를 제거하시겠습니까?"
 #: frontend/components/Admin/Stations/Form/AdminForm.vue:3
 #: frontend/components/Dashboard.vue:28
 #: frontend/components/Stations/Profile/FrontendPanel.vue:38
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:43
 msgid "Administration"
 msgstr "관리"
 
@@ -1167,8 +1167,8 @@ msgstr "시스템 유지보수"
 #: frontend/components/Admin/menu.ts:22
 #: frontend/components/Admin/Settings.vue:19
 #: frontend/components/Setup/SetupStep.vue:28
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:175
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:175
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:60
 msgid "System Settings"
 msgstr "시스템 설정"
 
@@ -1179,7 +1179,7 @@ msgstr "저장소 위치"
 
 #: frontend/components/Admin/menu.ts:70
 #: frontend/components/Admin/Updates.vue:3
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:44
 msgid "Update AzuraCast"
 msgstr "AzuraCast 업데이트"
 
@@ -1582,7 +1582,7 @@ msgstr "AzuraCast 업데이트 확인"
 
 #: frontend/components/Admin/Settings/ServicesTab.vue:15
 #: frontend/components/Admin/Updates.vue:47
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:36
 msgid "Release Channel"
 msgstr "릴리스 채널"
 
@@ -2397,7 +2397,7 @@ msgstr "설명"
 #: frontend/components/Admin/Stations/Form/ProfileForm.vue:26
 #: frontend/components/Public/Requests/RequestsDataTable.vue:92
 #: frontend/components/Stations/Media.vue:362
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:100
 msgid "Genre"
 msgstr "장르"
 
@@ -2815,7 +2815,7 @@ msgid "SFTP Host"
 msgstr "SFTP 호스트"
 
 #: frontend/components/Admin/StorageLocations/Form/Sftp.vue:21
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:56
 msgid "SFTP Port"
 msgstr "SFTP 포트"
 
@@ -2856,7 +2856,7 @@ msgid "Your installation is currently on this release channel:"
 msgstr "귀하의 설치는 현재 다음 릴리스 채널에 있습니다:"
 
 #: frontend/components/Admin/Updates.vue:66
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:102
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:102
 msgid "About Release Channels"
 msgstr "릴리스 채널에 대하여"
 
@@ -2915,8 +2915,8 @@ msgid "You"
 msgstr "본인 계정"
 
 #: frontend/components/Admin/Users.vue:50
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:130
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:3
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:3
 msgid "Log In"
 msgstr "로그인"
 
@@ -3082,15 +3082,15 @@ msgstr "시간"
 #: frontend/components/Stations/Reports/Overview/CommonMetricsView.vue:84
 #: frontend/components/Stations/Reports/Overview/ListeningTimeTab.vue:52
 #: frontend/components/Stations/Reports/Timeline.vue:159
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:199
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:92
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:116
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:100
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:150
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:235
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:99
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:79
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:104
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:199
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:92
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:150
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:235
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:104
 msgid "Listeners"
 msgstr "청취자"
 
@@ -3338,7 +3338,7 @@ msgid "Toggle Menu"
 msgstr "메뉴 전환"
 
 #: frontend/components/Layout/DashboardLayout.vue:57
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/DashboardAction.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/DashboardAction.php:69
 msgid "Dashboard"
 msgstr "대시보드"
 
@@ -3376,7 +3376,7 @@ msgid "Welcome to AzuraCast!"
 msgstr "AzuraCast에 오신 것을 환영합니다!"
 
 #: frontend/components/Login.vue:49
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:23
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:23
 msgid "name@example.com"
 msgstr "name@example.com"
 
@@ -3437,7 +3437,7 @@ msgstr "표시할 기록이 없습니다."
 #: frontend/components/Stations/menu.ts:135
 #: frontend/components/Stations/Profile/PublicPagesPanel.vue:34
 #: frontend/components/Stations/Profile/WidgetModal.vue:408
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/OnDemandAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/OnDemandAction.php:64
 msgid "On-Demand Media"
 msgstr "온디맨드 미디어"
 
@@ -3456,7 +3456,7 @@ msgstr "아트"
 #: frontend/components/Stations/Playlists/ReorderModal.vue:24
 #: frontend/components/Stations/Profile/UpdateMetadataModal.vue:23
 #: frontend/components/Stations/Webhooks/Form/Discord.vue:32
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:133
 msgid "Title"
 msgstr "제목"
 
@@ -3467,7 +3467,7 @@ msgstr "제목"
 #: frontend/components/Stations/Playlists/QueueModal.vue:23
 #: frontend/components/Stations/Playlists/ReorderModal.vue:27
 #: frontend/components/Stations/Profile/UpdateMetadataModal.vue:30
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:84
 msgid "Artist"
 msgstr "아티스트"
 
@@ -3475,7 +3475,7 @@ msgstr "아티스트"
 #: frontend/components/Public/Requests/RequestsDataTable.vue:84
 #: frontend/components/Stations/Media.vue:361
 #: frontend/components/Stations/Playlists/ReorderModal.vue:30
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:80
 msgid "Album"
 msgstr "앨범"
 
@@ -3548,7 +3548,7 @@ msgstr "요청"
 #: frontend/components/Stations/Profile/PublicPagesPanel.vue:52
 #: frontend/components/Stations/Profile/WidgetModal.vue:394
 #: frontend/components/Stations/Streamers/Form/Schedule.vue:2
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/ScheduleAction.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/ScheduleAction.php:44
 msgid "Schedule"
 msgstr "일정"
 
@@ -3628,7 +3628,7 @@ msgstr "알 수 없는 아티스트"
 #: frontend/components/Public/WebDJ/SettingsPanel.vue:5
 #: frontend/components/Stations/menu.ts:196
 #: frontend/components/Stations/Profile/StreamersPanel.vue:30
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/WebDjAction.php:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/WebDjAction.php:59
 msgid "Web DJ"
 msgstr "웹 DJ"
 
@@ -3680,7 +3680,7 @@ msgstr "Web DJ 소켓에서 오류가 발생했습니다."
 
 #: frontend/components/Recover.vue:14
 #: frontend/components/Recover.vue:61
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:100
 msgid "Recover Account"
 msgstr "계정 복구"
 
@@ -3728,7 +3728,7 @@ msgid "Create Station"
 msgstr "스테이션 생성"
 
 #: frontend/components/Setup/Station.vue:19
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:141
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:141
 msgid "Create a New Radio Station"
 msgstr "새 라디오 스테이션 생성"
 
@@ -4010,12 +4010,12 @@ msgstr "이름 바꾸기"
 
 #: frontend/components/Stations/Media.vue:363
 #: frontend/components/Stations/Media/Form/BasicInfo.vue:53
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:105
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:105
 msgid "ISRC"
 msgstr "ISRC (국제 표준 녹음 코드)"
 
 #: frontend/components/Stations/Media.vue:364
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:107
 msgid "Length"
 msgstr "길이"
 
@@ -4301,7 +4301,7 @@ msgid "Selected directory:"
 msgstr "선택된 디렉토리:"
 
 #: frontend/components/Stations/Media/MoveFilesModal.vue:32
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/GetApplyToAction.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/GetApplyToAction.php:69
 msgid "Base Directory"
 msgstr "기본 디렉토리"
 
@@ -4311,7 +4311,7 @@ msgstr "디렉토리로 이동"
 
 #: frontend/components/Stations/Media/MoveFilesModal.vue:115
 #: frontend/components/Stations/Playlists/ApplyToModal.vue:103
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:269
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:269
 msgid "Directory"
 msgstr "디렉터리"
 
@@ -5052,49 +5052,49 @@ msgstr "매일 재생하려면 공백으로 두세요."
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:149
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:184
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:147
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:127
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:127
 msgid "Monday"
 msgstr "월요일"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:150
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:185
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:148
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:128
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:128
 msgid "Tuesday"
 msgstr "화요일"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:151
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:186
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:149
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:129
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:129
 msgid "Wednesday"
 msgstr "수요일"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:152
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:187
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:150
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:130
 msgid "Thursday"
 msgstr "목요일"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:153
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:188
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:151
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:131
 msgid "Friday"
 msgstr "금요일"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:154
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:189
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:152
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:132
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:132
 msgid "Saturday"
 msgstr "토요일"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:155
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:190
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:153
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:133
 msgid "Sunday"
 msgstr "일요일"
 
@@ -5123,7 +5123,7 @@ msgid "This queue contains the remaining tracks in the order they will be queued
 msgstr "이 대기열에는 AzuraCast AutoDJ에서 대기열에 추가하는 순서대로 나머지 트랙이 포함되어 있습니다(트랙을 재생할 수 있는 경우)."
 
 #: frontend/components/Stations/Playlists/QueueModal.vue:107
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/DeleteQueueAction.php:62
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/DeleteQueueAction.php:62
 msgid "Playlist queue cleared."
 msgstr "재생 목록 대기열을 정리했습니다"
 
@@ -5712,12 +5712,12 @@ msgid "Radio Player"
 msgstr "라디오 플레이어"
 
 #: frontend/components/Stations/Profile/WidgetModal.vue:386
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/HistoryAction.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/HistoryAction.php:39
 msgid "History"
 msgstr "기록"
 
 #: frontend/components/Stations/Profile/WidgetModal.vue:401
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/RequestsAction.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/RequestsAction.php:44
 msgid "Requests"
 msgstr "요청"
 
@@ -5911,7 +5911,7 @@ msgstr "총 청취자 시간"
 
 #: frontend/components/Stations/Reports/Listeners.vue:131
 #: frontend/components/Stations/Reports/Listeners/FiltersBar.vue:46
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:79
 msgid "Bot/Crawler"
 msgstr "봇/크롤러"
 
@@ -6087,17 +6087,17 @@ msgid "Top Countries by Connected Time"
 msgstr "연결 시간별 상위 국가"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:42
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:72
 msgid "Listeners by Day"
 msgstr "일별 청취자"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:55
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:119
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:119
 msgid "Listeners by Day of Week"
 msgstr "요일별 청취자"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:69
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:210
 msgid "Listeners by Hour"
 msgstr "시간별 청취자"
 
@@ -7148,1650 +7148,1650 @@ msgstr "이 필드는 유효한 이메일 주소여야 합니다."
 msgid "This field must be a valid URL."
 msgstr "이 필드는 유효한 URL이어야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:66
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:66
 msgid "Test Message"
 msgstr "테스트 메시지"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:69
 msgid "This is a test message from AzuraCast. If you are receiving this message, it means your e-mail settings are configured correctly."
 msgstr "이것은 AzuraCast의 테스트 메시지입니다. 이 메시지를 받았다면 이메일 설정이 올바르게 구성되었음을 의미합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:83
 msgid "Test message sent successfully."
 msgstr "테스트 메시지가 성공적으로 전송되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:168
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:168
 msgid "AzuraCast Application Log"
 msgstr "AzuraCast 응용 프로그램 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:174
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:174
 msgid "AzuraCast Now Playing Log"
 msgstr "AzuraCast \"지금 재생 중\" 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:180
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:180
 msgid "AzuraCast Synchronized Task Log"
 msgstr "AzuraCast 동기화 작업 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:186
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:186
 msgid "AzuraCast Queue Worker Log"
 msgstr "AzuraCast 대기열 작업자 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:193
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:193
 #, php-format
 msgid "Service Log: %s (%s)"
 msgstr "서비스 로그: %s (%s) "
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:210
 msgid "Nginx Access Log"
 msgstr "Nginx 액세스 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:216
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:216
 msgid "Nginx Error Log"
 msgstr "Nginx 오류 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:222
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:222
 msgid "PHP Application Log"
 msgstr "PHP 응용 프로그램 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:228
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:228
 msgid "Supervisord Log"
 msgstr "감독자 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:238
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:238
 msgid "AzuraCast Common Liquidsoap Functions"
 msgstr "AzuraCast 일반 Liquidsoap 기능"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:245
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:245
 msgid "AutoCue Liquidsoap Functions"
 msgstr "AutoCue Liquidsoap 기능"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/UsersController.php:208
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/UsersController.php:208
 msgid "You cannot modify yourself."
 msgstr "자신을 수정할 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/UsersController.php:242
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/UsersController.php:242
 msgid "You cannot remove yourself."
 msgstr "자신을 제거할 수는 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:151
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:151
 msgid "All Stations"
 msgstr "모든 스테이션"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:93
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:117
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:100
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:93
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:117
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:80
 msgid "Connected Seconds"
 msgstr "연결된 시간(초)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:80
 msgid "Mobile Device"
 msgstr "모바일 장치"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:81
 msgid "Desktop Browser"
 msgstr "데스크톱 브라우저"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:82
 msgid "Non-Browser"
 msgstr "비 브라우저"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:66
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:66
 msgid "Less than Thirty Seconds"
 msgstr "30초 미만"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:67
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:67
 msgid "Thirty Seconds to One Minute"
 msgstr "30초~1분"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:68
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:68
 msgid "One Minute to Five Minutes"
 msgstr "1분~5분"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:69
 msgid "Five Minutes to Ten Minutes"
 msgstr "5분~10분"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:70
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:70
 msgid "Ten Minutes to Thirty Minutes"
 msgstr "10분~30분"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:71
 msgid "Thirty Minutes to One Hour"
 msgstr "30분~1시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:72
 msgid "One Hour to Two Hours"
 msgstr "1시간~2시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:73
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:73
 msgid "More than Two Hours"
 msgstr "2시간 이상"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/HlsStreamsController.php:135
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/HlsStreamsController.php:135
 msgid "Unable to create a new stream, station's maximum HLS streams reached."
 msgstr "새 스트림을 생성할 수 없습니다. 스테이션의 최대 HLS 스트림에 도달했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/LogsAction.php:136
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/LogsAction.php:136
 msgid "Station Nginx Configuration"
 msgstr "스테이션 Nginx 구성"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/FilesController.php:298
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/FilesController.php:298
 msgid "This station is out of available storage space."
 msgstr "이 스테이션에는 사용 가능한 저장 공간이 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:63
 msgid "Web hook enabled."
 msgstr "웹훅 활성화됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:64
 msgid "Web hook disabled."
 msgstr "웹훅 비활성화됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/GetOrderAction.php:66
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/PutOrderAction.php:68
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/GetOrderAction.php:66
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/PutOrderAction.php:68
 msgid "This playlist is not a sequential playlist."
 msgstr "이 재생 목록은 순차 재생 목록이 아닙니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:63
 msgid "This playlist is not song-based."
 msgstr "이 재생 목록은 노래 기반 재생 목록이 아닙니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:77
 msgid "Playlist emptied."
 msgstr "재생 목록이 비었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ReshuffleAction.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ReshuffleAction.php:71
 msgid "Playlist reshuffled."
 msgstr "재생 목록을 다시 섞었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ImportAction.php:225
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ImportAction.php:225
 #, php-format
 msgid "Playlist successfully imported; %d of %d files were successfully matched."
 msgstr "재생 목록을 성공적으로 가져왔습니다. %d/%d개 파일이 성공적으로 일치했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/PutApplyToAction.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/PutApplyToAction.php:87
 msgid "Playlist applied to folders."
 msgstr "폴더에 적용된 재생 목록입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:63
 msgid "Playlist enabled."
 msgstr "재생 목록이 활성화되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:64
 msgid "Playlist disabled."
 msgstr "재생 목록이 비활성화되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:95
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:95
 msgid "Search engine crawlers are not permitted to use this feature."
 msgstr "검색 엔진 크롤러는 이 기능을 사용할 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:103
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:103
 msgid "You are not permitted to submit requests."
 msgstr "요청을 제출하실 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:113
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:113
 msgid "This track is not requestable."
 msgstr "이 트랙은 요청할 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:121
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:121
 msgid "This song was already requested and will play soon."
 msgstr "이 노래는 이미 요청되었으며 곧 재생될 예정입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:129
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:129
 msgid "This song or artist has been played too recently. Wait a while before requesting it again."
 msgstr "이 노래나 아티스트가 너무 최근에 재생되었습니다. 다시 요청하기 전에 잠시 기다리세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:167
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:167
 #, php-format
 msgid "You have submitted a request too recently! Please wait %d minutes before submitting another one."
 msgstr "너무 최근에 요청을 제출하셨습니다! 다음 요청을 제출하기 전에 %d분 동안 기다려 주세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:183
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:183
 msgid "Your request has been submitted and will be played soon."
 msgstr "귀하의 요청이 제출되었으며 곧 재생됩니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:254
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:254
 #, php-format
 msgid "%d files will be modified."
 msgstr "%d개의 파일이 수정됩니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:263
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:263
 #, php-format
 msgid "%d files processed."
 msgstr "%d개의 파일이 처리되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:155
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:155
 msgid "Station reloaded."
 msgstr "스테이션 다시 로드됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:164
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:164
 msgid "Station restarted."
 msgstr "스테이션 다시 시작됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:199
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:251
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:199
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:251
 msgid "Service stopped."
 msgstr "서비스 중지됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:204
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:256
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:204
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:256
 msgid "Service started."
 msgstr "서비스 시작됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:210
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:262
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:262
 msgid "Service reloaded."
 msgstr "서비스 다시 로드됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:222
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:274
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:222
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:274
 msgid "Service restarted."
 msgstr "서비스 다시 시작됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:241
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:241
 msgid "Song skipped."
 msgstr "노래 건너뜀."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:246
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:246
 msgid "Streamer disconnected."
 msgstr "스트리머 연결 해제됨."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/MountsController.php:218
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/MountsController.php:218
 msgid "Unable to create a new mount point, station's maximum mount points reached."
 msgstr "새 마운트 지점을 생성할 수 없습니다. 스테이션의 최대 마운트 지점에 도달했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/MakeDirectoryAction.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/MakeDirectoryAction.php:56
 msgid "No directory specified"
 msgstr "지정된 디렉터리가 없습니다"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/RenameAction.php:53
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/RenameAction.php:53
 msgid "File not specified."
 msgstr "파일이 지정되지 않았습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/RenameAction.php:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/RenameAction.php:59
 msgid "New path not specified."
 msgstr "새 경로가 지정되지 않았습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:280
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:280
 #, php-format
 msgid "File Not Processed: %s"
 msgstr "파일이 처리되지 않았습니다: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:285
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:285
 msgid "Cover Art"
 msgstr "커버 아트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:288
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:288
 msgid "File Processing"
 msgstr "파일 처리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Streamers/BroadcastsController.php:269
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Streamers/BroadcastsController.php:269
 msgid "No recording available."
 msgstr "녹음할 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:47
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:47
 msgid "You have attempted to reset your password too many times. Please wait 30 seconds and try again."
 msgstr "암호 재설정을 너무 많이 시도했습니다. 30초 정도 기다린 후 다시 시도해 주세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:51
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:51
 msgid "Too many forgot password attempts"
 msgstr "암호를 잊어버린 시도가 너무 많습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:64
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:6
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:6
 msgid "Account Recovery"
 msgstr "암호 재설정"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:92
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:92
 msgid "If the e-mail address you provided is in the system, check your inbox for a password reset message."
 msgstr "입력한 이메일 주소가 시스템에 있는 경우, 받은 메일함에 암호 재설정 메시지가 있는지 확인합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:96
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:96
 msgid "Account recovery e-mail sent."
 msgstr "계정 복구 이메일을 보냈습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:40
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:40
 msgid "Invalid token specified."
 msgstr "잘못된 토큰을 지정했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:55
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:55
 msgid "Logged in using login token."
 msgstr "로그인 토큰을 사용하여 로그인했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:85
 msgid "Your password has been updated."
 msgstr "귀하의 암호가 업데이트되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:86
 msgid "Logged in using account recovery token"
 msgstr "계정 복구 토큰을 사용하여 로그인됨"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:57
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:44
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:116
 msgid "Login unsuccessful"
 msgstr "로그인 실패"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:79
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:33
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/MasqueradeAction.php:46
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:98
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:105
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:33
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/MasqueradeAction.php:46
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:105
 msgid "Logged in successfully."
 msgstr "로그인 성공"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:43
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:115
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:115
 msgid "Your credentials could not be verified."
 msgstr "자격 증명을 확인할 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/MasqueradeAction.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/MasqueradeAction.php:38
 msgid "User not found."
 msgstr "사용자를 찾을 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:60
 msgid "You have attempted to log in too many times. Please wait 30 seconds and try again."
 msgstr "로그인을 너무 많이 시도했습니다. 30초 정도 기다린 후 다시 시도해 주세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:61
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:61
 msgid "Too many login attempts"
 msgstr "로그인을 너무 많이 시도했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:97
 msgid "Complete the setup process to get started."
 msgstr "시작하려면 설정 프로세스를 완료하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:110
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:110
 msgid "Set Up AzuraCast"
 msgstr "AzuraCast 설정"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:193
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:193
 msgid "Setup has already been completed!"
 msgstr "설치가 이미 완료되었습니다!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:29
 #, php-format
 msgid "%s is not recognized as a service."
 msgstr "%s은(는) 서비스로 인식되지 않습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:32
 msgid "It may not be registered with Supervisor yet. Restarting broadcasting may help."
 msgstr "아직 감독관에 등록되지 않았을 수 있습니다. 방송을 다시 시작하면 도움이 될 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:41
 #, php-format
 msgid "%s cannot start"
 msgstr "%s을(를) 시작할 수 없습니다"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:44
 msgid "It is already running."
 msgstr "이미 실행 중입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:53
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:53
 #, php-format
 msgid "%s cannot stop"
 msgstr "%s을(를) 중지할 수 없습니다"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:56
 msgid "It is not running."
 msgstr "실행되고 있지 않습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:68
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:68
 #, php-format
 msgid "%s encountered an error: %s"
 msgstr "%s에 오류가 발생했습니다: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:72
 msgid "Check the log for details."
 msgstr "자세한 내용은 로그를 확인하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/PermissionDeniedException.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/PermissionDeniedException.php:26
 msgid "You do not have permission to access this portion of the site."
 msgstr "사이트의 이 부분에 액세스할 수 있는 권한이 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/CannotCompleteActionException.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/CannotCompleteActionException.php:29
 #, php-format
 msgid "Cannot submit request: %s"
 msgstr "요청을 제출할 수 없습니다: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/NotLoggedInException.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/NotLoggedInException.php:26
 msgid "You must be logged in to access this page."
 msgstr "이 페이지에 액세스하려면 로그인해야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:25
 msgid "This station does not currently support this functionality."
 msgstr "이 스테이션은 현재 이 기능을 지원하지 않습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:32
 msgid "This station does not currently support on-demand media."
 msgstr "이 스테이션은 현재 온디맨드 미디어를 지원하지 않습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:39
 msgid "This station does not currently accept requests."
 msgstr "이 스테이션은 현재 요청을 수락하지 않습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:24
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:24
 msgid "Record not found."
 msgstr "레코드를 찾을 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:29
 msgid "File not found."
 msgstr "파일을 찾을 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:34
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:34
 msgid "Station not found."
 msgstr "스테이션을 찾을 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:39
 msgid "Podcast not found."
 msgstr "팟캐스트를 찾을 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:25
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:30
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:30
 msgid "All Permissions"
 msgstr "모든 권한"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:26
 msgid "View Administration Page"
 msgstr "관리 페이지 보기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:27
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:27
 msgid "View System Logs"
 msgstr "시스템 로그 보기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:28
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:28
 msgid "Administer Settings"
 msgstr "설정 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:29
 msgid "Administer API Keys"
 msgstr "API 키 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:30
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:30
 msgid "Administer Stations"
 msgstr "스테이션 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:31
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:31
 msgid "Administer Custom Fields"
 msgstr "사용자 지정 필드 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:32
 msgid "Administer Backups"
 msgstr "백업 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:33
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:33
 msgid "Administer Storage Locations"
 msgstr "저장소 위치 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:31
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:31
 msgid "View Station Page"
 msgstr "스테이션 페이지 보기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:32
 msgid "View Station Reports"
 msgstr "스테이션 보고서 보기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:33
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:33
 msgid "View Station Logs"
 msgstr "스테이션 로그 보기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:34
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:34
 msgid "Manage Station Profile"
 msgstr "스테이션 프로필 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:35
 msgid "Manage Station Broadcasting"
 msgstr "스테이션 방송 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:36
 msgid "Manage Station Streamers"
 msgstr "스테이션 스트리머 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:37
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:37
 msgid "Manage Station Mount Points"
 msgstr "스테이션 마운트 지점 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:38
 msgid "Manage Station Remote Relays"
 msgstr "스테이션 원격 릴레이 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:39
 msgid "Manage Station Media"
 msgstr "스테이션 미디어 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:40
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:40
 msgid "Delete Station Media"
 msgstr "스테이션 미디어 제거"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:41
 msgid "Manage Station Automation"
 msgstr "스테이션 자동화 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:42
 msgid "Manage Station Web Hooks"
 msgstr "스테이션 웹훅 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:43
 msgid "Manage Station Podcasts"
 msgstr "스테이션 팟캐스트 관리"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:38
 msgid "Synchronization Disabled"
 msgstr "동기화 비활성화됨"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:39
 msgid "Routine synchronization is currently disabled. Make sure to re-enable it to resume routine maintenance tasks."
 msgstr "현재 정기적인 동기화가 비활성화되어 있습니다. 정기적인 유지 관리 작업을 재개하려면 이를 다시 활성화해야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:58
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:58
 msgid "Synchronization Not Recently Run"
 msgstr "최근에 동기화가 실행되지 않음"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:59
 msgid "The routine synchronization task has not run recently. This may indicate an error with your installation."
 msgstr "루틴 동기화 작업이 최근에 실행되지 않았습니다. 이는 설치에 오류가 있음을 나타냅니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:50
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:50
 msgid "Installation Not Recently Backed Up"
 msgstr "최근에 백업되지 않은 설치"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:51
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:51
 msgid "This installation has not been backed up in the last two weeks."
 msgstr "이 설치는 지난 2주 동안 백업되지 않았습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:38
 #, php-format
 msgid "Service Not Running: %s"
 msgstr "서비스가 실행되지 않음: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:39
 msgid "One of the essential services on this installation is not currently running. Visit the system administration and check the system logs to find the cause of this issue."
 msgstr "이 설치의 필수 서비스 중 하나가 현재 실행되고 있지 않습니다. 이 문제의 원인을 찾으려면 시스템 관리를 방문하고 시스템 로그를 확인하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:36
 msgid "The performance profiling extension is currently enabled on this installation."
 msgstr "성능 프로파일링 확장이 현재 이 설치에서 실행되어 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:37
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:37
 msgid "You can track the execution time and memory usage of any AzuraCast page or application from the profiler page."
 msgstr "프로파일러 페이지에서 AzuraCast 페이지 또는 애플리케이션의 실행 시간과 메모리 사용량을 추적할 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:42
 msgid "Profiler Control Panel"
 msgstr "프로파일러 제어판"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:56
 msgid "Performance profiling is currently enabled for all requests."
 msgstr "현재 모든 요청에 ​​대해 성능 프로파일링이 활성화되어 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:57
 msgid "This can have an adverse impact on system performance. You should disable this when possible."
 msgstr "이는 시스템 성능에 부정적인 영향을 미칠 수 있습니다. 가능하면 이 기능을 비활성화해야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:35
 msgid "AzuraCast is free and open-source software."
 msgstr "AzuraCast는 무료 오픈 소스 소프트웨어입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:36
 msgid "If you are enjoying AzuraCast, please consider donating to support our work. We depend on donations to build new features, fix bugs, and keep AzuraCast modern, accessible and free."
 msgstr "AzuraCast를 즐기고 계시다면 저희 작업을 지원하기 위해 기부해 보시기 바랍니다. 우리는 새로운 기능을 구축하고, 버그를 수정하고, AzuraCast를 현대적이고 액세스 가능하며 무료로 유지하기 위해 기부에 의존하고 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:41
 msgid "Donate to AzuraCast"
 msgstr "AzuraCast에 기부하기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:42
 msgid "You may want to update your base URL to ensure it is correct."
 msgstr "기본 URL이 올바른지 확인하기 위해 업데이트할 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:45
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:45
 msgid "If you regularly use different URLs to access AzuraCast, you should enable the \"Prefer Browser URL\" setting."
 msgstr "AzuraCast에 액세스하기 위해 정기적으로 다른 URL을 사용하는 경우 \"브라우저 URL 선호\" 설정을 활성화해야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:54
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:54
 #, php-format
 msgid "Your \"Base URL\" setting (%s) does not match the URL you are currently using (%s)."
 msgstr "\"기본 URL\" 설정(%s)이 현재 사용 중인 URL(%s)과 일치하지 않습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:56
 msgid "New AzuraCast Stable Release Available"
 msgstr "새로운 AzuraCast 안정판 릴리스 사용 가능"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:60
 #, php-format
 msgid "Version %s is now available. You are currently running version %s. Updating is recommended."
 msgstr "이제 %s 버전을 사용할 수 있습니다. 현재 %s 버전을 실행하고 있습니다. 업데이트하는 것이 좋습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:79
 msgid "New AzuraCast Rolling Release Available"
 msgstr "새로운 AzuraCast 롤링 릴리스 사용 가능"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:81
 #, php-format
 msgid "Your installation is currently %d update(s) behind the latest version. Updating is recommended."
 msgstr "귀하의 설치는 현재 최신 버전보다 %d개 업데이트되어 있습니다. 업데이트하는 것이 좋습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:97
 msgid "Switch to Stable Channel Available"
 msgstr "안정판 릴리스 채널로 전환 가능"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:98
 msgid "Your Rolling Release installation is currently older than the latest Stable release. This means you can switch releases to the \"Stable\" release channel if desired."
 msgstr "롤링 릴리스 설치가 현재 최신 안정판 릴리스보다 오래되었습니다. 이는 원하는 경우 릴리스를 \"안정적\" 릴리스 채널로 전환할 수 있음을 의미합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:25
 msgid "Database Migrations"
 msgstr "데이터베이스 마이그레이션"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:38
 msgid "Database is already up to date!"
 msgstr "데이터베이스가 이미 최신 상태입니다!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:51
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:61
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:51
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:61
 msgid "Running database migrations..."
 msgstr "데이터베이스 마이그레이션 실행 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:71
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:86
 #, php-format
 msgid "Database migration failed: %s"
 msgstr "데이터베이스 마이그레이션 실패: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:83
 msgid "Database migration completed!"
 msgstr "데이터베이스 마이그레이션이 완료되었습니다!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Locale/ImportCommand.php:58
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Locale/ImportCommand.php:58
 #, php-format
 msgid "Imported locale: %s"
 msgstr "가져온 로케일: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Users/SetAdministratorCommand.php:61
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Users/SetAdministratorCommand.php:61
 #, php-format
 msgid "The account associated with e-mail address \"%s\" has been set as an administrator"
 msgstr "이메일 주소 \"%s\"에 연결된 계정이 관리자로 설정되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Users/SetAdministratorCommand.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Users/SetAdministratorCommand.php:69
 msgid "Account not found."
 msgstr "계정을 찾을 수 없음."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupFixturesCommand.php:65
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupFixturesCommand.php:65
 msgid "Fixtures loaded."
 msgstr "설비가 로드되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:26
 msgid "AzuraCast Settings"
 msgstr "AzuraCast 설정"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:29
 msgid "Setting Key"
 msgstr "설정 키"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:30
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:30
 msgid "Setting Value"
 msgstr "설정 값"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:44
 msgid "Roll Back Database"
 msgstr "데이터베이스 롤백"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:99
 #, php-format
 msgid "Database rolled back to stable release version \"%s\"."
 msgstr "데이터베이스가 안정판 릴리스 버전 \"%s\"로 롤백되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:60
 msgid "AzuraCast Initializing..."
 msgstr "AzuraCast 초기화 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:62
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:62
 msgid "AzuraCast Setup"
 msgstr "AzuraCast 설치"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:64
 msgid "Welcome to AzuraCast. Please wait while some key dependencies of AzuraCast are set up..."
 msgstr "AzuraCast에 오신 것을 환영합니다. AzuraCast의 일부 주요 종속성을 설정하는 동안 잠시 기다려 주세요..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:69
 msgid "Running Database Migrations"
 msgstr "데이터베이스 마이그레이션 실행"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:77
 msgid "Reload System Data"
 msgstr "시스템 데이터 다시 로드"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:87
 msgid "Installing Data Fixtures"
 msgstr "데이터 설비 설치"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:93
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:93
 msgid "Refreshing All Stations"
 msgstr "모든 스테이션 새로 고침"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:122
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:122
 msgid "AzuraCast is now updated to the latest version!"
 msgstr "AzuraCast가 최신 버전으로 업데이트되었습니다!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:131
 msgid "AzuraCast installation complete!"
 msgstr "AzuraCast 설치 완료!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:133
 #, php-format
 msgid "Visit %s to complete setup."
 msgstr "설정을 완료하려면 %s을(를) 방문하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/RestoreCommand.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/RestoreCommand.php:77
 #, php-format
 msgid "Backup path %s not found!"
 msgstr "백업 경로 %s을(를) 찾을 수 없습니다!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:107
 msgid "AzuraCast Backup"
 msgstr "AzuraCast 백업"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:108
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:108
 msgid "Please wait while a backup is generated..."
 msgstr "백업이 생성되는 동안 잠시 기다려 주세요..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:133
 msgid "Backing up MariaDB..."
 msgstr "MariaDB 백업 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:149
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:149
 msgid "Creating backup archive..."
 msgstr "백업 아카이브를 생성하는 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:231
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:231
 msgid "Cleaning up temporary files..."
 msgstr "임시 파일을 정리하는 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:244
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:244
 #, php-format
 msgid "Backup complete in %.2f seconds."
 msgstr "%.2f초만에 백업이 완료되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:107
 msgid "Backing up initial database state..."
 msgstr "초기 데이터베이스 상태를 백업하는 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:116
 msgid "We detected a database restore file from a previous (possibly failed) migration."
 msgstr "이전 (실패했을 수 있는) 마이그레이션에서 데이터베이스 복원 파일을 발견했습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:117
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:117
 msgid "Attempting to restore that now..."
 msgstr "지금 복원을 시도 중입니다..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:132
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:132
 msgid "Attempting to roll back to previous database state..."
 msgstr "이전 데이터베이스 상태로 롤백을 시도하는 중..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:138
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:138
 msgid "Your database was restored due to a failed migration."
 msgstr "마이그레이션 실패로 인해 데이터베이스가 복원되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:139
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:139
 msgid "Please report this bug to our developers."
 msgstr "이 버그를 개발자에게 보고해 주세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:145
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:145
 #, php-format
 msgid "Restore failed: %s"
 msgstr "복원 실패: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Backend/Liquidsoap.php:287
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Backend/Liquidsoap.php:287
 msgid "Liquidsoap Log"
 msgstr "Liquidsoap 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Backend/Liquidsoap.php:293
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Backend/Liquidsoap.php:293
 msgid "Liquidsoap Configuration"
 msgstr "Liquidsoap 구성"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:256
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:256
 msgid "RSAS Access Log"
 msgstr "RSAS 액세스 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:262
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:262
 msgid "RSAS Error Log"
 msgstr "RSAS 오류 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:268
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:268
 msgid "RSAS Configuration"
 msgstr "RSAS 구성"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Shoutcast.php:257
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Shoutcast.php:257
 msgid "Shoutcast Log"
 msgstr "Shoutcast 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Shoutcast.php:263
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Shoutcast.php:263
 msgid "Shoutcast Configuration"
 msgstr "Shoutcast 구성"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:380
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:380
 msgid "Icecast Access Log"
 msgstr "Icecast 액세스 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:386
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:386
 msgid "Icecast Error Log"
 msgstr "Icecast 오류 로그"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:392
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:392
 msgid "Icecast Configuration"
 msgstr "Icecast 구성"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:176
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:176
 msgid "AzuraCast Installer"
 msgstr "AzuraCast 설치 프로그램"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:179
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:179
 msgid "Welcome to AzuraCast! Complete the initial server setup by answering a few questions."
 msgstr "AzuraCast에 오신 것을 환영합니다! 몇 가지 질문에 답하여 초기 서버 설정을 완료하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:185
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:185
 msgid "AzuraCast Updater"
 msgstr "AzuraCast 업데이터"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:192
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:192
 msgid "Change installation settings?"
 msgstr "설치 설정을 변경하시겠습니까?"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:201
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:201
 msgid "AzuraCast is currently configured to listen on the following ports:"
 msgstr "AzuraCast는 현재 다음 포트에서 수신 대기하도록 구성되어 있습니다:"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:205
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:205
 #, php-format
 msgid "HTTP Port: %d"
 msgstr "HTTP 포트: %d"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:206
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:206
 #, php-format
 msgid "HTTPS Port: %d"
 msgstr "HTTPS 포트: %d"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:207
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:207
 #, php-format
 msgid "SFTP Port: %d"
 msgstr "SFTP 포트: %d"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:208
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:208
 #, php-format
 msgid "Radio Ports: %s"
 msgstr "라디오 포트: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:213
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:213
 msgid "Customize ports used for AzuraCast?"
 msgstr "AzuraCast에 사용되는 포트를 사용자 지정하시겠습니까?"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:273
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:273
 msgid "Writing configuration files..."
 msgstr "구성 파일을 쓰는 중입니다..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:298
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:298
 msgid "Server configuration complete!"
 msgstr "서버 구성이 완료되었습니다!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:95
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:95
 msgid "This file was automatically generated by AzuraCast."
 msgstr "이 파일은 AzuraCast에 의해 자동으로 생성되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:96
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:96
 msgid "You can modify it as necessary. To apply changes, restart the Docker containers."
 msgstr "필요에 따라 수정할 수 있습니다. 변경 사항을 적용하려면 Docker 컨테이너를 다시 시작하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:97
 msgid "Remove the leading \"#\" symbol from lines to uncomment them."
 msgstr "주석 처리를 해제하려면 행에서 선행 \"#\" 기호를 제거하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:118
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:118
 #, php-format
 msgid "Valid options: %s"
 msgstr "유효한 옵션: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:130
 #, php-format
 msgid "Default: %s"
 msgstr "기본값: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:149
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:149
 msgid "Additional Environment Variables"
 msgstr "추가 환경 변수"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:35
 msgid "The locale to use for CLI commands"
 msgstr "CLI 명령에 사용할 로케일"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:41
 msgid "The application environment"
 msgstr "애플리케이션 환경"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:46
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:46
 msgid "Manually modify the logging level"
 msgstr "로깅 수준을 수동으로 수정"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:47
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:47
 msgid "This allows you to log debug-level errors temporarily (for problem-solving) or reduce the volume of logs that are produced by your installation, without needing to modify whether your installation is a production or development instance."
 msgstr "이를 통해 설치가 프로덕션 인스턴스인지 개발 인스턴스인지를 수정할 필요 없이 일시적으로 (문제 해결을 위해) 디버그 수준 오류를 기록하거나 설치에서 생성되는 로그의 양을 줄일 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:62
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:62
 msgid "Enable Custom Code Plugins"
 msgstr "사용자 지정 코드 플러그인 활성화"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:63
 msgid "Enable the composer \"merge\" functionality to combine the main application's composer.json file with any plugin composer files. This can have performance implications, so you should only use it if you use one or more plugins with their own Composer dependencies."
 msgstr "기본 애플리케이션의 composer.json 파일을 플러그인 Composer 파일과 결합하려면 Composer \"병합\" 기능을 활성화하세요. 이는 성능에 영향을 미칠 수 있으므로 자체 Composer 종속성이 있는 하나 이상의 플러그인을 사용하는 경우에만 사용해야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:70
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:70
 msgid "Minimum Port for Station Port Assignment"
 msgstr "스테이션 포트 할당을 위한 최소 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:71
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:77
 msgid "Modify this if your stations are listening on nonstandard ports."
 msgstr "스테이션이 비표준 포트에서 수신 대기 중인 경우 이를 수정하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:76
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:76
 msgid "Maximum Port for Station Port Assignment"
 msgstr "스테이션 포트 할당을 위한 최대 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:82
 msgid "Show Detailed Slim Application Errors"
 msgstr "자세한 Slim 애플리케이션 오류 표시"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:83
 msgid "This allows you to debug Slim Application Errors you may encounter. By default, this is disabled to prevent users from seeing privileged information. Please report any Slim Application Error logs to the development team on GitHub."
 msgstr "이를 통해 발생할 수 있는 Slim 앱 오류를 디버깅할 수 있습니다. 기본적으로 이 기능은 사용자가 권한 있는 정보를 보지 못하도록 비활성화되어 있습니다. Slim 앱 오류 로그를 GitHub의 개발 팀에 보고해 주세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:90
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:90
 msgid "MariaDB Host"
 msgstr "MariaDB 호스트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:91
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:99
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:107
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:115
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:123
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:131
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:137
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:91
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:115
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:123
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:137
 msgid "Do not modify this after installation."
 msgstr "설치 후에는 이를 수정하지 마세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:98
 msgid "MariaDB Port"
 msgstr "MariaDB 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:106
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:106
 msgid "MariaDB Username"
 msgstr "MariaDB 사용자 이름"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:114
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:114
 msgid "MariaDB Password"
 msgstr "MariaDB 암호"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:122
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:122
 msgid "MariaDB Database Name"
 msgstr "MariaDB 데이터베이스 이름"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:130
 msgid "Auto-generate Random MariaDB Root Password"
 msgstr "임의 MariaDB 루트 암호 자동 생성"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:136
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:136
 msgid "MariaDB Root Password"
 msgstr "MariaDB 루트 암호"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:142
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:142
 msgid "Enable MariaDB Slow Query Log"
 msgstr "MariaDB 느린 쿼리 로그 활성화"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:143
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:143
 msgid "Log slower queries to diagnose possible database issues. Only turn this on if needed."
 msgstr "가능한 데이터베이스 문제를 진단하기 위해 느린 쿼리를 기록합니다. 필요한 경우에만 이 기능을 켜세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:149
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:149
 msgid "MariaDB Maximum Connections"
 msgstr "MariaDB 최대 연결"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:150
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:150
 msgid "Set the amount of allowed connections to the database. This value should be increased if you are seeing the \"Too many connections\" error in the logs."
 msgstr "데이터베이스에 허용되는 연결 수를 설정합니다. 로그에 \"연결이 너무 많습니다\" 오류가 표시되는 경우 이 값을 늘려야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:156
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:156
 msgid "MariaDB InnoDB Buffer Pool Size"
 msgstr "MariaDB InnoDB 버퍼 풀 크기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:157
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:157
 msgid "The InnoDB buffer pool size controls how much data & indexes are kept in memory. Making sure that this value is as large as possible reduces the amount of disk IO."
 msgstr "InnoDB 버퍼 풀 크기는 메모리에 보관되는 데이터 및 인덱스의 양을 제어합니다. 이 값을 최대한 크게 하면 디스크 IO 양이 줄어듭니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:163
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:163
 msgid "MariaDB InnoDB Log File Size"
 msgstr "MariaDB InnoDB 로그 파일 크기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:164
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:164
 msgid "The InnoDB log file is used to achieve data durability in case of crashes or unexpected shutoffs and to allow the DB to better optimize IO for write operations."
 msgstr "InnoDB 로그 파일은 충돌이나 예상치 못한 종료 시 데이터 내구성을 달성하고 DB가 쓰기 작업에 대한 IO를 더 잘 최적화할 수 있도록 하는 데 사용됩니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:170
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:170
 msgid "Enable Redis"
 msgstr "Redis 활성화"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:171
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:171
 msgid "Disable to use a flatfile cache instead of Redis."
 msgstr "Redis 대신 플랫 파일 캐시를 사용하려면 비활성화합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:176
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:176
 msgid "Redis Host"
 msgstr "Redis 호스트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:181
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:181
 msgid "Redis Port"
 msgstr "Redis 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:186
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:186
 msgid "Redis DB (Recommended to Use Default)"
 msgstr "Redis DB (기본값 사용을 권장함)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:191
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:191
 msgid "PHP Maximum POST File Size"
 msgstr "PHP 최대 POST 파일 크기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:195
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:195
 msgid "PHP Memory Limit"
 msgstr "PHP 메모리 제한"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:199
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:199
 msgid "PHP Script Maximum Execution Time (Seconds)"
 msgstr "PHP 스크립트 최대 실행 시간(초)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:203
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:203
 msgid "Short Sync Task Execution Time (Seconds)"
 msgstr "짧은 동기화 작업 실행 시간(초)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:204
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:204
 msgid "The maximum execution time (and lock timeout) for the 15-second, 1-minute and 5-minute synchronization tasks."
 msgstr "15초, 1분, 5분 동기화 작업에 대한 최대 실행 시간(또는 잠금 시간 초과)입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:209
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:209
 msgid "Long Sync Task Execution Time (Seconds)"
 msgstr "긴 동기화 작업 실행 시간(초)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:210
 msgid "The maximum execution time (and lock timeout) for the 1-hour synchronization task."
 msgstr "1시간 동기화 작업에 대한 최대 실행 시간(또는 잠금 시간 초과)입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:215
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:215
 msgid "Now Playing Delay Time (Seconds)"
 msgstr "지금 재생 중 지연 시간 (초)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:216
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:216
 msgid "The delay (in seconds) between Now Playing checks for every station. Decrease for more frequent checks at the expense of performance; increase for less frequent checks but better performance (for large installations)."
 msgstr "모든 스테이션에 대한 \"지금 재생 중\" 확인 사이의 지연 시간(초). 성능을 희생하여 더 자주 확인하는 경우 감소합니다. 덜 자주 확인하는 경우 더 나은 성능을 위해 증가합니다(대규모 설치의 경우)."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:221
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:221
 msgid "Now Playing Max Concurrent Processes"
 msgstr "\"지금 재생 중\" 최대 동시 프로세스"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:222
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:222
 msgid "The maximum number of concurrent processes for now playing updates. Increasing this can help reduce the latency between updates now playing updates on large installations."
 msgstr "현재 업데이트를 재생하기 위한 최대 동시 프로세스 수입니다. 이 값을 늘리면 현재 대규모 설치에서 업데이트를 재생하는 업데이트 간의 대기 시간을 줄이는 데 도움이 될 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:227
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:227
 msgid "Maximum PHP-FPM Worker Processes"
 msgstr "최대 PHP-FPM 작업자 프로세스"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:231
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:231
 msgid "Enable Performance Profiling Extension"
 msgstr "성능 프로파일링 확장 활성화"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:233
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:233
 #, php-format
 msgid "Profiling data can be viewed by visiting %s."
 msgstr "프로파일링 데이터는 %s에 방문하여 볼 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:238
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:238
 msgid "Profile Performance on All Requests"
 msgstr "모든 요청에 ​​대한 프로필 성능"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:239
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:239
 msgid "This will have a significant performance impact on your installation."
 msgstr "이는 설치 성능에 상당한 영향을 미칩니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:244
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:244
 msgid "Profiling Extension HTTP Key"
 msgstr "확장 HTTP 키 프로파일링 중"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:245
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:245
 msgid "The value for the \"SPX_KEY\" parameter for viewing profiling pages."
 msgstr "프로파일링 페이지를 보기 위한 \"SPX_KEY\" 매개변수의 값입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:250
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:250
 msgid "Profiling Extension IP Allow List"
 msgstr "확장 IP 허용 목록을 프로파일링하는 중"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:255
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:255
 msgid "Nginx Max Client Body Size"
 msgstr "Nginx 최대 클라이언트 본체 크기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:256
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:256
 msgid "This is the total size any single request body can be. AzuraCast chunks its uploads into smaller file sizes, so this only applies when doing custom uploads via the API. Sizes should be listed in a format like \"100K\", \"128M\", \"1G\" for kilobytes, megabytes, and gigabytes respectively."
 msgstr "이것은 단일 요청 본체가 될 수 있는 전체 크기입니다. AzuraCast는 업로드를 더 작은 파일 크기로 청크하므로 이는 API를 통해 사용자 지정 업로드를 수행하는 경우에만 적용됩니다. 크기는 각각 킬로바이트, 메가바이트, 기가바이트에 대해 \"100K\", \"128M\", \"1G\"와 같은 형식으로 나열되어야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:262
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:262
 msgid "Automatically block common bots and crawlers"
 msgstr "일반적인 봇과 크롤러를 자동으로 차단합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:263
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:263
 msgid "If enabled, this will automatically download and update the Ultimate Nginx Bad Bot Blocker, which will block aggressive crawlers and other bots."
 msgstr "활성화되면 Ultimate Nginx Bad Bot Blocker가 자동으로 다운로드 및 업데이트되어 공격적인 크롤러 및 기타 봇을 차단합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:270
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:270
 msgid "Enable web-based Docker image updates"
 msgstr "웹 기반 Docker 이미지 업데이트 활성화"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:274
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:274
 msgid "Extra Ubuntu packages to install upon startup"
 msgstr "시작 시 설치할 추가 Ubuntu 패키지"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:275
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:275
 msgid "Separate package names with a space. Packages will be installed during container startup."
 msgstr "패키지 이름을 공백으로 구분하세요. 컨테이너 시작 중에 패키지가 설치됩니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:22
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:22
 msgid "(Docker Compose) All Docker containers are prefixed by this name. Do not change this after installation."
 msgstr "(Docker Compose) 모든 Docker 컨테이너에는 이 이름이 앞에 붙습니다. 설치 후에는 이를 변경하지 마세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:29
 msgid "(Docker Compose) The amount of time to wait before a Docker Compose operation fails. Increase this on lower performance computers."
 msgstr "(Docker Compose) Docker Compose 작업이 실패할 때까지 기다려야 하는 시간입니다. 성능이 낮은 컴퓨터에서는 이 값을 늘립니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:42
 msgid "HTTP Port"
 msgstr "HTTP 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:43
 msgid "The main port AzuraCast listens to for insecure HTTP connections."
 msgstr "AzuraCast가 안전하지 않은 HTTP 연결을 수신 대기하는 기본 포트입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:49
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:49
 msgid "HTTPS Port"
 msgstr "HTTPS 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:50
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:50
 msgid "The main port AzuraCast listens to for secure HTTPS connections."
 msgstr "AzuraCast가 안전한 HTTPS 연결을 수신 대기하는 기본 포트입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:57
 msgid "The port AzuraCast listens to for SFTP file management connections."
 msgstr "AzuraCast가 SFTP 파일 관리 연결을 수신 대기하는 포트입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:63
 msgid "Station Ports"
 msgstr "스테이션 포트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:64
 msgid "The ports AzuraCast should listen to for station broadcasts and incoming DJ connections."
 msgstr "AzuraCast 포트는 스테이션 방송 및 들어오는 DJ 연결을 수신해야 합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:70
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:70
 msgid "Docker User UID"
 msgstr "Docker 사용자 UID"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:71
 msgid "Set the UID of the user running inside the Docker containers. Matching this with your host UID can fix permission issues."
 msgstr "Docker 컨테이너 내부에서 실행 중인 사용자의 UID를 설정합니다. 이를 호스트 UID와 일치시키면 권한 문제를 해결할 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:77
 msgid "Docker User GID"
 msgstr "Docker 사용자 GID"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:78
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:78
 msgid "Set the GID of the user running inside the Docker containers. Matching this with your host GID can fix permission issues."
 msgstr "Docker 컨테이너 내부에서 실행 중인 사용자의 GID를 설정합니다. 이를 호스트 GID와 일치시키면 권한 문제를 해결할 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:84
 msgid "Use Podman instead of Docker."
 msgstr "Docker 대신 Podman을 사용하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:88
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:88
 msgid "Advanced: Use Privileged Docker Settings"
 msgstr "고급: 권한 있는 Docker 설정 사용"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:80
 msgid "Runs routine synchronized tasks"
 msgstr "정기적으로 동기화된 작업 실행"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:81
 msgid "Database"
 msgstr "데이터베이스"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:82
 msgid "Web server"
 msgstr "웹 서버"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:83
 msgid "PHP FastCGI Process Manager"
 msgstr "PHP FastCGI 프로세스 관리자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:84
 msgid "Now Playing manager service"
 msgstr "\"지금 재생 중\" 관리자 서비스"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:85
 msgid "PHP queue processing worker"
 msgstr "PHP 대기열 처리 작업자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:86
 msgid "Cache"
 msgstr "캐시"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:87
 msgid "SFTP service"
 msgstr "SFTP 서비스"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:88
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:88
 msgid "Live Now Playing updates"
 msgstr "실시간 \"지금 재생 중\" 업데이트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:89
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:89
 msgid "Frontend Assets"
 msgstr "프런트엔드 에셋"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocation.php:55
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocation.php:55
 msgid "GeoLite database not configured for this installation. See System Administration for instructions."
 msgstr "이 설치를 위해 GeoLite 데이터베이스가 구성되지 않았습니다. 지침은 시스템 관리를 참조하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocator/DbIp.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocator/DbIp.php:29
 msgid "IP Geolocation by DB-IP"
 msgstr "DB-IP를 통한 IP 위치정보"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocator/GeoLite.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocator/GeoLite.php:35
 #, php-format
 msgid "This product includes GeoLite2 data created by MaxMind, available from %s."
 msgstr "이 제품에는 MaxMind에서 생성한 GeoLite2 데이터가 포함되어 있으며 %s에서 사용할 수 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:45
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:45
 #, php-format
 msgid "Playlist: %s"
 msgstr "재생 목록: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:50
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:50
 #, php-format
 msgid "Streamer: %s"
 msgstr "스트리머: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:73
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:73
 msgid "Record not found"
 msgstr "레코드를 찾을 수 없습니다"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:79
 msgid "The uploaded file exceeds the upload_max_filesize directive in php.ini."
 msgstr "업로드된 파일이 php.ini의 upload_max_filesize 지시문을 초과합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:80
 msgid "The uploaded file exceeds the MAX_FILE_SIZE directive from the HTML form."
 msgstr "업로드된 파일이 HTML 양식의 MAX_FILE_SIZE 지시문을 초과합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:81
 msgid "The uploaded file was only partially uploaded."
 msgstr "업로드된 파일이 부분적으로만 업로드되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:82
 msgid "No file was uploaded."
 msgstr "업로드된 파일이 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:83
 msgid "No temporary directory is available."
 msgstr "임시 디렉터리를 사용할 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:84
 msgid "Could not write to filesystem."
 msgstr "파일 시스템에 쓸 수 없습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:85
 msgid "Upload halted by a PHP extension."
 msgstr "PHP 확장으로 인해 업로드가 중단되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:86
 msgid "Unspecified error."
 msgstr "정의되지 않은 오류."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:37
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:37
 msgid "Changes saved successfully."
 msgstr "변경사항이 성공적으로 저장되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:42
 msgid "Record created successfully."
 msgstr "레코드가 성공적으로 생성되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:47
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:47
 msgid "Record updated successfully."
 msgstr "레코드가 성공적으로 업데이트되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:52
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:52
 msgid "Record deleted successfully."
 msgstr "레코드가 성공적으로 제거되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Traits/ValidateMaxBitrate.php:24
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Traits/ValidateMaxBitrate.php:24
 #, php-format
 msgid "The selected bitrate: %selected_bitrate%, is higher than the station's bitrate limit:  %station_limit%"
 msgstr "선택한 비트 전송률: %selected_bitrate%은 스테이션의 비트 전송률 제한: %station_limit%보다 높습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Doctrine/Repository.php:108
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Doctrine/Repository.php:108
 msgid "Select..."
 msgstr "선택..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:81
 msgid "Album Artist"
 msgstr "앨범 아티스트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:82
 msgid "Album Artist Sort Order"
 msgstr "앨범 아티스트 정렬 순서"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:83
 msgid "Album Sort Order"
 msgstr "앨범 정렬 순서"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:85
 msgid "Band"
 msgstr "밴드"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:86
 msgid "BPM"
 msgstr "BPM"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:87
 msgid "Comment"
 msgstr "의견"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:88
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:88
 msgid "Commercial Information"
 msgstr "상업 정보"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:89
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:89
 msgid "Composer"
 msgstr "작곡가"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:90
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:90
 msgid "Composer Sort Order"
 msgstr "작곡가 정렬 순서"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:91
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:91
 msgid "Conductor"
 msgstr "지휘자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:92
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:92
 msgid "Content Group Description"
 msgstr "콘텐츠 그룹 설명"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:93
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:93
 msgid "Copyright"
 msgstr "저작권"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:94
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:94
 msgid "Copyright Message"
 msgstr "저작권 메시지"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:95
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:95
 msgid "Encoded By"
 msgstr "다음에 의해 인코딩됨:"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:96
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:96
 msgid "Encoder Settings"
 msgstr "인코더 설정"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:97
 msgid "Encoding Time"
 msgstr "인코딩 시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:98
 msgid "File Owner"
 msgstr "파일 소유자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:99
 msgid "File Type"
 msgstr "파일 유형"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:101
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:101
 msgid "Initial Key"
 msgstr "초기 키"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:102
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:102
 msgid "Internet Radio Station Name"
 msgstr "인터넷 라디오 스테이션 이름"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:103
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:103
 msgid "Internet Radio Station Owner"
 msgstr "인터넷 라디오 스테이션 소유자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:104
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:104
 msgid "Involved People List"
 msgstr "관계자 목록"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:108
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:108
 msgid "Linked Information"
 msgstr "링크된 정보"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:109
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:109
 msgid "Lyricist"
 msgstr "작사가"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:110
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:110
 msgid "Media Type"
 msgstr "미디어 유형"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:111
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:111
 msgid "Mood"
 msgstr "무드"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:112
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:112
 msgid "Music CD Identifier"
 msgstr "음악 CD 식별자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:113
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:113
 msgid "Musician Credits List"
 msgstr "음악가 크레딧 목록"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:114
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:114
 msgid "Original Album"
 msgstr "원본 앨범"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:115
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:115
 msgid "Original Artist"
 msgstr "원아티스트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:116
 msgid "Original Filename"
 msgstr "원래 파일명"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:117
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:117
 msgid "Original Lyricist"
 msgstr "원작사가"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:118
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:118
 msgid "Original Release Time"
 msgstr "원본 출시 시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:119
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:119
 msgid "Original Year"
 msgstr "원래 연도"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:120
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:120
 msgid "Part of a Compilation"
 msgstr "편집의 일부"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:121
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:121
 msgid "Part of a Set"
 msgstr "세트의 일부"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:122
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:122
 msgid "Performer Sort Order"
 msgstr "수행자 정렬 순서"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:123
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:123
 msgid "Playlist Delay"
 msgstr "재생 목록 지연"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:124
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:124
 msgid "Produced Notice"
 msgstr "제작공고"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:125
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:125
 msgid "Publisher"
 msgstr "게시자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:126
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:126
 msgid "Recording Time"
 msgstr "녹음 시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:127
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:127
 msgid "Release Time"
 msgstr "릴리스 시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:128
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:128
 msgid "Remixer"
 msgstr "리믹서"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:129
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:129
 msgid "Set Subtitle"
 msgstr "부제 지정"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:130
 msgid "Subtitle"
 msgstr "부제"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:131
 msgid "Tagging Time"
 msgstr "태깅 시간"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:132
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:132
 msgid "Terms of Use"
 msgstr "이용 약관"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:134
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:134
 msgid "Title Sort Order"
 msgstr "제목 정렬 순서"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:135
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:135
 msgid "Track Number"
 msgstr "트랙 번호"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:136
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:136
 msgid "Unsynchronised Lyrics"
 msgstr "비동기화 가사"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:137
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:137
 msgid "URL Artist"
 msgstr "URL 아티스트"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:138
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:138
 msgid "URL File"
 msgstr "URL 파일"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:139
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:139
 msgid "URL Payment"
 msgstr "URL 결제"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:140
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:140
 msgid "URL Publisher"
 msgstr "URL 게시자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:141
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:141
 msgid "URL Source"
 msgstr "URL 원본"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:142
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:142
 msgid "URL Station"
 msgstr "URL 스테이션"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:143
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:143
 msgid "URL User"
 msgstr "URL 사용자"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:144
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:144
 msgid "Year"
 msgstr "연도"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StorageLocationValidator.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StorageLocationValidator.php:41
 #, php-format
 msgid "Storage location %s could not be validated: %s"
 msgstr "스토리지 위치 %s을(를) 검증할 수 없습니다: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StorageLocationValidator.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StorageLocationValidator.php:72
 #, php-format
 msgid "Storage location %s already exists."
 msgstr "저장소 위치 %s이(가) 이미 존재합니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StationPortCheckerValidator.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StationPortCheckerValidator.php:41
 #, php-format
 msgid "The port %s is in use by another station (%s)."
 msgstr "포트 %s는 다른 스테이션(%s)에서 사용 중입니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/UniqueEntityValidator.php:169
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/UniqueEntityValidator.php:169
 msgid "This value is already used."
 msgstr "이 값은 이미 사용되고 있습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:8
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:8
 #, php-format
 msgid "An account recovery link has been requested for your account on \"%s\"."
 msgstr "\"%s\" 계정에 대한 계정 복구 링크가 요청되었습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:10
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:10
 msgid "Click the link below to log in to your account."
 msgstr "아래 링크를 클릭하여 계정에 로그인하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/minimal.phtml:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/minimal.phtml:57
 msgid "Footer"
 msgstr "바닥글"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/minimal.phtml:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/minimal.phtml:59
 #, php-format
 msgid "Powered by %s"
 msgstr "%s 제공"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:6
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:17
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:6
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:15
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:6
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:17
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:6
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:15
 msgid "Forgot Password"
 msgstr "암호를 잊어버림"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:22
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:22
 msgid "This installation's administrator has not configured this functionality."
 msgstr "이 설치 관리자가 이 기능을 구성하지 않았습니다."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:25
 msgid "Contact an administrator to reset your password following the instructions in our documentation:"
 msgstr "설명서의 지침에 따라 관리자에게 문의하여 암호를 재설정하세요:"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:31
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:31
 msgid "Password Reset Instructions"
 msgstr "암호 재설정 지침"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:29
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:22
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:23
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:22
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:23
 msgid "Sign in"
 msgstr "로그인"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:32
 msgid "Send Recovery E-mail"
 msgstr "복구 이메일 보내기"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:11
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:11
 msgid "Enter Two-Factor Code"
 msgstr "2단계 인증 코드 입력"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:12
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:12
 msgid "Your account uses a two-factor security code. Enter the code your device is currently showing below."
 msgstr "귀하의 계정은 이중 보안 코드를 사용합니다. 아래에 현재 장치에 표시되는 코드를 입력하세요."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:18
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:20
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:18
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:20
 msgid "Security Code"
 msgstr "보안 코드"
 

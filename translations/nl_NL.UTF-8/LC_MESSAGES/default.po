@@ -219,14 +219,14 @@ msgstr "Naam"
 #: frontend/components/Login.vue:40
 #: frontend/components/Login.vue:50
 #: frontend/components/Setup/Register.vue:67
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:21
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:21
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:25
 msgid "E-mail Address"
 msgstr "E-mailadres"
 
 #: frontend/components/Account/EditModal.vue:44
 #: frontend/components/Stations/Podcasts/PodcastForm/BasicInfo.vue:36
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:106
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:106
 msgid "Language"
 msgstr "Taal"
 
@@ -452,7 +452,7 @@ msgstr "Let op dat het herstellen van een back-up uw bestaande database zal wiss
 #: frontend/components/Admin/BackupsWrapper.vue:3
 #: frontend/components/Admin/menu.ts:54
 #: frontend/components/Admin/StorageLocations.vue:170
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:53
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:53
 msgid "Backups"
 msgstr "Back-ups"
 
@@ -732,7 +732,7 @@ msgstr "Waarde automatisch toewijzen"
 #: frontend/components/Admin/CustomFields.vue:105
 #: frontend/components/Admin/Settings/SecurityPrivacyTab.vue:125
 #: frontend/components/Stations/Playlists.vue:354
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Repository/StorageLocationRepository.php:74
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Repository/StorageLocationRepository.php:74
 msgid "None"
 msgstr "Geen"
 
@@ -779,7 +779,7 @@ msgstr "Wijzig aangepast veld"
 
 #: frontend/components/Admin/Debug.vue:3
 #: frontend/components/Admin/menu.ts:62
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:63
 msgid "System Debugger"
 msgstr "Systeem Debugger"
 
@@ -999,7 +999,7 @@ msgstr ""
 #: frontend/components/Admin/Stations/Form/AdminForm.vue:3
 #: frontend/components/Dashboard.vue:28
 #: frontend/components/Stations/Profile/FrontendPanel.vue:38
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:43
 msgid "Administration"
 msgstr "Administratie"
 
@@ -1167,8 +1167,8 @@ msgstr "Systeem Onderhoud"
 #: frontend/components/Admin/menu.ts:22
 #: frontend/components/Admin/Settings.vue:19
 #: frontend/components/Setup/SetupStep.vue:28
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:175
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:175
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:60
 msgid "System Settings"
 msgstr "Systeeminstellingen"
 
@@ -1179,7 +1179,7 @@ msgstr "Opslaglocaties"
 
 #: frontend/components/Admin/menu.ts:70
 #: frontend/components/Admin/Updates.vue:3
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:44
 msgid "Update AzuraCast"
 msgstr ""
 
@@ -1582,7 +1582,7 @@ msgstr "AzuraCast update controles"
 
 #: frontend/components/Admin/Settings/ServicesTab.vue:15
 #: frontend/components/Admin/Updates.vue:47
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:36
 msgid "Release Channel"
 msgstr "Kanaal vrijgeven"
 
@@ -2397,7 +2397,7 @@ msgstr "Omschrijving"
 #: frontend/components/Admin/Stations/Form/ProfileForm.vue:26
 #: frontend/components/Public/Requests/RequestsDataTable.vue:92
 #: frontend/components/Stations/Media.vue:362
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:100
 msgid "Genre"
 msgstr "Genre"
 
@@ -2815,7 +2815,7 @@ msgid "SFTP Host"
 msgstr ""
 
 #: frontend/components/Admin/StorageLocations/Form/Sftp.vue:21
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:56
 msgid "SFTP Port"
 msgstr "SFTP-poort"
 
@@ -2856,7 +2856,7 @@ msgid "Your installation is currently on this release channel:"
 msgstr ""
 
 #: frontend/components/Admin/Updates.vue:66
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:102
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:102
 msgid "About Release Channels"
 msgstr "Over Release Kanalen"
 
@@ -2915,8 +2915,8 @@ msgid "You"
 msgstr "Jij"
 
 #: frontend/components/Admin/Users.vue:50
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:130
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:3
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:3
 msgid "Log In"
 msgstr "Inloggen"
 
@@ -3082,15 +3082,15 @@ msgstr "Uur"
 #: frontend/components/Stations/Reports/Overview/CommonMetricsView.vue:84
 #: frontend/components/Stations/Reports/Overview/ListeningTimeTab.vue:52
 #: frontend/components/Stations/Reports/Timeline.vue:159
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:199
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:92
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:116
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:100
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:150
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:235
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:99
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:79
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:104
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:199
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:92
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:150
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:235
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:104
 msgid "Listeners"
 msgstr "Aantal luisteraars"
 
@@ -3338,7 +3338,7 @@ msgid "Toggle Menu"
 msgstr "Menu aan/uit"
 
 #: frontend/components/Layout/DashboardLayout.vue:57
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/DashboardAction.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/DashboardAction.php:69
 msgid "Dashboard"
 msgstr "Dashboard"
 
@@ -3376,7 +3376,7 @@ msgid "Welcome to AzuraCast!"
 msgstr "Welkom bij AzuraCast!"
 
 #: frontend/components/Login.vue:49
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:23
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:23
 msgid "name@example.com"
 msgstr "naam@voorbeeld.com"
 
@@ -3437,7 +3437,7 @@ msgstr "Geen archief om te laten zien."
 #: frontend/components/Stations/menu.ts:135
 #: frontend/components/Stations/Profile/PublicPagesPanel.vue:34
 #: frontend/components/Stations/Profile/WidgetModal.vue:408
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/OnDemandAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/OnDemandAction.php:64
 msgid "On-Demand Media"
 msgstr "On-Demand Media"
 
@@ -3456,7 +3456,7 @@ msgstr "Albumhoes"
 #: frontend/components/Stations/Playlists/ReorderModal.vue:24
 #: frontend/components/Stations/Profile/UpdateMetadataModal.vue:23
 #: frontend/components/Stations/Webhooks/Form/Discord.vue:32
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:133
 msgid "Title"
 msgstr "Titel"
 
@@ -3467,7 +3467,7 @@ msgstr "Titel"
 #: frontend/components/Stations/Playlists/QueueModal.vue:23
 #: frontend/components/Stations/Playlists/ReorderModal.vue:27
 #: frontend/components/Stations/Profile/UpdateMetadataModal.vue:30
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:84
 msgid "Artist"
 msgstr "Artiest"
 
@@ -3475,7 +3475,7 @@ msgstr "Artiest"
 #: frontend/components/Public/Requests/RequestsDataTable.vue:84
 #: frontend/components/Stations/Media.vue:361
 #: frontend/components/Stations/Playlists/ReorderModal.vue:30
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:80
 msgid "Album"
 msgstr "Album"
 
@@ -3548,7 +3548,7 @@ msgstr "Aanvragen"
 #: frontend/components/Stations/Profile/PublicPagesPanel.vue:52
 #: frontend/components/Stations/Profile/WidgetModal.vue:394
 #: frontend/components/Stations/Streamers/Form/Schedule.vue:2
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/ScheduleAction.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/ScheduleAction.php:44
 msgid "Schedule"
 msgstr "Schema planning"
 
@@ -3628,7 +3628,7 @@ msgstr "Onbekende artiest"
 #: frontend/components/Public/WebDJ/SettingsPanel.vue:5
 #: frontend/components/Stations/menu.ts:196
 #: frontend/components/Stations/Profile/StreamersPanel.vue:30
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/WebDjAction.php:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/WebDjAction.php:59
 msgid "Web DJ"
 msgstr "Web DJ"
 
@@ -3680,7 +3680,7 @@ msgstr ""
 
 #: frontend/components/Recover.vue:14
 #: frontend/components/Recover.vue:61
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:100
 msgid "Recover Account"
 msgstr "Account herstellen"
 
@@ -3728,7 +3728,7 @@ msgid "Create Station"
 msgstr "Creëer een nieuw radiostation"
 
 #: frontend/components/Setup/Station.vue:19
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:141
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:141
 msgid "Create a New Radio Station"
 msgstr "Maak een nieuw radiostation"
 
@@ -4011,12 +4011,12 @@ msgstr "Hernoemen"
 
 #: frontend/components/Stations/Media.vue:363
 #: frontend/components/Stations/Media/Form/BasicInfo.vue:53
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:105
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:105
 msgid "ISRC"
 msgstr "ISRC"
 
 #: frontend/components/Stations/Media.vue:364
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:107
 msgid "Length"
 msgstr "Lengte"
 
@@ -4302,7 +4302,7 @@ msgid "Selected directory:"
 msgstr ""
 
 #: frontend/components/Stations/Media/MoveFilesModal.vue:32
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/GetApplyToAction.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/GetApplyToAction.php:69
 msgid "Base Directory"
 msgstr ""
 
@@ -4312,7 +4312,7 @@ msgstr "Verplaats naar map"
 
 #: frontend/components/Stations/Media/MoveFilesModal.vue:115
 #: frontend/components/Stations/Playlists/ApplyToModal.vue:103
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:269
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:269
 msgid "Directory"
 msgstr "Map"
 
@@ -5052,49 +5052,49 @@ msgstr "Laat leeg om elke dag van de week af te laten spelen"
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:149
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:184
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:147
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:127
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:127
 msgid "Monday"
 msgstr "Maandag"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:150
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:185
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:148
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:128
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:128
 msgid "Tuesday"
 msgstr "Dinsdag"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:151
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:186
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:149
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:129
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:129
 msgid "Wednesday"
 msgstr "Woensdag"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:152
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:187
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:150
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:130
 msgid "Thursday"
 msgstr "Donderdag"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:153
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:188
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:151
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:131
 msgid "Friday"
 msgstr "Vrijdag"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:154
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:189
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:152
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:132
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:132
 msgid "Saturday"
 msgstr "Zaterdag"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:155
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:190
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:153
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:133
 msgid "Sunday"
 msgstr "Zondag"
 
@@ -5123,7 +5123,7 @@ msgid "This queue contains the remaining tracks in the order they will be queued
 msgstr "Deze wachtrij bevat de resterende nummers in de volgorde waarin ze in de wachtrij staan door de AzuraCast AutoDJ (als de nummers in aanmerking komen om af te spelen)."
 
 #: frontend/components/Stations/Playlists/QueueModal.vue:107
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/DeleteQueueAction.php:62
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/DeleteQueueAction.php:62
 msgid "Playlist queue cleared."
 msgstr "Afspeellijst wachtrij gewist."
 
@@ -5713,12 +5713,12 @@ msgid "Radio Player"
 msgstr ""
 
 #: frontend/components/Stations/Profile/WidgetModal.vue:386
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/HistoryAction.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/HistoryAction.php:39
 msgid "History"
 msgstr "Geschiedenis"
 
 #: frontend/components/Stations/Profile/WidgetModal.vue:401
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/RequestsAction.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/RequestsAction.php:44
 msgid "Requests"
 msgstr "Verzoek"
 
@@ -5912,7 +5912,7 @@ msgstr "Totaal aantal luisteruren"
 
 #: frontend/components/Stations/Reports/Listeners.vue:131
 #: frontend/components/Stations/Reports/Listeners/FiltersBar.vue:46
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:79
 msgid "Bot/Crawler"
 msgstr "Bot/Crawler"
 
@@ -6088,17 +6088,17 @@ msgid "Top Countries by Connected Time"
 msgstr ""
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:42
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:72
 msgid "Listeners by Day"
 msgstr "Aantal luisteraars per dag"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:55
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:119
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:119
 msgid "Listeners by Day of Week"
 msgstr "Aantal luisteraars per dag van de week"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:69
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:210
 msgid "Listeners by Hour"
 msgstr "Aantal luisteraars per uur"
 
@@ -7148,1650 +7148,1650 @@ msgstr ""
 msgid "This field must be a valid URL."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:66
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:66
 msgid "Test Message"
 msgstr "Test Bericht"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:69
 msgid "This is a test message from AzuraCast. If you are receiving this message, it means your e-mail settings are configured correctly."
 msgstr "Dit is een testbericht van AzuraCast. Als u dit bericht ontvangt, betekent dit dat uw e-mailinstellingen correct zijn geconfigureerd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:83
 msgid "Test message sent successfully."
 msgstr "Test Bericht succesvol verzonden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:168
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:168
 msgid "AzuraCast Application Log"
 msgstr "AzuraCast applicatielog"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:174
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:174
 msgid "AzuraCast Now Playing Log"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:180
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:180
 msgid "AzuraCast Synchronized Task Log"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:186
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:186
 msgid "AzuraCast Queue Worker Log"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:193
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:193
 #, php-format
 msgid "Service Log: %s (%s)"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:210
 msgid "Nginx Access Log"
 msgstr "Nginx toegangslogboek"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:216
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:216
 msgid "Nginx Error Log"
 msgstr "Nginx foutlog"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:222
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:222
 msgid "PHP Application Log"
 msgstr "PHP applicatielog"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:228
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:228
 msgid "Supervisord Log"
 msgstr "Supervisord log"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:238
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:238
 msgid "AzuraCast Common Liquidsoap Functions"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:245
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:245
 msgid "AutoCue Liquidsoap Functions"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/UsersController.php:208
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/UsersController.php:208
 msgid "You cannot modify yourself."
 msgstr "U kunt uzelf niet wijzigen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/UsersController.php:242
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/UsersController.php:242
 msgid "You cannot remove yourself."
 msgstr "Je kunt jezelf niet verwijderen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:151
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:151
 msgid "All Stations"
 msgstr "Alle stations"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:93
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:117
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:100
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:93
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:117
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:100
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:80
 msgid "Connected Seconds"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:80
 msgid "Mobile Device"
 msgstr "Mobiel apparaat"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:81
 msgid "Desktop Browser"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:82
 msgid "Non-Browser"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:66
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:66
 msgid "Less than Thirty Seconds"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:67
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:67
 msgid "Thirty Seconds to One Minute"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:68
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:68
 msgid "One Minute to Five Minutes"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:69
 msgid "Five Minutes to Ten Minutes"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:70
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:70
 msgid "Ten Minutes to Thirty Minutes"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:71
 msgid "Thirty Minutes to One Hour"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:72
 msgid "One Hour to Two Hours"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:73
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:73
 msgid "More than Two Hours"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/HlsStreamsController.php:135
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/HlsStreamsController.php:135
 msgid "Unable to create a new stream, station's maximum HLS streams reached."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/LogsAction.php:136
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/LogsAction.php:136
 msgid "Station Nginx Configuration"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/FilesController.php:298
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/FilesController.php:298
 msgid "This station is out of available storage space."
 msgstr "Dit station gebruikt teveel opslagruimte."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:63
 msgid "Web hook enabled."
 msgstr "Webhook ingeschakeld."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:64
 msgid "Web hook disabled."
 msgstr "Web hook uitgeschakeld."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/GetOrderAction.php:66
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/PutOrderAction.php:68
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/GetOrderAction.php:66
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/PutOrderAction.php:68
 msgid "This playlist is not a sequential playlist."
 msgstr "Deze afspeellijst is geen opeenvolgende afspeellijst."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:63
 msgid "This playlist is not song-based."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:77
 msgid "Playlist emptied."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ReshuffleAction.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ReshuffleAction.php:71
 msgid "Playlist reshuffled."
 msgstr "Afspeellijst geshuffeld."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ImportAction.php:225
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ImportAction.php:225
 #, php-format
 msgid "Playlist successfully imported; %d of %d files were successfully matched."
 msgstr "Afspeellijst succesvol geïmporteerd; %d van de %d bestanden zijn succesvol gematcht."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/PutApplyToAction.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/PutApplyToAction.php:87
 msgid "Playlist applied to folders."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:63
 msgid "Playlist enabled."
 msgstr "Afspeellijst ingeschakeld."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:64
 msgid "Playlist disabled."
 msgstr "Afspeellijst uitgeschakeld."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:95
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:95
 msgid "Search engine crawlers are not permitted to use this feature."
 msgstr "Zoekmachine crawlers zijn niet toegestaan om deze functie te gebruiken."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:103
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:103
 msgid "You are not permitted to submit requests."
 msgstr "Je hebt geen toestemming om aanvragen in te dienen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:113
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:113
 msgid "This track is not requestable."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:121
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:121
 msgid "This song was already requested and will play soon."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:129
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:129
 msgid "This song or artist has been played too recently. Wait a while before requesting it again."
 msgstr "Dit nummer of deze artiest werd onlangs afgespeeld. Wacht even voordat u het opnieuw aanvraagt."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:167
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:167
 #, php-format
 msgid "You have submitted a request too recently! Please wait %d minutes before submitting another one."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:183
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:183
 msgid "Your request has been submitted and will be played soon."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:254
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:254
 #, php-format
 msgid "%d files will be modified."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:263
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:263
 #, php-format
 msgid "%d files processed."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:155
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:155
 msgid "Station reloaded."
 msgstr "Station is opnieuw geladen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:164
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:164
 msgid "Station restarted."
 msgstr "Station is opnieuw gestart."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:199
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:251
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:199
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:251
 msgid "Service stopped."
 msgstr "Service gestopt."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:204
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:256
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:204
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:256
 msgid "Service started."
 msgstr "Service gestart."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:210
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:262
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:262
 msgid "Service reloaded."
 msgstr "Service opnieuw geladen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:222
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:274
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:222
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:274
 msgid "Service restarted."
 msgstr "Station is opnieuw gestart."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:241
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:241
 msgid "Song skipped."
 msgstr "Nummer overgeslagen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:246
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:246
 msgid "Streamer disconnected."
 msgstr "Streamer ontkoppeld."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/MountsController.php:218
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/MountsController.php:218
 msgid "Unable to create a new mount point, station's maximum mount points reached."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/MakeDirectoryAction.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/MakeDirectoryAction.php:56
 msgid "No directory specified"
 msgstr "Geen map opgegeven"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/RenameAction.php:53
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/RenameAction.php:53
 msgid "File not specified."
 msgstr "Bestand niet gespecificeerd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/RenameAction.php:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/RenameAction.php:59
 msgid "New path not specified."
 msgstr "Nieuw pad niet gespecificeerd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:280
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:280
 #, php-format
 msgid "File Not Processed: %s"
 msgstr "Bestand niet verwerkt: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:285
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:285
 msgid "Cover Art"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:288
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:288
 msgid "File Processing"
 msgstr "Bestand verwerken"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Streamers/BroadcastsController.php:269
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Streamers/BroadcastsController.php:269
 msgid "No recording available."
 msgstr "Geen opname beschikbaar."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:47
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:47
 msgid "You have attempted to reset your password too many times. Please wait 30 seconds and try again."
 msgstr "U heeft te vaak geprobeerd uw wachtwoord opnieuw in te stellen. Wacht 30 seconden en probeer het opnieuw."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:51
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:51
 msgid "Too many forgot password attempts"
 msgstr "Te veel wachtwoord vergeten pogingen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:64
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:6
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:6
 msgid "Account Recovery"
 msgstr "Accountherstel"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:92
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:92
 msgid "If the e-mail address you provided is in the system, check your inbox for a password reset message."
 msgstr "Als het e-mailadres dat u heeft opgegeven in het systeem staat, check dan uw inbox voor een wachtwoord reset bericht."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:96
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:96
 msgid "Account recovery e-mail sent."
 msgstr "E-mailbericht verzonden om account te herstellen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:40
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:40
 msgid "Invalid token specified."
 msgstr "Ongeldige token gespecificeerd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:55
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:55
 msgid "Logged in using login token."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:85
 msgid "Your password has been updated."
 msgstr "Uw wachtwoord is bijgewerkt."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:86
 msgid "Logged in using account recovery token"
 msgstr "Ingelogd met behulp van het account-herstel-token"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:57
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:44
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:116
 msgid "Login unsuccessful"
 msgstr "Fout tijdens inloggen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:79
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:33
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/MasqueradeAction.php:46
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:98
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:105
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:33
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/MasqueradeAction.php:46
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:105
 msgid "Logged in successfully."
 msgstr "U bent succesvol ingelogd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:43
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:115
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:115
 msgid "Your credentials could not be verified."
 msgstr "Je logingegevens zijn incorrect."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/MasqueradeAction.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/MasqueradeAction.php:38
 msgid "User not found."
 msgstr "Gebruiker niet gevonden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:60
 msgid "You have attempted to log in too many times. Please wait 30 seconds and try again."
 msgstr "Je hebt te vaak geprobeerd om in te loggen. Gelieve 30 seconden te wachten en probeer opnieuw."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:61
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:61
 msgid "Too many login attempts"
 msgstr "Te veel inlogpogingen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:97
 msgid "Complete the setup process to get started."
 msgstr "Voltooi het installatieproces om aan de slag te gaan."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:110
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:110
 msgid "Set Up AzuraCast"
 msgstr "AzuraCast instellen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:193
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:193
 msgid "Setup has already been completed!"
 msgstr "De installatie is al voltooid!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:29
 #, php-format
 msgid "%s is not recognized as a service."
 msgstr "%s is niet herkend als een service."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:32
 msgid "It may not be registered with Supervisor yet. Restarting broadcasting may help."
 msgstr "Het is mogelijk nog niet geregistreerd bij Supervisor. Het opnieuw starten van de uitzending kan helpen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:41
 #, php-format
 msgid "%s cannot start"
 msgstr "%s kan niet worden gestart"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:44
 msgid "It is already running."
 msgstr "Proces is al gestart."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:53
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:53
 #, php-format
 msgid "%s cannot stop"
 msgstr "%s kan niet stoppen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:56
 msgid "It is not running."
 msgstr "Het loopt niet."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:68
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:68
 #, php-format
 msgid "%s encountered an error: %s"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:72
 msgid "Check the log for details."
 msgstr "Controleer het logboek voor details."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/PermissionDeniedException.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/PermissionDeniedException.php:26
 msgid "You do not have permission to access this portion of the site."
 msgstr "U heeft geen toestemming om dit deel van de website te bezoeken."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/CannotCompleteActionException.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/CannotCompleteActionException.php:29
 #, php-format
 msgid "Cannot submit request: %s"
 msgstr "Kan aanvraag niet indienen: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/NotLoggedInException.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/NotLoggedInException.php:26
 msgid "You must be logged in to access this page."
 msgstr "U moet ingelogd zijn om toegang te krijgen tot deze pagina."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:25
 msgid "This station does not currently support this functionality."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:32
 msgid "This station does not currently support on-demand media."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:39
 msgid "This station does not currently accept requests."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:24
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:24
 msgid "Record not found."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:29
 msgid "File not found."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:34
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:34
 msgid "Station not found."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:39
 msgid "Podcast not found."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:25
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:30
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:30
 msgid "All Permissions"
 msgstr "Alle rollen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:26
 msgid "View Administration Page"
 msgstr "Bekijk beheerders pagina"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:27
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:27
 msgid "View System Logs"
 msgstr "Bekijk systeemlogs"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:28
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:28
 msgid "Administer Settings"
 msgstr "Instellingen beheren"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:29
 msgid "Administer API Keys"
 msgstr "API-sleutels beheren"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:30
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:30
 msgid "Administer Stations"
 msgstr "Stations beheren"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:31
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:31
 msgid "Administer Custom Fields"
 msgstr "Aangepaste velden beheren"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:32
 msgid "Administer Backups"
 msgstr "Back-ups beheren"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:33
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:33
 msgid "Administer Storage Locations"
 msgstr "Beheer opslag locaties"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:31
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:31
 msgid "View Station Page"
 msgstr "Bekijk stationspagina"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:32
 msgid "View Station Reports"
 msgstr "Bekijk station rapportages"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:33
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:33
 msgid "View Station Logs"
 msgstr "Bekijk station logs"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:34
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:34
 msgid "Manage Station Profile"
 msgstr "Beheer stationsprofiel"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:35
 msgid "Manage Station Broadcasting"
 msgstr "Beheer uitzending van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:36
 msgid "Manage Station Streamers"
 msgstr "Beheer streamers van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:37
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:37
 msgid "Manage Station Mount Points"
 msgstr "Beheer mount points van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:38
 msgid "Manage Station Remote Relays"
 msgstr "Beheer externe relays van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:39
 msgid "Manage Station Media"
 msgstr "Beheer media van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:40
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:40
 msgid "Delete Station Media"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:41
 msgid "Manage Station Automation"
 msgstr "Beheer automatie van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:42
 msgid "Manage Station Web Hooks"
 msgstr "Beheer webhooks van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:43
 msgid "Manage Station Podcasts"
 msgstr "Beheer podcasts van station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:38
 msgid "Synchronization Disabled"
 msgstr "Synchronisatie Uitgeschakeld"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:39
 msgid "Routine synchronization is currently disabled. Make sure to re-enable it to resume routine maintenance tasks."
 msgstr "Routinesynchronisatie is momenteel uitgeschakeld. Zorg ervoor dat u deze weer inschakelt om routinematige onderhoudstaken te hervatten."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:58
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:58
 msgid "Synchronization Not Recently Run"
 msgstr "Synchronisatie niet recent uitgevoerd"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:59
 msgid "The routine synchronization task has not run recently. This may indicate an error with your installation."
 msgstr "De routine synchronisatie taak is onlangs niet uitgevoerd. Dit kan duiden op een fout met uw installatie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:50
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:50
 msgid "Installation Not Recently Backed Up"
 msgstr "Deze installatie heeft nog geen recente back-up."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:51
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:51
 msgid "This installation has not been backed up in the last two weeks."
 msgstr "Er is geen back-up van deze installatie gemaakt in de afgelopen twee weken."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:38
 #, php-format
 msgid "Service Not Running: %s"
 msgstr "Service wordt niet uitgevoerd: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:39
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:39
 msgid "One of the essential services on this installation is not currently running. Visit the system administration and check the system logs to find the cause of this issue."
 msgstr "Een van de essentiële diensten voor deze installatie is op dit moment niet actief. Bezoek het systeembeheer en controleer de systeemlogboeken om de oorzaak van dit probleem te vinden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:36
 msgid "The performance profiling extension is currently enabled on this installation."
 msgstr "De extensie voor het prestatie profiel is momenteel ingeschakeld op deze installatie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:37
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:37
 msgid "You can track the execution time and memory usage of any AzuraCast page or application from the profiler page."
 msgstr "U kunt de uitvoeringstijd en het geheugengebruik van elke AzuraCast-pagina of -toepassing volgen vanaf de profielpagina."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:42
 msgid "Profiler Control Panel"
 msgstr "Profiel Configuratiescherm"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:56
 msgid "Performance profiling is currently enabled for all requests."
 msgstr "Prestatieprofiel is momenteel ingeschakeld voor alle verzoeken."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:57
 msgid "This can have an adverse impact on system performance. You should disable this when possible."
 msgstr "Dit kan een negatieve invloed hebben op de systeemprestaties. U kunt dit het beste uitschakelen als dit mogelijk is."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:35
 msgid "AzuraCast is free and open-source software."
 msgstr "AzuraCast is gratis en open-source software."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:36
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:36
 msgid "If you are enjoying AzuraCast, please consider donating to support our work. We depend on donations to build new features, fix bugs, and keep AzuraCast modern, accessible and free."
 msgstr "Als u tevreden bent met AzuraCast, overweeg dan om te doneren om ons werk te ondersteunen. We zijn afhankelijk van donaties voor het bouwen van nieuwe functies, het oplossen van bugs en ervoor te zorgen dat AzuraCast modern, toegankelijk en gratis blijft."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:41
 msgid "Donate to AzuraCast"
 msgstr "Doneer aan AzuraCast"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:42
 msgid "You may want to update your base URL to ensure it is correct."
 msgstr "Misschien wilt u uw basis URL bijwerken om er zeker van te zijn dat deze correct is."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:45
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:45
 msgid "If you regularly use different URLs to access AzuraCast, you should enable the \"Prefer Browser URL\" setting."
 msgstr "Als u regelmatig verschillende URL's gebruikt om toegang te krijgen tot AzuraCast, moet u de \"Voorkeur Browser URL\" instelling aanzetten."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:54
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:54
 #, php-format
 msgid "Your \"Base URL\" setting (%s) does not match the URL you are currently using (%s)."
 msgstr "Uw \"Basis URL\" instelling (%s) komt niet overeen met de URL die u momenteel gebruikt (%s)."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:56
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:56
 msgid "New AzuraCast Stable Release Available"
 msgstr "Nieuwe AzuraCast Stable Release Beschikbaar"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:60
 #, php-format
 msgid "Version %s is now available. You are currently running version %s. Updating is recommended."
 msgstr "Versie %s is nu beschikbaar. Je gebruikt momenteel versie %s. Bijwerken wordt aanbevolen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:79
 msgid "New AzuraCast Rolling Release Available"
 msgstr "Nieuwe AzuraCast Rolling Release Beschikbaar"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:81
 #, php-format
 msgid "Your installation is currently %d update(s) behind the latest version. Updating is recommended."
 msgstr "Uw installatie is momenteel %d update(s) achter de laatste versie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:97
 msgid "Switch to Stable Channel Available"
 msgstr "Schakel over naar stabiel kanaal beschikbaar"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:98
 msgid "Your Rolling Release installation is currently older than the latest Stable release. This means you can switch releases to the \"Stable\" release channel if desired."
 msgstr "Uw Rolling Release-installatie is momenteel ouder dan de nieuwste Stable versie. Dit betekent dat u kunt overschakelen naar het \"Stable\" release kanaal indien gewenst."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:25
 msgid "Database Migrations"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:38
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:38
 msgid "Database is already up to date!"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:51
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:61
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:51
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:61
 msgid "Running database migrations..."
 msgstr "Database migraties worden uitgevoerd..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:71
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:86
 #, php-format
 msgid "Database migration failed: %s"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:83
 msgid "Database migration completed!"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Locale/ImportCommand.php:58
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Locale/ImportCommand.php:58
 #, php-format
 msgid "Imported locale: %s"
 msgstr "Taal geïmporteerd: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Users/SetAdministratorCommand.php:61
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Users/SetAdministratorCommand.php:61
 #, php-format
 msgid "The account associated with e-mail address \"%s\" has been set as an administrator"
 msgstr "Het account dat gekoppeld is aan het e-mailadres \"%s\" is ingesteld als administrator"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Users/SetAdministratorCommand.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Users/SetAdministratorCommand.php:69
 msgid "Account not found."
 msgstr "Account niet gevonden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupFixturesCommand.php:65
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupFixturesCommand.php:65
 msgid "Fixtures loaded."
 msgstr "Fixtures geladen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:26
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:26
 msgid "AzuraCast Settings"
 msgstr "AzuraCast instellingen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:29
 msgid "Setting Key"
 msgstr "Instellingssleutel"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:30
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:30
 msgid "Setting Value"
 msgstr "Instellingswaarde"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:44
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:44
 msgid "Roll Back Database"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:99
 #, php-format
 msgid "Database rolled back to stable release version \"%s\"."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:60
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:60
 msgid "AzuraCast Initializing..."
 msgstr "AzuraCast Initialiseren..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:62
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:62
 msgid "AzuraCast Setup"
 msgstr "AzuraCast setup"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:64
 msgid "Welcome to AzuraCast. Please wait while some key dependencies of AzuraCast are set up..."
 msgstr "Welkom bij AzuraCast. Een ogenblik geduld terwijl enkele code afhankelijkheden worden ingesteld..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:69
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:69
 msgid "Running Database Migrations"
 msgstr "Database migraties worden uitgevoerd"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:77
 msgid "Reload System Data"
 msgstr "Herlaad systeemgegevens"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:87
 msgid "Installing Data Fixtures"
 msgstr "Data Fixtures installeren"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:93
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:93
 msgid "Refreshing All Stations"
 msgstr "Alle stations verversen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:122
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:122
 msgid "AzuraCast is now updated to the latest version!"
 msgstr "AzuraCast is bijgewerkt naar de laatste versie!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:131
 msgid "AzuraCast installation complete!"
 msgstr "De installatie van AzuraCast is voltooid!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:133
 #, php-format
 msgid "Visit %s to complete setup."
 msgstr "Bezoek %s om de setup te voltooien."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/RestoreCommand.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/RestoreCommand.php:77
 #, php-format
 msgid "Backup path %s not found!"
 msgstr "Back-up pad %s niet gevonden!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:107
 msgid "AzuraCast Backup"
 msgstr "AzuraCast back-up"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:108
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:108
 msgid "Please wait while a backup is generated..."
 msgstr "Een ogenblik geduld, een back-up wordt gegenereerd..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:133
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:133
 msgid "Backing up MariaDB..."
 msgstr "MariaDB back-uppen..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:149
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:149
 msgid "Creating backup archive..."
 msgstr "Backup archief aanmaken..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:231
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:231
 msgid "Cleaning up temporary files..."
 msgstr "Tijdelijke bestanden opruimen..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:244
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:244
 #, php-format
 msgid "Backup complete in %.2f seconds."
 msgstr "Back-up voltooid in %.2f seconden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:107
 msgid "Backing up initial database state..."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:116
 msgid "We detected a database restore file from a previous (possibly failed) migration."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:117
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:117
 msgid "Attempting to restore that now..."
 msgstr "Aan het proberen dat nu te herstellen..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:132
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:132
 msgid "Attempting to roll back to previous database state..."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:138
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:138
 msgid "Your database was restored due to a failed migration."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:139
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:139
 msgid "Please report this bug to our developers."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:145
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:145
 #, php-format
 msgid "Restore failed: %s"
 msgstr "Herstel mislukt: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Backend/Liquidsoap.php:287
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Backend/Liquidsoap.php:287
 msgid "Liquidsoap Log"
 msgstr "Liquidsoap log"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Backend/Liquidsoap.php:293
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Backend/Liquidsoap.php:293
 msgid "Liquidsoap Configuration"
 msgstr "Liquidsoap configuratie"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:256
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:256
 msgid "RSAS Access Log"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:262
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:262
 msgid "RSAS Error Log"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:268
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:268
 msgid "RSAS Configuration"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Shoutcast.php:257
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Shoutcast.php:257
 msgid "Shoutcast Log"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Shoutcast.php:263
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Shoutcast.php:263
 msgid "Shoutcast Configuration"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:380
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:380
 msgid "Icecast Access Log"
 msgstr "Icecast toegangslogboek"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:386
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:386
 msgid "Icecast Error Log"
 msgstr "Icecast foutenlogboek"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:392
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:392
 msgid "Icecast Configuration"
 msgstr "Icecast configuratie"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:176
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:176
 msgid "AzuraCast Installer"
 msgstr "AzuraCast installatieprogramma"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:179
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:179
 msgid "Welcome to AzuraCast! Complete the initial server setup by answering a few questions."
 msgstr "Welkom bij AzuraCast! Voltooi de initiële server installatie door enkele vragen te beantwoorden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:185
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:185
 msgid "AzuraCast Updater"
 msgstr "AzuraCast Updater"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:192
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:192
 msgid "Change installation settings?"
 msgstr "Installatie instellingen wijzigen?"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:201
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:201
 msgid "AzuraCast is currently configured to listen on the following ports:"
 msgstr "AzuraCast is momenteel geconfigureerd om te luisteren op de volgende poorten:"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:205
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:205
 #, php-format
 msgid "HTTP Port: %d"
 msgstr "HTTP poort: %d"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:206
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:206
 #, php-format
 msgid "HTTPS Port: %d"
 msgstr "HTTPS poort: %d"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:207
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:207
 #, php-format
 msgid "SFTP Port: %d"
 msgstr "SFTP poort: %d"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:208
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:208
 #, php-format
 msgid "Radio Ports: %s"
 msgstr "Radio poorten: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:213
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:213
 msgid "Customize ports used for AzuraCast?"
 msgstr "Poorten aanpassen die worden gebruikt door AzureCast?"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:273
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:273
 msgid "Writing configuration files..."
 msgstr "Configuratiebestanden genereren..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:298
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:298
 msgid "Server configuration complete!"
 msgstr "Serverconfiguratie voltooid!"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:95
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:95
 msgid "This file was automatically generated by AzuraCast."
 msgstr "Dit bestand is automatisch gegenereerd door AzuraCast."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:96
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:96
 msgid "You can modify it as necessary. To apply changes, restart the Docker containers."
 msgstr "U kunt dit wijzigen indien nodig. Herstart de Docker containers om de wijzigingen toe te passen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:97
 msgid "Remove the leading \"#\" symbol from lines to uncomment them."
 msgstr "Verwijder het leidende \"#\"-symbool van regels om ze te activeren."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:118
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:118
 #, php-format
 msgid "Valid options: %s"
 msgstr "Geldige opties: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:130
 #, php-format
 msgid "Default: %s"
 msgstr "Standaard: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:149
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:149
 msgid "Additional Environment Variables"
 msgstr "Extra omgevingsvariabelen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:35
 msgid "The locale to use for CLI commands"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:41
 msgid "The application environment"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:46
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:46
 msgid "Manually modify the logging level"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:47
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:47
 msgid "This allows you to log debug-level errors temporarily (for problem-solving) or reduce the volume of logs that are produced by your installation, without needing to modify whether your installation is a production or development instance."
 msgstr "Hiermee kunt u tijdelijk fouten op foutenniveau loggen (voor probleem-oplossing) of het volume van de logs verminderen die door uw installatie worden geproduceerd, zonder dat je hoeft te wijzigen of je installatie een productie- of ontwikkelingsinstantie is."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:62
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:62
 msgid "Enable Custom Code Plugins"
 msgstr "Plugins met aangepaste code inschakelen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:63
 msgid "Enable the composer \"merge\" functionality to combine the main application's composer.json file with any plugin composer files. This can have performance implications, so you should only use it if you use one or more plugins with their own Composer dependencies."
 msgstr "Schakel de composer \"samenvoegen\" functionaliteit in om het composer.json bestand van de hoofdapplicatie te combineren met eventuele plugin composer bestanden. Dit kan implicaties hebben voor de prestaties, dus u dient het alleen te gebruiken als u een of meer plugins gebruikt met hun eigen Composer afhankelijkheden."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:70
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:70
 msgid "Minimum Port for Station Port Assignment"
 msgstr "Minimale poort voor station instellen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:71
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:77
 msgid "Modify this if your stations are listening on nonstandard ports."
 msgstr "Pas dit aan als uw station een andere poort gebruikt dan de standaard poort"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:76
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:76
 msgid "Maximum Port for Station Port Assignment"
 msgstr "Maximale poorten instellen voor station"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:82
 msgid "Show Detailed Slim Application Errors"
 msgstr "Toon gedetailleerde Slim Applicatiefouten"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:83
 msgid "This allows you to debug Slim Application Errors you may encounter. By default, this is disabled to prevent users from seeing privileged information. Please report any Slim Application Error logs to the development team on GitHub."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:90
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:90
 msgid "MariaDB Host"
 msgstr "MariaDB host"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:91
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:99
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:107
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:115
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:123
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:131
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:137
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:91
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:107
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:115
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:123
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:137
 msgid "Do not modify this after installation."
 msgstr "Wijzig dit niet na de installatie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:98
 msgid "MariaDB Port"
 msgstr "MariaDB poort"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:106
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:106
 msgid "MariaDB Username"
 msgstr "MariaDB gebruikersnaam"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:114
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:114
 msgid "MariaDB Password"
 msgstr "MariaDB wachtwoord"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:122
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:122
 msgid "MariaDB Database Name"
 msgstr "MariaDB databasenaam"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:130
 msgid "Auto-generate Random MariaDB Root Password"
 msgstr "Genereer een willekeurig MariaDB Root-wachtwoord"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:136
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:136
 msgid "MariaDB Root Password"
 msgstr "MariaDB Root wachtwoord"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:142
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:142
 msgid "Enable MariaDB Slow Query Log"
 msgstr "MariaDB vertraagde logboeken inschakelen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:143
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:143
 msgid "Log slower queries to diagnose possible database issues. Only turn this on if needed."
 msgstr "Logboeken voor langzame query's inschakelen om mogelijke database problemen te diagnosticeren. Schakel dit alleen in als het nodig is."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:149
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:149
 msgid "MariaDB Maximum Connections"
 msgstr "MariaDB maximum aantal verbindingen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:150
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:150
 msgid "Set the amount of allowed connections to the database. This value should be increased if you are seeing the \"Too many connections\" error in the logs."
 msgstr "Stel het aantal toegestane verbindingen naar de database toe in. Deze waarde moet worden verhoogd als u de \"Te veel verbindingen\" fout ziet in de logboeken."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:156
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:156
 msgid "MariaDB InnoDB Buffer Pool Size"
 msgstr "MariaDB InnoDB Buffer Pool Grootte"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:157
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:157
 msgid "The InnoDB buffer pool size controls how much data & indexes are kept in memory. Making sure that this value is as large as possible reduces the amount of disk IO."
 msgstr "De InnoDB buffer pool grootte bepaalt hoeveel gegevens en indexen in het geheugen worden gehouden. Zorg ervoor dat deze waarde zo groot mogelijk is vermindert de hoeveelheid schijf IO."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:163
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:163
 msgid "MariaDB InnoDB Log File Size"
 msgstr "MariaDB InnoDB Log Bestandsgrootte"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:164
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:164
 msgid "The InnoDB log file is used to achieve data durability in case of crashes or unexpected shutoffs and to allow the DB to better optimize IO for write operations."
 msgstr "Het InnoDB logbestand wordt gebruikt om data duurzaamheid te bereiken in geval van crashes of onverwachte shutoffs en om de database toe te staan om de IO beter te optimaliseren voor schrijfoperaties."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:170
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:170
 msgid "Enable Redis"
 msgstr "Redis inschakelen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:171
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:171
 msgid "Disable to use a flatfile cache instead of Redis."
 msgstr "Uitschakelen om een flatfile cache te gebruiken in plaats van Redis."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:176
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:176
 msgid "Redis Host"
 msgstr "Redis Host"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:181
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:181
 msgid "Redis Port"
 msgstr "Redis Poort"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:186
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:186
 msgid "Redis DB (Recommended to Use Default)"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:191
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:191
 msgid "PHP Maximum POST File Size"
 msgstr "PHP maximale POST bestandsgrootte"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:195
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:195
 msgid "PHP Memory Limit"
 msgstr "PHP Geheugenlimiet"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:199
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:199
 msgid "PHP Script Maximum Execution Time (Seconds)"
 msgstr "PHP Script Maximale uitvoeringstijd (seconden)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:203
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:203
 msgid "Short Sync Task Execution Time (Seconds)"
 msgstr "Korte Sync Taak Uitvoeringstijd (seconden)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:204
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:204
 msgid "The maximum execution time (and lock timeout) for the 15-second, 1-minute and 5-minute synchronization tasks."
 msgstr "De maximale uitvoeringstijd (en lock timeout) voor de 15-seconden, 1-minuut en 5-minuut synchronisatietaken."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:209
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:209
 msgid "Long Sync Task Execution Time (Seconds)"
 msgstr "Lange Sync Taak Uitvoertijd (seconden)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:210
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:210
 msgid "The maximum execution time (and lock timeout) for the 1-hour synchronization task."
 msgstr "De maximale uitvoeringstijd (en lock timeout) voor de 1-uurs synchronisatie-taak."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:215
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:215
 msgid "Now Playing Delay Time (Seconds)"
 msgstr "Nu Afspelen Vertragingstijd (seconden)"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:216
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:216
 msgid "The delay (in seconds) between Now Playing checks for every station. Decrease for more frequent checks at the expense of performance; increase for less frequent checks but better performance (for large installations)."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:221
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:221
 msgid "Now Playing Max Concurrent Processes"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:222
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:222
 msgid "The maximum number of concurrent processes for now playing updates. Increasing this can help reduce the latency between updates now playing updates on large installations."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:227
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:227
 msgid "Maximum PHP-FPM Worker Processes"
 msgstr "Maximale PHP-FPM Worker Processen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:231
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:231
 msgid "Enable Performance Profiling Extension"
 msgstr "Prestatie van Profiling Uitbreiden Inschakelen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:233
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:233
 #, php-format
 msgid "Profiling data can be viewed by visiting %s."
 msgstr "Profielgegevens kunnen worden bekeken door een bezoek aan %s."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:238
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:238
 msgid "Profile Performance on All Requests"
 msgstr "Profiel prestaties op alle verzoeken"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:239
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:239
 msgid "This will have a significant performance impact on your installation."
 msgstr "Dit zal een aanzienlijke invloed hebben op de prestaties van uw installatie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:244
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:244
 msgid "Profiling Extension HTTP Key"
 msgstr "HTTP-sleutel voor profileringsextensie"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:245
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:245
 msgid "The value for the \"SPX_KEY\" parameter for viewing profiling pages."
 msgstr "De waarde voor de parameter \"SPX_KEY\" voor het bekijken van profielpagina's."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:250
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:250
 msgid "Profiling Extension IP Allow List"
 msgstr "Lijst met toegestane IP-extensies voor profilering"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:255
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:255
 msgid "Nginx Max Client Body Size"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:256
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:256
 msgid "This is the total size any single request body can be. AzuraCast chunks its uploads into smaller file sizes, so this only applies when doing custom uploads via the API. Sizes should be listed in a format like \"100K\", \"128M\", \"1G\" for kilobytes, megabytes, and gigabytes respectively."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:262
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:262
 msgid "Automatically block common bots and crawlers"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:263
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:263
 msgid "If enabled, this will automatically download and update the Ultimate Nginx Bad Bot Blocker, which will block aggressive crawlers and other bots."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:270
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:270
 msgid "Enable web-based Docker image updates"
 msgstr "Schakel web-based Docker afbeelding updates in"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:274
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:274
 msgid "Extra Ubuntu packages to install upon startup"
 msgstr "Extra Ubuntu-pakketten te installeren bij opstarten"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:275
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:275
 msgid "Separate package names with a space. Packages will be installed during container startup."
 msgstr "Scheid de pakketnamen met een spatie. Pakketten zullen worden geïnstalleerd tijdens het opstarten van de container."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:22
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:22
 msgid "(Docker Compose) All Docker containers are prefixed by this name. Do not change this after installation."
 msgstr "(Docker Compose) Alle Docker containers beginnen met deze naam. Verander dit niet na installatie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:29
 msgid "(Docker Compose) The amount of time to wait before a Docker Compose operation fails. Increase this on lower performance computers."
 msgstr "(Docker Compose) De hoeveelheid tijd die moet worden gewacht voordat een Docker Compose-bewerking mislukt. Verhoog dit op computers / servers met lagere prestaties."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:42
 msgid "HTTP Port"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:43
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:43
 msgid "The main port AzuraCast listens to for insecure HTTP connections."
 msgstr "De hoofdpoort waar AzuraCast naar luistert voor onveilige HTTP-verbindingen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:49
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:49
 msgid "HTTPS Port"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:50
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:50
 msgid "The main port AzuraCast listens to for secure HTTPS connections."
 msgstr "De hoofdpoort waar AzuraCast naar luistert voor veilige HTTPS-verbindingen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:57
 msgid "The port AzuraCast listens to for SFTP file management connections."
 msgstr "De poort waar AzuraCast naar luistert voor SFTP-bestandsbeheerverbindingen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:63
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:63
 msgid "Station Ports"
 msgstr "Station poorten"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:64
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:64
 msgid "The ports AzuraCast should listen to for station broadcasts and incoming DJ connections."
 msgstr "De poorten waarnaar AzuraCast moet luisteren voor zenderuitzendingen en inkomende DJ-verbindingen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:70
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:70
 msgid "Docker User UID"
 msgstr "Docker gebruiker UID"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:71
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:71
 msgid "Set the UID of the user running inside the Docker containers. Matching this with your host UID can fix permission issues."
 msgstr "Stel de UID in van de gebruiker die in de Docker-containers wordt uitgevoerd. Als u dit koppelt aan uw host-UID, kunnen problemen met machtigingen worden opgelost."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:77
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:77
 msgid "Docker User GID"
 msgstr "Docker Gebruiker GID"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:78
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:78
 msgid "Set the GID of the user running inside the Docker containers. Matching this with your host GID can fix permission issues."
 msgstr "Stel de GID in van de gebruiker die in de Docker-containers wordt uitgevoerd. Als u dit koppelt aan uw host-GID, kunnen problemen met machtigingen worden opgelost."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:84
 msgid "Use Podman instead of Docker."
 msgstr "Gebruik Podman in plaats van Docker."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:88
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:88
 msgid "Advanced: Use Privileged Docker Settings"
 msgstr "Geavanceerd: Rechten Docker-instellingen gebruiken"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:80
 msgid "Runs routine synchronized tasks"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:81
 msgid "Database"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:82
 msgid "Web server"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:83
 msgid "PHP FastCGI Process Manager"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:84
 msgid "Now Playing manager service"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:85
 msgid "PHP queue processing worker"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:86
 msgid "Cache"
 msgstr "Cache"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:87
 msgid "SFTP service"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:88
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:88
 msgid "Live Now Playing updates"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:89
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:89
 msgid "Frontend Assets"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocation.php:55
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocation.php:55
 msgid "GeoLite database not configured for this installation. See System Administration for instructions."
 msgstr "De GeoLite database is niet geconfigureerd voor deze installatie. Zie Systeembeheer voor instructies."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocator/DbIp.php:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocator/DbIp.php:29
 msgid "IP Geolocation by DB-IP"
 msgstr "IP Geolocatie door DB-IP"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocator/GeoLite.php:35
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocator/GeoLite.php:35
 #, php-format
 msgid "This product includes GeoLite2 data created by MaxMind, available from %s."
 msgstr "Deze functionaliteit bevat gegevens uit de GeoLite2 database van MaxMind, welke beschikbaar is via %s."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:45
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:45
 #, php-format
 msgid "Playlist: %s"
 msgstr "Afspeellijst: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:50
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:50
 #, php-format
 msgid "Streamer: %s"
 msgstr "Streamer: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:73
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:73
 msgid "Record not found"
 msgstr "Record niet gevonden"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:79
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:79
 msgid "The uploaded file exceeds the upload_max_filesize directive in php.ini."
 msgstr "Het geüploade bestand overschrijdt de upload_max_filesize waarde uit php.ini."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:80
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:80
 msgid "The uploaded file exceeds the MAX_FILE_SIZE directive from the HTML form."
 msgstr "Het geüploade bestand is groter dan de MAX_FILE_SIZE richtlijn uit het HTML-formulier."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:81
 msgid "The uploaded file was only partially uploaded."
 msgstr "Het geüploade bestand is slechts gedeeltelijk geüpload."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:82
 msgid "No file was uploaded."
 msgstr "Er is geen bestand geüpload."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:83
 msgid "No temporary directory is available."
 msgstr "Geen tijdelijke map beschikbaar."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:84
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:84
 msgid "Could not write to filesystem."
 msgstr "Kan niet naar het bestandssysteem schrijven."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:85
 msgid "Upload halted by a PHP extension."
 msgstr "Upload gestopt door een PHP-extensie."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:86
 msgid "Unspecified error."
 msgstr "Onbekende fout."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:37
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:37
 msgid "Changes saved successfully."
 msgstr "Wijzigingen succesvol opgeslagen."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:42
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:42
 msgid "Record created successfully."
 msgstr "Veld is met succes aangemaakt."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:47
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:47
 msgid "Record updated successfully."
 msgstr "Veld is met succes gewijzigd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:52
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:52
 msgid "Record deleted successfully."
 msgstr "Record succesvol verwijderd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Traits/ValidateMaxBitrate.php:24
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Traits/ValidateMaxBitrate.php:24
 #, php-format
 msgid "The selected bitrate: %selected_bitrate%, is higher than the station's bitrate limit:  %station_limit%"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Doctrine/Repository.php:108
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Doctrine/Repository.php:108
 msgid "Select..."
 msgstr "Selecteer..."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:81
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:81
 msgid "Album Artist"
 msgstr "Album Artiesten"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:82
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:82
 msgid "Album Artist Sort Order"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:83
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:83
 msgid "Album Sort Order"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:85
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:85
 msgid "Band"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:86
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:86
 msgid "BPM"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:87
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:87
 msgid "Comment"
 msgstr "Reactie"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:88
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:88
 msgid "Commercial Information"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:89
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:89
 msgid "Composer"
 msgstr "Artiest"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:90
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:90
 msgid "Composer Sort Order"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:91
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:91
 msgid "Conductor"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:92
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:92
 msgid "Content Group Description"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:93
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:93
 msgid "Copyright"
 msgstr "Auteursrecht"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:94
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:94
 msgid "Copyright Message"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:95
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:95
 msgid "Encoded By"
 msgstr "Gecodeerd door"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:96
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:96
 msgid "Encoder Settings"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:97
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:97
 msgid "Encoding Time"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:98
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:98
 msgid "File Owner"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:99
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:99
 msgid "File Type"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:101
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:101
 msgid "Initial Key"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:102
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:102
 msgid "Internet Radio Station Name"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:103
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:103
 msgid "Internet Radio Station Owner"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:104
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:104
 msgid "Involved People List"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:108
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:108
 msgid "Linked Information"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:109
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:109
 msgid "Lyricist"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:110
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:110
 msgid "Media Type"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:111
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:111
 msgid "Mood"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:112
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:112
 msgid "Music CD Identifier"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:113
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:113
 msgid "Musician Credits List"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:114
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:114
 msgid "Original Album"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:115
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:115
 msgid "Original Artist"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:116
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:116
 msgid "Original Filename"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:117
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:117
 msgid "Original Lyricist"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:118
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:118
 msgid "Original Release Time"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:119
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:119
 msgid "Original Year"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:120
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:120
 msgid "Part of a Compilation"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:121
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:121
 msgid "Part of a Set"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:122
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:122
 msgid "Performer Sort Order"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:123
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:123
 msgid "Playlist Delay"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:124
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:124
 msgid "Produced Notice"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:125
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:125
 msgid "Publisher"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:126
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:126
 msgid "Recording Time"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:127
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:127
 msgid "Release Time"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:128
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:128
 msgid "Remixer"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:129
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:129
 msgid "Set Subtitle"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:130
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:130
 msgid "Subtitle"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:131
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:131
 msgid "Tagging Time"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:132
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:132
 msgid "Terms of Use"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:134
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:134
 msgid "Title Sort Order"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:135
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:135
 msgid "Track Number"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:136
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:136
 msgid "Unsynchronised Lyrics"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:137
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:137
 msgid "URL Artist"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:138
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:138
 msgid "URL File"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:139
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:139
 msgid "URL Payment"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:140
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:140
 msgid "URL Publisher"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:141
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:141
 msgid "URL Source"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:142
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:142
 msgid "URL Station"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:143
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:143
 msgid "URL User"
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:144
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:144
 msgid "Year"
 msgstr "Jaar"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StorageLocationValidator.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StorageLocationValidator.php:41
 #, php-format
 msgid "Storage location %s could not be validated: %s"
 msgstr "Opslaglocatie %s kon niet worden gevalideerd: %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StorageLocationValidator.php:72
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StorageLocationValidator.php:72
 #, php-format
 msgid "Storage location %s already exists."
 msgstr "Opslaglocatie %s bestaat al."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StationPortCheckerValidator.php:41
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StationPortCheckerValidator.php:41
 #, php-format
 msgid "The port %s is in use by another station (%s)."
 msgstr ""
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/UniqueEntityValidator.php:169
+#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/UniqueEntityValidator.php:169
 msgid "This value is already used."
 msgstr "Deze waarde wordt al gebruikt."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:8
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:8
 #, php-format
 msgid "An account recovery link has been requested for your account on \"%s\"."
 msgstr "Er is een link om uw account te herstellen aangevraagd op \"%s\"."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:10
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:10
 msgid "Click the link below to log in to your account."
 msgstr "Klik op de link hieronder om in te loggen op uw account."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/minimal.phtml:57
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/minimal.phtml:57
 msgid "Footer"
 msgstr "Voettekst"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/minimal.phtml:59
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/minimal.phtml:59
 #, php-format
 msgid "Powered by %s"
 msgstr "Mogelijk gemaakt door %s"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:6
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:17
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:6
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:15
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:6
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:17
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:6
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:15
 msgid "Forgot Password"
 msgstr "Wachtwoord vergeten"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:22
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:22
 msgid "This installation's administrator has not configured this functionality."
 msgstr "De beheerder van deze installatie heeft deze functionaliteit niet geconfigureerd."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:25
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:25
 msgid "Contact an administrator to reset your password following the instructions in our documentation:"
 msgstr "Neem contact op met een beheerder om uw wachtwoord te resetten volgens de instructies in onze documentatie:"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:31
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:31
 msgid "Password Reset Instructions"
 msgstr "Wachtwoord herstel instructies"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:29
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:22
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:23
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:29
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:22
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:23
 msgid "Sign in"
 msgstr "Inloggen"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:32
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:32
 msgid "Send Recovery E-mail"
 msgstr "Verstuur herstel-e-mail"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:11
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:11
 msgid "Enter Two-Factor Code"
 msgstr "Voer twee factor code in"
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:12
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:12
 msgid "Your account uses a two-factor security code. Enter the code your device is currently showing below."
 msgstr "Uw account gebruikt tweestapsverificatie. Voer de code in die op uw apparaat wordt weergegeven."
 
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:18
-#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:20
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:18
+#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:20
 msgid "Security Code"
 msgstr "Beveiligingscode"
 

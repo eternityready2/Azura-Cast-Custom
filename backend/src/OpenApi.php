@@ -67,7 +67,7 @@ use OpenApi\Attributes as OA;
         ],
         externalDocs: new OA\ExternalDocumentation(
             description: "AzuraCast on GitHub",
-            url: "https://github.com/eternityready2/Azura-Cast-Custom"
+            url: "https://github.com/AzuraCast/AzuraCast"
         ),
         x: [
             'tagGroups' => [

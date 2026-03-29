@@ -1,5 +1,5 @@
 # This is a security.txt file according to https://github.com/EdOverflow/security-txt
 
-Contact: https://github.com/eternityready2/Azura-Cast-Custom/security/advisories/new
-Policy: https://github.com/eternityready2/Azura-Cast-Custom/security/policy
+Contact: https://github.com/AzuraCast/AzuraCast/security/advisories/new
+Policy: https://github.com/AzuraCast/AzuraCast/security/policy
 Preferred-Languages: en

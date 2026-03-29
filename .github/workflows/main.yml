@@ -1,0 +1,27 @@
+name: Build Custom AzuraCast
+on:
+  push:
+    branches: [ main, dev ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/eternityready2/azuracast_custom:${{ github.ref_name == 'main' && 'stable' || 'rolling' }}
