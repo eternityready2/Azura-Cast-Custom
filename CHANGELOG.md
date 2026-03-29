@@ -1339,7 +1339,7 @@ multi-tenant installations (i.e. resellers). Upgrading is strongly recommended i
 
 - **Unified Docker Container**: We have combined all of our Docker containers into a single unified container that
   includes the database, cache, stations container and more. This combined container is located
-  at [ghcr.io/azuracast/azuracast](https://github.com/azuracast/AzuraCast/pkgs/container/azuracast). For most users, no
+  at [ghcr.io/eternityready2/azuracast_custom](https://github.com/azuracast/AzuraCast/pkgs/container/azuracast). For most users, no
   changes will be needed when migrating to the latest version of AzuraCast, but if you have created
   a `docker-compose.override.yml` file, you should
   follow [our instructions](https://github.com/AzuraCast/AzuraCast/issues/5191) to update the file.

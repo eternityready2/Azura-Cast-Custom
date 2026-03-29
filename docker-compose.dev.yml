@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/azuracast/azuracast:development
+    image: ghcr.io/eternityready2/azuracast_custom:development
     build:
       context: .
       target: development
