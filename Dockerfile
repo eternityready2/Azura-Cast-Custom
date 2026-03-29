@@ -145,7 +145,7 @@ USER azuracast
 
 WORKDIR /var/azuracast/www
 
-COPY --chown=azuracast:azuracast ./backend/ .
+COPY --chown=azuracast:azuracast . .
 
 RUN composer install --no-ansi --no-interaction \
     && composer clear-cache
