@@ -148,6 +148,8 @@ WORKDIR /var/azuracast/www
 COPY --chown=azuracast:azuracast . .
 
 USER root
+
+RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/config
 RUN ln -s /var/azuracast/www/backend/bin /var/azuracast/www/bin && \
     ln -s /var/azuracast/www/backend/src /var/azuracast/www/src && \
     ln -s /var/azuracast/www/backend/config /var/azuracast/www/config
