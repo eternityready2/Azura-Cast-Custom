@@ -147,6 +147,10 @@ WORKDIR /var/azuracast/www
 
 COPY --chown=azuracast:azuracast . .
 
+USER root
+RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
+USER azuracast
+
 RUN composer install --no-ansi --no-interaction \
     && composer clear-cache
 
