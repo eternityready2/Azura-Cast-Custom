@@ -186,6 +186,18 @@ RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
 
 USER azuracast
 
+USER root
+
+RUN ln -s /var/azuracast/www/backend/templates /var/azuracast/www/templates && \
+    ln -s /var/azuracast/www/backend/translations /var/azuracast/www/translations
+    
+RUN mkdir -p /var/azuracast/www/storage/logs && \
+    mkdir -p /var/azuracast/www/storage/cache && \
+    chown -R azuracast:azuracast /var/azuracast/www/storage && \
+    chmod -R 777 /var/azuracast/www/storage
+
+USER azuracast
+
 RUN composer install --no-dev --no-ansi --no-autoloader --no-interaction \
     && composer dump-autoload --optimize --classmap-authoritative \
     && composer clear-cache
