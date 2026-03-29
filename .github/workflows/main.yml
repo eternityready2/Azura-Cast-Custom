@@ -2,6 +2,7 @@ name: Build Custom AzuraCast
 on:
   push:
     branches: [ main, dev ]
+    tags: [ 'v*' ]
 
 permissions:
   contents: read
