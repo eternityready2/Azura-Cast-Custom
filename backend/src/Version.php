@@ -201,3 +201,5 @@ final class Version
         return self::STABLE_VERSION;
     }
 }
+
+// Test update v2.

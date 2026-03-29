@@ -15,7 +15,6 @@ intuitive web interface, you can start up a fully working web radio station in a
 web radio stations of all types and sizes, and is built to run on even the most affordable VPS web hosts. AzuraCast is
 currently beta software.
 
-TESTING AZURACAST UPDATES
 ![](https://www.azuracast.com/img/ScreenshotTour.gif)
 
 You can learn more about AzuraCast via our [Documentation](https://www.azuracast.com/docs):
