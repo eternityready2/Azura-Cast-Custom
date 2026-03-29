@@ -181,7 +181,7 @@ WORKDIR /var/azuracast/www
 
 COPY --chown=azuracast:azuracast . .
 
-COPY --from=frontend-build --chown=azuracast:azuracast /app/web/static/dist /var/azuracast/www/web/static/dist
+COPY --from=frontend-build --chown=azuracast:azuracast /app/web/static/vite_dist /var/azuracast/www/web/static/vite_dist
 
 USER root
 
