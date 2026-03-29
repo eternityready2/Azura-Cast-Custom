@@ -116,6 +116,17 @@ final class Version
             }
         }
 
+        if (is_file($this->repoDir . '/.version')) {
+            $commit = trim(file_get_contents($this->repoDir . '/.version'));
+            if (!empty($commit)) {
+                return [
+                    'commit' => $commit,
+                    'commit_date_raw' => null,
+                    'branch' => 'main',
+                ];
+            }
+        }
+
         if (is_dir($this->repoDir . '/.git')) {
             return [
                 'commit' => $this->runProcess(['git', 'log', '--pretty=%H', '-n1', 'HEAD']),
@@ -201,5 +212,3 @@ final class Version
         return self::STABLE_VERSION;
     }
 }
-
-// Test update v2.
