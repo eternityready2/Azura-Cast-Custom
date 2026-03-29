@@ -12,20 +12,9 @@ use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Process\Process;
 use Throwable;
 
-/**
- * App Core Framework Version
- *
- * @phpstan-type VersionDetails array{
- *     commit: string|null,
- *     commit_short: string,
- *     commit_timestamp: int,
- *     commit_date: string,
- *     branch: string|null,
- * }
- */
 final class Version
 {
-    /** @var string The current latest stable version. */
+    /** @var string La versión base que Nathan quiere mostrar */
     public const STABLE_VERSION = '0.23.4';
 
     private string $repoDir;
@@ -49,11 +38,6 @@ final class Version
             : ReleaseChannel::RollingRelease;
     }
 
-    /**
-     * Load cache or generate new repository details from the underlying Git repository.
-     *
-     * @return VersionDetails
-     */
     public function getDetails(): array
     {
         static $details;
@@ -72,7 +56,6 @@ final class Version
 
                 if (!empty($rawDetails['commit_date_raw'])) {
                     $commitDate = CarbonImmutable::parse($rawDetails['commit_date_raw'], Time::getUtc());
-
                     $details['commit_timestamp'] = $commitDate->getTimestamp();
                     $details['commit_date'] = $commitDate->format('Y-m-d G:i');
                 } else {
@@ -81,7 +64,6 @@ final class Version
                 }
 
                 $ttl = $this->environment->isProduction() ? 86400 : 600;
-
                 $this->cache->set('app_version_details', $details, $ttl);
             }
         }
@@ -89,15 +71,6 @@ final class Version
         return $details;
     }
 
-    /**
-     * Generate new repository details from the underlying Git repository.
-     *
-     * @return array{
-     *     commit: string|null,
-     *     commit_date_raw: string|null,
-     *     branch: string|null
-     * }
-     */
     private function getRawDetails(): array
     {
         if (is_file($this->repoDir . '/.gitinfo')) {
@@ -110,12 +83,9 @@ final class Version
                         'commit_date_raw' => $gitInfo['COMMIT_DATE'] ?? null,
                         'branch' => $gitInfo['BRANCH'] ?? null,
                     ];
-                } catch (Throwable) {
-                    // Noop
-                }
+                } catch (Throwable) { }
             }
         }
-
         if (is_file($this->repoDir . '/.version')) {
             $commit = trim(file_get_contents($this->repoDir . '/.version'));
             if (!empty($commit)) {
@@ -142,9 +112,6 @@ final class Version
         ];
     }
 
-    /**
-     * Run the specified process and return its output.
-     */
     private function runProcess(array $proc, string $default = ''): string
     {
         $process = new Process($proc);
@@ -158,49 +125,36 @@ final class Version
         return trim($process->getOutput());
     }
 
-    /**
-     * @return string A textual representation of the current installed version.
-     */
     public function getVersionText(bool $asHtml = true): string
     {
         $details = $this->getDetails();
         $releaseChannel = $this->getReleaseChannelEnum();
 
         if (ReleaseChannel::RollingRelease === $releaseChannel) {
+            $versionNum = 'v' . self::STABLE_VERSION;
+
             if ($asHtml) {
                 $commitLink = 'https://github.com/eternityready2/Azura-Cast-Custom/commit/' . $details['commit'];
-                $commitText = sprintf(
-                    '#<a href="%s" target="_blank">%s</a> (%s)',
+                return sprintf(
+                    'Release <strong>%s</strong> #<a href="%s" target="_blank">%s</a>',
+                    $versionNum,
                     $commitLink,
-                    $details['commit_short'],
-                    $details['commit_date']
-                );
-            } else {
-                $commitText = sprintf(
-                    '%s (%s)',
-                    $details['commit_short'],
-                    $details['commit_date']
+                    $details['commit_short']
                 );
             }
 
-            return 'Rolling Release ' . $commitText;
+            return 'Release ' . $versionNum . ' (#' . $details['commit_short'] . ')';
         }
 
         return 'v' . self::STABLE_VERSION . ' Stable';
     }
 
-    /**
-     * @return string|null The long-form Git hash that represents the current commit of this installation.
-     */
     public function getCommitHash(): ?string
     {
         $details = $this->getDetails();
         return $details['commit'];
     }
 
-    /**
-     * @return string The shortened Git hash corresponding to the current commit.
-     */
     public function getCommitShort(): string
     {
         $details = $this->getDetails();

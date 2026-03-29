@@ -13,7 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Create Version File
-        run: echo "${{ github.sha }}" > .version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "${{ github.ref_name }}" > .version
+          else
+            echo "$(git rev-parse --short HEAD)" > .version
+          fi
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
