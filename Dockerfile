@@ -184,8 +184,6 @@ RUN ln -s /var/azuracast/www/backend/bin /var/azuracast/www/bin && \
     ln -s /var/azuracast/www/backend/config /var/azuracast/www/config && \
     ln -s /var/azuracast/www/backend/templates /var/azuracast/www/templates
 
-RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
-
 RUN mkdir -p /var/azuracast/www/storage/logs /var/azuracast/www/storage/cache && \
     chown -R azuracast:azuracast /var/azuracast/www/storage && \
     chmod -R 777 /var/azuracast/www/storage
