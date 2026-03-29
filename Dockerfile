@@ -164,25 +164,28 @@ ENV APPLICATION_ENV="development" \
 ENTRYPOINT ["tini", "--", "/usr/local/bin/my_init"]
 CMD ["--no-main-command"]
 
+
 #
-# Final build (Just environment vars and squishing the FS)
+# Final build
 #
 FROM pre-final AS final
 
 USER azuracast
-
 WORKDIR /var/azuracast/www
 
 COPY --chown=azuracast:azuracast . .
 
 USER root
 
-RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/config && \
-    ln -s /var/azuracast/www/backend/bin /var/azuracast/www/bin && \
-    ln -s /var/azuracast/www/backend/src /var/azuracast/www/src && \
-    ln -s /var/azuracast/www/backend/config /var/azuracast/www/config
+RUN cp -rn /var/azuracast/www/backend/* /var/azuracast/www/ && \
+    rm -rf /var/azuracast/www/backend
 
 RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
+
+RUN mkdir -p /var/azuracast/www/storage/logs && \
+    mkdir -p /var/azuracast/www/storage/cache && \
+    chown -R azuracast:azuracast /var/azuracast/www/storage && \
+    chmod -R 777 /var/azuracast/www/storage
 
 USER azuracast
 
@@ -192,6 +195,5 @@ RUN composer install --no-dev --no-ansi --no-autoloader --no-interaction \
 
 USER root
 
-# Entrypoint and default command
 ENTRYPOINT ["tini", "--", "/usr/local/bin/my_init"]
 CMD ["--no-main-command"]
