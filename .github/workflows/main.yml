@@ -24,4 +24,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/eternityready2/azuracast_custom:${{ github.ref_name == 'main' && 'stable' || 'rolling' }}
+            ghcr.io/eternityready2/azuracast_custom:${{ github.ref_name == 'main' && 'latest' || 'rolling' }}
+            ${{ github.ref_name == 'main' && 'ghcr.io/eternityready2/azuracast_custom:stable' || '' }}
