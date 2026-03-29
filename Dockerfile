@@ -177,15 +177,19 @@ COPY --chown=azuracast:azuracast . .
 
 USER root
 
-RUN cp -rn /var/azuracast/www/backend/* /var/azuracast/www/ && \
+RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/config /var/azuracast/www/templates
+
+RUN cp -r /var/azuracast/www/backend/* /var/azuracast/www/ && \
     rm -rf /var/azuracast/www/backend
 
-RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
-
-RUN mkdir -p /var/azuracast/www/storage/logs && \
-    mkdir -p /var/azuracast/www/storage/cache && \
+RUN mkdir -p /var/azuracast/www/storage/logs \
+             /var/azuracast/www/storage/cache \
+             /var/azuracast/www/storage/sessions \
+             /var/azuracast/www/storage/temp && \
     chown -R azuracast:azuracast /var/azuracast/www/storage && \
     chmod -R 777 /var/azuracast/www/storage
+
+RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
 
 USER azuracast
 
