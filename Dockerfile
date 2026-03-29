@@ -147,17 +147,6 @@ WORKDIR /var/azuracast/www
 
 COPY --chown=azuracast:azuracast . .
 
-USER root
-
-RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/config
-RUN cp -r /var/azuracast/www/backend/bin /var/azuracast/www/bin && \
-    cp -r /var/azuracast/www/backend/src /var/azuracast/www/src && \
-    cp -r /var/azuracast/www/backend/config /var/azuracast/www/config
-
-RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
-
-USER azuracast
-
 RUN composer install --no-ansi --no-interaction \
     && composer clear-cache
 
@@ -185,6 +174,17 @@ USER azuracast
 WORKDIR /var/azuracast/www
 
 COPY --chown=azuracast:azuracast . .
+
+USER root
+
+RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/config && \
+    ln -s /var/azuracast/www/backend/bin /var/azuracast/www/bin && \
+    ln -s /var/azuracast/www/backend/src /var/azuracast/www/src && \
+    ln -s /var/azuracast/www/backend/config /var/azuracast/www/config
+
+RUN ln -s /var/azuracast/www/vendor /var/azuracast/vendor
+
+USER azuracast
 
 RUN composer install --no-dev --no-ansi --no-autoloader --no-interaction \
     && composer dump-autoload --optimize --classmap-authoritative \
