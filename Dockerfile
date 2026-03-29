@@ -164,6 +164,16 @@ ENV APPLICATION_ENV="development" \
 ENTRYPOINT ["tini", "--", "/usr/local/bin/my_init"]
 CMD ["--no-main-command"]
 
+# Frontend Build Step (Vite/Node)
+#
+FROM node:20-slim AS frontend-build
+WORKDIR /app
+COPY . .
+RUN npm ci && npm run build
+
+#
+# Final Production Image
+#
 FROM pre-final AS final
 
 USER azuracast
@@ -171,7 +181,10 @@ WORKDIR /var/azuracast/www
 
 COPY --chown=azuracast:azuracast . .
 
+COPY --from=frontend-build --chown=azuracast:azuracast /app/web/static/dist /var/azuracast/www/web/static/dist
+
 USER root
+
 
 RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/config /var/azuracast/www/templates && \
     ln -s /var/azuracast/www/backend/bin /var/azuracast/www/bin && \
@@ -179,11 +192,16 @@ RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/conf
     ln -s /var/azuracast/www/backend/config /var/azuracast/www/config && \
     ln -s /var/azuracast/www/backend/templates /var/azuracast/www/templates
 
+
 RUN ln -s /var/azuracast/azuracast.env /var/azuracast/www/azuracast.env
 
-RUN mkdir -p /var/azuracast/www_tmp /var/azuracast/storage/logs /var/azuracast/storage/cache && \
-    chown -R azuracast:azuracast /var/azuracast/www_tmp /var/azuracast/storage && \
-    chmod -R 777 /var/azuracast/www_tmp /var/azuracast/storage
+RUN mkdir -p /var/azuracast/storage/logs \
+             /var/azuracast/storage/cache \
+             /var/azuracast/storage/sessions \
+             /var/azuracast/storage/temp && \
+    chown -R azuracast:azuracast /var/azuracast/storage && \
+    chmod -R 777 /var/azuracast/storage
+
 
 RUN rm -rf /var/azuracast/www/storage && \
     ln -s /var/azuracast/storage /var/azuracast/www/storage
@@ -195,5 +213,6 @@ RUN composer install --no-dev --no-ansi --no-autoloader --no-interaction \
     && composer clear-cache
 
 USER root
+
 ENTRYPOINT ["tini", "--", "/usr/local/bin/my_init"]
 CMD ["--no-main-command"]
