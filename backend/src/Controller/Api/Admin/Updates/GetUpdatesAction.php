@@ -13,6 +13,7 @@ use App\OpenApi;
 use App\Service\AzuraCastCentral;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
+use App\Version;
 
 #[OA\Get(
     path: '/admin/updates',
@@ -45,8 +46,26 @@ final class GetUpdatesAction implements SingleActionInterface
     ): ResponseInterface {
         $settings = $this->readSettings();
 
-        $updates = $this->azuracastCentral->checkForUpdates();
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://api.github.com/repos/eternityready2/Azura-Cast-Custom/releases/latest");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_USERAGENT, "AzuraCast-Custom-Updater"); 
+        $githubResponse = curl_exec($ch);
+        curl_close($ch);
 
+        $githubData = json_decode($githubResponse, true);
+        $latestTag = $githubData['tag_name'] ?? 'v0.23.4';
+
+        $updates = [
+            'success' => true,
+            'message' => 'Sincronizado con GitHub (Eternity Ready).',
+            'updates' => [
+                'needs_release_update' => ($latestTag !== 'v' . Version::STABLE_VERSION),
+                'latest_release' => $latestTag,
+                'release_url' => $githubData['html_url'] ?? 'https://github.com/eternityready2/Azura-Cast-Custom/releases',
+                'needs_rolling_update' => false,
+            ],
+        ];
         $settings->update_results = $updates;
         $this->writeSettings($settings);
 
