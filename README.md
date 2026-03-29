@@ -40,6 +40,23 @@ Follow our **[installation guide](https://www.azuracast.com/docs/getting-started
 how
 to install AzuraCast on your own server.
 
+## Install AzuraCast using Docker
+
+mkdir -p /var/azuracast && cd /var/azuracast
+curl -fsSL https://raw.githubusercontent.com/eternityready2/Azura-Cast-Custom/main/docker.sh > docker.sh
+chmod a+x docker.sh
+./docker.sh install
+The only difference from the official installation is that instead of pointing to the AzuraCast repository, we are pointing to your own repo.
+
+## SSL Certificates
+Keep in mind that every time you install AzuraCast on your server, you need to generate an SSL certificate using the Let's Encrypt service within the AzuraCast panel.
+
+## Remove AzuraCast
+cd /var/azuracast
+docker compose down -v
+docker system prune -af --volumes
+cd / && sudo rm -rf /var/azuracast
+
 ## License
 
 AzuraCast is licensed under
