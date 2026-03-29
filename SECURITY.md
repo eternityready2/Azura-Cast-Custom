@@ -16,7 +16,7 @@ We expect that all users of the software, if they are interested in taking advan
 
 AzuraCast utilises code scanning via GitHub Actions and various checks from our development team to keep our software as secure as possible for our users, however, no software is perfect.
 
-To report a security vulnerability, we recommend [submitting a new Security Advisory via GitHub](https://github.com/AzuraCast/AzuraCast/security/advisories/new). GitHub's security advisory system lets us review incoming reports confidentially, giving us time to patch the issue before it is released to the public. It also automates assignment of CVE notifications for older versions of our software.
+To report a security vulnerability, we recommend [submitting a new Security Advisory via GitHub](https://github.com/eternityready2/Azura-Cast-Custom/security/advisories/new). GitHub's security advisory system lets us review incoming reports confidentially, giving us time to patch the issue before it is released to the public. It also automates assignment of CVE notifications for older versions of our software.
 
 ## In Scope
 

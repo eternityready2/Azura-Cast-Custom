@@ -1,10 +1,10 @@
-![](https://github.com/AzuraCast/AzuraCast/raw/main/resources/azuracast.png)![](https://static.scarf.sh/a.png?x-pxid=d5169ead-cdcf-482c-ab64-c7137d3f8769)
+![](https://github.com/eternityready2/Azura-Cast-Custom/raw/main/resources/azuracast.png)![](https://static.scarf.sh/a.png?x-pxid=d5169ead-cdcf-482c-ab64-c7137d3f8769)
 
 # AzuraCast: A Simple, Self-Hosted Web Radio Management Suite
 
-[![Build Status](https://github.com/azuracast/azuracast/workflows/Build,%20Test%20and%20Publish/badge.svg)](https://github.com/AzuraCast/AzuraCast/actions)
-[![Latest Stable Release](https://img.shields.io/packagist/v/azuracast/azuracast.svg?label=latest+stable+version)]()
-[![AGPL-3.0 License](https://img.shields.io/github/license/azuracast/azuracast.svg)]()
+[![Build Status](https://github.com/eternityready2/Azura-Cast-Custom/workflows/Build,%20Test%20and%20Publish/badge.svg)](https://github.com/eternityready2/Azura-Cast-Custom/actions)
+[![Latest Stable Release](https://img.shields.io/packagist/v/eternityready2/Azura-Cast-Custom.svg?label=latest+stable+version)]()
+[![AGPL-3.0 License](https://img.shields.io/github/license/eternityready2/Azura-Cast-Custom.svg)]()
 [![Ethical Open Source](https://img.shields.io/badge/open-ethical-%234baaaa)](https://ethicalsource.dev/)
 [![Mastodon Follow](https://img.shields.io/mastodon/follow/000062116?domain=https%3A%2F%2Ffloss.social&style=social)](https://floss.social/@AzuraCast)
 
@@ -43,7 +43,7 @@ to install AzuraCast on your own server.
 ## License
 
 AzuraCast is licensed under
-the [Affero GNU General Public License (AGPL) version 3.0](https://github.com/AzuraCast/AzuraCast/blob/main/LICENSE.md).
+the [Affero GNU General Public License (AGPL) version 3.0](https://github.com/eternityready2/Azura-Cast-Custom/blob/main/LICENSE.md).
 This project is free
 and open-source software, and pull requests are always welcome.
 
@@ -59,7 +59,7 @@ New feature requests are powered by FeatureUpvote. You can visit
 our [Feature Request Page](https://features.azuracast.com/) to submit a new feature request or vote on existing ones.
 
 For bug and error reports, we rely exclusively on
-our [GitHub Issues board](https://github.com/AzuraCast/AzuraCast/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc) to
+our [GitHub Issues board](https://github.com/eternityready2/Azura-Cast-Custom/issues?q=is%3Aissue+is%3Aopen+sort%3Aupdated-desc) to
 diagnose, track and update these reports. First, check to make sure the issue you're experiencing isn't already reported
 on GitHub. If it is, you can subscribe to the existing ticket for updates on the issue's progress. If your issue or
 request isn't already reported, click the "New Issue" button to create it. Make sure to follow the template provided, as

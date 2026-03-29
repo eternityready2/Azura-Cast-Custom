@@ -219,14 +219,14 @@ msgstr "名称"
 #: frontend/components/Login.vue:40
 #: frontend/components/Login.vue:50
 #: frontend/components/Setup/Register.vue:67
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:21
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:25
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:21
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:25
 msgid "E-mail Address"
 msgstr "电子邮件地址"
 
 #: frontend/components/Account/EditModal.vue:44
 #: frontend/components/Stations/Podcasts/PodcastForm/BasicInfo.vue:36
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:106
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:106
 msgid "Language"
 msgstr "语言"
 
@@ -452,7 +452,7 @@ msgstr "请注意，恢复备份将清除您现有的数据库。切勿从不受
 #: frontend/components/Admin/BackupsWrapper.vue:3
 #: frontend/components/Admin/menu.ts:54
 #: frontend/components/Admin/StorageLocations.vue:170
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:53
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:53
 msgid "Backups"
 msgstr "备份"
 
@@ -732,7 +732,7 @@ msgstr "自动分配值"
 #: frontend/components/Admin/CustomFields.vue:105
 #: frontend/components/Admin/Settings/SecurityPrivacyTab.vue:125
 #: frontend/components/Stations/Playlists.vue:354
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Repository/StorageLocationRepository.php:74
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Repository/StorageLocationRepository.php:74
 msgid "None"
 msgstr "无"
 
@@ -779,7 +779,7 @@ msgstr "编辑自定义字段"
 
 #: frontend/components/Admin/Debug.vue:3
 #: frontend/components/Admin/menu.ts:62
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:63
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:63
 msgid "System Debugger"
 msgstr "系统调试器"
 
@@ -999,7 +999,7 @@ msgstr "删除 GeoLite 许可密钥？"
 #: frontend/components/Admin/Stations/Form/AdminForm.vue:3
 #: frontend/components/Dashboard.vue:28
 #: frontend/components/Stations/Profile/FrontendPanel.vue:38
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:43
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:43
 msgid "Administration"
 msgstr "管理"
 
@@ -1167,8 +1167,8 @@ msgstr "系统维护"
 #: frontend/components/Admin/menu.ts:22
 #: frontend/components/Admin/Settings.vue:19
 #: frontend/components/Setup/SetupStep.vue:28
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:175
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:60
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:175
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:60
 msgid "System Settings"
 msgstr "系统设置"
 
@@ -1179,7 +1179,7 @@ msgstr "存储位置"
 
 #: frontend/components/Admin/menu.ts:70
 #: frontend/components/Admin/Updates.vue:3
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:44
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:44
 msgid "Update AzuraCast"
 msgstr "更新 AzuraCast"
 
@@ -1582,7 +1582,7 @@ msgstr "检查 AzuraCast 更新"
 
 #: frontend/components/Admin/Settings/ServicesTab.vue:15
 #: frontend/components/Admin/Updates.vue:47
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:36
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:36
 msgid "Release Channel"
 msgstr "发布频道"
 
@@ -2397,7 +2397,7 @@ msgstr "描述"
 #: frontend/components/Admin/Stations/Form/ProfileForm.vue:26
 #: frontend/components/Public/Requests/RequestsDataTable.vue:92
 #: frontend/components/Stations/Media.vue:362
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:100
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:100
 msgid "Genre"
 msgstr "流派"
 
@@ -2815,7 +2815,7 @@ msgid "SFTP Host"
 msgstr "SFTP 地址"
 
 #: frontend/components/Admin/StorageLocations/Form/Sftp.vue:21
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:56
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:56
 msgid "SFTP Port"
 msgstr "SFTP 端口"
 
@@ -2856,7 +2856,7 @@ msgid "Your installation is currently on this release channel:"
 msgstr "您的安装目前在此发布频道上："
 
 #: frontend/components/Admin/Updates.vue:66
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:102
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:102
 msgid "About Release Channels"
 msgstr "关于发布频道"
 
@@ -2915,8 +2915,8 @@ msgid "You"
 msgstr "你"
 
 #: frontend/components/Admin/Users.vue:50
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:130
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:3
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:130
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:3
 msgid "Log In"
 msgstr "登录"
 
@@ -3082,15 +3082,15 @@ msgstr "小时"
 #: frontend/components/Stations/Reports/Overview/CommonMetricsView.vue:84
 #: frontend/components/Stations/Reports/Overview/ListeningTimeTab.vue:52
 #: frontend/components/Stations/Reports/Timeline.vue:159
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:199
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:92
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:116
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:100
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:150
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:235
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:99
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:79
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:104
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:199
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:92
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:116
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:100
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:150
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:235
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:99
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:79
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:104
 msgid "Listeners"
 msgstr "听众"
 
@@ -3338,7 +3338,7 @@ msgid "Toggle Menu"
 msgstr "展开菜单"
 
 #: frontend/components/Layout/DashboardLayout.vue:57
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/DashboardAction.php:69
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/DashboardAction.php:69
 msgid "Dashboard"
 msgstr "仪表盘"
 
@@ -3376,7 +3376,7 @@ msgid "Welcome to AzuraCast!"
 msgstr "欢迎来到 AzuraCast!"
 
 #: frontend/components/Login.vue:49
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:23
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:23
 msgid "name@example.com"
 msgstr "name@example.com"
 
@@ -3437,7 +3437,7 @@ msgstr "没有记录可显示。"
 #: frontend/components/Stations/menu.ts:135
 #: frontend/components/Stations/Profile/PublicPagesPanel.vue:34
 #: frontend/components/Stations/Profile/WidgetModal.vue:408
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/OnDemandAction.php:64
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/OnDemandAction.php:64
 msgid "On-Demand Media"
 msgstr "点播媒体"
 
@@ -3456,7 +3456,7 @@ msgstr "封面"
 #: frontend/components/Stations/Playlists/ReorderModal.vue:24
 #: frontend/components/Stations/Profile/UpdateMetadataModal.vue:23
 #: frontend/components/Stations/Webhooks/Form/Discord.vue:32
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:133
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:133
 msgid "Title"
 msgstr "标题"
 
@@ -3467,7 +3467,7 @@ msgstr "标题"
 #: frontend/components/Stations/Playlists/QueueModal.vue:23
 #: frontend/components/Stations/Playlists/ReorderModal.vue:27
 #: frontend/components/Stations/Profile/UpdateMetadataModal.vue:30
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:84
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:84
 msgid "Artist"
 msgstr "艺术家"
 
@@ -3475,7 +3475,7 @@ msgstr "艺术家"
 #: frontend/components/Public/Requests/RequestsDataTable.vue:84
 #: frontend/components/Stations/Media.vue:361
 #: frontend/components/Stations/Playlists/ReorderModal.vue:30
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:80
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:80
 msgid "Album"
 msgstr "专辑"
 
@@ -3548,7 +3548,7 @@ msgstr "请求"
 #: frontend/components/Stations/Profile/PublicPagesPanel.vue:52
 #: frontend/components/Stations/Profile/WidgetModal.vue:394
 #: frontend/components/Stations/Streamers/Form/Schedule.vue:2
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/ScheduleAction.php:44
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/ScheduleAction.php:44
 msgid "Schedule"
 msgstr "计划"
 
@@ -3628,7 +3628,7 @@ msgstr "未知艺术家"
 #: frontend/components/Public/WebDJ/SettingsPanel.vue:5
 #: frontend/components/Stations/menu.ts:196
 #: frontend/components/Stations/Profile/StreamersPanel.vue:30
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/WebDjAction.php:59
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/WebDjAction.php:59
 msgid "Web DJ"
 msgstr "Web DJ"
 
@@ -3680,7 +3680,7 @@ msgstr "Web DJ 套接字发生了错误。"
 
 #: frontend/components/Recover.vue:14
 #: frontend/components/Recover.vue:61
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:100
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:100
 msgid "Recover Account"
 msgstr "恢复账户"
 
@@ -3728,7 +3728,7 @@ msgid "Create Station"
 msgstr "创建电台"
 
 #: frontend/components/Setup/Station.vue:19
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:141
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:141
 msgid "Create a New Radio Station"
 msgstr "创建一个新的广播电台"
 
@@ -4010,12 +4010,12 @@ msgstr "重命名"
 
 #: frontend/components/Stations/Media.vue:363
 #: frontend/components/Stations/Media/Form/BasicInfo.vue:53
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:105
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:105
 msgid "ISRC"
 msgstr "ISRC"
 
 #: frontend/components/Stations/Media.vue:364
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:107
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:107
 msgid "Length"
 msgstr "长度"
 
@@ -4301,7 +4301,7 @@ msgid "Selected directory:"
 msgstr "选定目录："
 
 #: frontend/components/Stations/Media/MoveFilesModal.vue:32
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/GetApplyToAction.php:69
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/GetApplyToAction.php:69
 msgid "Base Directory"
 msgstr "主目录"
 
@@ -4311,7 +4311,7 @@ msgstr "移动到目录"
 
 #: frontend/components/Stations/Media/MoveFilesModal.vue:115
 #: frontend/components/Stations/Playlists/ApplyToModal.vue:103
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:269
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:269
 msgid "Directory"
 msgstr "目录"
 
@@ -5051,49 +5051,49 @@ msgstr "留空，一周中的每一天都可以播放。"
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:149
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:184
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:147
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:127
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:127
 msgid "Monday"
 msgstr "星期一"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:150
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:185
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:148
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:128
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:128
 msgid "Tuesday"
 msgstr "星期二"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:151
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:186
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:149
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:129
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:129
 msgid "Wednesday"
 msgstr "星期三"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:152
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:187
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:150
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:130
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:130
 msgid "Thursday"
 msgstr "星期四"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:153
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:188
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:151
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:131
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:131
 msgid "Friday"
 msgstr "星期五"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:154
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:189
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:152
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:132
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:132
 msgid "Saturday"
 msgstr "星期六"
 
 #: frontend/components/Stations/Playlists/Form/ScheduleRow.vue:155
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:190
 #: frontend/components/Stations/Streamers/Form/ScheduleRow.vue:153
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:133
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:133
 msgid "Sunday"
 msgstr "星期日"
 
@@ -5122,7 +5122,7 @@ msgid "This queue contains the remaining tracks in the order they will be queued
 msgstr "这个队列包含剩余的曲目，将由 AzuraCast AutoDJ 按序排播（如果曲目有资格播放的话）。"
 
 #: frontend/components/Stations/Playlists/QueueModal.vue:107
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/DeleteQueueAction.php:62
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/DeleteQueueAction.php:62
 msgid "Playlist queue cleared."
 msgstr "播放列表队列已清除。"
 
@@ -5711,12 +5711,12 @@ msgid "Radio Player"
 msgstr "电台播放器"
 
 #: frontend/components/Stations/Profile/WidgetModal.vue:386
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/HistoryAction.php:39
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/HistoryAction.php:39
 msgid "History"
 msgstr "历史"
 
 #: frontend/components/Stations/Profile/WidgetModal.vue:401
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/PublicPages/RequestsAction.php:44
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/PublicPages/RequestsAction.php:44
 msgid "Requests"
 msgstr "请求"
 
@@ -5910,7 +5910,7 @@ msgstr "听众总时数"
 
 #: frontend/components/Stations/Reports/Listeners.vue:131
 #: frontend/components/Stations/Reports/Listeners/FiltersBar.vue:46
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:79
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:79
 msgid "Bot/Crawler"
 msgstr "机器人/爬虫"
 
@@ -6086,17 +6086,17 @@ msgid "Top Countries by Connected Time"
 msgstr "按连接时长排列的热门国家"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:42
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:72
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:72
 msgid "Listeners by Day"
 msgstr "按日排序的听众"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:55
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:119
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:119
 msgid "Listeners by Day of Week"
 msgstr "按每星期特定日排序的听众"
 
 #: frontend/components/Stations/Reports/Overview/ListenersByTimePeriodTab.vue:69
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:210
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ChartsAction.php:210
 msgid "Listeners by Hour"
 msgstr "按小时排序的听众"
 
@@ -7146,1650 +7146,1650 @@ msgstr "该字段必须是有效的电子邮件地址。"
 msgid "This field must be a valid URL."
 msgstr "该字段必须是有效的 URL。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:66
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:66
 msgid "Test Message"
 msgstr "测试消息"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:69
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:69
 msgid "This is a test message from AzuraCast. If you are receiving this message, it means your e-mail settings are configured correctly."
 msgstr "这是来自 AzuraCast 的测试邮件。如果您收到此信息，说明您的电子邮件设置配置正确。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/SendTestMessageAction.php:83
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/SendTestMessageAction.php:83
 msgid "Test message sent successfully."
 msgstr "测试信息发送成功。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:168
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:168
 msgid "AzuraCast Application Log"
 msgstr "AzuraCast 应用程序日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:174
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:174
 msgid "AzuraCast Now Playing Log"
 msgstr "AzuraCast 正在播放日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:180
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:180
 msgid "AzuraCast Synchronized Task Log"
 msgstr "AzuraCast 同步任务日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:186
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:186
 msgid "AzuraCast Queue Worker Log"
 msgstr "AzuraCast 队列工作日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:193
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:193
 #, php-format
 msgid "Service Log: %s (%s)"
 msgstr "服务日志：%s (%s)"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:210
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:210
 msgid "Nginx Access Log"
 msgstr "Nginx 访问日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:216
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:216
 msgid "Nginx Error Log"
 msgstr "Nginx 错误日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:222
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:222
 msgid "PHP Application Log"
 msgstr "PHP 应用程序日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:228
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:228
 msgid "Supervisord Log"
 msgstr "Supervisord 日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:238
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:238
 msgid "AzuraCast Common Liquidsoap Functions"
 msgstr "AzuraCast 通用 Liquidsoap 功能"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/LogsAction.php:245
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/LogsAction.php:245
 msgid "AutoCue Liquidsoap Functions"
 msgstr "AutoCue Liquidsoap 功能"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/UsersController.php:208
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/UsersController.php:208
 msgid "You cannot modify yourself."
 msgstr "您不能修改自己的数据。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Admin/UsersController.php:242
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Admin/UsersController.php:242
 msgid "You cannot remove yourself."
 msgstr "您无法删除自己的数据。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:151
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Frontend/Dashboard/ChartsAction.php:151
 msgid "All Stations"
 msgstr "所有电台"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:93
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:117
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:100
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:80
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByCountry.php:93
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByStream.php:117
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:100
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByBrowser.php:80
 msgid "Connected Seconds"
 msgstr "连接秒数"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:80
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:80
 msgid "Mobile Device"
 msgstr "移动设备"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:81
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:81
 msgid "Desktop Browser"
 msgstr "桌面浏览器"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:82
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByClient.php:82
 msgid "Non-Browser"
 msgstr "非浏览器"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:66
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:66
 msgid "Less than Thirty Seconds"
 msgstr "不到三十秒"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:67
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:67
 msgid "Thirty Seconds to One Minute"
 msgstr "三十秒到一分钟"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:68
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:68
 msgid "One Minute to Five Minutes"
 msgstr "一分钟到五分钟"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:69
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:69
 msgid "Five Minutes to Ten Minutes"
 msgstr "五分钟到十分钟"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:70
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:70
 msgid "Ten Minutes to Thirty Minutes"
 msgstr "十分钟至三十分钟"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:71
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:71
 msgid "Thirty Minutes to One Hour"
 msgstr "三十分钟至一小时"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:72
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:72
 msgid "One Hour to Two Hours"
 msgstr "一小时至两小时"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:73
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Reports/Overview/ByListeningTime.php:73
 msgid "More than Two Hours"
 msgstr "两个多小时"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/HlsStreamsController.php:135
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/HlsStreamsController.php:135
 msgid "Unable to create a new stream, station's maximum HLS streams reached."
 msgstr "无法创建新数据流，电台的 HLS 数据流已达上限。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/LogsAction.php:136
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/LogsAction.php:136
 msgid "Station Nginx Configuration"
 msgstr "站点 Nginx 配置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/FilesController.php:298
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/FilesController.php:298
 msgid "This station is out of available storage space."
 msgstr "这个电台已经没有可用的存储空间了。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:63
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:63
 msgid "Web hook enabled."
 msgstr "网络钩子已启用。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:64
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Webhooks/ToggleAction.php:64
 msgid "Web hook disabled."
 msgstr "禁用网络钩子。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/GetOrderAction.php:66
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/PutOrderAction.php:68
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/GetOrderAction.php:66
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/PutOrderAction.php:68
 msgid "This playlist is not a sequential playlist."
 msgstr "此播放列表不是顺序播放列表。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:63
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:63
 msgid "This playlist is not song-based."
 msgstr "本播放列表不以歌曲为基础。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:77
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/EmptyAction.php:77
 msgid "Playlist emptied."
 msgstr "播放列表已清空。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ReshuffleAction.php:71
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ReshuffleAction.php:71
 msgid "Playlist reshuffled."
 msgstr "播放列表已改组。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ImportAction.php:225
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ImportAction.php:225
 #, php-format
 msgid "Playlist successfully imported; %d of %d files were successfully matched."
 msgstr "播放列表成功导入；总共 %d 个文件中的 %d 个已成功匹配。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/PutApplyToAction.php:87
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/PutApplyToAction.php:87
 msgid "Playlist applied to folders."
 msgstr "播放列表已应用到目录。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:63
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:63
 msgid "Playlist enabled."
 msgstr "播放列表已启用。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:64
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Playlists/ToggleAction.php:64
 msgid "Playlist disabled."
 msgstr "播放列表已禁用。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:95
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:95
 msgid "Search engine crawlers are not permitted to use this feature."
 msgstr "搜索引擎爬虫不允许使用此功能。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:103
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:103
 msgid "You are not permitted to submit requests."
 msgstr "您不被允许提交请求。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:113
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:113
 msgid "This track is not requestable."
 msgstr "此曲目不可请求。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:121
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:121
 msgid "This song was already requested and will play soon."
 msgstr "这首歌已被点播，很快就会播放。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:129
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:129
 msgid "This song or artist has been played too recently. Wait a while before requesting it again."
 msgstr "这首歌或艺术家最近被播放的次数太多。在再次请求之前，请稍等片刻。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:167
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:167
 #, php-format
 msgid "You have submitted a request too recently! Please wait %d minutes before submitting another one."
 msgstr "您的请求过于频繁！请等待 %d 分钟后再提交另一个请求。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:183
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Requests/SubmitAction.php:183
 msgid "Your request has been submitted and will be played soon."
 msgstr "您的请求已提交，将很快播放。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:254
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:254
 #, php-format
 msgid "%d files will be modified."
 msgstr "%d 个文件将会被修改。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:263
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/BulkMedia/UploadAction.php:263
 #, php-format
 msgid "%d files processed."
 msgstr "%d 个文件已处理。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:155
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:155
 msgid "Station reloaded."
 msgstr "电台已重载。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:164
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:164
 msgid "Station restarted."
 msgstr "电台已重新启动。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:199
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:251
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:199
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:251
 msgid "Service stopped."
 msgstr "服务已停止。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:204
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:256
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:204
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:256
 msgid "Service started."
 msgstr "服务已启动。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:210
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:262
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:210
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:262
 msgid "Service reloaded."
 msgstr "服务已重载。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:222
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:274
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:222
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:274
 msgid "Service restarted."
 msgstr "服务已重新启动。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:241
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:241
 msgid "Song skipped."
 msgstr "已跳过歌曲。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/ServicesController.php:246
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/ServicesController.php:246
 msgid "Streamer disconnected."
 msgstr "串流者已断线。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/MountsController.php:218
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/MountsController.php:218
 msgid "Unable to create a new mount point, station's maximum mount points reached."
 msgstr "无法创建新的挂载点，已达到电台的最大挂载点。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/MakeDirectoryAction.php:56
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/MakeDirectoryAction.php:56
 msgid "No directory specified"
 msgstr "未指定目录"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/RenameAction.php:53
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/RenameAction.php:53
 msgid "File not specified."
 msgstr "未指定文件。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/RenameAction.php:59
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/RenameAction.php:59
 msgid "New path not specified."
 msgstr "未指定新路径。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:280
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:280
 #, php-format
 msgid "File Not Processed: %s"
 msgstr "未处理的文件：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:285
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:285
 msgid "Cover Art"
 msgstr "封面插图"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Files/ListAction.php:288
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Files/ListAction.php:288
 msgid "File Processing"
 msgstr "文件正在处理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Api/Stations/Streamers/BroadcastsController.php:269
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Api/Stations/Streamers/BroadcastsController.php:269
 msgid "No recording available."
 msgstr "没有可用的录音。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:47
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:47
 msgid "You have attempted to reset your password too many times. Please wait 30 seconds and try again."
 msgstr "您已尝试重置密码太多次。请等待30秒后再试。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:51
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:51
 msgid "Too many forgot password attempts"
 msgstr "忘记密码功能的尝试次数过多"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:64
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:6
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:64
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:6
 msgid "Account Recovery"
 msgstr "恢复账户"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:92
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:92
 msgid "If the e-mail address you provided is in the system, check your inbox for a password reset message."
 msgstr "如果您提供的电子邮件地址在系统中，请检查您的收件箱是否有密码重置信息。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:96
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/ForgotPasswordAction.php:96
 msgid "Account recovery e-mail sent."
 msgstr "发送账户恢复电子邮件。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:40
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:40
 msgid "Invalid token specified."
 msgstr "使用了无效的令牌。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:55
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:55
 msgid "Logged in using login token."
 msgstr "已使用令牌登录。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:85
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:85
 msgid "Your password has been updated."
 msgstr "您的密码已更新。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginTokenAction.php:86
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginTokenAction.php:86
 msgid "Logged in using account recovery token"
 msgstr "已使用账户恢复令牌登录"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:57
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:44
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:116
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:57
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:44
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:116
 msgid "Login unsuccessful"
 msgstr "登录失败"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:79
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:33
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/MasqueradeAction.php:46
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:98
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:105
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/WebAuthn/PostValidationAction.php:79
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:33
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/MasqueradeAction.php:46
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:98
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:105
 msgid "Logged in successfully."
 msgstr "登录成功。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/TwoFactorAction.php:43
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:115
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/TwoFactorAction.php:43
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:115
 msgid "Your credentials could not be verified."
 msgstr "无法验证您的凭据。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/MasqueradeAction.php:38
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/MasqueradeAction.php:38
 msgid "User not found."
 msgstr "用户未找到。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:60
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:60
 msgid "You have attempted to log in too many times. Please wait 30 seconds and try again."
 msgstr "您已尝试登录太多次。请等待30秒后再试。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:61
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:61
 msgid "Too many login attempts"
 msgstr "尝试登录次数过多"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/Account/LoginAction.php:97
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/Account/LoginAction.php:97
 msgid "Complete the setup process to get started."
 msgstr "完成设置过程即可开始。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:110
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:110
 msgid "Set Up AzuraCast"
 msgstr "设置 AzuraCast"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Controller/Frontend/SetupController.php:193
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Controller/Frontend/SetupController.php:193
 msgid "Setup has already been completed!"
 msgstr "设置已经完成!"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:29
 #, php-format
 msgid "%s is not recognized as a service."
 msgstr "%s不被承认为服务。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:32
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:32
 msgid "It may not be registered with Supervisor yet. Restarting broadcasting may help."
 msgstr "它可能还没有在 Supervisor 注册。重新开始广播可能会有帮助。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:41
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:41
 #, php-format
 msgid "%s cannot start"
 msgstr "%s 无法启动"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:44
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:44
 msgid "It is already running."
 msgstr "它已经在运行了。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:53
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:53
 #, php-format
 msgid "%s cannot stop"
 msgstr "%s不能停止"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:56
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:56
 msgid "It is not running."
 msgstr "它没有运行。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:68
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:68
 #, php-format
 msgid "%s encountered an error: %s"
 msgstr "%s 遇到错误：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/SupervisorException.php:72
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/SupervisorException.php:72
 msgid "Check the log for details."
 msgstr "检查日志以获取详细信息。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/PermissionDeniedException.php:26
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/PermissionDeniedException.php:26
 msgid "You do not have permission to access this portion of the site."
 msgstr "您没有权限访问这部分网站。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/CannotCompleteActionException.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/CannotCompleteActionException.php:29
 #, php-format
 msgid "Cannot submit request: %s"
 msgstr "无法提交请求： %s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/Http/NotLoggedInException.php:26
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/Http/NotLoggedInException.php:26
 msgid "You must be logged in to access this page."
 msgstr "您必须先登录才能访问本页面。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:25
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:25
 msgid "This station does not currently support this functionality."
 msgstr "此电台目前不支持此功能。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:32
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:32
 msgid "This station does not currently support on-demand media."
 msgstr "本电台目前不支持点播媒体。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/StationUnsupportedException.php:39
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/StationUnsupportedException.php:39
 msgid "This station does not currently accept requests."
 msgstr "该电台目前不接受歌曲请求。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:24
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:24
 msgid "Record not found."
 msgstr "没有找到记录。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:29
 msgid "File not found."
 msgstr "没有找到文件。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:34
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:34
 msgid "Station not found."
 msgstr "没有找到电台。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Exception/NotFoundException.php:39
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Exception/NotFoundException.php:39
 msgid "Podcast not found."
 msgstr "没有找到播客。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:25
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:30
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:25
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:30
 msgid "All Permissions"
 msgstr "所有权限"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:26
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:26
 msgid "View Administration Page"
 msgstr "查看管理页面"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:27
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:27
 msgid "View System Logs"
 msgstr "查看系统日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:28
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:28
 msgid "Administer Settings"
 msgstr "管理设置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:29
 msgid "Administer API Keys"
 msgstr "管理API密钥"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:30
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:30
 msgid "Administer Stations"
 msgstr "管理电台"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:31
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:31
 msgid "Administer Custom Fields"
 msgstr "自定义字段管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:32
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:32
 msgid "Administer Backups"
 msgstr "备份管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/GlobalPermissions.php:33
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/GlobalPermissions.php:33
 msgid "Administer Storage Locations"
 msgstr "管理存储位置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:31
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:31
 msgid "View Station Page"
 msgstr "查看电台页面"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:32
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:32
 msgid "View Station Reports"
 msgstr "查看电台报告"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:33
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:33
 msgid "View Station Logs"
 msgstr "查看电台日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:34
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:34
 msgid "Manage Station Profile"
 msgstr "电台资料管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:35
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:35
 msgid "Manage Station Broadcasting"
 msgstr "电台播出管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:36
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:36
 msgid "Manage Station Streamers"
 msgstr "电台串流者管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:37
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:37
 msgid "Manage Station Mount Points"
 msgstr "电台挂载点管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:38
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:38
 msgid "Manage Station Remote Relays"
 msgstr "管理电台远程中继"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:39
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:39
 msgid "Manage Station Media"
 msgstr "电台媒体管理"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:40
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:40
 msgid "Delete Station Media"
 msgstr "删除站点媒体文件"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:41
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:41
 msgid "Manage Station Automation"
 msgstr "管理电台自动化"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:42
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:42
 msgid "Manage Station Web Hooks"
 msgstr "管理电台网络钩子"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Enums/StationPermissions.php:43
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Enums/StationPermissions.php:43
 msgid "Manage Station Podcasts"
 msgstr "管理电台播客"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:38
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:38
 msgid "Synchronization Disabled"
 msgstr "同步已禁用"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:39
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:39
 msgid "Routine synchronization is currently disabled. Make sure to re-enable it to resume routine maintenance tasks."
 msgstr "例行同步当前已禁用。请务必重新启用，以恢复日常维护任务。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:58
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:58
 msgid "Synchronization Not Recently Run"
 msgstr "最近未运行同步"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/SyncTaskCheck.php:59
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/SyncTaskCheck.php:59
 msgid "The routine synchronization task has not run recently. This may indicate an error with your installation."
 msgstr "例行同步任务最近未运行。这可能表明您的安装出现了错误。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:50
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:50
 msgid "Installation Not Recently Backed Up"
 msgstr "最近没有备份的安装"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/RecentBackupCheck.php:51
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/RecentBackupCheck.php:51
 msgid "This installation has not been backed up in the last two weeks."
 msgstr "在过去的两个星期里，这个装置还没有备份。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:38
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:38
 #, php-format
 msgid "Service Not Running: %s"
 msgstr "服务未运行： %s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ServiceCheck.php:39
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ServiceCheck.php:39
 msgid "One of the essential services on this installation is not currently running. Visit the system administration and check the system logs to find the cause of this issue."
 msgstr "此安装上的一个基本服务当前未运行。请访问系统管理员并检查系统日志，找出问题的原因。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:36
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:36
 msgid "The performance profiling extension is currently enabled on this installation."
 msgstr "性能分析扩展目前已在此安装上启用。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:37
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:37
 msgid "You can track the execution time and memory usage of any AzuraCast page or application from the profiler page."
 msgstr "您可以从分析器页面跟踪任何 AzuraCast 页面或应用程序的执行时间和内存使用情况。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:42
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:42
 msgid "Profiler Control Panel"
 msgstr "性能分析控制面板"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:56
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:56
 msgid "Performance profiling is currently enabled for all requests."
 msgstr "目前对所有的请求都启用了性能分析。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/ProfilerAdvisorCheck.php:57
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/ProfilerAdvisorCheck.php:57
 msgid "This can have an adverse impact on system performance. You should disable this when possible."
 msgstr "这可能对系统性能产生不利影响。您应该在可能的情况下禁用它。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:35
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:35
 msgid "AzuraCast is free and open-source software."
 msgstr "AzuraCast 是一款免费开源软件。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:36
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:36
 msgid "If you are enjoying AzuraCast, please consider donating to support our work. We depend on donations to build new features, fix bugs, and keep AzuraCast modern, accessible and free."
 msgstr "如果您喜欢 AzuraCast，请考虑捐款以支持我们的工作。我们依靠捐款来构建新功能、修复错误，并保持 AzuraCast 的现代化、可访问性和免费性。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/DonateAdvisorCheck.php:41
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/DonateAdvisorCheck.php:41
 msgid "Donate to AzuraCast"
 msgstr "捐助 AzuraCast"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:42
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:42
 msgid "You may want to update your base URL to ensure it is correct."
 msgstr "您可能需要更新基础 URL，以确保其正确性。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:45
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:45
 msgid "If you regularly use different URLs to access AzuraCast, you should enable the \"Prefer Browser URL\" setting."
 msgstr "如果您经常使用不同的 URL 访问 AzuraCast，则应启用 \"首选浏览器 URL \"设置。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/BaseUrlCheck.php:54
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/BaseUrlCheck.php:54
 #, php-format
 msgid "Your \"Base URL\" setting (%s) does not match the URL you are currently using (%s)."
 msgstr "您的 \"基础 URL \"设置（%s）与您当前使用的 URL（%s）不匹配。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:56
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:56
 msgid "New AzuraCast Stable Release Available"
 msgstr "新版 AzuraCast 稳定版发布"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:60
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:60
 #, php-format
 msgid "Version %s is now available. You are currently running version %s. Updating is recommended."
 msgstr "版本 %s 现已可用。您当前运行的是版本 %s。建议更新。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:79
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:79
 msgid "New AzuraCast Rolling Release Available"
 msgstr "新版 AzuraCast 滚动发布"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:81
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:81
 #, php-format
 msgid "Your installation is currently %d update(s) behind the latest version. Updating is recommended."
 msgstr "您安装的软件目前比最新版本晚 %d 个更新。建议更新。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:97
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:97
 msgid "Switch to Stable Channel Available"
 msgstr "切换到可用的稳定频道"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Notification/Check/UpdateCheck.php:98
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Notification/Check/UpdateCheck.php:98
 msgid "Your Rolling Release installation is currently older than the latest Stable release. This means you can switch releases to the \"Stable\" release channel if desired."
 msgstr "您安装的滚动发行版目前比最新的稳定发行版旧。这意味着您可以根据需要将版本切换到 \"稳定 \"发布通道。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:25
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:25
 msgid "Database Migrations"
 msgstr "数据库迁移"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:38
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:38
 msgid "Database is already up to date!"
 msgstr "数据库已经更新！"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:51
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:61
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:51
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:61
 msgid "Running database migrations..."
 msgstr "运行数据库迁移..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:71
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:86
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:71
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:86
 #, php-format
 msgid "Database migration failed: %s"
 msgstr "数据库迁移失败：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/MigrateDbCommand.php:83
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/MigrateDbCommand.php:83
 msgid "Database migration completed!"
 msgstr "数据库迁移已完成！"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Locale/ImportCommand.php:58
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Locale/ImportCommand.php:58
 #, php-format
 msgid "Imported locale: %s"
 msgstr "导入区域文件： %s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Users/SetAdministratorCommand.php:61
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Users/SetAdministratorCommand.php:61
 #, php-format
 msgid "The account associated with e-mail address \"%s\" has been set as an administrator"
 msgstr "与电子邮件地址\"%s \"相关联的账户已被设置为管理员"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Users/SetAdministratorCommand.php:69
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Users/SetAdministratorCommand.php:69
 msgid "Account not found."
 msgstr "找不到帐户。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupFixturesCommand.php:65
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupFixturesCommand.php:65
 msgid "Fixtures loaded."
 msgstr "装置已加载。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:26
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:26
 msgid "AzuraCast Settings"
 msgstr "AzuraCast 设置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:29
 msgid "Setting Key"
 msgstr "设置键"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Settings/ListCommand.php:30
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Settings/ListCommand.php:30
 msgid "Setting Value"
 msgstr "设置值"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:44
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:44
 msgid "Roll Back Database"
 msgstr "回滚数据库"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/RollbackDbCommand.php:99
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/RollbackDbCommand.php:99
 #, php-format
 msgid "Database rolled back to stable release version \"%s\"."
 msgstr "数据库回滚到稳定版本\"%s\"。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:60
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:60
 msgid "AzuraCast Initializing..."
 msgstr "AzuraCast 正在初始化..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:62
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:62
 msgid "AzuraCast Setup"
 msgstr "安装 AzuraCast"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:64
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:64
 msgid "Welcome to AzuraCast. Please wait while some key dependencies of AzuraCast are set up..."
 msgstr "欢迎来到 AzuraCast。部分依赖组件正在设置中，请等待……"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:69
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:69
 msgid "Running Database Migrations"
 msgstr "运行数据库迁移"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:77
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:77
 msgid "Reload System Data"
 msgstr "重载系统数据"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:87
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:87
 msgid "Installing Data Fixtures"
 msgstr "安装数据装置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:93
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:93
 msgid "Refreshing All Stations"
 msgstr "刷新所有电台"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:122
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:122
 msgid "AzuraCast is now updated to the latest version!"
 msgstr "AzuraCast 现在已更新为最新版本！"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:131
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:131
 msgid "AzuraCast installation complete!"
 msgstr "AzuraCast 安装完成！"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/SetupCommand.php:133
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/SetupCommand.php:133
 #, php-format
 msgid "Visit %s to complete setup."
 msgstr "访问%s完成设置。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/RestoreCommand.php:77
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/RestoreCommand.php:77
 #, php-format
 msgid "Backup path %s not found!"
 msgstr "没有找到备份路径%s!"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:107
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:107
 msgid "AzuraCast Backup"
 msgstr "AzuraCast 备份"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:108
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:108
 msgid "Please wait while a backup is generated..."
 msgstr "请稍候，正在生成备份..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:133
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:133
 msgid "Backing up MariaDB..."
 msgstr "正在备份 MariaDB..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:149
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:149
 msgid "Creating backup archive..."
 msgstr "正在创建备份存档..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:231
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:231
 msgid "Cleaning up temporary files..."
 msgstr "清理临时文件..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/Backup/BackupCommand.php:244
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/Backup/BackupCommand.php:244
 #, php-format
 msgid "Backup complete in %.2f seconds."
 msgstr "在%.2f秒内完成备份。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:107
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:107
 msgid "Backing up initial database state..."
 msgstr "备份初始数据库状态..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:116
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:116
 msgid "We detected a database restore file from a previous (possibly failed) migration."
 msgstr "我们检测到一个数据库还原文件，该文件来自以前的迁移（可能失败）。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:117
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:117
 msgid "Attempting to restore that now..."
 msgstr "现在正在尝试恢复..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:132
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:132
 msgid "Attempting to roll back to previous database state..."
 msgstr "试图回滚到以前的数据库状态..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:138
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:138
 msgid "Your database was restored due to a failed migration."
 msgstr "由于迁移失败，您的数据库已恢复。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:139
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:139
 msgid "Please report this bug to our developers."
 msgstr "请将此错误报告给我们的开发人员。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Console/Command/AbstractDatabaseCommand.php:145
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Console/Command/AbstractDatabaseCommand.php:145
 #, php-format
 msgid "Restore failed: %s"
 msgstr "恢复失败：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Backend/Liquidsoap.php:287
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Backend/Liquidsoap.php:287
 msgid "Liquidsoap Log"
 msgstr "Liquidsoap 日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Backend/Liquidsoap.php:293
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Backend/Liquidsoap.php:293
 msgid "Liquidsoap Configuration"
 msgstr "Liquidsoap 配置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:256
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:256
 msgid "RSAS Access Log"
 msgstr "RSAS 访问日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:262
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:262
 msgid "RSAS Error Log"
 msgstr "RSAS 错误日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Rsas.php:268
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Rsas.php:268
 msgid "RSAS Configuration"
 msgstr "RSAS 配置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Shoutcast.php:257
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Shoutcast.php:257
 msgid "Shoutcast Log"
 msgstr "Shoutcast 日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Shoutcast.php:263
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Shoutcast.php:263
 msgid "Shoutcast Configuration"
 msgstr "Shoutcast 配置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:380
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:380
 msgid "Icecast Access Log"
 msgstr "Icecast 访问日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:386
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:386
 msgid "Icecast Error Log"
 msgstr "Icecast 错误日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Radio/Frontend/Icecast.php:392
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Radio/Frontend/Icecast.php:392
 msgid "Icecast Configuration"
 msgstr "Icecast 配置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:176
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:176
 msgid "AzuraCast Installer"
 msgstr "AzuraCast 安装程序"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:179
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:179
 msgid "Welcome to AzuraCast! Complete the initial server setup by answering a few questions."
 msgstr "欢迎您使用 AzuraCast！填写几个问题，来完成服务器的初始设置。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:185
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:185
 msgid "AzuraCast Updater"
 msgstr "AzuraCast 更新器"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:192
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:192
 msgid "Change installation settings?"
 msgstr "您要更改安装设置？"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:201
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:201
 msgid "AzuraCast is currently configured to listen on the following ports:"
 msgstr "AzuraCast 目前配置为监听以下端口："
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:205
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:205
 #, php-format
 msgid "HTTP Port: %d"
 msgstr "HTTP 端口： %d"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:206
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:206
 #, php-format
 msgid "HTTPS Port: %d"
 msgstr "HTTPS 端口： %d"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:207
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:207
 #, php-format
 msgid "SFTP Port: %d"
 msgstr "SFTP 端口： %d"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:208
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:208
 #, php-format
 msgid "Radio Ports: %s"
 msgstr "电台端口：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:213
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:213
 msgid "Customize ports used for AzuraCast?"
 msgstr "自定义用于 AzuraCast 的端口？"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:273
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:273
 msgid "Writing configuration files..."
 msgstr "写入配置文件..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/Command/InstallCommand.php:298
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/Command/InstallCommand.php:298
 msgid "Server configuration complete!"
 msgstr "服务器配置完成！"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:95
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:95
 msgid "This file was automatically generated by AzuraCast."
 msgstr "该文件由 AzuraCast 自动生成。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:96
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:96
 msgid "You can modify it as necessary. To apply changes, restart the Docker containers."
 msgstr "您可以根据需要进行修改。要应用更改，请重新启动 Docker 容器。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:97
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:97
 msgid "Remove the leading \"#\" symbol from lines to uncomment them."
 msgstr "移除行前的 \"#\"符号，取消注释。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:118
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:118
 #, php-format
 msgid "Valid options: %s"
 msgstr "有效选项：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:130
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:130
 #, php-format
 msgid "Default: %s"
 msgstr "默认: %s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AbstractEnvFile.php:149
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AbstractEnvFile.php:149
 msgid "Additional Environment Variables"
 msgstr "其他环境变量"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:35
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:35
 msgid "The locale to use for CLI commands"
 msgstr "CLI 命令使用的本地语言"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:41
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:41
 msgid "The application environment"
 msgstr "应用环境"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:46
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:46
 msgid "Manually modify the logging level"
 msgstr "手动修改日志记录级别"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:47
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:47
 msgid "This allows you to log debug-level errors temporarily (for problem-solving) or reduce the volume of logs that are produced by your installation, without needing to modify whether your installation is a production or development instance."
 msgstr "这样，您就可以暂时记录调试级错误（用于解决问题）或减少安装产生的日志量，而无需修改您的安装是生产实例还是开发实例。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:62
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:62
 msgid "Enable Custom Code Plugins"
 msgstr "启用自定义代码插件"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:63
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:63
 msgid "Enable the composer \"merge\" functionality to combine the main application's composer.json file with any plugin composer files. This can have performance implications, so you should only use it if you use one or more plugins with their own Composer dependencies."
 msgstr "启用 composer \"合并 \"功能，将主应用程序的 composer.json 文件与任何插件的 composer 文件合并。这可能会影响性能，因此只有在使用一个或多个依赖于自己 composer 的插件时才可使用。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:70
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:70
 msgid "Minimum Port for Station Port Assignment"
 msgstr "电台端口分配的最小端口"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:71
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:77
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:71
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:77
 msgid "Modify this if your stations are listening on nonstandard ports."
 msgstr "如果电台站点监听的是非标准端口，请修改此项。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:76
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:76
 msgid "Maximum Port for Station Port Assignment"
 msgstr "站点服务端端口分配的最大端口数"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:82
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:82
 msgid "Show Detailed Slim Application Errors"
 msgstr "显示详细的 Slim 应用程序错误"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:83
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:83
 msgid "This allows you to debug Slim Application Errors you may encounter. By default, this is disabled to prevent users from seeing privileged information. Please report any Slim Application Error logs to the development team on GitHub."
 msgstr "这允许您调试可能遇到的 Slim 应用程序错误。默认情况下，该功能被禁用，以防止用户看到权限信息。请向 GitHub 上的开发团队报告任何 Slim 应用程序错误日志。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:90
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:90
 msgid "MariaDB Host"
 msgstr "MariaDB 主机"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:91
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:99
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:107
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:115
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:123
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:131
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:137
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:91
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:99
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:107
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:115
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:123
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:131
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:137
 msgid "Do not modify this after installation."
 msgstr "安装后请勿修改。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:98
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:98
 msgid "MariaDB Port"
 msgstr "MariaDB 端口"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:106
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:106
 msgid "MariaDB Username"
 msgstr "MariaDB 用户名"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:114
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:114
 msgid "MariaDB Password"
 msgstr "MariaDB 密码"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:122
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:122
 msgid "MariaDB Database Name"
 msgstr "MariaDB 数据库名称"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:130
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:130
 msgid "Auto-generate Random MariaDB Root Password"
 msgstr "自动生成随机 MariaDB 根密码"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:136
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:136
 msgid "MariaDB Root Password"
 msgstr "MariaDB 根密码"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:142
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:142
 msgid "Enable MariaDB Slow Query Log"
 msgstr "启用 MariaDB 慢查询日志"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:143
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:143
 msgid "Log slower queries to diagnose possible database issues. Only turn this on if needed."
 msgstr "记录较慢的查询，以诊断可能的数据库问题。只有在需要时才打开。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:149
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:149
 msgid "MariaDB Maximum Connections"
 msgstr "MariaDB 最大连接数"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:150
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:150
 msgid "Set the amount of allowed connections to the database. This value should be increased if you are seeing the \"Too many connections\" error in the logs."
 msgstr "设置数据库允许的连接数。如果日志中出现 \"连接数过多 \"错误，则应增加此值。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:156
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:156
 msgid "MariaDB InnoDB Buffer Pool Size"
 msgstr "MariaDB InnoDB 缓冲池大小"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:157
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:157
 msgid "The InnoDB buffer pool size controls how much data & indexes are kept in memory. Making sure that this value is as large as possible reduces the amount of disk IO."
 msgstr "InnoDB 缓冲池大小控制着内存中保存数据和索引的数量。确保该值越大越好，这样可以减少磁盘 IO。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:163
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:163
 msgid "MariaDB InnoDB Log File Size"
 msgstr "MariaDB InnoDB 日志文件大小"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:164
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:164
 msgid "The InnoDB log file is used to achieve data durability in case of crashes or unexpected shutoffs and to allow the DB to better optimize IO for write operations."
 msgstr "InnoDB 日志文件用于在发生崩溃或意外关闭时实现数据持久性，并允许数据库更好地优化写入操作的 IO。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:170
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:170
 msgid "Enable Redis"
 msgstr "启用 Redis"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:171
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:171
 msgid "Disable to use a flatfile cache instead of Redis."
 msgstr "禁用以使用平面文件缓存代替 Redis。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:176
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:176
 msgid "Redis Host"
 msgstr "Redis 主机"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:181
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:181
 msgid "Redis Port"
 msgstr "Redis 端口"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:186
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:186
 msgid "Redis DB (Recommended to Use Default)"
 msgstr "Redis 数据库 （默认推荐使用）"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:191
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:191
 msgid "PHP Maximum POST File Size"
 msgstr "PHP 最大 POST 文件大小"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:195
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:195
 msgid "PHP Memory Limit"
 msgstr "PHP内存限制"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:199
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:199
 msgid "PHP Script Maximum Execution Time (Seconds)"
 msgstr "PHP 脚本最长执行时间（秒）"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:203
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:203
 msgid "Short Sync Task Execution Time (Seconds)"
 msgstr "短同步任务执行时间（秒）"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:204
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:204
 msgid "The maximum execution time (and lock timeout) for the 15-second, 1-minute and 5-minute synchronization tasks."
 msgstr "15 秒、1 分钟和 5 分钟同步任务的最长执行时间（和锁定超时）。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:209
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:209
 msgid "Long Sync Task Execution Time (Seconds)"
 msgstr "长同步任务执行时间（秒）"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:210
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:210
 msgid "The maximum execution time (and lock timeout) for the 1-hour synchronization task."
 msgstr "1 小时同步任务的最长执行时间（和锁定超时）。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:215
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:215
 msgid "Now Playing Delay Time (Seconds)"
 msgstr "现在播放延迟时间（秒）"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:216
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:216
 msgid "The delay (in seconds) between Now Playing checks for every station. Decrease for more frequent checks at the expense of performance; increase for less frequent checks but better performance (for large installations)."
 msgstr "每个电台 \"正在播放 \"检查之间的延迟（秒）。减少延迟可提高检查频率，但会降低性能；增加延迟可降低检查频率，但会提高性能（适用于大型设备）。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:221
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:221
 msgid "Now Playing Max Concurrent Processes"
 msgstr "正在播放 最大并发进程"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:222
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:222
 msgid "The maximum number of concurrent processes for now playing updates. Increasing this can help reduce the latency between updates now playing updates on large installations."
 msgstr "正在播放更新的最大并发进程数。增加该值有助于减少大型安装上正在播放的更新之间的延迟。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:227
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:227
 msgid "Maximum PHP-FPM Worker Processes"
 msgstr "最大 PHP-FPM 工作进程数"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:231
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:231
 msgid "Enable Performance Profiling Extension"
 msgstr "启用性能分析扩展"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:233
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:233
 #, php-format
 msgid "Profiling data can be viewed by visiting %s."
 msgstr "可访问 %s 查看分析数据。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:238
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:238
 msgid "Profile Performance on All Requests"
 msgstr "测算所有请求的性能"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:239
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:239
 msgid "This will have a significant performance impact on your installation."
 msgstr "这将对实例的性能产生重大影响。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:244
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:244
 msgid "Profiling Extension HTTP Key"
 msgstr "分析扩展 HTTP 密钥"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:245
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:245
 msgid "The value for the \"SPX_KEY\" parameter for viewing profiling pages."
 msgstr "用于查看分析页面的 \"SPX_KEY \"参数值。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:250
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:250
 msgid "Profiling Extension IP Allow List"
 msgstr "分析扩展 IP 允许列表"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:255
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:255
 msgid "Nginx Max Client Body Size"
 msgstr "Nginx 的最大客户端和主体大小"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:256
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:256
 msgid "This is the total size any single request body can be. AzuraCast chunks its uploads into smaller file sizes, so this only applies when doing custom uploads via the API. Sizes should be listed in a format like \"100K\", \"128M\", \"1G\" for kilobytes, megabytes, and gigabytes respectively."
 msgstr "这是任何单个请求体的总大小。AzuraCast 会把上传的文件分成小块，因此这只适用于通过 API 进行自定义上传的情况。大小应以 \"100K\"、\"128M\"、\"1G \"等格式列出，分别表示千字节、兆字节和千兆字节。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:262
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:262
 msgid "Automatically block common bots and crawlers"
 msgstr "自动阻止常见的机器人和爬虫"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:263
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:263
 msgid "If enabled, this will automatically download and update the Ultimate Nginx Bad Bot Blocker, which will block aggressive crawlers and other bots."
 msgstr "如果启用，将自动下载并更新 Ultimate Nginx Bad Bot Blocker，该拦截器将拦截攻击性爬虫和其他机器人。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:270
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:270
 msgid "Enable web-based Docker image updates"
 msgstr "启用基于网络的 Docker 映像更新"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:274
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:274
 msgid "Extra Ubuntu packages to install upon startup"
 msgstr "启动时要安装的额外 Ubuntu 软件包"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:275
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/AzuraCastEnvFile.php:275
 msgid "Separate package names with a space. Packages will be installed during container startup."
 msgstr "用空格分隔软件包名称。软件包将在容器启动时安装。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:22
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:22
 msgid "(Docker Compose) All Docker containers are prefixed by this name. Do not change this after installation."
 msgstr "(Docker Compose）所有 Docker 容器都以此为前缀。安装后请勿更改。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:29
 msgid "(Docker Compose) The amount of time to wait before a Docker Compose operation fails. Increase this on lower performance computers."
 msgstr "(Docker Compose) Docker Compose 操作失败前的等待时间。在性能较低的计算机上可适当延长。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:42
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:42
 msgid "HTTP Port"
 msgstr "HTTP 端口"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:43
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:43
 msgid "The main port AzuraCast listens to for insecure HTTP connections."
 msgstr "AzuraCast 监听不安全 HTTP 连接的主端口。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:49
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:49
 msgid "HTTPS Port"
 msgstr "HTTPS 端口"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:50
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:50
 msgid "The main port AzuraCast listens to for secure HTTPS connections."
 msgstr "AzuraCast 监听安全 HTTPS 连接的主端口。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:57
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:57
 msgid "The port AzuraCast listens to for SFTP file management connections."
 msgstr "AzuraCast 监听 SFTP 文件管理连接的端口。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:63
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:63
 msgid "Station Ports"
 msgstr "站点端口"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:64
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:64
 msgid "The ports AzuraCast should listen to for station broadcasts and incoming DJ connections."
 msgstr "AzuraCast 应侦听电台广播和传入 DJ 连接的端口。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:70
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:70
 msgid "Docker User UID"
 msgstr "Docker 用户 UID"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:71
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:71
 msgid "Set the UID of the user running inside the Docker containers. Matching this with your host UID can fix permission issues."
 msgstr "设置在 Docker 容器内运行的用户的 UID。将其与主机 UID 匹配可以解决权限问题。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:77
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:77
 msgid "Docker User GID"
 msgstr "Docker 用户 GID"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:78
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:78
 msgid "Set the GID of the user running inside the Docker containers. Matching this with your host GID can fix permission issues."
 msgstr "设置在 Docker 容器内运行的用户的 GID。将其与主机的 GID 匹配，可以解决权限问题。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:84
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:84
 msgid "Use Podman instead of Docker."
 msgstr "使用 Podman 代替 Docker。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Installer/EnvFiles/EnvFile.php:88
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Installer/EnvFiles/EnvFile.php:88
 msgid "Advanced: Use Privileged Docker Settings"
 msgstr "高级： 使用 Docker 的特权设置"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:80
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:80
 msgid "Runs routine synchronized tasks"
 msgstr "运行常规同步任务"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:81
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:81
 msgid "Database"
 msgstr "数据库"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:82
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:82
 msgid "Web server"
 msgstr "网络服务器"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:83
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:83
 msgid "PHP FastCGI Process Manager"
 msgstr "PHP FastCGI 进程管理器"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:84
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:84
 msgid "Now Playing manager service"
 msgstr "管理当前正在播放的服务"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:85
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:85
 msgid "PHP queue processing worker"
 msgstr "PHP 队列处理工件"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:86
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:86
 msgid "Cache"
 msgstr "缓存"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:87
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:87
 msgid "SFTP service"
 msgstr "SFTP 服务"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:88
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:88
 msgid "Live Now Playing updates"
 msgstr "现场直播正在播放数据更新"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/ServiceControl.php:89
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/ServiceControl.php:89
 msgid "Frontend Assets"
 msgstr "前端资产"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocation.php:55
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocation.php:55
 msgid "GeoLite database not configured for this installation. See System Administration for instructions."
 msgstr "没有为本次安装配置GeoLite数据库。请参阅系统管理以了解相关说明。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocator/DbIp.php:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocator/DbIp.php:29
 msgid "IP Geolocation by DB-IP"
 msgstr "通过DB-IP进行IP地理定位"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Service/IpGeolocator/GeoLite.php:35
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Service/IpGeolocator/GeoLite.php:35
 #, php-format
 msgid "This product includes GeoLite2 data created by MaxMind, available from %s."
 msgstr "本产品包括 MaxMind 创建的 GeoLite2 数据，可从 %s 获取。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:45
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:45
 #, php-format
 msgid "Playlist: %s"
 msgstr "播放列表：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:50
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/ApiGenerator/ScheduleApiGenerator.php:50
 #, php-format
 msgid "Streamer: %s"
 msgstr "串流者：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:73
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:73
 msgid "Record not found"
 msgstr "未找到记录"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:79
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:79
 msgid "The uploaded file exceeds the upload_max_filesize directive in php.ini."
 msgstr "上传的文件超过了 php.ini 中的 upload_max_filesize 指令限制。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:80
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:80
 msgid "The uploaded file exceeds the MAX_FILE_SIZE directive from the HTML form."
 msgstr "上传的文件超出了 HTML 表单的 MAX_FILE_SIZE 指令。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:81
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:81
 msgid "The uploaded file was only partially uploaded."
 msgstr "上传的文件未完整传输。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:82
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:82
 msgid "No file was uploaded."
 msgstr "没有上传文件。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:83
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:83
 msgid "No temporary directory is available."
 msgstr "没有可用的临时目录。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:84
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:84
 msgid "Could not write to filesystem."
 msgstr "无法写入文件系统。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:85
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:85
 msgid "Upload halted by a PHP extension."
 msgstr "上传因 PHP 扩展而停止。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Error.php:86
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Error.php:86
 msgid "Unspecified error."
 msgstr "未指定的错误。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:37
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:37
 msgid "Changes saved successfully."
 msgstr "更改已保存。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:42
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:42
 msgid "Record created successfully."
 msgstr "记录创建成功。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:47
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:47
 msgid "Record updated successfully."
 msgstr "记录已更新成功。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Api/Status.php:52
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Api/Status.php:52
 msgid "Record deleted successfully."
 msgstr "记录已成功删除。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Entity/Traits/ValidateMaxBitrate.php:24
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Entity/Traits/ValidateMaxBitrate.php:24
 #, php-format
 msgid "The selected bitrate: %selected_bitrate%, is higher than the station's bitrate limit:  %station_limit%"
 msgstr "所选比特率：%selected_bitrate%，高于电台的比特率限制：%station_limit%"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Doctrine/Repository.php:108
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Doctrine/Repository.php:108
 msgid "Select..."
 msgstr "选择..."
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:81
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:81
 msgid "Album Artist"
 msgstr "专辑插图"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:82
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:82
 msgid "Album Artist Sort Order"
 msgstr "专辑艺术家排序顺序"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:83
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:83
 msgid "Album Sort Order"
 msgstr "专辑排序顺序"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:85
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:85
 msgid "Band"
 msgstr "乐队"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:86
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:86
 msgid "BPM"
 msgstr "BPM"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:87
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:87
 msgid "Comment"
 msgstr "评论"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:88
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:88
 msgid "Commercial Information"
 msgstr "商业信息"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:89
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:89
 msgid "Composer"
 msgstr "作曲家"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:90
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:90
 msgid "Composer Sort Order"
 msgstr "作曲家排序顺序"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:91
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:91
 msgid "Conductor"
 msgstr "指挥家"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:92
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:92
 msgid "Content Group Description"
 msgstr "内容组说明"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:93
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:93
 msgid "Copyright"
 msgstr "版权"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:94
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:94
 msgid "Copyright Message"
 msgstr "版权信息"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:95
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:95
 msgid "Encoded By"
 msgstr "代码作者"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:96
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:96
 msgid "Encoder Settings"
 msgstr "设置编码器"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:97
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:97
 msgid "Encoding Time"
 msgstr "编码时间"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:98
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:98
 msgid "File Owner"
 msgstr "文件拥有者"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:99
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:99
 msgid "File Type"
 msgstr "文件类型"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:101
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:101
 msgid "Initial Key"
 msgstr "初始密钥"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:102
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:102
 msgid "Internet Radio Station Name"
 msgstr "网络电台名称"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:103
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:103
 msgid "Internet Radio Station Owner"
 msgstr "网络电台所有者"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:104
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:104
 msgid "Involved People List"
 msgstr "参与人员名单"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:108
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:108
 msgid "Linked Information"
 msgstr "链接信息"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:109
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:109
 msgid "Lyricist"
 msgstr "作词人"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:110
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:110
 msgid "Media Type"
 msgstr "媒体类型"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:111
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:111
 msgid "Mood"
 msgstr "情绪"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:112
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:112
 msgid "Music CD Identifier"
 msgstr "音乐 CD 标识符"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:113
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:113
 msgid "Musician Credits List"
 msgstr "音乐人名单"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:114
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:114
 msgid "Original Album"
 msgstr "原始专辑"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:115
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:115
 msgid "Original Artist"
 msgstr "原始艺术家"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:116
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:116
 msgid "Original Filename"
 msgstr "原始文件名"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:117
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:117
 msgid "Original Lyricist"
 msgstr "原始作词家"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:118
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:118
 msgid "Original Release Time"
 msgstr "原始发行时间"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:119
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:119
 msgid "Original Year"
 msgstr "原始年份"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:120
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:120
 msgid "Part of a Compilation"
 msgstr "合辑的一部分"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:121
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:121
 msgid "Part of a Set"
 msgstr "套装的一部分"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:122
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:122
 msgid "Performer Sort Order"
 msgstr "表演者排序顺序"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:123
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:123
 msgid "Playlist Delay"
 msgstr "播放列表延迟"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:124
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:124
 msgid "Produced Notice"
 msgstr "制作的通知"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:125
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:125
 msgid "Publisher"
 msgstr "发布者"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:126
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:126
 msgid "Recording Time"
 msgstr "录制时间"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:127
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:127
 msgid "Release Time"
 msgstr "发布时间"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:128
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:128
 msgid "Remixer"
 msgstr "混音者"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:129
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:129
 msgid "Set Subtitle"
 msgstr "设置字幕"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:130
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:130
 msgid "Subtitle"
 msgstr "副标题"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:131
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:131
 msgid "Tagging Time"
 msgstr "标记时间"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:132
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:132
 msgid "Terms of Use"
 msgstr "使用条款"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:134
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:134
 msgid "Title Sort Order"
 msgstr "标题排序顺序"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:135
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:135
 msgid "Track Number"
 msgstr "音轨序号"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:136
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:136
 msgid "Unsynchronised Lyrics"
 msgstr "不同步歌词"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:137
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:137
 msgid "URL Artist"
 msgstr "URL 艺术家"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:138
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:138
 msgid "URL File"
 msgstr "URL 文件"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:139
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:139
 msgid "URL Payment"
 msgstr "URL 支付"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:140
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:140
 msgid "URL Publisher"
 msgstr "URL 发布者"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:141
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:141
 msgid "URL Source"
 msgstr "URL 来源"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:142
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:142
 msgid "URL Station"
 msgstr "URL 电台"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:143
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:143
 msgid "URL User"
 msgstr "URL 用户"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Media/Enums/MetadataTags.php:144
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Media/Enums/MetadataTags.php:144
 msgid "Year"
 msgstr "年"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StorageLocationValidator.php:41
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StorageLocationValidator.php:41
 #, php-format
 msgid "Storage location %s could not be validated: %s"
 msgstr "存储位置 %s 不能被验证：%s"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StorageLocationValidator.php:72
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StorageLocationValidator.php:72
 #, php-format
 msgid "Storage location %s already exists."
 msgstr "存储位置 %s 已存在。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/StationPortCheckerValidator.php:41
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/StationPortCheckerValidator.php:41
 #, php-format
 msgid "The port %s is in use by another station (%s)."
 msgstr "端口 %s 正被另一个电台使用（%s）。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/src/Validator/Constraints/UniqueEntityValidator.php:169
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/src/Validator/Constraints/UniqueEntityValidator.php:169
 msgid "This value is already used."
 msgstr "该值已被使用。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:8
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:8
 #, php-format
 msgid "An account recovery link has been requested for your account on \"%s\"."
 msgstr "您的账户在\"%s \"上申请了一个账户恢复链接。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/mail/forgot.phtml:10
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/mail/forgot.phtml:10
 msgid "Click the link below to log in to your account."
 msgstr "点击以下链接登录您的账户。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/minimal.phtml:57
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/minimal.phtml:57
 msgid "Footer"
 msgstr "页脚"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/minimal.phtml:59
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/minimal.phtml:59
 #, php-format
 msgid "Powered by %s"
 msgstr "由 %s 驱动"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:6
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:17
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:6
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:15
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:6
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:17
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:6
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:15
 msgid "Forgot Password"
 msgstr "忘记密码"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:22
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:22
 msgid "This installation's administrator has not configured this functionality."
 msgstr "此实例的管理员没有配置此功能。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:25
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:25
 msgid "Contact an administrator to reset your password following the instructions in our documentation:"
 msgstr "请联系管理员，按照我们文档中的说明重置您的密码："
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot_disabled.phtml:31
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot_disabled.phtml:31
 msgid "Password Reset Instructions"
 msgstr "密码重置说明"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:29
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:22
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:23
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:29
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:22
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:23
 msgid "Sign in"
 msgstr "登录"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/forgot.phtml:32
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/forgot.phtml:32
 msgid "Send Recovery E-mail"
 msgstr "发送恢复电子邮件"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:11
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:11
 msgid "Enter Two-Factor Code"
 msgstr "输入双重认证代码"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:12
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:12
 msgid "Your account uses a two-factor security code. Enter the code your device is currently showing below."
 msgstr "您的账户使用双重认证安全代码。请在下方输入您的设备目前显示的代码。"
 
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:18
-#: /home/runner/work/AzuraCast/AzuraCast/backend/templates/frontend/account/two_factor.phtml:20
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:18
+#: /home/runner/work/eternityready2/Azura-Cast-Custom/backend/templates/frontend/account/two_factor.phtml:20
 msgid "Security Code"
 msgstr "安全码"
 

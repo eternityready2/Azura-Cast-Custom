@@ -16,7 +16,7 @@ issue.
 
 The WebDJ feature, on some browsers and in some situations, can broadcast sound that seems "crackly" and intermittent to
 stream listeners. This is a known issue, but the cause of it is currently
-unknown. [#5116](https://github.com/AzuraCast/AzuraCast/issues/5116)
+unknown. [#5116](https://github.com/eternityready2/Azura-Cast-Custom/issues/5116)
 
 The upstream Webstreamer software that we use has been updated and may possibly resolve this, but incorporating it will
 require significant development effort on our end.

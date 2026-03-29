@@ -62,7 +62,7 @@
                     <a
                         class="btn btn-primary"
                         role="button"
-                        href="https://github.com/AzuraCast/AzuraCast/issues/new/choose"
+                        href="https://github.com/eternityready2/Azura-Cast-Custom/issues/new/choose"
                         target="_blank"
                     >
                         <icon-ic-support/>
