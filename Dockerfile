@@ -83,6 +83,8 @@ RUN --mount=type=bind,source=./util/docker/common,target=/bd_build,rw \
 RUN --mount=type=bind,source=./util/docker/common,target=/bd_build,rw \
     bash /bd_build/chown_dirs.sh
 
+RUN mkdir -p /etc/mysql/conf.d/ && printf "[mariadb]\ninnodb_use_native_aio=0\n" > /etc/mysql/conf.d/disable_aio.cnf
+
 # Add built-in docs
 COPY --from=docs --chown=azuracast:azuracast /dist /var/azuracast/docs
 
