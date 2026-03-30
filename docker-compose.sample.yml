@@ -14,6 +14,8 @@ name: azuracast
 
 services:
   web:
+    security_opt:
+      - seccomp:unconfined
     container_name: azuracast
     image: "ghcr.io/eternityready2/azuracast_custom:${AZURACAST_VERSION:-latest}"
     labels:
