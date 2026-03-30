@@ -152,9 +152,9 @@ get-release-channel() {
 
 get-release-branch-name() {
   if [[ $(get-release-channel) == "stable" ]]; then
-    echo "stable"
-  else
     echo "main"
+  else
+    echo "dev"
   fi
 }
 
