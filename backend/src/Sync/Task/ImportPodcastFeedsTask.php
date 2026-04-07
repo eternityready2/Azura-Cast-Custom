@@ -146,7 +146,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
             $fullBacklog = $podcast->import_strategy === PodcastImportStrategy::BackfillAll;
             try {
-                $this->importFeed($podcast, $station, null, $fullBacklog);
+                $syncLog = null;
+                $this->importFeed($podcast, $station, $syncLog, $fullBacklog);
             } finally {
                 $this->ensureEntityManagerOpen();
             }
