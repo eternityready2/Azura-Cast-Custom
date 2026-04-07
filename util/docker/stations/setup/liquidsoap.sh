@@ -5,7 +5,7 @@ set -x
 # Packages required by Liquidsoap
 apt-get install -y --no-install-recommends \
     ffmpeg bubblewrap \
-    libao4 libfaad2 libfdk-aac2 libgd3 liblo7 libmad0 libmagic1 libportaudio2 \
+    libao4 libfaad2 libfdk-aac2 libfdk-aac2t64 libgd3 liblo7 libmad0 libmagic1 libportaudio2 \
     libsdl2-image-2.0-0 libsdl2-ttf-2.0-0 libsoundtouch1 libxpm4 libpulse0 \
     libsamplerate0 libtag2 libsrt1.5-openssl liblilv-0-0
 
@@ -18,8 +18,8 @@ if [[ "$(uname -m)" = "aarch64" ]]; then
     ARCHITECTURE=arm64
 fi
 
-wget -O /tmp/liquidsoap.deb "https://github.com/savonet/liquidsoap/releases/download/v2.4.2/liquidsoap_2.4.2-debian-trixie-ocaml4.14.2-1_${ARCHITECTURE}.deb"
-# wget -O /tmp/liquidsoap.deb "https://github.com/savonet/liquidsoap-release-assets/releases/download/rolling-release-v2.4.x/liquidsoap-ff8dd94_2.4.3-debian-trixie-ocaml4.14.2-1_${ARCHITECTURE}.deb"
+# wget -O /tmp/liquidsoap.deb (disabled v2.4.2)
+wget -O /tmp/liquidsoap.deb "https://github.com/savonet/liquidsoap-release-assets/releases/download/rolling-release-v2.4.x/liquidsoap-1cb72a0_2.4.3-debian-trixie-ocaml4.14.2-1_${ARCHITECTURE}.deb"
 
 dpkg -i /tmp/liquidsoap.deb
 apt-get install -y -f --no-install-recommends
