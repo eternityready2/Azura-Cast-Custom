@@ -1082,8 +1082,6 @@ export type ApiPodcast = HasLinks & {
   auto_keep_episodes?: number;
   /** Auto-import: latest_single | backfill_all */
   import_strategy?: 'latest_single' | 'backfill_all';
-  /** When set and podcast has a linked playlist: run auto-import only N hours before the playlist's next scheduled start (e.g. 5). Null/0 = every sync tick. */
-  import_sync_before_hours?: number | null;
   /** Where to store episode files: 'podcast' or 'media' (station media folder for playlists). */
   episode_storage_type?: 'podcast' | 'media';
   /** Folder path within station media when episode_storage_type is media. Empty = library root. */

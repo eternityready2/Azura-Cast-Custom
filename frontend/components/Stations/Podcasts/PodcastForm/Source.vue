@@ -132,19 +132,7 @@
                         class="col-md-12"
                         :options="rssBackgroundSyncOptions"
                         :label="$gettext('Background RSS sync')"
-                        :description="$gettext('Manual sync from the podcast list always works. Uncheck “Enable on Public Pages” above to pause scheduled fetches. This setting controls how often the task runs when the podcast is enabled.')"
-                    />
-
-                    <form-group-field
-                        v-show="rssBackgroundSyncMode === 'before_air'"
-                        id="form_edit_import_sync_before_hours"
-                        class="col-md-12"
-                        :field="r$.import_sync_before_hours"
-                        type="number"
-                        :min="1"
-                        :max="168"
-                        :label="$gettext('Hours before scheduled playlist start')"
-                        :description="$gettext('When this podcast has a linked playlist with a schedule, import runs only inside this window before the next start (and up to one hour after). If there is no linked playlist, or the playlist has no schedule with a future start time, the server imports on every scheduled run (same as “Every scheduled run”).')"
+                        :description="$gettext('Manual sync from the podcast list always works. Scheduled sync uses Every scheduled run.')"
                     />
 
                     <form-group-field
@@ -175,10 +163,7 @@ import {useAxios} from "~/vendor/axios.ts";
 import Loading from "~/components/Common/Loading.vue";
 import {ApiFormSimpleOptions} from "~/entities/ApiInterfaces.ts";
 import {storeToRefs} from "pinia";
-import {
-    useStationsPodcastsForm,
-    type RssBackgroundSyncMode
-} from "~/components/Stations/Podcasts/PodcastForm/form.ts";
+import {useStationsPodcastsForm} from "~/components/Stations/Podcasts/PodcastForm/form.ts";
 import {useFormTabClass} from "~/functions/useFormTabClass.ts";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
 
@@ -188,18 +173,18 @@ type MediaFolderRow = {
 };
 
 const formStore = useStationsPodcastsForm();
-const {r$, form, rssBackgroundSyncMode} = storeToRefs(formStore);
-
-const rssModeModel = computed({
-    get: (): RssBackgroundSyncMode => rssBackgroundSyncMode.value,
-    set: (mode: RssBackgroundSyncMode) => {
-        formStore.setRssBackgroundSyncMode(mode);
-    }
-});
+const {r$, form} = storeToRefs(formStore);
 
 const tabClass = useFormTabClass(computed(() => r$.value.$groups.sourceTab));
 
 const {$gettext} = useTranslate();
+
+const rssModeModel = computed({
+    get: () => 'every',
+    set: () => {
+        // Intentionally fixed to single supported mode.
+    }
+});
 
 const sourceOptions = [
     {
@@ -267,14 +252,9 @@ const episodeStorageTypeOptions = [
 
 const rssBackgroundSyncOptions = [
     {
-        value: 'every' as const,
+        value: 'every',
         text: $gettext('Every scheduled run'),
-        description: $gettext('Fetch and import on each sync run (typically every few minutes).')
-    },
-    {
-        value: 'before_air' as const,
-        text: $gettext('Only within N hours before air'),
-        description: $gettext('Requires a linked playlist with a schedule; imports only inside the window before the next start.')
+        description: $gettext('Fetch and import on each sync run.')
     }
 ];
 
