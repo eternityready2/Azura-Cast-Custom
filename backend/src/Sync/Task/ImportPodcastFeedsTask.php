@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Sync\Task;
 
 use App\Entity\Enums\PodcastImportStrategy;
+use App\Entity\Enums\PodcastEpisodeStorageType;
 use App\Entity\Enums\PodcastSources;
 use App\Entity\Podcast;
 use App\Entity\PodcastEpisode;
 use App\Entity\PodcastMedia;
 use App\Entity\StationMedia;
 use App\Entity\Repository\PodcastEpisodeRepository;
-use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Repository\StorageLocationRepository;
 use App\Entity\Station;
 use App\Exception\CannotProcessMediaException;
@@ -22,6 +22,7 @@ use App\Podcast\RssAtomFeedItems;
 use GuzzleHttp\Client;
 use App\Flysystem\ExtendedFilesystemInterface;
 use GuzzleHttp\RequestOptions;
+use League\Flysystem\StorageAttributes;
 use SimpleXMLElement;
 
 final class ImportPodcastFeedsTask extends AbstractTask
@@ -29,7 +30,6 @@ final class ImportPodcastFeedsTask extends AbstractTask
     public function __construct(
         private readonly Client $httpClient,
         private readonly PodcastEpisodeRepository $podcastEpisodeRepo,
-        private readonly StationScheduleRepository $stationScheduleRepo,
         private readonly StorageLocationRepository $storageLocationRepo,
         private readonly StationFilesystems $stationFilesystems,
         private readonly PodcastFeedRemoteItemCountService $feedRemoteItemCount,
@@ -122,28 +122,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
             ->setParameter('source', PodcastSources::Import->value)
             ->execute();
 
-        $now = new \DateTimeImmutable('@' . time());
-        $nowTs = $now->getTimestamp();
-
         foreach ($podcasts as $podcast) {
-            $syncBeforeHours = $podcast->import_sync_before_hours;
-            if ($syncBeforeHours !== null && $syncBeforeHours > 0 && $podcast->playlist !== null) {
-                $nextStart = $this->stationScheduleRepo->getNextStartTimestampForPlaylist(
-                    $station,
-                    $podcast->playlist,
-                    $now
-                );
-                if ($nextStart !== null) {
-                    $windowStart = $nextStart - ($syncBeforeHours * 3600);
-                    if ($nowTs < $windowStart) {
-                        continue;
-                    }
-                    if ($nowTs > $nextStart + 3600) {
-                        continue;
-                    }
-                }
-            }
-
             $fullBacklog = $podcast->import_strategy === PodcastImportStrategy::BackfillAll;
             try {
                 $syncLog = null;
@@ -228,7 +207,9 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $fs = $this->stationFilesystems->getPodcastsFilesystem($station);
         $tempDir = $station->getRadioTempDir();
 
-        if (!$fullBacklog) {
+        // If retention is exactly 1, enforce strict latest-single sync semantics even when strategy
+        // is configured as backfill_all; this prevents repeated duplicates in rolling single-file feeds.
+        if (!$fullBacklog || $podcast->auto_keep_episodes === 1) {
             return $this->importFeedLatestSingle($podcast, $station, $items, $fs, $tempDir, $syncLog);
         }
 
@@ -481,131 +462,80 @@ final class ImportPodcastFeedsTask extends AbstractTask
         ?array &$syncLog
     ): array {
         $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
-
-        $rollingKeepN = $podcast->auto_keep_episodes > 0;
-        $n = $rollingKeepN ? $podcast->auto_keep_episodes : 1;
-
-        $this->syncLogLine(
-            $syncLog,
-            'info',
-            $rollingKeepN
-                ? sprintf(
-                    'Mode: download media for the %d newest feed entries that have a downloadable audio enclosure; refresh when possible; remove local episodes outside this set.',
-                    $n
-                )
-                : 'Mode: sync the newest feed entry with a downloadable audio enclosure (refresh media when possible; other episodes unchanged).'
-        );
-
-        usort($items, function (SimpleXMLElement $a, SimpleXMLElement $b): int {
-            return $this->getItemPublishAt($b) <=> $this->getItemPublishAt($a);
-        });
-
-        // Newest N entries (by pub date) that have a stable key and a downloadable audio enclosure, so create/save
-        // attempts to fetch N media files—not N arbitrary <item> rows that may be text-only or video-only.
-        $topSlice = [];
-        foreach ($items as $item) {
-            if (count($topSlice) >= $n) {
-                break;
-            }
-            $key = $this->getItemGuid($item) ?: $this->getEnclosureUrl($item) ?: '';
-            if ($key === '') {
-                continue;
-            }
-            $enclosureUrl = $this->getEnclosureUrl($item);
-            $mimeHint = $this->getEnclosureMimeHint($item);
-            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
-                continue;
-            }
-            $topSlice[] = $item;
-        }
-
-        if ($topSlice === []) {
-            $this->syncLogLine(
-                $syncLog,
-                'warning',
-                'No feed items with a GUID or enclosure URL and a downloadable audio enclosure; cannot sync.'
-            );
-
+        $lockHandle = $this->acquireLatestSyncLock($podcast, $tempDir, $syncLog);
+        if ($lockHandle === null) {
             return ['added' => 0, 'ok' => true];
         }
 
-        $targetKeys = [];
-        foreach ($topSlice as $item) {
-            $key = $this->getItemGuid($item) ?: $this->getEnclosureUrl($item) ?: '';
-            if ($key !== '') {
-                $targetKeys[$key] = true;
-            }
-        }
+        try {
+            $this->syncLogLine(
+                $syncLog,
+                'info',
+                'Mode: strict single-latest sync (lock, skip-if-same, atomic replacement, duplicate cleanup).'
+            );
 
-        $importMap = $this->getExistingEpisodeImportMap($podcast);
-        $touched = 0;
-        $downloadErrors = 0;
-        $uploadErrors = 0;
-        $skippedUnsupportedMedia = 0;
-        $maxErrorLines = 40;
-        $errorLineBudget = $maxErrorLines;
+            usort($items, function (SimpleXMLElement $a, SimpleXMLElement $b): int {
+                return $this->getItemPublishAt($b) <=> $this->getItemPublishAt($a);
+            });
 
-        foreach ($topSlice as $item) {
-            $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
-
-            $key = $this->getItemGuid($item) ?: $this->getEnclosureUrl($item) ?: '';
-            if ($key === '') {
-                continue;
-            }
-
-            $existing = $importMap[$key] ?? null;
-            if ($existing !== null) {
-                $episode = $this->podcastEpisodeRepo->fetchEpisodeForPodcast($podcast, $existing['episode_id']);
-                if ($episode !== null) {
-                    if ($this->attachFeedItemMediaToExistingEpisode(
-                        $episode,
-                        $item,
-                        $fs,
-                        $tempDir,
-                        'podcast_import_',
-                        $syncLog,
-                        $errorLineBudget
-                    )) {
-                        ++$touched;
-                        $importMap[$key]['has_media'] = true;
-                        $this->syncLogLine($syncLog, 'info', sprintf('Refreshed media: %s', $this->getItemTitle($item)));
-                    }
+            $latestItem = null;
+            foreach ($items as $item) {
+                $enclosureUrl = $this->getEnclosureUrl($item);
+                $mimeHint = $this->getEnclosureMimeHint($item);
+                if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
+                    continue;
                 }
-
-                continue;
+                $latestItem = $item;
+                break;
             }
 
-            $enclosureUrl = $this->getEnclosureUrl($item);
-            $mimeHint = $this->getEnclosureMimeHint($item);
-            $title = $this->getItemTitle($item);
-            $description = $this->getItemDescription($item);
-            $publishAt = $this->getItemPublishAt($item);
-
-            if ($enclosureUrl === null || $this->isSkippablePodcastEnclosureMime($mimeHint)) {
+            if ($latestItem === null) {
                 $this->syncLogLine(
                     $syncLog,
-                    'info',
-                    sprintf(
-                        'No downloadable audio enclosure for [%s]; skipping.',
-                        $title
-                    )
+                    'warning',
+                    'No feed items with a downloadable audio enclosure; cannot sync.'
                 );
 
-                continue;
+                return ['added' => 0, 'ok' => true];
             }
 
-            $episode = new PodcastEpisode($podcast);
-            $episode->title = $title;
-            $episode->description = $description;
-            $episode->publish_at = $publishAt;
-            $episode->explicit = $podcast->explicit;
-            $episode->link = $key;
-            $this->em->persist($episode);
-            $this->em->flush();
+            $latestEpisodeIdentity = $this->extractLatestEpisodeIdentity($latestItem);
+            $latestEpisodeId = $latestEpisodeIdentity['id'];
+            $statePath = $this->getLatestSyncStatePath($podcast);
+            $lastProcessedEpisodeIdentity = $this->getPersistedLatestEpisodeIdentity($fs, $statePath);
+            $currentLatestEpisode = $this->getCurrentLatestEpisode($podcast);
+            $hasCurrentLatestMedia = $currentLatestEpisode instanceof PodcastEpisode
+                && $this->episodeAudioFileExistsOnDisk($currentLatestEpisode, $station);
+            if (
+                $hasCurrentLatestMedia
+                && $currentLatestEpisode !== null
+                && $lastProcessedEpisodeIdentity !== null
+                && (
+                    ($lastProcessedEpisodeIdentity['id'] !== null
+                        && hash_equals($lastProcessedEpisodeIdentity['id'], $latestEpisodeId))
+                    || (
+                        $lastProcessedEpisodeIdentity['url_hash'] !== null
+                        && $latestEpisodeIdentity['url_hash'] !== null
+                        && hash_equals($lastProcessedEpisodeIdentity['url_hash'], $latestEpisodeIdentity['url_hash'])
+                    )
+                )
+            ) {
+                $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
+                $this->syncLogLine($syncLog, 'info', 'Already on latest episode; skipping download.');
 
-            $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
+                return ['added' => 0, 'ok' => true];
+            }
 
-            $downloadedPath = $tempDir . '/' . 'podcast_import_' . $episode->id . '_' . md5($enclosureUrl);
+            $enclosureUrl = $this->getEnclosureUrl($latestItem);
+            if ($enclosureUrl === null) {
+                return ['added' => 0, 'ok' => true];
+            }
+            $title = $this->getItemTitle($latestItem);
+            $description = $this->getItemDescription($latestItem);
+            $publishAt = $this->getItemPublishAt($latestItem);
+            $episodeLinkKey = $this->getItemGuid($latestItem) ?: ($enclosureUrl ?? '');
+
+            $downloadedPath = $tempDir . '/' . 'podcast_latest_' . $podcast->id . '_' . md5($enclosureUrl . microtime(true));
             try {
                 $this->httpClient->get($enclosureUrl, [
                     RequestOptions::SINK => $downloadedPath,
@@ -615,177 +545,321 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     ],
                 ]);
             } catch (\Throwable $e) {
-                ++$downloadErrors;
-                $this->logger->error('Failed to download episode media', [
-                    'episode' => $title,
-                    'error' => $e->getMessage(),
-                ]);
-                if ($errorLineBudget > 0) {
-                    $this->syncLogLine($syncLog, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
-                    --$errorLineBudget;
-                }
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
-                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
-                $this->syncLogLine(
-                    $syncLog,
-                    'info',
-                    sprintf('Download failed; episode kept without media (retry on next sync): [%s]', $title)
-                );
+                $this->syncLogLine($syncLog, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
 
-                continue;
+                return ['added' => 0, 'ok' => false, 'message' => 'Latest episode download failed.'];
             }
 
-            if (!MimeType::isFileProcessable($downloadedPath) || $this->isSkippablePodcastEnclosureMime(MimeType::getMimeTypeFromFile($downloadedPath))) {
-                ++$skippedUnsupportedMedia;
+            $downloadMime = MimeType::getMimeTypeFromFile($downloadedPath);
+            $downloadSize = @filesize($downloadedPath);
+            if (
+                !MimeType::isFileProcessable($downloadedPath)
+                || $this->isSkippablePodcastEnclosureMime($downloadMime)
+                || !is_int($downloadSize)
+                || $downloadSize <= 0
+            ) {
                 if (file_exists($downloadedPath)) {
                     @unlink($downloadedPath);
                 }
-                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
-                $this->syncLogLine(
-                    $syncLog,
-                    'info',
-                    sprintf('Unsupported file type; episode kept without media: [%s]', $title)
-                );
+                $this->syncLogLine($syncLog, 'warning', sprintf('Downloaded file invalid for [%s]; keeping current file.', $title));
 
-                continue;
+                return ['added' => 0, 'ok' => true];
             }
+
+            $currentEpisode = $this->getCurrentLatestEpisode($podcast);
+            if ($currentEpisode === null) {
+                $currentEpisode = new PodcastEpisode($podcast);
+            }
+
+            $currentEpisode->title = $title;
+            $currentEpisode->description = $description;
+            $currentEpisode->publish_at = $publishAt;
+            $currentEpisode->explicit = $podcast->explicit;
+            // Keep link format compatible with feed preview/import map UI markers.
+            $currentEpisode->link = $episodeLinkKey !== '' ? $episodeLinkKey : $latestEpisodeId;
+            $this->em->persist($currentEpisode);
+            $this->em->flush();
 
             $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
-            $originalName = $this->getImportMediaOriginalFilename($item, $ext);
+            $originalName = $this->getImportMediaOriginalFilename($latestItem, $ext);
 
             try {
+                // uploadMedia performs replace/update for existing episode media after file is downloaded and validated.
                 $this->podcastEpisodeRepo->uploadMedia(
-                    $episode,
+                    $currentEpisode,
                     $originalName,
                     $downloadedPath,
                     $fs
                 );
-                ++$touched;
-                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => true];
-                $this->syncLogLine($syncLog, 'info', sprintf('Imported: %s', $title));
-            } catch (CannotProcessMediaException|\InvalidArgumentException $e) {
-                if ($this->isSkippablePodcastImportException($e)) {
-                    ++$skippedUnsupportedMedia;
-                    $this->logger->debug('Skipped podcast episode (unsupported media)', [
-                        'episode' => $title,
-                        'reason' => $e->getMessage(),
-                    ]);
-                } else {
-                    ++$uploadErrors;
-                    $this->logger->error('Failed to attach media to episode', [
-                        'episode' => $title,
-                        'error' => $e->getMessage(),
-                    ]);
-                    if ($errorLineBudget > 0) {
-                        $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
-                        --$errorLineBudget;
-                    }
-                }
-                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
-                $this->syncLogLine(
-                    $syncLog,
-                    'info',
-                    sprintf('Upload failed; episode kept without media (retry on next sync): [%s]', $title)
-                );
             } catch (\Throwable $e) {
-                ++$uploadErrors;
-                $this->logger->error('Failed to attach media to episode', [
-                    'episode' => $title,
-                    'error' => $e->getMessage(),
-                ]);
-                if ($errorLineBudget > 0) {
-                    $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
-                    --$errorLineBudget;
+                if (file_exists($downloadedPath)) {
+                    @unlink($downloadedPath);
                 }
-                $importMap[$key] = ['episode_id' => $episode->id, 'has_media' => false];
-                $this->syncLogLine(
-                    $syncLog,
-                    'info',
-                    sprintf('Upload failed; episode kept without media (retry on next sync): [%s]', $title)
-                );
+                $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
+
+                return ['added' => 0, 'ok' => false, 'message' => 'Latest episode upload failed.'];
             }
 
             if (file_exists($downloadedPath)) {
                 @unlink($downloadedPath);
             }
-        }
 
-        if ($rollingKeepN && $targetKeys !== []) {
-            $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
-            $podcastId = $podcast->id;
+            $this->persistLatestEpisodeIdentity($fs, $statePath, $latestEpisodeIdentity);
+            $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
 
-            $allEpisodes = $this->em->createQuery(
-                <<<'DQL'
-                    SELECT e FROM App\Entity\PodcastEpisode e
-                    WHERE e.podcast = :podcast
-                DQL
-            )->setParameter('podcast', $podcast)->getResult();
-
-            $episodeIdsToRemove = [];
-            foreach ($allEpisodes as $episode) {
-                $link = $episode->link;
-                if ($link === null || $link === '' || !isset($targetKeys[$link])) {
-                    $episodeIdsToRemove[] = $episode->id;
-                }
-            }
-
-            foreach ($episodeIdsToRemove as $episodeId) {
-                $this->ensureEntityManagerOpen();
-                $podcast = $this->em->find(Podcast::class, $podcastId);
-                if ($podcast === null) {
-                    break;
-                }
-                $episode = $this->podcastEpisodeRepo->fetchEpisodeForPodcast($podcast, $episodeId);
-                if ($episode === null) {
-                    continue;
-                }
-                $this->syncLogLine(
-                    $syncLog,
-                    'info',
-                    sprintf('Removing episode outside top %d: %s', $n, $episode->title)
-                );
-                try {
-                    $this->podcastEpisodeRepo->delete($episode, $fs);
-                } catch (\Throwable $e) {
-                    $this->logger->error('Failed to delete podcast episode during rolling sync', [
-                        'episode_id' => $episodeId,
-                        'error' => $e->getMessage(),
-                    ]);
-                    $this->syncLogLine(
-                        $syncLog,
-                        'warning',
-                        sprintf('Could not remove episode %s: %s', $episodeId, $e->getMessage())
-                    );
-                    $this->ensureEntityManagerOpen();
-                }
-            }
-        }
-
-        if ($skippedUnsupportedMedia > 0) {
             $this->syncLogLine(
                 $syncLog,
                 'info',
-                sprintf('Skipped %d non-audio item(s) while syncing.', $skippedUnsupportedMedia)
+                sprintf('Synced latest episode: %s', $title)
             );
+
+            return ['added' => 1, 'ok' => true];
+        } finally {
+            $this->releaseLatestSyncLock($lockHandle);
         }
-        if ($downloadErrors > 0) {
-            $this->syncLogLine($syncLog, 'warning', sprintf('%d download error(s).', $downloadErrors));
+    }
+
+    /**
+     * @return resource|null
+     */
+    private function acquireLatestSyncLock(Podcast $podcast, string $tempDir, ?array &$syncLog)
+    {
+        if (!is_dir($tempDir)) {
+            @mkdir($tempDir, 0775, true);
         }
-        if ($uploadErrors > 0) {
-            $this->syncLogLine($syncLog, 'warning', sprintf('%d upload/storage error(s).', $uploadErrors));
+        $lockPath = $tempDir . '/podcast_latest_sync_' . $podcast->id . '.lock';
+        $handle = @fopen($lockPath, 'c+');
+        if (false === $handle) {
+            $this->syncLogLine($syncLog, 'warning', 'Could not create lock file; skipping sync.');
+
+            return null;
+        }
+        if (!@flock($handle, LOCK_EX | LOCK_NB)) {
+            fclose($handle);
+            $this->syncLogLine($syncLog, 'info', 'Another sync is already running for this podcast; skipping.');
+
+            return null;
         }
 
-        if ($touched > 0) {
-            $this->logger->info('Synced podcast feed (latest / top-N)', [
-                'podcast' => $podcast->title,
-                'touched' => $touched,
-            ]);
-        }
-        $this->syncLogLine($syncLog, 'info', sprintf('Done. %d episode(s) imported or refreshed this run.', $touched));
+        return $handle;
+    }
 
-        return ['added' => $touched, 'ok' => true];
+    /**
+     * @param resource|null $lockHandle
+     */
+    private function releaseLatestSyncLock($lockHandle): void
+    {
+        if ($lockHandle === null) {
+            return;
+        }
+        @flock($lockHandle, LOCK_UN);
+        @fclose($lockHandle);
+    }
+
+    /**
+     * @return array{id: string, guid: ?string, url_hash: ?string}
+     */
+    private function extractLatestEpisodeIdentity(SimpleXMLElement $item): array
+    {
+        $guid = $this->getItemGuid($item);
+        if ($guid !== null && $guid !== '') {
+            $enclosureUrl = $this->getEnclosureUrl($item);
+            $urlHash = $enclosureUrl !== null && $enclosureUrl !== ''
+                ? md5($enclosureUrl)
+                : null;
+
+            return [
+                'id' => 'guid:' . $guid,
+                'guid' => $guid,
+                'url_hash' => $urlHash,
+            ];
+        }
+        $enclosureUrl = $this->getEnclosureUrl($item) ?? '';
+        $urlHash = md5($enclosureUrl);
+
+        return [
+            'id' => 'url:' . $urlHash,
+            'guid' => null,
+            'url_hash' => $urlHash,
+        ];
+    }
+
+    private function getLatestSyncStatePath(Podcast $podcast): string
+    {
+        return $podcast->id . '/.latest_sync_state.json';
+    }
+
+    /**
+     * @return array{id: ?string, guid: ?string, url_hash: ?string}|null
+     */
+    private function getPersistedLatestEpisodeIdentity(ExtendedFilesystemInterface $fs, string $statePath): ?array
+    {
+        if (!$fs->fileExists($statePath)) {
+            return null;
+        }
+
+        try {
+            $raw = $fs->read($statePath);
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+            $id = trim((string)($decoded['latest_episode_id'] ?? ''));
+            $guid = trim((string)($decoded['latest_episode_guid'] ?? ''));
+            $urlHash = trim((string)($decoded['latest_episode_url_hash'] ?? ''));
+            if ($id === '' && $guid === '' && $urlHash === '') {
+                return null;
+            }
+
+            return [
+                'id' => $id !== '' ? $id : null,
+                'guid' => $guid !== '' ? $guid : null,
+                'url_hash' => $urlHash !== '' ? $urlHash : null,
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array{id: string, guid: ?string, url_hash: ?string} $identity
+     */
+    private function persistLatestEpisodeIdentity(
+        ExtendedFilesystemInterface $fs,
+        string $statePath,
+        array $identity
+    ): void {
+        $payload = json_encode(
+            [
+                'latest_episode_id' => $identity['id'],
+                'latest_episode_guid' => $identity['guid'],
+                'latest_episode_url_hash' => $identity['url_hash'],
+                'updated_at' => time(),
+            ],
+            JSON_THROW_ON_ERROR
+        );
+        $fs->write($statePath, $payload);
+    }
+
+    private function getCurrentLatestEpisode(Podcast $podcast): ?PodcastEpisode
+    {
+        return $this->em->createQuery(
+            <<<'DQL'
+                SELECT e FROM App\Entity\PodcastEpisode e
+                WHERE e.podcast = :podcast
+                ORDER BY e.publish_at DESC
+            DQL
+        )->setParameter('podcast', $podcast)
+            ->setMaxResults(1)
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Remove duplicate episodes and non-state orphan files from podcast storage, preserving only latest episode media.
+     *
+     * @param list<array{level: string, message: string}>|null $syncLog
+     */
+    private function cleanupPodcastEpisodeDuplicates(
+        Podcast $podcast,
+        Station $station,
+        ExtendedFilesystemInterface $fs,
+        ?array &$syncLog
+    ): void {
+        $podcast = $this->ensureEntityManagerOpenForPodcast($podcast);
+        $episodes = $this->em->createQuery(
+            <<<'DQL'
+                SELECT e FROM App\Entity\PodcastEpisode e
+                WHERE e.podcast = :podcast
+                ORDER BY e.publish_at DESC
+            DQL
+        )->setParameter('podcast', $podcast)->getResult();
+
+        if ($episodes === []) {
+            return;
+        }
+
+        $keepEpisode = $episodes[0];
+        $keepPath = null;
+        if ($keepEpisode->media instanceof PodcastMedia) {
+            $keepPath = $keepEpisode->media->path;
+        } elseif ($keepEpisode->playlist_media instanceof StationMedia) {
+            $keepPath = $keepEpisode->playlist_media->path;
+        }
+
+        for ($i = 1, $count = count($episodes); $i < $count; $i++) {
+            try {
+                $this->podcastEpisodeRepo->delete($episodes[$i], $fs);
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed removing duplicate podcast episode during latest sync cleanup', [
+                    'podcast_id' => $podcast->id,
+                    'episode_id' => $episodes[$i]->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $prefix = trim($podcast->id . '/', '/');
+        $allowed = [];
+        if ($keepPath !== null && $keepPath !== '') {
+            $allowed[$keepPath] = true;
+        }
+        $allowed[$this->getLatestSyncStatePath($podcast)] = true;
+
+        foreach ($fs->listContents($prefix, true) as $entry) {
+            if (!$entry instanceof StorageAttributes || !$entry->isFile()) {
+                continue;
+            }
+            $path = $entry->path();
+            if (!isset($allowed[$path])) {
+                try {
+                    $fs->delete($path);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed deleting orphaned podcast file during latest sync cleanup', [
+                        'podcast_id' => $podcast->id,
+                        'path' => $path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        if ($podcast->episode_storage_type === PodcastEpisodeStorageType::Media) {
+            $mediaFs = $this->stationFilesystems->getMediaFilesystem($station);
+            $mediaPrefix = (null !== $podcast->media_folder_path && '' !== trim($podcast->media_folder_path))
+                ? trim($podcast->media_folder_path, '/')
+                : '';
+            $allowedMediaPath = null;
+            if ($keepEpisode->playlist_media instanceof StationMedia) {
+                $allowedMediaPath = $keepEpisode->playlist_media->path;
+            }
+
+            foreach ($mediaFs->listContents($mediaPrefix, true) as $entry) {
+                if (!$entry instanceof StorageAttributes || !$entry->isFile()) {
+                    continue;
+                }
+                $path = $entry->path();
+                if ($allowedMediaPath !== null && hash_equals($allowedMediaPath, $path)) {
+                    continue;
+                }
+
+                // For safety, only remove files that match the auto-import naming pattern (<episode-uuid>.<ext>).
+                $basename = basename($path);
+                if (!preg_match('/^[a-f0-9-]{36}\.[A-Za-z0-9]+$/', $basename)) {
+                    continue;
+                }
+                try {
+                    $mediaFs->delete($path);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('Failed deleting orphaned media-folder file during latest sync cleanup', [
+                        'podcast_id' => $podcast->id,
+                        'path' => $path,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        $this->syncLogLine($syncLog, 'info', 'Cleaned duplicate episodes and orphaned files.');
     }
 
     /**

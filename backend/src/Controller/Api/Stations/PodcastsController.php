@@ -380,20 +380,7 @@ final class PodcastsController extends AbstractApiCrudController
             $importStrategySet = true;
         }
 
-        $importSyncBeforeHoursTouched = array_key_exists('import_sync_before_hours', $data);
-        $importSyncBeforeHoursValue = null;
-        if ($importSyncBeforeHoursTouched) {
-            $raw = $data['import_sync_before_hours'];
-            if ($raw === null || $raw === '') {
-                $importSyncBeforeHoursValue = null;
-            } else {
-                $importSyncBeforeHoursValue = max(0, min(168, Types::int($raw)));
-                if ($importSyncBeforeHoursValue === 0) {
-                    $importSyncBeforeHoursValue = null;
-                }
-            }
-            unset($data['import_sync_before_hours']);
-        }
+        unset($data['import_sync_before_hours']);
 
         $autoKeepEpisodes = null;
         if (array_key_exists('auto_keep_episodes', $data)) {
@@ -417,10 +404,6 @@ final class PodcastsController extends AbstractApiCrudController
         if ($importStrategySet) {
             $record->import_strategy = $importStrategy;
         }
-        if ($importSyncBeforeHoursTouched) {
-            $record->import_sync_before_hours = $importSyncBeforeHoursValue;
-        }
-
         if (null !== $newCategories) {
             $categories = $record->categories;
             if ($categories->count() > 0) {

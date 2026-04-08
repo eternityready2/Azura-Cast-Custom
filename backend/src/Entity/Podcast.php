@@ -65,14 +65,6 @@ final class Podcast implements Interfaces\IdentifiableEntityInterface
     #[ORM\Column(type: 'string', length: 32, enumType: PodcastImportStrategy::class, options: ['default' => 'backfill_all'])]
     public PodcastImportStrategy $import_strategy = PodcastImportStrategy::BackfillAll;
 
-    /**
-     * When set and podcast has a linked playlist with schedule: run auto-import only within this many hours
-     * before the playlist's next scheduled start. E.g. 5 = sync once, ~5 hours before each air time.
-     * Null or 0 = do not use schedule-based sync (run on every sync tick).
-     */
-    #[ORM\Column(type: 'smallint', nullable: true, options: ['default' => null])]
-    public ?int $import_sync_before_hours = null;
-
     /** Where to store episode files: podcast folder (default) or station media folder (for use in playlists). */
     #[ORM\Column(type: 'string', length: 50, enumType: PodcastEpisodeStorageType::class, options: ['default' => 'podcast'])]
     public PodcastEpisodeStorageType $episode_storage_type = PodcastEpisodeStorageType::Podcast;
