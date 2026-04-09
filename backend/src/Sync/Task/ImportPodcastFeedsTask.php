@@ -671,11 +671,10 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 return false;
             }
 
-            $currentEpisode = $this->getCurrentLatestEpisode($podcast);
-            if ($currentEpisode === null) {
-                $currentEpisode = new PodcastEpisode($podcast);
-            }
-
+            // Always create a fresh latest episode row, then cleanup removes prior rows after success.
+            // This avoids in-place media replacement edge cases that can temporarily orphan/delete the
+            // current row in media-folder mode.
+            $currentEpisode = new PodcastEpisode($podcast);
             $currentEpisode->title = $title;
             $currentEpisode->description = $description;
             $currentEpisode->publish_at = $publishAt;
