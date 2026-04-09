@@ -38,7 +38,7 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
     public static function getSchedulePattern(): string
     {
-        return '*/15 * * * *';
+        return '0 */2 * * *';
     }
 
     public function run(bool $force = false): void
