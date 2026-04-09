@@ -534,24 +534,97 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $description = $this->getItemDescription($latestItem);
             $publishAt = $this->getItemPublishAt($latestItem);
             $episodeLinkKey = $this->getItemGuid($latestItem) ?: ($enclosureUrl ?? '');
-
-            $downloadedPath = $tempDir . '/' . 'podcast_latest_' . $podcast->id . '_' . md5($enclosureUrl . microtime(true));
-            try {
-                $this->httpClient->get($enclosureUrl, [
-                    RequestOptions::SINK => $downloadedPath,
-                    RequestOptions::TIMEOUT => 300,
-                    RequestOptions::HEADERS => [
-                        'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
-                    ],
-                ]);
-            } catch (\Throwable $e) {
-                if (file_exists($downloadedPath)) {
-                    @unlink($downloadedPath);
-                }
-                $this->syncLogLine($syncLog, 'error', sprintf('Download failed [%s]: %s', $title, $e->getMessage()));
-
-                return ['added' => 0, 'ok' => false, 'message' => 'Latest episode download failed.'];
+            $stored = $this->storeLatestEpisodeFromFeedItem(
+                $podcast,
+                $station,
+                $fs,
+                $tempDir,
+                $enclosureUrl,
+                $latestItem,
+                $latestEpisodeId,
+                $title,
+                $description,
+                $publishAt,
+                $episodeLinkKey,
+                $syncLog
+            );
+            if (!$stored) {
+                return ['added' => 0, 'ok' => false, 'message' => 'Latest episode sync failed.'];
             }
+
+            $this->persistLatestEpisodeIdentity($fs, $statePath, $latestEpisodeIdentity);
+            $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
+            $verifiedEpisode = $this->getCurrentLatestEpisode($podcast);
+            $hasVerifiedMedia = $verifiedEpisode instanceof PodcastEpisode
+                && $this->episodeAudioFileExistsOnDisk($verifiedEpisode, $station);
+            if (!$hasVerifiedMedia) {
+                // Rare recovery path: if cleanup/replace left no valid latest row+media, retry once in same run
+                // so operators don't have to manually sync twice.
+                $this->syncLogLine(
+                    $syncLog,
+                    'warning',
+                    'Post-sync verification failed (missing latest media). Retrying latest episode import once.'
+                );
+                $recovered = $this->storeLatestEpisodeFromFeedItem(
+                    $podcast,
+                    $station,
+                    $fs,
+                    $tempDir,
+                    $enclosureUrl,
+                    $latestItem,
+                    $latestEpisodeId,
+                    $title,
+                    $description,
+                    $publishAt,
+                    $episodeLinkKey,
+                    $syncLog
+                );
+                if (!$recovered) {
+                    return ['added' => 0, 'ok' => false, 'message' => 'Latest episode recovery sync failed.'];
+                }
+                $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
+            }
+
+            $this->syncLogLine(
+                $syncLog,
+                'info',
+                sprintf('Synced latest episode: %s', $title)
+            );
+
+            return ['added' => 1, 'ok' => true];
+        } finally {
+            $this->releaseLatestSyncLock($lockHandle);
+        }
+    }
+
+    /**
+     * Download, validate and attach the latest feed item audio to the current latest episode row.
+     *
+     * @param list<array{level: string, message: string}>|null $syncLog
+     */
+    private function storeLatestEpisodeFromFeedItem(
+        Podcast $podcast,
+        Station $station,
+        ExtendedFilesystemInterface $fs,
+        string $tempDir,
+        string $enclosureUrl,
+        SimpleXMLElement $latestItem,
+        string $latestEpisodeId,
+        string $title,
+        string $description,
+        int $publishAt,
+        string $episodeLinkKey,
+        ?array &$syncLog
+    ): bool {
+        $downloadedPath = $tempDir . '/' . 'podcast_latest_' . $podcast->id . '_' . md5($enclosureUrl . microtime(true));
+        try {
+            $this->httpClient->get($enclosureUrl, [
+                RequestOptions::SINK => $downloadedPath,
+                RequestOptions::TIMEOUT => 300,
+                RequestOptions::HEADERS => [
+                    'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
+                ],
+            ]);
 
             $downloadMime = MimeType::getMimeTypeFromFile($downloadedPath);
             $downloadSize = @filesize($downloadedPath);
@@ -561,12 +634,8 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 || !is_int($downloadSize)
                 || $downloadSize <= 0
             ) {
-                if (file_exists($downloadedPath)) {
-                    @unlink($downloadedPath);
-                }
                 $this->syncLogLine($syncLog, 'warning', sprintf('Downloaded file invalid for [%s]; keeping current file.', $title));
-
-                return ['added' => 0, 'ok' => true];
+                return false;
             }
 
             $currentEpisode = $this->getCurrentLatestEpisode($podcast);
@@ -586,39 +655,24 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $ext = pathinfo(parse_url($enclosureUrl, PHP_URL_PATH) ?: 'audio.mp3', PATHINFO_EXTENSION) ?: 'mp3';
             $originalName = $this->getImportMediaOriginalFilename($latestItem, $ext);
 
-            try {
-                // uploadMedia performs replace/update for existing episode media after file is downloaded and validated.
-                $this->podcastEpisodeRepo->uploadMedia(
-                    $currentEpisode,
-                    $originalName,
-                    $downloadedPath,
-                    $fs
-                );
-            } catch (\Throwable $e) {
-                if (file_exists($downloadedPath)) {
-                    @unlink($downloadedPath);
-                }
-                $this->syncLogLine($syncLog, 'error', sprintf('Upload failed [%s]: %s', $title, $e->getMessage()));
+            // uploadMedia performs replace/update for existing episode media after file is downloaded and validated.
+            $this->podcastEpisodeRepo->uploadMedia(
+                $currentEpisode,
+                $originalName,
+                $downloadedPath,
+                $fs
+            );
 
-                return ['added' => 0, 'ok' => false, 'message' => 'Latest episode upload failed.'];
-            }
-
+            $verifiedEpisode = $this->getCurrentLatestEpisode($podcast);
+            return $verifiedEpisode instanceof PodcastEpisode
+                && $this->episodeAudioFileExistsOnDisk($verifiedEpisode, $station);
+        } catch (\Throwable $e) {
+            $this->syncLogLine($syncLog, 'error', sprintf('Latest episode store failed [%s]: %s', $title, $e->getMessage()));
+            return false;
+        } finally {
             if (file_exists($downloadedPath)) {
                 @unlink($downloadedPath);
             }
-
-            $this->persistLatestEpisodeIdentity($fs, $statePath, $latestEpisodeIdentity);
-            $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
-
-            $this->syncLogLine(
-                $syncLog,
-                'info',
-                sprintf('Synced latest episode: %s', $title)
-            );
-
-            return ['added' => 1, 'ok' => true];
-        } finally {
-            $this->releaseLatestSyncLock($lockHandle);
         }
     }
 
