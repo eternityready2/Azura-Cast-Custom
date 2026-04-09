@@ -506,6 +506,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
             $currentLatestEpisode = $this->getCurrentLatestEpisode($podcast);
             $hasCurrentLatestMedia = $currentLatestEpisode instanceof PodcastEpisode
                 && $this->episodeAudioFileExistsOnDisk($currentLatestEpisode, $station);
+            $this->logLatestSingleDebugState(
+                $podcast,
+                $station,
+                'before_skip_check',
+                $currentLatestEpisode,
+                $lastProcessedEpisodeIdentity,
+                $latestEpisodeIdentity
+            );
             if (
                 $hasCurrentLatestMedia
                 && $currentLatestEpisode !== null
@@ -551,12 +559,29 @@ final class ImportPodcastFeedsTask extends AbstractTask
             if (!$stored) {
                 return ['added' => 0, 'ok' => false, 'message' => 'Latest episode sync failed.'];
             }
+            $afterStoreEpisode = $this->getCurrentLatestEpisode($podcast);
+            $this->logLatestSingleDebugState(
+                $podcast,
+                $station,
+                'after_store',
+                $afterStoreEpisode,
+                $lastProcessedEpisodeIdentity,
+                $latestEpisodeIdentity
+            );
 
             $this->persistLatestEpisodeIdentity($fs, $statePath, $latestEpisodeIdentity);
             $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
             $verifiedEpisode = $this->getCurrentLatestEpisode($podcast);
             $hasVerifiedMedia = $verifiedEpisode instanceof PodcastEpisode
                 && $this->episodeAudioFileExistsOnDisk($verifiedEpisode, $station);
+            $this->logLatestSingleDebugState(
+                $podcast,
+                $station,
+                'after_cleanup',
+                $verifiedEpisode,
+                $lastProcessedEpisodeIdentity,
+                $latestEpisodeIdentity
+            );
             if (!$hasVerifiedMedia) {
                 // Rare recovery path: if cleanup/replace left no valid latest row+media, retry once in same run
                 // so operators don't have to manually sync twice.
@@ -583,6 +608,14 @@ final class ImportPodcastFeedsTask extends AbstractTask
                     return ['added' => 0, 'ok' => false, 'message' => 'Latest episode recovery sync failed.'];
                 }
                 $this->cleanupPodcastEpisodeDuplicates($podcast, $station, $fs, $syncLog);
+                $this->logLatestSingleDebugState(
+                    $podcast,
+                    $station,
+                    'after_recovery_cleanup',
+                    $this->getCurrentLatestEpisode($podcast),
+                    $lastProcessedEpisodeIdentity,
+                    $latestEpisodeIdentity
+                );
             }
 
             $this->syncLogLine(
@@ -674,6 +707,69 @@ final class ImportPodcastFeedsTask extends AbstractTask
                 @unlink($downloadedPath);
             }
         }
+    }
+
+    /**
+     * Emit targeted, high-signal diagnostics for latest-single processing.
+     * Restricted to NPR feed to avoid noisy logs across all podcasts.
+     *
+     * @param array{id: ?string, guid: ?string, url_hash: ?string}|null $lastProcessedEpisodeIdentity
+     * @param array{id: string, guid: ?string, url_hash: ?string}|null $latestEpisodeIdentity
+     */
+    private function logLatestSingleDebugState(
+        Podcast $podcast,
+        Station $station,
+        string $phase,
+        ?PodcastEpisode $episode,
+        ?array $lastProcessedEpisodeIdentity,
+        ?array $latestEpisodeIdentity
+    ): void {
+        if (!$this->shouldEmitLatestSingleDebugForPodcast($podcast)) {
+            return;
+        }
+
+        $mediaPath = null;
+        if ($episode?->media instanceof PodcastMedia) {
+            $mediaPath = $episode->media->path;
+        } elseif ($episode?->playlist_media instanceof StationMedia) {
+            $mediaPath = $episode->playlist_media->path;
+        }
+
+        $this->logger->info('Podcast latest-single debug state', [
+            'phase' => $phase,
+            'podcast_id' => $podcast->id,
+            'podcast' => $podcast->title,
+            'episode_rows' => $this->getPodcastEpisodeRowCount($podcast),
+            'current_episode_id' => $episode?->id,
+            'current_episode_link' => $episode?->link,
+            'current_episode_publish_at' => $episode?->publish_at,
+            'current_episode_has_media' => $episode instanceof PodcastEpisode
+                ? $this->episodeAudioFileExistsOnDisk($episode, $station)
+                : false,
+            'current_episode_media_path' => $mediaPath,
+            'last_processed_id' => $lastProcessedEpisodeIdentity['id'] ?? null,
+            'last_processed_guid' => $lastProcessedEpisodeIdentity['guid'] ?? null,
+            'last_processed_url_hash' => $lastProcessedEpisodeIdentity['url_hash'] ?? null,
+            'latest_feed_id' => $latestEpisodeIdentity['id'] ?? null,
+            'latest_feed_guid' => $latestEpisodeIdentity['guid'] ?? null,
+            'latest_feed_url_hash' => $latestEpisodeIdentity['url_hash'] ?? null,
+        ]);
+    }
+
+    private function shouldEmitLatestSingleDebugForPodcast(Podcast $podcast): bool
+    {
+        return strtolower(trim($podcast->title)) === 'npr';
+    }
+
+    private function getPodcastEpisodeRowCount(Podcast $podcast): int
+    {
+        return (int)$this->em->createQuery(
+            <<<'DQL'
+                SELECT COUNT(e.id)
+                FROM App\Entity\PodcastEpisode e
+                WHERE e.podcast = :podcast
+            DQL
+        )->setParameter('podcast', $podcast)->getSingleScalarResult();
     }
 
     /**
