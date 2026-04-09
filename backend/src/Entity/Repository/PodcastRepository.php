@@ -51,7 +51,10 @@ final class PodcastRepository extends Repository
             LEFT JOIN pe.media pm
             LEFT JOIN pe.playlist_media sm
             WHERE 
-                ((p.source IN (:sourcesWithMedia) AND pm.id IS NOT NULL) OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL))
+                (
+                    (p.source IN (:sourcesWithMedia) AND (pm.id IS NOT NULL OR sm.id IS NOT NULL))
+                    OR (p.source = :sourcePlaylist AND sm.id IS NOT NULL)
+                )
                 AND (pe.publish_at <= :time)
             DQL
         )->setParameter('time', time())
