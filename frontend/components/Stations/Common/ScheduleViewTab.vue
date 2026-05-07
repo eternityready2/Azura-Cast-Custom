@@ -9,16 +9,7 @@
         >
             <schedule
                 ref="$schedule"
-                :options="{
-                    headerToolbar: {
-                        left: 'prev,next',
-                        center: 'title',
-                        right: 'timeGridWeek,timeGridDay'
-                    },
-                    timeZone: timezone,
-                    events: scheduleUrl,
-                    eventClick: onClick
-                }"
+                :options="calendarOptions"
             />
             <div
                 v-if="showCreateButton"
@@ -43,12 +34,12 @@ import Schedule from "~/components/Common/ScheduleView.vue";
 import IconIcAdd from "~icons/ic/baseline-add";
 import {Calendar, EventClickArg} from "@fullcalendar/core";
 import {EventImpl} from "@fullcalendar/core/internal";
-import {useTemplateRef} from "vue";
+import {computed, useTemplateRef} from "vue";
 import {useStationData} from "~/functions/useStationQuery.ts";
 import {toRefs} from "@vueuse/core";
 
-withDefaults(defineProps<{
-    scheduleUrl: string,
+const props = withDefaults(defineProps<{
+    scheduleUrl: string | string[],
     showCreateButton?: boolean,
 }>(), {
     showCreateButton: false,
@@ -61,6 +52,20 @@ const emit = defineEmits<{
 
 const stationData = useStationData();
 const {timezone} = toRefs(stationData);
+
+const calendarOptions = computed(() => {
+    const urls = Array.isArray(props.scheduleUrl) ? props.scheduleUrl : [props.scheduleUrl];
+    return {
+        headerToolbar: {
+            left: 'prev,next',
+            center: 'title',
+            right: 'timeGridWeek,timeGridDay'
+        },
+        timeZone: timezone.value,
+        eventSources: urls,
+        eventClick: onClick
+    };
+});
 
 const onClick = (arg: EventClickArg) => {
     emit('click', arg.event);
