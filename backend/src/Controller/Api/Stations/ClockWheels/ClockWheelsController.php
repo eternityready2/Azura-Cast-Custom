@@ -4,21 +4,28 @@ declare(strict_types=1);
 
 namespace App\Controller\Api\Stations\ClockWheels;
 
-use App\Controller\Api\Stations\AbstractStationApiCrudController;
+use App\Controller\Api\Stations\AbstractScheduledEntityController;
 use App\Entity\Api\Error;
 use App\Entity\Api\Status;
 use App\Entity\Enums\ClockWheelSlotAlgorithms;
 use App\Entity\Enums\ClockWheelSlotTypes;
+use App\Entity\Repository\StationScheduleRepository;
+use App\Entity\Station;
 use App\Entity\StationClockWheel;
 use App\Entity\StationClockWheelSlot;
 use App\Entity\StationPlaylist;
+use App\Entity\StationSchedule;
 use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
+use App\Radio\AutoDJ\Scheduler;
+use App\Utilities\DateRange;
 use InvalidArgumentException;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Serializer\Serializer;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * Clock Wheel CRUD + atomic slot management.
@@ -28,7 +35,7 @@ use Psr\Http\Message\ResponseInterface;
  * represent a coherent, validated hour.  Partial mutations could leave the wheel
  * in an intermediate state that Liquidsoap would then turn into bad radio.
  *
- * @extends AbstractStationApiCrudController<StationClockWheel>
+ * @extends AbstractScheduledEntityController<StationClockWheel>
  */
 #[
     OA\Get(
@@ -206,10 +213,19 @@ use Psr\Http\Message\ResponseInterface;
         ]
     )
 ]
-final class ClockWheelsController extends AbstractStationApiCrudController
+final class ClockWheelsController extends AbstractScheduledEntityController
 {
     protected string $entityClass = StationClockWheel::class;
     protected string $resourceRouteName = 'api:stations:clock-wheel';
+
+    public function __construct(
+        StationScheduleRepository $scheduleRepo,
+        Scheduler $scheduler,
+        Serializer $serializer,
+        ValidatorInterface $validator,
+    ) {
+        parent::__construct($scheduleRepo, $scheduler, $serializer, $validator);
+    }
 
     // ------------------------------------------------------------------
     // List
@@ -265,6 +281,9 @@ final class ClockWheelsController extends AbstractStationApiCrudController
             : null;
         unset($data['slots']);
 
+        $scheduleItems = $data['schedule_items'] ?? null;
+        unset($data['schedule_items']);
+
         /** @var StationClockWheel $wheel */
         $wheel = $this->fromArray($data, $record, $context);
 
@@ -281,9 +300,56 @@ final class ClockWheelsController extends AbstractStationApiCrudController
             $this->replaceSlots($wheel, $slotsData);
         }
 
+        if (null !== $scheduleItems) {
+            $this->scheduleRepo->setScheduleItems($wheel, $scheduleItems);
+        }
+
         $this->em->flush();
 
         return $wheel;
+    }
+
+    // ------------------------------------------------------------------
+    // Schedule feed (FullCalendar-compatible)
+    // ------------------------------------------------------------------
+
+    public function scheduleAction(
+        ServerRequest $request,
+        Response $response
+    ): ResponseInterface {
+        $station = $request->getStation();
+
+        $scheduleItems = $this->em->createQuery(
+            <<<'DQL'
+                SELECT ssc, scw
+                FROM App\Entity\StationSchedule ssc
+                JOIN ssc.clock_wheel scw
+                WHERE scw.station = :station AND scw.is_active = 1
+            DQL
+        )->setParameter('station', $station)
+            ->execute();
+
+        return $this->renderEvents(
+            $request,
+            $response,
+            $scheduleItems,
+            static function (
+                Station $station,
+                StationSchedule $scheduleItem,
+                DateRange $dateRange
+            ) {
+                /** @var StationClockWheel $wheel */
+                $wheel = $scheduleItem->clock_wheel;
+
+                return [
+                    'id'              => $scheduleItem->id . '_' . $dateRange->start->getTimestamp(),
+                    'title'           => $wheel->name,
+                    'backgroundColor' => $wheel->color,
+                    'start'           => $dateRange->start->toIso8601String(),
+                    'end'             => $dateRange->end->toIso8601String(),
+                ];
+            }
+        );
     }
 
     // ------------------------------------------------------------------

@@ -187,14 +187,6 @@ export function useStationsMenu() {
             },
         },
         {
-            key: 'clock_wheels_schedule',
-            label: $gettext('Events'),
-            icon: () => IconIcCalendarToday,
-            url: {
-                name: 'stations:clock_wheels:schedule'
-            },
-        },
-        {
             key: 'streaming',
             label: $gettext('Live Streaming'),
             icon: () => IconIcMic,

@@ -8,6 +8,8 @@
         @submit="doSubmit"
         @hidden="clearContents"
     >
+        <tabs>
+            <tab :label="$gettext('Clock Wheel')">
         <!-- Title -->
         <div class="mb-3">
             <form-group-field
@@ -117,6 +119,9 @@
                 {{ $gettext('Add Clockwheel Entry') }}
             </button>
         </div>
+            </tab>
+            <form-schedule v-model:schedule-items="form.schedule_items" />
+        </tabs>
 
         <template
             v-if="isEditMode"
@@ -151,16 +156,20 @@
 <script setup lang="ts">
 import ModalForm from '~/components/Common/ModalForm.vue';
 import FormGroupField from '~/components/Form/FormGroupField.vue';
+import FormSchedule from '~/components/Stations/Playlists/Form/Schedule.vue';
+import Tabs from '~/components/Common/Tabs.vue';
+import Tab from '~/components/Common/Tab.vue';
 import {BaseEditModalEmits, BaseEditModalProps, useBaseEditModal} from '~/functions/useBaseEditModal';
 import {computed, reactive, ref, useTemplateRef, onMounted} from 'vue';
 import {useTranslate} from '~/vendor/gettext';
 import {useNotify} from '~/components/Common/Toasts/useNotify.ts';
-import {useAppRegle} from '~/vendor/regle.ts';
+import {useAppRegle, useAppCollectScope} from '~/vendor/regle.ts';
 import {required} from '@regle/rules';
 import mergeExisting from '~/functions/mergeExisting.ts';
 import useConfirmAndDelete from '~/functions/useConfirmAndDelete.ts';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useAxios} from '~/vendor/axios.ts';
+import normalizeStationScheduleDays from '~/functions/normalizeStationScheduleDays';
 
 interface ClockWheelEntry {
     playlist_id: number | null;
@@ -189,10 +198,13 @@ onMounted(async () => {
     playlists.value = (resp.data as Playlist[]).map((p) => ({id: p.id, name: p.name}));
 });
 
+const {r$: scheduledr$} = useAppCollectScope('stations-clock-wheels');
+
 const blankForm = {
     name: '',
     color: '#e87722',
     is_active: true,
+    schedule_items: [] as Array<Record<string, unknown>>,
 };
 
 const form = ref({...blankForm});
@@ -213,7 +225,7 @@ const removeEntry = (index: number) => {
 };
 
 const resetForm = () => {
-    form.value = {...blankForm};
+    form.value = {...blankForm, schedule_items: []};
     entries.splice(0, entries.length);
 };
 
@@ -222,11 +234,35 @@ const populateForm = (data: Record<string, unknown>) => {
     if (Array.isArray(data.slots)) {
         entries.splice(0, entries.length, ...(data.slots as ClockWheelEntry[]));
     }
+    if (Array.isArray(data.schedule_items)) {
+        form.value.schedule_items = (data.schedule_items as Array<Record<string, unknown>>).map((item) => ({
+            ...item,
+            recurrence_type: item.recurrence_type ?? 'weekly',
+            recurrence_interval: item.recurrence_interval ?? 1,
+            recurrence_end_type: item.recurrence_end_type ?? 'never',
+            recurrence_end_after: item.recurrence_end_after ?? null,
+            recurrence_end_date: null,
+        }));
+    }
 };
 
 const validateForm = async () => {
-    const {valid} = await r$.$validate();
-    return {valid, data: {...form.value, slots: [...entries]}};
+    const [{valid: mainValid}, {valid: schedValid}] = await Promise.all([
+        r$.$validate(),
+        scheduledr$.$validate(),
+    ]);
+    const valid = mainValid && schedValid;
+    const scheduleItems = form.value.schedule_items.map((item) => ({
+        ...item,
+        recurrence_type: item.recurrence_type ?? 'weekly',
+        recurrence_interval: (item.recurrence_type === 'biweekly' ? 2 : Number(item.recurrence_interval)) || 1,
+        recurrence_end_type: item.recurrence_end_type ?? 'never',
+        recurrence_end_after: (item.recurrence_end_type === 'after' && item.recurrence_end_after != null)
+            ? Number(item.recurrence_end_after) : null,
+        recurrence_end_date: null,
+        days: normalizeStationScheduleDays(item.days),
+    }));
+    return {valid, data: {...form.value, slots: [...entries], schedule_items: scheduleItems}};
 };
 
 const langTitle = computed(() =>

@@ -1400,15 +1400,13 @@ final class ConfigWriter implements EventSubscriberInterface
 
     public static function toRawString(?string $value): string
     {
-        $delimiter = 'str_' . Strings::generatePassword(
-            5,
-            'abcdefghijklmnopqrstuvwxyz'
+        $escaped = str_replace(
+            ['\\', '"', "\n", "\r"],
+            ['\\\\', '\\"', '\\n', '\\r'],
+            $value ?? ''
         );
 
-        $startString = '{' . $delimiter . '|';
-        $endString = '|' . $delimiter . '}';
-
-        return $startString . str_replace($endString, '', $value ?? '') . $endString;
+        return '"' . $escaped . '"';
     }
 
     /**

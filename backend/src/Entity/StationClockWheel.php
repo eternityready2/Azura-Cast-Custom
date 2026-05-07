@@ -7,6 +7,7 @@ namespace App\Entity;
 use App\Entity\Attributes\Auditable;
 use App\Entity\Interfaces\IdentifiableEntityInterface;
 use App\Entity\Interfaces\StationAwareInterface;
+use App\Entity\StationSchedule;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -139,10 +140,25 @@ final class StationClockWheel implements
     ]
     public private(set) Collection $slots;
 
+    /**
+     * Station schedule items that assign this wheel to time slots.
+     */
+    #[
+        ORM\OneToMany(
+            targetEntity: StationSchedule::class,
+            mappedBy: 'clock_wheel',
+            cascade: ['remove'],
+            orphanRemoval: true,
+            fetch: 'EXTRA_LAZY'
+        )
+    ]
+    public private(set) Collection $schedule_items;
+
     public function __construct(Station $station)
     {
-        $this->station = $station;
-        $this->slots   = new ArrayCollection();
+        $this->station         = $station;
+        $this->slots           = new ArrayCollection();
+        $this->schedule_items  = new ArrayCollection();
     }
 
     // ------------------------------------------------------------------

@@ -718,6 +718,11 @@ return static function (RouteCollectorProxy $group) {
                                 Controller\Api\Stations\ClockWheels\ClockWheelsController::class . ':listAction'
                             )->setName('api:stations:clock-wheels');
 
+                            $group->get(
+                                '/clock-wheels/schedule',
+                                Controller\Api\Stations\ClockWheels\ClockWheelsController::class . ':scheduleAction'
+                            )->setName('api:stations:clock-wheels:schedule');
+
                             $group->post(
                                 '/clock-wheels',
                                 Controller\Api\Stations\ClockWheels\ClockWheelsController::class . ':createAction'
@@ -753,41 +758,6 @@ return static function (RouteCollectorProxy $group) {
                                 }
                             );
 
-                            // Clock Wheel Events (schedule)
-                            $group->get(
-                                '/clock-wheel-events/schedule',
-                                Controller\Api\Stations\ClockWheels\ClockWheelEventsController::class . ':scheduleAction'
-                            )->setName('api:stations:clock-wheel-events:schedule');
-
-                            $group->get(
-                                '/clock-wheel-events',
-                                Controller\Api\Stations\ClockWheels\ClockWheelEventsController::class . ':listAction'
-                            )->setName('api:stations:clock-wheel-events');
-
-                            $group->post(
-                                '/clock-wheel-events',
-                                Controller\Api\Stations\ClockWheels\ClockWheelEventsController::class . ':createAction'
-                            );
-
-                            $group->group(
-                                '/clock-wheel-event/{id}',
-                                function (RouteCollectorProxy $group) {
-                                    $group->get(
-                                        '',
-                                        Controller\Api\Stations\ClockWheels\ClockWheelEventsController::class . ':getAction'
-                                    )->setName('api:stations:clock-wheel-event');
-
-                                    $group->put(
-                                        '',
-                                        Controller\Api\Stations\ClockWheels\ClockWheelEventsController::class . ':editAction'
-                                    );
-
-                                    $group->delete(
-                                        '',
-                                        Controller\Api\Stations\ClockWheels\ClockWheelEventsController::class . ':deleteAction'
-                                    );
-                                }
-                            );
                         }
                     )->add(new Middleware\StationSupportsFeature(StationFeatures::Media))
                         ->add(new Middleware\Permissions(StationPermissions::Media, true));
