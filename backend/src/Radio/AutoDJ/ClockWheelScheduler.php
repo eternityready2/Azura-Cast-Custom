@@ -9,12 +9,12 @@ use App\Container\LoggerAwareTrait;
 use App\Entity\Repository\StationPlaylistMediaRepository;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\StationClockWheel;
-use App\Entity\StationClockWheelEvent;
 use App\Entity\StationClockWheelSlot;
 use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
 use App\Entity\StationPlaylistMedia;
 use App\Entity\StationQueue;
+use App\Entity\StationSchedule;
 use App\Event\Radio\BuildQueue;
 use DateTimeImmutable;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -58,7 +58,7 @@ final class ClockWheelScheduler implements EventSubscriberInterface
         $station = $event->getStation();
         $expectedPlayTime = $event->getExpectedPlayTime();
 
-        $activeEvent = $this->findActiveClockWheelEvent($station->id, $expectedPlayTime);
+        $activeEvent = $this->findActiveClockWheelSchedule($station->id, $expectedPlayTime);
 
         if (null === $activeEvent) {
             return;
@@ -68,7 +68,7 @@ final class ClockWheelScheduler implements EventSubscriberInterface
 
         $this->logger->info(
             sprintf('Clock Wheel "%s" is active. Overriding normal AutoDJ queue.', $wheel->name),
-            ['clock_wheel_id' => $wheel->id, 'event_id' => $activeEvent->id]
+            ['clock_wheel_id' => $wheel->id, 'schedule_id' => $activeEvent->id]
         );
 
         $recentHistory = $this->queueRepo->getRecentlyPlayedByTimeRange(
@@ -101,32 +101,32 @@ final class ClockWheelScheduler implements EventSubscriberInterface
     // ------------------------------------------------------------------
 
     /**
-     * Find a StationClockWheelEvent that is active right now for the given station.
+     * Find a StationSchedule that links to an active Clock Wheel for the given station and time.
      */
-    private function findActiveClockWheelEvent(int $stationId, DateTimeImmutable $now): ?StationClockWheelEvent
+    private function findActiveClockWheelSchedule(int $stationId, DateTimeImmutable $now): ?StationSchedule
     {
         // AzuraCast time-code: HHMM as integer (e.g. 09:30 → 930)
         $timeCode = (int)$now->format('G') * 100 + (int)$now->format('i');
         // ISO 8601 weekday: 1=Mon … 7=Sun
         $weekday = (int)$now->format('N');
 
-        /** @var StationClockWheelEvent[] $events */
-        $events = $this->em->createQuery(
-            'SELECT e, w FROM App\Entity\StationClockWheelEvent e
-             JOIN e.clock_wheel w
+        /** @var StationSchedule[] $schedules */
+        $schedules = $this->em->createQuery(
+            'SELECT s, w FROM App\Entity\StationSchedule s
+             JOIN s.clock_wheel w
              WHERE w.station = :stationId
              AND w.is_active = true
-             AND e.start_time <= :timeCode
-             AND e.end_time > :timeCode'
+             AND s.start_time <= :timeCode
+             AND s.end_time > :timeCode'
         )
             ->setParameter('stationId', $stationId)
             ->setParameter('timeCode', $timeCode)
             ->getResult();
 
-        foreach ($events as $event) {
-            $activeDays = $event->getDaysArray();
-            if (in_array($weekday, $activeDays, true)) {
-                return $event;
+        foreach ($schedules as $schedule) {
+            $days = $schedule->days;
+            if (empty($days) || in_array($weekday, $days, true)) {
+                return $schedule;
             }
         }
 

@@ -27,11 +27,6 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:clock_wheels:index'
                 },
                 {
-                    path: 'clock_wheels/schedule',
-                    component: () => import('~/components/Stations/ClockWheelSchedule.vue'),
-                    name: 'stations:clock_wheels:schedule'
-                },
-                {
                     path: 'fallback',
                     component: () => import('~/components/Stations/Fallback.vue'),
                     name: 'stations:fallback'

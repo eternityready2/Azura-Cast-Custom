@@ -35,7 +35,6 @@ return static function (RouteCollectorProxy $app) {
                         'stations:stereo_tool_config' => '/stereo_tool_config',
                         'stations:logs' => '/logs',
                         'stations:clock_wheels:index' => '/clock-wheels',
-                        'stations:clock_wheels:schedule' => '/clock-wheels/schedule',
                         'stations:playlists:index' => '/playlists',
                         'stations:podcasts:index' => '/podcasts',
                         'stations:podcast:episodes' => '/podcast/{podcast_id}',
