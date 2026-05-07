@@ -76,9 +76,9 @@ const dateToHHMM = (d: Date): string =>
 
 const calendarOptions = computed<CalendarOptions>(() => ({
     headerToolbar: {
-        left: 'prev,next today',
+        left: 'prev,next',
         center: 'title',
-        right: 'timeGridWeek,timeGridDay',
+        right: 'dayGridMonth,timeGridWeek,timeGridDay',
     },
     timeZone: timezone.value,
     events: scheduleUrl.value,
