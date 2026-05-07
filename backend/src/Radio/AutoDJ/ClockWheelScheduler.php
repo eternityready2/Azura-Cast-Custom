@@ -200,9 +200,18 @@ final class ClockWheelScheduler implements EventSubscriberInterface
             return null;
         }
 
-        $validTrack = $playlist->avoid_duplicates
-            ? $this->duplicatePrevention->preventDuplicates($mediaQueue, $recentHistory, false)
-            : array_shift($mediaQueue);
+        if (!$playlist->avoid_duplicates) {
+            $validTrack = array_shift($mediaQueue);
+        } else {
+            // First attempt: strict duplicate prevention.
+            $validTrack = $this->duplicatePrevention->preventDuplicates($mediaQueue, $recentHistory, false);
+
+            // Fallback: allow duplicates when the library is too small to avoid repeats.
+            if (null === $validTrack) {
+                $mediaQueue = $this->spmRepo->getQueue($playlist);
+                $validTrack = $this->duplicatePrevention->preventDuplicates($mediaQueue, $recentHistory, true);
+            }
+        }
 
         if (null === $validTrack) {
             return null;
