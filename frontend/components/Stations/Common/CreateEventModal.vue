@@ -111,7 +111,7 @@
                 </div>
                 <div class="form-check">
                     <input
-                        id="sched_once"
+                        id="sched_strict"
                         v-model="form.loop_once"
                         :value="true"
                         type="radio"
@@ -119,8 +119,8 @@
                     >
                     <label
                         class="form-check-label"
-                        for="sched_once"
-                    >{{ $gettext('Loop Once') }}</label>
+                        for="sched_strict"
+                    >{{ $gettext('Strict') }}</label>
                 </div>
             </div>
         </div>
@@ -300,21 +300,27 @@ const clearForm = () => {
 
 const open = () => {
     clearForm();
+    // If options are already loaded, auto-select the first one (watch won't re-fire if options didn't change)
+    if (currentEntityOptions.value.length > 0) {
+        form.value.entity_id = currentEntityOptions.value[0].id;
+    }
     ($modal.value as any)?.show();
 };
 
 const doSave = async () => {
     if (!form.value.entity_id) return;
 
-    const entityOption = currentEntityOptions.value.find(e => e.id === form.value.entity_id);
-    if (!entityOption) return;
-
     loading.value = true;
     error.value = null;
 
     try {
+        // Build URL using getStationApiUrl to avoid Docker-internal host issues
+        // Note: individual endpoints use singular: /playlist/{id} and /clock-wheel/{id}
+        const entityType = form.value.source === 'playlist' ? 'playlist' : 'clock-wheel';
+        const entityApiUrl = getStationApiUrl(`/${entityType}/${form.value.entity_id}`).value;
+
         // Fetch current entity data
-        const {data: entityData} = await axios.get(entityOption.self_url);
+        const {data: entityData} = await axios.get(entityApiUrl);
 
         const startTimeCode = timeStrToCode(form.value.start_time_str);
         const durationMin = form.value.duration_h * 60 + form.value.duration_m;
@@ -343,7 +349,7 @@ const doSave = async () => {
         const {id: _id, links: _links, ...putData} = entityData as Record<string, unknown>;
         const updatedScheduleItems = [...((putData.schedule_items as unknown[]) ?? []), newScheduleItem];
 
-        await axios.put(entityOption.self_url, {
+        await axios.put(entityApiUrl, {
             ...putData,
             schedule_items: updatedScheduleItems,
         });
