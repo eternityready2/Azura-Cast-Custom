@@ -13,6 +13,7 @@ use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Station;
 use App\Entity\StationClockWheel;
 use App\Entity\StationClockWheelSlot;
+use App\Entity\StationMediaCategory;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Exception\ValidationException;
@@ -306,6 +307,12 @@ final class ClockWheelsController extends AbstractScheduledEntityController
 
         $this->em->flush();
 
+        // Refresh slot entities so the read-only category_id column reflects
+        // the persisted FK value (Doctrine doesn't back-fill it in memory).
+        foreach ($wheel->slots as $slot) {
+            $this->em->refresh($slot);
+        }
+
         return $wheel;
     }
 
@@ -461,6 +468,7 @@ final class ClockWheelsController extends AbstractScheduledEntityController
 
         $savedSlots = [];
         foreach ($record->slots as $slot) {
+            $this->em->refresh($slot);
             $savedSlots[] = $this->toArray($slot);
         }
 
@@ -496,8 +504,27 @@ final class ClockWheelsController extends AbstractScheduledEntityController
             $slot = new StationClockWheelSlot($wheel);
             $slot->slot_order = $order++;
 
-            $typeRaw = isset($datum['type']) ? (string)$datum['type'] : 'music';
-            $slot->type = ClockWheelSlotTypes::tryFrom($typeRaw) ?? ClockWheelSlotTypes::Music;
+            // Resolve category_id first — a category slot has no type.
+            $categoryId = array_key_exists('category_id', $datum) && is_numeric($datum['category_id'])
+                ? (int)$datum['category_id']
+                : null;
+
+            if ($categoryId !== null) {
+                $category = $this->em->find(StationMediaCategory::class, $categoryId);
+                if ($category !== null && $category->station->id === $wheel->station->id) {
+                    $slot->category = $category;
+                    $slot->type = null;
+                } else {
+                    // Fallback to music if category is invalid or from another station.
+                    $slot->type = ClockWheelSlotTypes::Music;
+                }
+            } else {
+                // Use array_key_exists so null values don't fall back to 'music'.
+                $typeRaw = (array_key_exists('type', $datum) && $datum['type'] !== null)
+                    ? (string)$datum['type']
+                    : 'music';
+                $slot->type = ClockWheelSlotTypes::tryFrom($typeRaw) ?? ClockWheelSlotTypes::Music;
+            }
 
             $algoRaw = isset($datum['algorithm']) ? (string)$datum['algorithm'] : 'random';
             $slot->algorithm = ClockWheelSlotAlgorithms::tryFrom($algoRaw) ?? ClockWheelSlotAlgorithms::Random;
