@@ -207,15 +207,22 @@ final class ClockWheelScheduler implements EventSubscriberInterface
             return null;
         }
 
-        // Build a lightweight queue-like array for duplicate prevention.
-        // DuplicatePrevention expects objects with a `media_id` property.
-        $mediaQueue = array_map(
-            static fn(StationMedia $m) => (object)['media_id' => $m->id, 'spm_id' => null],
-            $candidates
-        );
+        // Build proper StationPlaylistQueue objects so duplicate prevention can match
+        // on song_id, artist, and title — not just media_id.
+        $mediaQueue = [];
+        foreach ($candidates as $m) {
+            $q = new \App\Entity\Api\StationPlaylistQueue();
+            $q->media_id = $m->id;
+            $q->spm_id = 0;
+            $q->song_id = $m->song_id;
+            $q->artist = $m->artist ?? '';
+            $q->title = $m->title ?? '';
+            $mediaQueue[] = $q;
+        }
 
-        // Shuffle for random selection (respects 'random' algorithm default).
-        shuffle($mediaQueue);
+        // Apply the slot's algorithm to order candidates before duplicate prevention.
+        $algorithm = $slot->algorithm ?? \App\Entity\Enums\ClockWheelSlotAlgorithms::Random;
+        $mediaQueue = $this->applyAlgorithm($mediaQueue, $candidates, $algorithm, $recentHistory);
 
         // Apply duplicate prevention.
         $validTrack = $this->duplicatePrevention->preventDuplicates($mediaQueue, $recentHistory, false)
@@ -234,5 +241,167 @@ final class ClockWheelScheduler implements EventSubscriberInterface
         $this->em->persist($queueEntry);
 
         return $queueEntry;
+    }
+
+    /**
+     * Orders $mediaQueue according to the given algorithm.
+     *
+     * - Random:           shuffle (fair random selection)
+     * - OldestTrack:      track least recently played (or never played) comes first
+     * - OldestAlbum:      tracks from the album least recently played come first
+     * - OldestArtist:     tracks from the artist least recently played come first
+     * - MostRecentAlbum:  tracks from the album most recently played come first
+     * - MostRecentArtist: tracks from the artist most recently played come first
+     *
+     * @param \App\Entity\Api\StationPlaylistQueue[] $mediaQueue
+     * @param StationMedia[] $candidates
+     * @param array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null}> $recentHistory
+     * @return \App\Entity\Api\StationPlaylistQueue[]
+     */
+    private function applyAlgorithm(
+        array $mediaQueue,
+        array $candidates,
+        \App\Entity\Enums\ClockWheelSlotAlgorithms $algorithm,
+        array $recentHistory
+    ): array {
+        if ($algorithm === \App\Entity\Enums\ClockWheelSlotAlgorithms::Random) {
+            shuffle($mediaQueue);
+            return $mediaQueue;
+        }
+
+        // Build song_id → timestamp_played (unix int) from history.
+        // Lower timestamp = older play. 0 = never played (treat as oldest).
+        $histTimestamp = []; // song_id → int
+        $histArtist = [];    // song_id → string
+        foreach ($recentHistory as $h) {
+            $songId = $h['song_id'];
+            $ts = $h['timestamp_played'];
+            if ($ts instanceof \DateTimeInterface) {
+                $ts = $ts->getTimestamp();
+            }
+            $ts = (int)$ts;
+            if (!isset($histTimestamp[$songId]) || $ts > $histTimestamp[$songId]) {
+                $histTimestamp[$songId] = $ts;
+            }
+            $histArtist[$songId] = $h['artist'] ?? '';
+        }
+
+        // OldestTrack: sort by last-played timestamp ASC; never-played (0) comes first.
+        if ($algorithm === \App\Entity\Enums\ClockWheelSlotAlgorithms::OldestTrack) {
+            usort($mediaQueue, static function (
+                \App\Entity\Api\StationPlaylistQueue $a,
+                \App\Entity\Api\StationPlaylistQueue $b
+            ) use ($histTimestamp): int {
+                $tsA = $histTimestamp[$a->song_id] ?? 0;
+                $tsB = $histTimestamp[$b->song_id] ?? 0;
+                return $tsA <=> $tsB; // 0 (never played) first, then oldest timestamp
+            });
+            return $mediaQueue;
+        }
+
+        // Album / Artist algorithms — group candidates, sort groups by recency.
+        $isAlbum = in_array($algorithm, [
+            \App\Entity\Enums\ClockWheelSlotAlgorithms::OldestAlbum,
+            \App\Entity\Enums\ClockWheelSlotAlgorithms::MostRecentAlbum,
+        ], true);
+        $isOldest = in_array($algorithm, [
+            \App\Entity\Enums\ClockWheelSlotAlgorithms::OldestAlbum,
+            \App\Entity\Enums\ClockWheelSlotAlgorithms::OldestArtist,
+        ], true);
+
+        // Index candidates by id and song_id for lookups.
+        $candidatesById = [];
+        $candidatesBySongId = [];
+        foreach ($candidates as $m) {
+            $candidatesById[$m->id] = $m;
+            $candidatesBySongId[$m->song_id] = $m;
+        }
+
+        // Determine the grouping key (album or artist) for each queue entry.
+        $getGroupKey = static function (\App\Entity\Api\StationPlaylistQueue $q) use ($candidatesById, $isAlbum): string {
+            $m = $candidatesById[$q->media_id] ?? null;
+            if ($m === null) {
+                return '';
+            }
+            return strtolower(trim((string)($isAlbum ? ($m->album ?? '') : ($m->artist ?? ''))));
+        };
+
+        // Group queue entries by album/artist key.
+        $groups = []; // groupKey → StationPlaylistQueue[]
+        foreach ($mediaQueue as $q) {
+            $groups[$getGroupKey($q)][] = $q;
+        }
+
+        // Determine the most-recent play timestamp for each group.
+        // A group's recency = highest timestamp of any history entry belonging to that group.
+        // Groups with no history get 0 (= never played = oldest).
+        $groupLastPlayed = array_fill_keys(array_keys($groups), 0);
+
+        if ($isAlbum) {
+            // For album-based grouping, look up album for history entries via DB when not in candidates.
+            $histSongIds = array_keys($histTimestamp);
+            $histAlbum = []; // song_id → album key
+
+            foreach ($histSongIds as $songId) {
+                if (isset($candidatesBySongId[$songId])) {
+                    $histAlbum[$songId] = strtolower(trim((string)($candidatesBySongId[$songId]->album ?? '')));
+                }
+            }
+
+            $missingSongIds = array_diff($histSongIds, array_keys($histAlbum));
+            if (!empty($missingSongIds)) {
+                $rows = $this->em->createQuery(
+                    'SELECT m.song_id, m.album FROM App\Entity\StationMedia m WHERE m.song_id IN (:ids)'
+                )->setParameter('ids', array_values($missingSongIds))->getArrayResult();
+                foreach ($rows as $row) {
+                    $histAlbum[$row['song_id']] = strtolower(trim((string)($row['album'] ?? '')));
+                }
+            }
+
+            foreach ($histSongIds as $songId) {
+                $albumKey = $histAlbum[$songId] ?? '';
+                if (!array_key_exists($albumKey, $groupLastPlayed)) {
+                    continue; // history entry belongs to an album not in candidates
+                }
+                $ts = $histTimestamp[$songId];
+                if ($ts > $groupLastPlayed[$albumKey]) {
+                    $groupLastPlayed[$albumKey] = $ts;
+                }
+            }
+        } else {
+            // Artist-based grouping: history already has artist field.
+            foreach ($histTimestamp as $songId => $ts) {
+                $artistKey = strtolower(trim((string)($histArtist[$songId] ?? '')));
+                if (!array_key_exists($artistKey, $groupLastPlayed)) {
+                    continue;
+                }
+                if ($ts > $groupLastPlayed[$artistKey]) {
+                    $groupLastPlayed[$artistKey] = $ts;
+                }
+            }
+        }
+
+        // Sort group keys: oldest (lowest timestamp) first for OldestAlbum/Artist,
+        // most recent (highest timestamp) first for MostRecentAlbum/Artist.
+        // Shuffle first so ties between equal-timestamp groups are broken randomly.
+        $groupKeys = array_keys($groups);
+        shuffle($groupKeys);
+        usort($groupKeys, static function (string $a, string $b) use ($groupLastPlayed, $isOldest): int {
+            $tsA = $groupLastPlayed[$a];
+            $tsB = $groupLastPlayed[$b];
+            return $isOldest ? ($tsA <=> $tsB) : ($tsB <=> $tsA);
+        });
+
+        // Flatten into final ordered queue; shuffle within each group for track variety.
+        $sorted = [];
+        foreach ($groupKeys as $key) {
+            $groupItems = $groups[$key];
+            shuffle($groupItems);
+            foreach ($groupItems as $q) {
+                $sorted[] = $q;
+            }
+        }
+
+        return $sorted;
     }
 }
