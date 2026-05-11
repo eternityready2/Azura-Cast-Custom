@@ -5,6 +5,8 @@ services:
       context: .
       target: development
     ports:
+      - "127.0.0.1:80:80"     # HTTP
+      - "127.0.0.1:443:443"   # HTTPS
       - "127.0.0.1:3306:3306" # MariaDB
       - "127.0.0.1:6025:6025" # Centrifugo
       - "127.0.0.1:6379:6379" # Redis

@@ -1226,6 +1226,13 @@ export type ApiStationMedia = ApiHasSongFields &
     /** A hash-map array represented as an object. */
     extra_metadata?: HashMap;
     playlists?: (ApiStationMediaPlaylist | number)[];
+    /**
+     * The media type/category for Clock Wheel scheduling.
+     * @example "music"
+     */
+    type?: string;
+    /** The ID of the assigned media category, or null. */
+    category_id?: number | null;
   };
 
 export interface ApiStationMediaPlaylist {

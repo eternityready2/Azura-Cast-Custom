@@ -58,3 +58,9 @@ tmp/cache/*---*
 /plugins/*
 /plugins/**/*
 !/plugins/.gitkeep
+
+/bin
+
+/terraform/.terraform/
+/terraform/terraform.tfstate
+/terraform/terraform.tfstate.backup
