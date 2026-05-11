@@ -1,8 +1,20 @@
 name: Build Custom AzuraCast
+
 on:
   push:
-    branches: [ main, dev ]
-    tags: [ 'v*' ]
+    branches:
+      - main
+      - dev
+    tags:
+      - 'v*'
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: eternityready2/azuracast_custom
 
 permissions:
   contents: read
@@ -10,27 +22,71 @@ permissions:
 
 jobs:
   build:
+    name: Build and publish Docker image
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Create Version File
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "${{ github.ref_name }}" > .version
-          else
-            echo "$(git rev-parse --short HEAD)" > .version
-          fi
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
-          registry: ghcr.io
+          fetch-depth: 0
+
+      - name: Prepare version and Docker tags
+        id: prep
+        shell: bash
+        run: |
+          image="${REGISTRY}/${IMAGE_NAME}"
+          ref_name="${GITHUB_REF_NAME}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
+            ref_name="${{ github.event.release.tag_name }}"
+          fi
+
+          tags=("${image}:sha-${GITHUB_SHA::7}")
+
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            version="$(git rev-parse --short HEAD)"
+            tags+=("${image}:latest" "${image}:stable")
+          elif [[ "${GITHUB_REF}" == "refs/heads/dev" ]]; then
+            version="$(git rev-parse --short HEAD)"
+            tags+=("${image}:rolling")
+          elif [[ "${GITHUB_REF}" == refs/tags/v* || "${GITHUB_EVENT_NAME}" == "release" ]]; then
+            version="${ref_name}"
+            clean_version="${ref_name#v}"
+            tags+=("${image}:${ref_name}" "${image}:${clean_version}" "${image}:latest" "${image}:stable")
+          else
+            echo "Unsupported ref: ${GITHUB_REF}" >&2
+            exit 1
+          fi
+
+          printf '%s\n' "${version}" > .version
+
+          {
+            echo "version=${version}"
+            echo "tags<<EOF"
+            printf '%s\n' "${tags[@]}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and Push
-        uses: docker/build-push-action@v5
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/eternityready2/azuracast_custom:${{ github.ref_name == 'main' && 'latest' || 'rolling' }}
-            ${{ github.ref_name == 'main' && 'ghcr.io/eternityready2/azuracast_custom:stable' || '' }}
+          tags: ${{ steps.prep.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.prep.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
