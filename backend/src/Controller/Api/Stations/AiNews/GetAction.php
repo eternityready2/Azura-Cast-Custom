@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api\Stations\AiNews;
 
+use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Http\Response;
 use App\Http\ServerRequest;
@@ -28,14 +29,16 @@ use Psr\Http\Message\ResponseInterface;
         ]
     )
 ]
-final readonly class GetAction implements SingleActionInterface
+final class GetAction implements SingleActionInterface
 {
+    use EntityManagerAwareTrait;
+
     public function __invoke(
         ServerRequest $request,
         Response $response,
         array $params
     ): ResponseInterface {
-        $station = $request->getStation();
+        $station = $this->em->refetch($request->getStation());
         $backendConfig = $station->backend_config;
 
         return $response->withJson([

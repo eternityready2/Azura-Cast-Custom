@@ -33,7 +33,7 @@ use Throwable;
         ]
     )
 ]
-final readonly class TestPostAction implements SingleActionInterface
+final class TestPostAction implements SingleActionInterface
 {
     use EntityManagerAwareTrait;
 
