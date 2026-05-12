@@ -56,19 +56,16 @@ final class GetUpdatesAction implements SingleActionInterface
         $githubData = json_decode($githubResponse, true);
         $latestTag = $githubData['tag_name'] ?? 'v0.23.4';
 
-        $updates = [
-            'success' => true,
-            'message' => 'Sincronizado con GitHub (Eternity Ready).',
-            'updates' => [
-                'needs_release_update' => ($latestTag !== 'v' . Version::STABLE_VERSION),
-                'latest_release' => $latestTag,
-                'release_url' => $githubData['html_url'] ?? 'https://github.com/eternityready2/Azura-Cast-Custom/releases',
-                'needs_rolling_update' => false,
-            ],
+        $updateDetails = [
+            'needs_release_update' => ($latestTag !== 'v' . Version::STABLE_VERSION),
+            'latest_release' => $latestTag,
+            'current_release' => 'v' . Version::STABLE_VERSION,
+            'needs_rolling_update' => false,
         ];
-        $settings->update_results = $updates;
+
+        $settings->update_results = $updateDetails;
         $this->writeSettings($settings);
 
-        return $response->withJson($updates);
+        return $response->withJson($updateDetails);
     }
 }
