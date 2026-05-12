@@ -210,6 +210,10 @@ final class AiNewsGenerator
         $response = $this->httpClient->get($url, [
             RequestOptions::TIMEOUT => self::HTTP_TIMEOUT,
             RequestOptions::HTTP_ERRORS => true,
+            RequestOptions::ALLOW_REDIRECTS => [
+                'max' => 5,
+                'strict' => true,
+            ],
             RequestOptions::HEADERS => [
                 'User-Agent' => 'AzuraCast/1.0 (AI News Generator)',
             ],
