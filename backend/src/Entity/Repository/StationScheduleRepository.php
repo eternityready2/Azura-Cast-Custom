@@ -11,6 +11,7 @@ use App\Entity\Enums\RecurrenceEndType;
 use App\Entity\Enums\RecurrenceMonthlyPattern;
 use App\Entity\Enums\RecurrenceType;
 use App\Entity\Station;
+use App\Entity\StationClockWheel;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Entity\StationStreamer;
@@ -36,11 +37,11 @@ final class StationScheduleRepository extends Repository
     }
 
     /**
-     * @param StationPlaylist|StationStreamer $relation
+     * @param StationPlaylist|StationStreamer|StationClockWheel $relation
      * @param array $items
      */
     public function setScheduleItems(
-        StationPlaylist|StationStreamer $relation,
+        StationPlaylist|StationStreamer|StationClockWheel $relation,
         array $items = []
     ): void {
         $rawScheduleItems = $this->findByRelation($relation);
@@ -166,14 +167,18 @@ final class StationScheduleRepository extends Repository
     }
 
     /**
-     * @param StationPlaylist|StationStreamer $relation
+     * @param StationPlaylist|StationStreamer|StationClockWheel $relation
      *
      * @return StationSchedule[]
      */
-    public function findByRelation(StationPlaylist|StationStreamer $relation): array
+    public function findByRelation(StationPlaylist|StationStreamer|StationClockWheel $relation): array
     {
         if ($relation instanceof StationPlaylist) {
             return $this->repository->findBy(['playlist' => $relation]);
+        }
+
+        if ($relation instanceof StationClockWheel) {
+            return $this->repository->findBy(['clock_wheel' => $relation]);
         }
 
         return $this->repository->findBy(['streamer' => $relation]);
@@ -188,12 +193,14 @@ final class StationScheduleRepository extends Repository
     {
         return $this->em->createQuery(
             <<<'DQL'
-                SELECT ssc, sp, sst
+                SELECT ssc, sp, sst, scw
                 FROM App\Entity\StationSchedule ssc
                 LEFT JOIN ssc.playlist sp
                 LEFT JOIN ssc.streamer sst
+                LEFT JOIN ssc.clock_wheel scw
                 WHERE (sp.station = :station AND sp.is_jingle = 0 AND sp.is_enabled = 1)
                 OR (sst.station = :station AND sst.is_active = 1)
+                OR (scw.station = :station AND scw.is_active = 1)
             DQL
         )->setParameter('station', $station)
             ->execute();

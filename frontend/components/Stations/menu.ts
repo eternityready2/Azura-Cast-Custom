@@ -14,6 +14,9 @@ import IconIcPublic from "~icons/ic/baseline-public";
 import IconIcInsertChart from "~icons/ic/baseline-insert-chart";
 import IconIcSettingsApplication from "~icons/ic/baseline-settings-applications";
 import IconBiBroadcast from "~icons/bi/broadcast";
+import IconIcSchedule from "~icons/ic/baseline-schedule";
+import IconIcCalendarToday from "~icons/ic/baseline-calendar-today";
+import IconIcCategory from "~icons/ic/baseline-category";
 import {useUserAllowedForStation} from "~/functions/useUserallowedForStation.ts";
 
 export function useStationsMenu() {
@@ -175,6 +178,22 @@ export function useStationsMenu() {
             },
             visible: () => userAllowedForStation(StationPermissions.Podcasts)
                 && station.value.features.podcasts,
+        },
+        {
+            key: 'clock_wheels',
+            label: $gettext('Clock Wheels'),
+            icon: () => IconIcSchedule,
+            url: {
+                name: 'stations:clock_wheels:index'
+            },
+        },
+        {
+            key: 'media_categories',
+            label: $gettext('Categories'),
+            icon: () => IconIcCategory,
+            url: {
+                name: 'stations:media_categories:index'
+            },
         },
         {
             key: 'streaming',

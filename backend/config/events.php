@@ -149,6 +149,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
         [
             App\Console\ErrorHandler::class,
             App\Nginx\ConfigWriter::class,
+            App\Radio\AutoDJ\ClockWheelScheduler::class,
             App\Radio\AutoDJ\QueueBuilder::class,
             App\Radio\AutoDJ\Annotations::class,
             App\Radio\Backend\Liquidsoap\ConfigWriter::class,

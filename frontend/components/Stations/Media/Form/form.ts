@@ -35,6 +35,8 @@ export const useStationsMediaForm = defineStore(
                 genre: null,
                 lyrics: null,
                 isrc: null,
+                type: 'music',
+                category_id: null,
                 custom_fields: {},
                 extra_metadata: {
                     amplify: null,
@@ -71,6 +73,8 @@ export const useStationsMediaForm = defineStore(
                         fields.genre,
                         fields.lyrics,
                         fields.isrc,
+                        fields.type,
+                        fields.category_id,
                     ],
                     advancedSettingsTab: [
                         fields.extra_metadata.amplify,

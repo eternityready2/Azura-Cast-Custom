@@ -54,6 +54,19 @@ final class StationMedia implements
     #[ORM\Column(type: 'text', nullable: true)]
     public ?string $lyrics = null;
 
+    #[ORM\Column(length: 20, nullable: false, options: ['default' => 'music'])]
+    public string $type = 'music';
+
+    #[
+        ORM\ManyToOne,
+        ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')
+    ]
+    public ?StationMediaCategory $category = null;
+
+    /* TODO Remove direct identifier access. */
+    #[ORM\Column(nullable: true, insertable: false, updatable: false)]
+    public private(set) ?int $category_id = null;
+
     #[ORM\Column(length: 15, nullable: true)]
     public ?string $isrc = null {
         set => $this->truncateNullableString($value, 15);

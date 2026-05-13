@@ -675,6 +675,18 @@ final class Station implements Stringable, IdentifiableEntityInterface
     #[ORM\OneToMany(targetEntity: StationRequest::class, mappedBy: 'station')]
     public private(set) Collection $requests;
 
+    /** @var Collection<int, StationClockWheel> */
+    #[
+        ORM\OneToMany(
+            targetEntity: StationClockWheel::class,
+            mappedBy: 'station',
+            cascade: ['persist', 'remove'],
+            fetch: 'EXTRA_LAZY'
+        ),
+        ORM\OrderBy(['name' => 'ASC'])
+    ]
+    public private(set) Collection $clock_wheels;
+
     #[
         ORM\ManyToOne,
         ORM\JoinColumn(name: 'current_song_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL'),
@@ -704,6 +716,7 @@ final class Station implements Stringable, IdentifiableEntityInterface
         $this->streamer_broadcasts = new ArrayCollection();
         $this->sftp_users = new ArrayCollection();
         $this->requests = new ArrayCollection();
+        $this->clock_wheels = new ArrayCollection();
     }
 
     public function supportsAutoDjQueue(): bool

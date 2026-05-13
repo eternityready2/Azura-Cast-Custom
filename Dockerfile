@@ -195,7 +195,7 @@ RUN rm -rf /var/azuracast/www/bin /var/azuracast/www/src /var/azuracast/www/conf
     ln -s /var/azuracast/www/backend/templates /var/azuracast/www/templates
 
 
-RUN ln -s /var/azuracast/azuracast.env /var/azuracast/www/azuracast.env
+RUN ln -sf /var/azuracast/azuracast.env /var/azuracast/www/azuracast.env
 
 RUN mkdir -p /var/azuracast/storage/logs \
              /var/azuracast/storage/cache \

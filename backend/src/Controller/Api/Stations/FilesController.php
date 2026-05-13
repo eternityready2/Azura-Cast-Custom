@@ -348,7 +348,8 @@ final class FilesController extends AbstractStationApiCrudController
 
         $customFields = $data['custom_fields'] ?? null;
         $playlists = $data['playlists'] ?? null;
-        unset($data['custom_fields'], $data['playlists']);
+        $categoryId = array_key_exists('category_id', $data) ? $data['category_id'] : false;
+        unset($data['custom_fields'], $data['playlists'], $data['category_id']);
 
         $fsMedia = $this->stationFilesystems->getMediaFilesystem($station);
 
@@ -359,6 +360,13 @@ final class FilesController extends AbstractStationApiCrudController
 
         if ($isRenamed) {
             $fsMedia->move($oldPath, $record->path);
+        }
+
+        // Resolve category_id → StationMediaCategory relation.
+        if ($categoryId !== false) {
+            $record->category = ($categoryId !== null)
+                ? $this->em->find(\App\Entity\StationMediaCategory::class, (int)$categoryId)
+                : null;
         }
 
         $errors = $this->validator->validate($record);

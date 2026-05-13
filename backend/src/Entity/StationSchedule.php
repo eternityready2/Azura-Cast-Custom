@@ -8,6 +8,7 @@ use App\Entity\Enums\RecurrenceEndType;
 use App\Entity\Enums\RecurrenceMonthlyPattern;
 use App\Entity\Enums\RecurrenceType;
 use App\Entity\Interfaces\IdentifiableEntityInterface;
+use App\Entity\StationClockWheel;
 use App\Utilities\Time;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -33,6 +34,7 @@ final class StationSchedule implements IdentifiableEntityInterface
         set {
             if ($value !== null) {
                 $this->streamer = null;
+                $this->clock_wheel = null;
             }
 
             $this->playlist = $value;
@@ -47,9 +49,25 @@ final class StationSchedule implements IdentifiableEntityInterface
         set {
             if ($value !== null) {
                 $this->playlist = null;
+                $this->clock_wheel = null;
             }
 
             $this->streamer = $value;
+        }
+    }
+
+    #[
+        ORM\ManyToOne(inversedBy: 'schedule_items'),
+        ORM\JoinColumn(name: 'clock_wheel_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')
+    ]
+    public ?StationClockWheel $clock_wheel = null {
+        set {
+            if ($value !== null) {
+                $this->playlist = null;
+                $this->streamer = null;
+            }
+
+            $this->clock_wheel = $value;
         }
     }
 
@@ -151,12 +169,14 @@ final class StationSchedule implements IdentifiableEntityInterface
     #[ORM\Column(length: 10, nullable: true)]
     public ?string $recurrence_end_date = null;
 
-    public function __construct(StationPlaylist|StationStreamer $relation)
+    public function __construct(StationPlaylist|StationStreamer|StationClockWheel $relation)
     {
         if ($relation instanceof StationPlaylist) {
             $this->playlist = $relation;
-        } else {
+        } elseif ($relation instanceof StationStreamer) {
             $this->streamer = $relation;
+        } else {
+            $this->clock_wheel = $relation;
         }
     }
 
