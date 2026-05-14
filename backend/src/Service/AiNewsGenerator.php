@@ -7,12 +7,14 @@ namespace App\Service;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Station;
 use App\Podcast\RssAtomFeedItems;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\RequestOptions;
+use RuntimeException;
 use SimpleXMLElement;
-use Throwable;
 use Symfony\Component\Process\Process;
+use Throwable;
 
 final class AiNewsGenerator
 {
@@ -20,7 +22,8 @@ final class AiNewsGenerator
 
     private const string PIPER_BIN = 'piper';
     private const string FFMPEG_BIN = 'ffmpeg';
-    private const string DEFAULT_VOICE_MODEL = '/usr/local/share/piper-voices/en/en_US/lessac/medium/en_US-lessac-medium.onnx';
+    private const string DEFAULT_VOICE_MODEL =
+        '/usr/local/share/piper-voices/en/en_US/lessac/medium/en_US-lessac-medium.onnx';
     public const array AVAILABLE_VOICE_MODELS = [
         [
             'label' => 'Lessac (Default)',
@@ -85,17 +88,18 @@ final class AiNewsGenerator
             $sourceUrls = $this->parseSourceUrls($backendConfig->ai_news_source_urls);
             if ([] === $sourceUrls) {
                 $this->persistStatus($station, 'error', 'No source URLs configured.', null);
-                throw new \RuntimeException('No source URLs configured.');
+                throw new RuntimeException('No source URLs configured.');
             }
 
             $fetchResults = $this->fetchHeadlines($sourceUrls, $maxHeadlines);
             $headlines = $fetchResults['headlines'];
             $sourceResults = $fetchResults['source_results'];
             if ([] === $headlines) {
-                $this->persistStatus($station, 'error', 'No RSS/Atom headlines could be fetched from configured sources.', [
+                $message = 'No RSS/Atom headlines could be fetched from configured sources.';
+                $this->persistStatus($station, 'error', $message, [
                     'source_results' => $sourceResults,
                 ]);
-                throw new \RuntimeException('No RSS/Atom headlines could be fetched from configured sources.');
+                throw new RuntimeException($message);
             }
 
             $intro = $backendConfig->ai_news_intro ?: 'Here are the latest headlines.';
@@ -158,7 +162,7 @@ final class AiNewsGenerator
         }
 
         $activeHours = trim($activeHours);
-        $now = new \DateTimeImmutable('now', $station->getTimezoneObject());
+        $now = new DateTimeImmutable('now', $station->getTimezoneObject());
         $currentHour = (int) $now->format('G');
         $currentMinute = (int) $now->format('i');
 
@@ -211,10 +215,24 @@ final class AiNewsGenerator
     {
         $headlines = [];
         $sourceResults = [];
+        $sourceCount = count($urls);
+        $baseHeadlineCount = intdiv($maxHeadlines, $sourceCount);
+        $remainderHeadlineCount = $maxHeadlines % $sourceCount;
 
-        foreach ($urls as $url) {
+        foreach ($urls as $index => $url) {
+            $sourceHeadlineLimit = $baseHeadlineCount + ($index < $remainderHeadlineCount ? 1 : 0);
+            if (0 === $sourceHeadlineLimit) {
+                $sourceResults[] = [
+                    'url' => $url,
+                    'status' => 'skipped',
+                    'message' => 'No headline slot allocated for this source.',
+                    'headline_count' => 0,
+                ];
+                continue;
+            }
+
             try {
-                $items = $this->fetchAndParseUrl($url, $maxHeadlines);
+                $items = $this->fetchAndParseUrl($url, $sourceHeadlineLimit);
                 $headlineCount = count($items);
 
                 foreach ($items as $item) {
@@ -222,9 +240,6 @@ final class AiNewsGenerator
                         ...$item,
                         'source_url' => $url,
                     ];
-                    if (count($headlines) >= $maxHeadlines) {
-                        break;
-                    }
                 }
 
                 $sourceResults[] = [
@@ -235,10 +250,6 @@ final class AiNewsGenerator
                         : 'Feed parsed successfully but returned no usable headlines.',
                     'headline_count' => $headlineCount,
                 ];
-
-            if (count($headlines) >= $maxHeadlines) {
-                    break;
-                }
             } catch (Throwable $e) {
                 $this->logger->warning(
                     sprintf('Source "%s" skipped: %s', $url, $e->getMessage())
@@ -253,7 +264,7 @@ final class AiNewsGenerator
         }
 
         return [
-            'headlines' => $headlines,
+            'headlines' => array_slice($headlines, 0, $maxHeadlines),
             'source_results' => $sourceResults,
         ];
     }
@@ -278,7 +289,7 @@ final class AiNewsGenerator
         $body = (string) $response->getBody();
         $xml = @simplexml_load_string($body);
         if (false === $xml) {
-            throw new \RuntimeException('Failed to parse XML from response.');
+            throw new RuntimeException('Failed to parse XML from response.');
         }
 
         $items = RssAtomFeedItems::fromParsedXml($xml);
@@ -321,8 +332,7 @@ final class AiNewsGenerator
         array $headlines,
         ?string $reporterName = null,
         ?string $outro = null
-    ): string
-    {
+    ): string {
         $lines = [];
 
         $reporterName = null !== $reporterName ? trim($reporterName) : null;
@@ -398,7 +408,7 @@ final class AiNewsGenerator
 
         $scriptFile = $tempDir . '/news_script.txt';
         if (false === file_put_contents($scriptFile, $script)) {
-            throw new \RuntimeException('Failed to write TTS script file.');
+            throw new RuntimeException('Failed to write TTS script file.');
         }
 
         $wavFile = $tempDir . '/news_bulletin.wav';
@@ -426,7 +436,7 @@ final class AiNewsGenerator
             $ffmpeg->mustRun();
 
             if (!@rename($tmpMp3, $outputPath)) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     sprintf('Failed to move bulletin to "%s".', $outputPath)
                 );
             }
