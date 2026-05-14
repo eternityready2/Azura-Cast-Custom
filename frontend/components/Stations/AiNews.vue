@@ -178,28 +178,30 @@
                                     </button>
                                 </div>
 
-                                <ul class="headline-list">
-                                    <li
-                                        v-for="headline in headlinePreviewItems"
-                                        :key="headline.id"
-                                        class="headline-item"
-                                    >
-                                        <span
-                                            class="src-tag"
-                                            :class="headline.tone"
+                                <div class="headline-list-wrap">
+                                    <ul class="headline-list">
+                                        <li
+                                            v-for="headline in headlinePreviewItems"
+                                            :key="headline.id"
+                                            class="headline-item"
                                         >
-                                            {{ headline.source }}
-                                        </span>
-                                        <div>
-                                            <div class="hl-title">
-                                                {{ headline.title }}
+                                            <span
+                                                class="src-tag"
+                                                :class="headline.tone"
+                                            >
+                                                {{ headline.source }}
+                                            </span>
+                                            <div>
+                                                <div class="hl-title">
+                                                    {{ headline.title }}
+                                                </div>
+                                                <div class="hl-summary">
+                                                    {{ headline.summary }}
+                                                </div>
                                             </div>
-                                            <div class="hl-summary">
-                                                {{ headline.summary }}
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
+                                        </li>
+                                    </ul>
+                                </div>
                             </section>
                         </div>
 
@@ -1367,6 +1369,12 @@ const refreshHeadlinePreview = () => {
     justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 1rem;
+}
+
+.headline-list-wrap {
+    max-height: 420px;
+    padding-right: 0.25rem;
+    overflow-y: auto;
 }
 
 .headline-list {

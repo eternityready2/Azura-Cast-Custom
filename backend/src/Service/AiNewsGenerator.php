@@ -138,7 +138,7 @@ final class AiNewsGenerator
                 'source_results' => $sourceResults,
                 'elapsed_seconds' => $elapsedSeconds,
                 'output_filename' => self::OUTPUT_FILENAME,
-                'headline_preview' => array_slice($headlines, 0, 3),
+                'headline_preview' => $headlines,
             ];
             $this->persistStatus($station, 'completed', null, $metadata);
 
