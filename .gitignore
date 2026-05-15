@@ -13,6 +13,7 @@ tmp/cache/*---*
 .gitinfo
 
 # Local development files.
+/.claude/
 /backend/config/routes.dev.php
 /env.ini
 /app/env.ini
