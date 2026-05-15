@@ -557,7 +557,7 @@ def azuracast.live_aware_crossfade_impl(old, new) =
         metadata.cover.remove(new.metadata)
     )
 
-    
+    if azuracast.to_live() then
         # If going to the live show, play a simple sequence
         # fade out AutoDJ, do (almost) not fade in streamer
         log.info(label="azuracast.crossfade", "Fading to live...")
