@@ -64,6 +64,12 @@
                                 >
                                     {{ item.value }}
                                 </div>
+                                <div
+                                    v-if="item.helper"
+                                    class="stat-helper"
+                                >
+                                    {{ item.helper }}
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -332,21 +338,19 @@
                                 <div class="time-row">
                                     <div class="time-field">
                                         <label class="time-field-label">{{ $gettext('Start Time') }}</label>
-                                        <input
-                                            :value="activeHoursStart"
-                                            class="form-control form-control-dark"
-                                            type="time"
-                                            @input="updateActiveHoursStart"
-                                        >
+                                        <vue-date-picker
+                                            v-model="activeHoursStartPicker"
+                                            v-bind="timePickerOptions"
+                                            class="ai-news-time-picker"
+                                        />
                                     </div>
                                     <div class="time-field">
                                         <label class="time-field-label">{{ $gettext('End Time') }}</label>
-                                        <input
-                                            :value="activeHoursEnd"
-                                            class="form-control form-control-dark"
-                                            type="time"
-                                            @input="updateActiveHoursEnd"
-                                        >
+                                        <vue-date-picker
+                                            v-model="activeHoursEndPicker"
+                                            v-bind="timePickerOptions"
+                                            class="ai-news-time-picker"
+                                        />
                                     </div>
                                 </div>
                                 <div class="broadcast-slots">
@@ -449,8 +453,10 @@
 </template>
 
 <script setup lang="ts">
+import {RootProps, VueDatePicker} from "@vuepic/vue-datepicker";
 import {computed, onMounted, onUnmounted, ref} from "vue";
 import {useGettext} from "vue3-gettext";
+import {DateTimeMaybeValid} from "luxon";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
 import FormSelect from "~/components/Form/FormSelect.vue";
 import Loading from "~/components/Common/Loading.vue";
@@ -462,6 +468,7 @@ import {useMayNeedRestart} from "~/functions/useMayNeedRestart";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
 import {useAppRegle} from "~/vendor/regle.ts";
 import {ApiStatus} from "~/entities/ApiInterfaces.ts";
+import {useLuxon} from "~/vendor/luxon.ts";
 
 interface AiNewsForm {
     ai_news_enabled: boolean;
@@ -498,6 +505,12 @@ interface AiNewsSourceResult {
 interface AiNewsVoiceOption {
     label: string;
     path: string;
+}
+
+interface AiNewsTimeValue {
+    hours: number;
+    minutes: number;
+    seconds?: number;
 }
 
 interface AiNewsDashboardPayload {
@@ -544,7 +557,6 @@ const testUrl = getStationApiUrl('/ai-news/test');
 
 const isLoading = ref(true);
 const isTesting = ref(false);
-const currentTime = ref(new Date().toLocaleTimeString());
 const saveStatusText = ref('');
 const logCounter = ref(0);
 const logEntries = ref<LogEntry[]>([]);
@@ -554,6 +566,7 @@ const lastTime = ref<string | null>(null);
 const lastError = ref<string | null>(null);
 const dashboard = ref<AiNewsDashboardPayload | null>(null);
 const voiceOptions = ref<AiNewsVoiceOption[]>([]);
+const browserNow = ref<DateTimeMaybeValid | null>(null);
 
 const {record: form, reset: resetForm} = useResettableRef<AiNewsForm>(() => ({
     ai_news_enabled: false,
@@ -574,6 +587,92 @@ const {axios} = useAxios();
 const {notifySuccess, notifyError} = useNotify();
 const {mayNeedRestart} = useMayNeedRestart();
 const {$gettext} = useGettext();
+const {DateTime, Duration} = useLuxon();
+
+const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+const displayDateTimeFormat = {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+} as const;
+const displayTimeFormat = {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+} as const;
+
+const formatBrowserDateTime = (value: string | null | undefined, fallback = '—') => {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = DateTime.fromISO(value, {setZone: true});
+    if (!parsed.isValid) {
+        return fallback;
+    }
+
+    return parsed.setZone(browserTimezone).toLocaleString(displayDateTimeFormat);
+};
+
+const formatBrowserTime = (value: string | null | undefined, fallback = '—') => {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = DateTime.fromISO(value, {setZone: true});
+    if (!parsed.isValid) {
+        return fallback;
+    }
+
+    return parsed.setZone(browserTimezone).toLocaleString(displayTimeFormat);
+};
+
+const formatBrowserNow = (value: DateTimeMaybeValid | null, fallback = '—') => {
+    if (!value || !value.isValid) {
+        return fallback;
+    }
+
+    return value.toLocaleString(displayDateTimeFormat);
+};
+
+const formatRelativeDuration = (targetIso: string | null | undefined) => {
+    if (!targetIso || !browserNow.value?.isValid) {
+        return '—';
+    }
+
+    const target = DateTime.fromISO(targetIso, {setZone: true}).setZone(browserTimezone);
+    if (!target.isValid) {
+        return '—';
+    }
+
+    const diffMillis = target.toMillis() - browserNow.value.toMillis();
+    if (diffMillis <= 0) {
+        return $gettext('Due now');
+    }
+
+    const duration = Duration.fromMillis(diffMillis).shiftTo('hours', 'minutes', 'seconds').normalize();
+    const hours = Math.floor(duration.hours);
+    const minutes = Math.floor(duration.minutes);
+    const seconds = Math.floor(duration.seconds);
+    const parts: string[] = [];
+
+    if (hours > 0) {
+        parts.push(`${hours}h`);
+    }
+
+    if (minutes > 0 || hours > 0) {
+        parts.push(`${minutes}m`);
+    }
+
+    parts.push(`${seconds}s`);
+
+    return parts.join(' ');
+};
 
 const statusText = computed(() => lastStatus.value ?? '—');
 const timeText = computed(() => lastTime.value ?? '—');
@@ -641,6 +740,68 @@ const activeHoursParts = computed(() => {
 
 const activeHoursStart = computed(() => activeHoursParts.value.start);
 const activeHoursEnd = computed(() => activeHoursParts.value.end);
+
+const timePickerOptions = computed<Partial<RootProps>>(() => ({
+    timePicker: true,
+    autoApply: true,
+    closeOnAutoApply: true,
+    textInput: false,
+    placeholder: $gettext('Select time'),
+    dark: true,
+    ui: {
+        input: 'form-control form-control-dark'
+    },
+    timeConfig: {
+        is24: false,
+        minutesIncrement: 5,
+        secondsIncrement: 1,
+        enableSeconds: false,
+    }
+}));
+
+const timeStringToPickerValue = (value: string): AiNewsTimeValue | null => {
+    if (!value) {
+        return null;
+    }
+
+    const parsed = DateTime.fromFormat(value, 'HH:mm');
+    if (!parsed.isValid) {
+        return null;
+    }
+
+    return {
+        hours: parsed.hour,
+        minutes: parsed.minute,
+        seconds: 0,
+    };
+};
+
+const pickerValueToTimeString = (value: AiNewsTimeValue | null) => {
+    if (!value) {
+        return '';
+    }
+
+    return DateTime.fromObject({
+        hour: value.hours,
+        minute: value.minutes,
+        second: value.seconds ?? 0,
+    }).toFormat('HH:mm');
+};
+
+const activeHoursStartPicker = computed<AiNewsTimeValue | null>({
+    get: () => timeStringToPickerValue(activeHoursStart.value),
+    set: (value) => {
+        updateActiveHours(pickerValueToTimeString(value), activeHoursEnd.value);
+    }
+});
+
+const activeHoursEndPicker = computed<AiNewsTimeValue | null>({
+    get: () => timeStringToPickerValue(activeHoursEnd.value),
+    set: (value) => {
+        updateActiveHours(activeHoursStart.value, pickerValueToTimeString(value));
+    }
+});
+
 const hasBroadcastSlotSelected = computed(() => form.value.ai_news_top_of_hour || form.value.ai_news_bottom_of_hour);
 const broadcastSlotLabels = computed(() => {
     const labels: string[] = [];
@@ -669,7 +830,7 @@ const liveBadgeText = computed(() => {
 const enabledDescription = computed(() => {
     return form.value.ai_news_enabled
         ? $gettext('The generator is allowed to run during the configured window.')
-        : $gettext('Generation is disabled until you re-enable the bulletin.')
+        : $gettext('Generation is disabled until you re-enable the bulletin.');
 });
 
 const statusTone = computed(() => {
@@ -706,15 +867,23 @@ const nextBulletinText = computed(() => {
         return '—';
     }
 
-    return dashboardNextBulletinTime.value ?? form.value.ai_news_active_hours?.trim() ?? $gettext('Within active window');
+    if (dashboardNextBulletinTime.value) {
+        const datetime = formatBrowserDateTime(dashboardNextBulletinTime.value);
+        const remaining = formatRelativeDuration(dashboardNextBulletinTime.value);
+        return remaining && remaining !== '—'
+            ? `${datetime}\n${remaining}`
+            : datetime;
+    }
+
+    return form.value.ai_news_active_hours?.trim() ?? $gettext('Within active window');
 });
 
 const currentTimeText = computed(() => {
     if (dashboardCurrentTime.value) {
-        return dashboardCurrentTime.value;
+        return formatBrowserNow(browserNow.value);
     }
 
-    return currentTime.value;
+    return formatBrowserNow(browserNow.value);
 });
 
 const ttsEngineText = computed(() => {
@@ -727,7 +896,7 @@ const latestBulletinText = computed(() => {
     }
 
     if (latestBulletin.value?.generated_at) {
-        return $gettext('The latest successful bulletin was generated at: ') + latestBulletin.value.generated_at;
+        return $gettext('The latest successful bulletin was generated at: ') + formatBrowserDateTime(latestBulletin.value.generated_at);
     }
 
     if (lastStatus.value === 'error' && lastError.value) {
@@ -835,31 +1004,37 @@ const statusCards = computed(() => {
         {
             label: $gettext('Bulletin Schedule'),
             value: scheduleText.value,
+            helper: '',
             tone: form.value.ai_news_enabled ? 'tone-green' : 'tone-red'
         },
         {
             label: $gettext('Next Bulletin'),
             value: nextBulletinText.value,
+            helper: dashboardNextBulletinTime.value ? browserTimezone : '',
             tone: 'tone-yellow'
         },
         {
             label: $gettext('Last Generated'),
-            value: latestBulletin.value?.generated_at ?? (timeText.value === '—' ? $gettext('Never') : timeText.value),
+            value: latestBulletin.value?.generated_at ? formatBrowserDateTime(latestBulletin.value.generated_at) : (timeText.value === '—' ? $gettext('Never') : formatBrowserDateTime(timeText.value, timeText.value)),
+            helper: latestBulletin.value?.generated_at ? browserTimezone : '',
             tone: 'tone-blue'
         },
         {
             label: $gettext('Current Time'),
             value: currentTimeText.value,
+            helper: browserTimezone,
             tone: 'tone-default'
         },
         {
             label: $gettext('Stream Output'),
             value: audioAvailable.value ? $gettext('Latest bulletin ready') : statusText.value,
+            helper: '',
             tone: audioAvailable.value ? 'tone-green' : statusTone.value
         },
         {
             label: $gettext('TTS Engine'),
             value: ttsEngineText.value,
+            helper: '',
             tone: 'tone-blue'
         }
     ];
@@ -898,7 +1073,9 @@ const sourceStatusLabel = (status: string) => {
 };
 
 const appendLog = (message: string, type = 'log-info') => {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = browserNow.value?.isValid
+        ? browserNow.value.toLocaleString(displayTimeFormat)
+        : DateTime.now().setZone(browserTimezone).toLocaleString(displayTimeFormat);
 
     logCounter.value += 1;
     logEntries.value = [
@@ -945,7 +1122,7 @@ const hydrateFromResponse = (data: AiNewsResponse) => {
     setInitialLogs();
 
     if (latestBulletin.value?.generated_at) {
-        appendLog($gettext('Latest bulletin completed successfully at ') + latestBulletin.value.generated_at, 'log-ok');
+        appendLog($gettext('Latest bulletin completed successfully at ') + formatBrowserDateTime(latestBulletin.value.generated_at), 'log-ok');
     } else if (lastStatus.value === 'error' && lastError.value) {
         appendLog($gettext('Latest bulletin failed: ') + lastError.value, 'log-err');
     }
@@ -966,14 +1143,17 @@ const relist = async () => {
 };
 
 const timeTicker = window.setInterval(() => {
-    currentTime.value = new Date().toLocaleTimeString();
+    browserNow.value = DateTime.now().setZone(browserTimezone);
 }, 1000);
 
 onUnmounted(() => {
     window.clearInterval(timeTicker);
 });
 
-onMounted(relist);
+onMounted(() => {
+    browserNow.value = DateTime.now().setZone(browserTimezone);
+    void relist();
+});
 
 const saveChanges = async () => {
     const {valid} = await r$.$validate();
@@ -1039,16 +1219,6 @@ const updateActiveHours = (start: string, end: string) => {
     }
 
     form.value.ai_news_active_hours = `${normalizedStart}-${normalizedEnd}`;
-};
-
-const updateActiveHoursStart = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    updateActiveHours(target.value, activeHoursEnd.value);
-};
-
-const updateActiveHoursEnd = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    updateActiveHours(activeHoursStart.value, target.value);
 };
 
 const refreshHeadlinePreview = () => {
@@ -1194,6 +1364,13 @@ const refreshHeadlinePreview = () => {
     color: #e2e8f0;
     font-size: 1.05rem;
     font-weight: 600;
+    white-space: pre-line;
+}
+
+.stat-helper {
+    margin-top: 0.35rem;
+    color: #94a3b8;
+    font-size: 0.75rem;
 }
 
 .tone-green {
@@ -1214,6 +1391,10 @@ const refreshHeadlinePreview = () => {
 
 .tone-muted {
     color: #94a3b8;
+}
+
+.tone-default {
+    color: #e2e8f0;
 }
 
 .content-grid {
@@ -1574,6 +1755,51 @@ const refreshHeadlinePreview = () => {
     opacity: 1;
 }
 
+.ai-news-time-picker {
+    width: 100%;
+}
+
+.ai-news-time-picker :deep(.dp__main),
+.ai-news-time-picker :deep(.dp__input_wrap) {
+    width: 100%;
+}
+
+.ai-news-time-picker :deep(.dp__input_icon),
+.ai-news-time-picker :deep(.dp--time-overlay-btn) {
+    display: none;
+}
+
+.ai-news-time-picker :deep(.dp__input),
+.ai-news-time-picker :deep(.dp__input_icon_pad) {
+    width: 100%;
+    padding-left: 0.75rem !important;
+    border: 1px solid #2a2d3e;
+    background: #0f1117;
+    color: #e2e8f0;
+}
+
+.ai-news-time-picker :deep(.dp__input:focus) {
+    border-color: #4f8ef7;
+    box-shadow: 0 0 0 0.2rem rgba(79, 142, 247, 0.15);
+}
+
+.ai-news-time-picker :deep(.dp__theme_dark) {
+    --dp-background-color: #111827;
+    --dp-text-color: #e2e8f0;
+    --dp-hover-color: #1f2937;
+    --dp-hover-text-color: #e2e8f0;
+    --dp-primary-color: #4f8ef7;
+    --dp-primary-text-color: #ffffff;
+    --dp-border-color: #2a2d3e;
+    --dp-menu-border-color: #2a2d3e;
+}
+
+.time-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
 .time-field {
     display: flex;
     flex-direction: column;
@@ -1725,3 +1951,4 @@ const refreshHeadlinePreview = () => {
     }
 }
 </style>
+

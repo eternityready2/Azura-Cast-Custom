@@ -344,9 +344,8 @@ final class AiNewsGenerator
         $lines[] = $intro;
         $lines[] = '';
 
-        foreach ($headlines as $i => $item) {
-            $num = $i + 1;
-            $line = sprintf('%d. %s.', $num, $item['title']);
+        foreach ($headlines as $item) {
+            $line = rtrim($item['title'], ".!? ") . '.';
 
             if ('' !== $item['description']) {
                 $line .= ' ' . $this->truncateAtSentenceEnd($item['description']);

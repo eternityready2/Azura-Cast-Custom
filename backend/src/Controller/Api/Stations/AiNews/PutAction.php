@@ -48,6 +48,14 @@ final class PutAction implements SingleActionInterface
         'ai_news_outro',
     ];
 
+    /** @var array<int, string> */
+    private const array RESTART_REQUIRED_FIELDS = [
+        'ai_news_enabled',
+        'ai_news_active_hours',
+        'ai_news_top_of_hour',
+        'ai_news_bottom_of_hour',
+    ];
+
     public function __invoke(
         ServerRequest $request,
         Response $response,
@@ -57,6 +65,7 @@ final class PutAction implements SingleActionInterface
 
         $station = $this->em->refetch($request->getStation());
         $backendConfig = $station->backend_config;
+        $originalBackendConfig = clone $backendConfig;
 
         foreach (self::VALID_FIELDS as $field) {
             if (array_key_exists($field, $body)) {
@@ -68,11 +77,27 @@ final class PutAction implements SingleActionInterface
             $backendConfig->ai_news_top_of_hour = true;
         }
 
+        $requiresRestart = $this->requiresRestart($originalBackendConfig, $backendConfig);
+
         $station->backend_config = $backendConfig;
+        if (!$requiresRestart) {
+            $station->needs_restart = false;
+        }
 
         $this->em->persist($station);
         $this->em->flush();
 
         return $response->withJson(Status::updated());
+    }
+
+    private function requiresRestart(object $originalBackendConfig, object $updatedBackendConfig): bool
+    {
+        foreach (self::RESTART_REQUIRED_FIELDS as $field) {
+            if ($originalBackendConfig->$field !== $updatedBackendConfig->$field) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
