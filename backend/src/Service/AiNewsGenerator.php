@@ -82,17 +82,6 @@ final class AiNewsGenerator
             return true;
         }
 
-        if (!$force && !$this->isScheduledMinute(
-            $backendConfig->ai_news_top_of_hour,
-            $backendConfig->ai_news_bottom_of_hour,
-            $station
-        )) {
-            $this->logger->debug(
-                sprintf('Outside scheduled broadcast minute for station "%s".', $station->name)
-            );
-            return true;
-        }
-
         try {
             $maxHeadlines = max(1, min(self::MAX_STORY_COUNT, $backendConfig->ai_news_story_count));
             $startTime = microtime(true);
@@ -200,15 +189,6 @@ final class AiNewsGenerator
         }
 
         return true;
-    }
-
-    private function isScheduledMinute(bool $topOfHour, bool $bottomOfHour, Station $station): bool
-    {
-        $nowMinute = (int) (new DateTimeImmutable('now', $station->getTimezoneObject()))->format('i');
-        $topSelected = $topOfHour || !$bottomOfHour;
-
-        return ($topSelected && 0 === $nowMinute)
-            || ($bottomOfHour && 30 === $nowMinute);
     }
 
     /**
