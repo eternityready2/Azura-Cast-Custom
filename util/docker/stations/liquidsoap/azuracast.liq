@@ -565,7 +565,7 @@ def azuracast.live_aware_crossfade_impl(old, new) =
     if ai_news_transition then
         # Let the current track finish, then ease into the bulletin.
         log.info(label="azuracast.crossfade", "Applying AI News safe transition...")
-        sequence([
+        add(normalize=false, [
             old.source,
             fade.in(duration=ai_news_fade, new.source)
         ])
