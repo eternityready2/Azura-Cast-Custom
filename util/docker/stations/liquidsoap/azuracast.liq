@@ -556,7 +556,20 @@ def azuracast.live_aware_crossfade_impl(old, new) =
         fun (m) -> log.info(label="azuracast.crossfade", "New metadata: #{fst(m)} -> #{snd(m)}"),
         metadata.cover.remove(new.metadata)
     )
-    if azuracast.to_live() then
+
+    old_is_ai_news = old.metadata["azuracast_ai_news"] == "true"
+    new_is_ai_news = new.metadata["azuracast_ai_news"] == "true"
+    ai_news_transition = old_is_ai_news or new_is_ai_news
+    ai_news_fade = 0.35
+
+    if ai_news_transition then
+        # Let the current track finish, then ease into the bulletin.
+        log.info(label="azuracast.crossfade", "Applying AI News safe transition...")
+        sequence([
+            old.source,
+            fade.in(duration=ai_news_fade, new.source)
+        ])
+    elsif azuracast.to_live() then
         # If going to the live show, play a simple sequence
         # fade out AutoDJ, do (almost) not fade in streamer
         log.info(label="azuracast.crossfade", "Fading to live...")
