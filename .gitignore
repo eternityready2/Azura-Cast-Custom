@@ -26,6 +26,9 @@ tmp/cache/*---*
 /web/static/yarn-error.log
 /util/package_usage_report*
 /auth.json
+/.playwright-mcp/
+/.sisyphus/
+/news_bulletin.azuratest_radio.mp3
 
 # Composer-generated content
 /vendor/*

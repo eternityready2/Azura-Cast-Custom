@@ -292,6 +292,80 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     #[OA\Property]
     public bool $share_encoders = false;
 
+    /** AI News Bulletin Settings */
+
+    #[OA\Property]
+    public bool $ai_news_enabled = false {
+        set (bool|string|null $value) => Types::bool($value, false, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_intro = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_reporter_name = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public string $ai_news_source_urls = '' {
+        set (?string $value) => Types::string($value, '', true);
+    }
+
+    #[OA\Property]
+    public int $ai_news_story_count = 10 {
+        set (int|string|null $value) => max(1, min(25, Types::int($value, 10)));
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_active_hours = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public bool $ai_news_top_of_hour = true {
+        set (bool|string|null $value) => Types::bool($value, true, true);
+    }
+
+    #[OA\Property]
+    public bool $ai_news_bottom_of_hour = false {
+        set (bool|string|null $value) => Types::bool($value, false, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_voice_model_path = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_outro = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_last_generation_status = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_last_generation_time = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
+    public ?string $ai_news_last_error = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property(
+        description: 'Latest bulletin metadata (structured)',
+        type: 'object',
+        additionalProperties: true
+    )]
+    public ?array $ai_news_latest_bulletin = null;
+
     /*
      * Liquidsoap Custom Configuration Sections
      */

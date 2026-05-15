@@ -1103,6 +1103,32 @@ return static function (RouteCollectorProxy $group) {
                         }
                     )->add(new Middleware\Permissions(StationPermissions::Broadcasting, true));
 
+                    // AI News Bulletin Settings
+                    $group->group(
+                        '/ai-news',
+                        function (RouteCollectorProxy $group) {
+                            $group->get(
+                                '',
+                                Controller\Api\Stations\AiNews\GetAction::class
+                            )->setName('api:stations:ai-news');
+
+                            $group->put(
+                                '',
+                                Controller\Api\Stations\AiNews\PutAction::class
+                            );
+
+                            $group->post(
+                                '/test',
+                                Controller\Api\Stations\AiNews\TestPostAction::class
+                            )->setName('api:stations:ai-news:test');
+
+                            $group->get(
+                                '/bulletin',
+                                Controller\Api\Stations\AiNews\BulletinGetAction::class
+                            )->setName('api:stations:ai-news:bulletin');
+                        }
+                    )->add(new Middleware\Permissions(StationPermissions::Broadcasting, true));
+
                     // Logs
                     $group->group(
                         '',

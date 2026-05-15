@@ -2262,6 +2262,14 @@ export interface StationBackendConfiguration {
   custom_config?: string | null;
   /** Custom Liquidsoap Configuration: Post-Broadcast Section */
   custom_config_bottom?: string | null;
+  ai_news_enabled?: boolean;
+  ai_news_intro?: string | null;
+  ai_news_source_urls?: string | null;
+  ai_news_active_hours?: string | null;
+  ai_news_voice_model_path?: string | null;
+  ai_news_last_generation_status?: string | null;
+  ai_news_last_generation_time?: string | null;
+  ai_news_last_error?: string | null;
 }
 
 export interface StationBrandingConfiguration {

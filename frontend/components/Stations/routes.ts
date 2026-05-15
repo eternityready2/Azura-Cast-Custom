@@ -57,6 +57,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:stereo_tool_config',
                 },
                 {
+                    path: 'ai_news',
+                    component: () => import('~/components/Stations/AiNews.vue'),
+                    name: 'stations:ai_news'
+                },
+                {
                     path: 'logs',
                     component: () => import('~/components/Stations/Logs.vue'),
                     name: 'stations:logs'

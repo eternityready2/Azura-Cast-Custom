@@ -28,7 +28,6 @@ use App\Radio\Enums\StreamProtocols;
 use App\Radio\FallbackFile;
 use App\Radio\StereoTool;
 use App\Utilities\ScheduleRecurrence;
-use App\Utilities\Strings;
 use App\Utilities\Types;
 use Carbon\CarbonImmutable;
 use RuntimeException;
@@ -54,6 +53,7 @@ final class ConfigWriter implements EventSubscriberInterface
             WriteLiquidsoapConfiguration::class => [
                 ['writeHeaderFunctions', 35],
                 ['writePlaylistConfiguration', 30],
+                ['writeNewsBulletinConfiguration', 28],
                 ['writeCrossfadeConfiguration', 25],
                 ['writeHarborConfiguration', 20],
                 ['writePreBroadcastConfiguration', 10],
@@ -485,6 +485,46 @@ final class ConfigWriter implements EventSubscriberInterface
                 );
             }
         }
+    }
+
+    public function writeNewsBulletinConfiguration(WriteLiquidsoapConfiguration $event): void
+    {
+        $station = $event->getStation();
+        $backendConfig = $event->getBackendConfig();
+
+        if (!($backendConfig->ai_news_enabled ?? false)) {
+            return;
+        }
+
+        $bulletinPath = self::toRawString(
+            $station->getRadioTempDir() . '/news_bulletin.mp3'
+        );
+
+        $scheduleMinutes = [];
+
+        if ($backendConfig->ai_news_top_of_hour ?? true) {
+            $scheduleMinutes[] = 0;
+        }
+
+        if ($backendConfig->ai_news_bottom_of_hour ?? false) {
+            $scheduleMinutes[] = 30;
+        }
+
+        if ([] === $scheduleMinutes) {
+            $scheduleMinutes[] = 0;
+        }
+
+        $cronMinutes = implode(',', $scheduleMinutes);
+
+        $event->appendBlock(
+            <<<LIQ
+            news_bulletin_path = {$bulletinPath}
+            def queue_news_bulletin() =
+              requests.push(request.create(news_bulletin_path))
+            end
+            cron.add("{$cronMinutes} * * * *", {queue_news_bulletin()})
+            LIQ
+        );
     }
 
     public function writeCrossfadeConfiguration(WriteLiquidsoapConfiguration $event): void

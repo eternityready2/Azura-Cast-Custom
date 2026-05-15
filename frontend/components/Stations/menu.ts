@@ -275,6 +275,15 @@ export function useStationsMenu() {
             ]
         },
         {
+            key: 'ai_news',
+            label: $gettext('AI News Bulletin'),
+            icon: () => IconBiBroadcast,
+            url: {
+                name: 'stations:ai_news'
+            },
+            visible: () => userAllowedForStation(StationPermissions.Broadcasting)
+        },
+        {
             key: 'broadcasting',
             label: $gettext('Broadcasting'),
             icon: () => IconBiBroadcast,
