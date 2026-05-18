@@ -30,7 +30,7 @@ final class Version20260509000000 extends AbstractMigration
             SET
                 ai_news_last_generation_status = JSON_UNQUOTE(JSON_EXTRACT(backend_config, '$.ai_news_last_generation_status')),
                 ai_news_last_generation_time = STR_TO_DATE(
-                    JSON_UNQUOTE(JSON_EXTRACT(backend_config, '$.ai_news_last_generation_time')),
+                    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(backend_config, '$.ai_news_last_generation_time')), 'null'),
                     '%Y-%m-%dT%H:%i:%sZ'
                 ),
                 ai_news_last_error = JSON_UNQUOTE(JSON_EXTRACT(backend_config, '$.ai_news_last_error')),
