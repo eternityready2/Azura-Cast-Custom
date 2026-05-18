@@ -40,7 +40,7 @@
                             {{ $gettext('This page mirrors the client dashboard while staying connected to the current AzuraCast AI News APIs.') }}
                         </p>
                         <p class="mb-0">
-                            {{ $gettext('Active hours format: HH:MM-HH:MM. Leave blank to run all day. Source URLs should be one per line.') }}
+                            {{ $gettext('Active hours format: HH:MM-HH:MM. Leave blank to run all day. Source URLs should be one per line, and regular website pages will be scraped before feed fallback is attempted.') }}
                         </p>
                     </div>
 
@@ -397,7 +397,7 @@
                                 :field="r$.ai_news_source_urls"
                             >
                                 <template #label>
-                                    {{ $gettext('RSS/Atom Feed Sources') }}
+                                    {{ $gettext('Website or Feed Sources') }}
                                 </template>
                                 <template #default="{id, model}">
                                     <textarea
@@ -408,7 +408,7 @@
                                     />
                                 </template>
                                 <template #description>
-                                    {{ $gettext('One RSS or Atom feed URL per line. Unsupported or non-feed URLs are skipped during generation unless a backend scraper is added for them.') }}
+                                    {{ $gettext('One source URL per line. The backend now tries to scrape website headlines first and falls back to RSS/Atom parsing when a feed is detected or HTML scraping returns nothing useful.') }}
                                 </template>
                             </form-group-field>
 
@@ -509,6 +509,7 @@ interface AiNewsHeadlinePreviewItem {
     title: string;
     description: string;
     source_url?: string;
+    source_type?: string;
 }
 
 interface AiNewsSourceResult {
@@ -516,6 +517,7 @@ interface AiNewsSourceResult {
     status: string;
     message: string;
     headline_count: number;
+    source_type?: string;
 }
 
 interface AiNewsVoiceOption {
@@ -636,19 +638,6 @@ const formatBrowserDateTime = (value: string | null | undefined, fallback = '—
     return parsed.setZone(browserTimezone).toLocaleString(displayDateTimeFormat);
 };
 
-const formatBrowserTime = (value: string | null | undefined, fallback = '—') => {
-    if (!value) {
-        return fallback;
-    }
-
-    const parsed = DateTime.fromISO(value, {setZone: true});
-    if (!parsed.isValid) {
-        return fallback;
-    }
-
-    return parsed.setZone(browserTimezone).toLocaleString(displayTimeFormat);
-};
-
 const formatBrowserNow = (value: DateTimeMaybeValid | null, fallback = '—') => {
     if (!value || !value.isValid) {
         return fallback;
@@ -757,18 +746,13 @@ const voiceSelectOptions = computed(() => {
 const sourceCatalog = [
     {
         label: $gettext('Worthy News'),
-        url: 'https://worthynews.com/feed/',
+        url: 'https://worthynews.com/',
         tone: 'src-worthy'
     },
     {
         label: $gettext('Rapture Ready'),
-        url: 'https://www.raptureready.com/category/rapture-ready-news/feed/',
+        url: 'https://www.raptureready.com/',
         tone: 'src-rapture'
-    },
-    {
-        label: $gettext('BBC World'),
-        url: 'https://feeds.bbci.co.uk/news/world/rss.xml',
-        tone: 'src-bbc'
     }
 ] as const;
 const dayOptions = [
@@ -1001,7 +985,7 @@ const fixedSources = computed(() => {
 
             return {
                 key: `custom-${index}-${url}`,
-                label: $gettext('Custom RSS/Atom Feed'),
+                label: $gettext('Custom Source'),
                 url,
                 active: activeUrls.includes(url),
                 status: result?.status ?? 'idle',
@@ -1058,7 +1042,7 @@ const headlinePreviewItems = computed(() => {
 
         return {
             id: `${index}-${item.title}`,
-            source: source?.label ?? $gettext('Feed'),
+            source: source?.label ?? (item.source_type === 'website' ? $gettext('Website') : $gettext('Feed')),
             title: item.title,
             summary: item.description || $gettext('No summary available for this story.'),
             tone: source?.tone ?? 'src-info'
@@ -1126,6 +1110,17 @@ const generateHelpText = computed(() => {
         : $gettext('Re-enable the bulletin before running a manual generation test.');
 });
 
+const sourceTypeLabel = (sourceType?: string) => {
+    switch (sourceType) {
+        case 'website':
+            return $gettext('Website');
+        case 'feed':
+            return $gettext('Feed');
+        default:
+            return $gettext('Source');
+    }
+};
+
 const sourceStatusLabel = (status: string) => {
     switch (status) {
         case 'ok':
@@ -1166,7 +1161,7 @@ const appendSourceResultsToLog = (sourceResults: AiNewsSourceResult[] = []) => {
             ? 'log-ok'
             : (result.status === 'skipped' ? 'log-err' : 'log-info');
 
-        appendLog(`[${label}] ${result.url} - ${result.message}${headlineSuffix}`, type);
+        appendLog(`[${label}] ${sourceTypeLabel(result.source_type)} ${result.url} - ${result.message}${headlineSuffix}`, type);
     });
 };
 
@@ -1254,7 +1249,7 @@ const runTest = async () => {
     }
 
     isTesting.value = true;
-    appendLog($gettext('Fetching headlines from configured RSS/Atom feeds...'), 'log-info');
+    appendLog($gettext('Fetching headlines from configured website and feed sources...'), 'log-info');
 
     try {
         const {data} = await axios.post<AiNewsTestResponse>(testUrl.value);
