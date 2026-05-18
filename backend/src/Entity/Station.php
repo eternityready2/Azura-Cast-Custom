@@ -631,6 +631,30 @@ final class Station implements Stringable, IdentifiableEntityInterface
         }
     }
 
+    #[
+        ORM\Column(type: 'string', length: 50, nullable: true),
+        Attributes\AuditIgnore
+    ]
+    public ?string $ai_news_last_generation_status = null;
+
+    #[
+        ORM\Column(type: 'datetime_immutable', precision: 6, nullable: true),
+        Attributes\AuditIgnore
+    ]
+    public ?\DateTimeImmutable $ai_news_last_generation_time = null;
+
+    #[
+        ORM\Column(type: 'text', nullable: true),
+        Attributes\AuditIgnore
+    ]
+    public ?string $ai_news_last_error = null;
+
+    #[
+        ORM\Column(type: 'json', nullable: true),
+        Attributes\AuditIgnore
+    ]
+    public ?array $ai_news_latest_bulletin = null;
+
     /** @var Collection<int, RolePermission> */
     #[ORM\OneToMany(targetEntity: RolePermission::class, mappedBy: 'station')]
     public private(set) Collection $permissions;

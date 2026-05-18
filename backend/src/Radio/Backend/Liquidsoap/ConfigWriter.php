@@ -522,6 +522,7 @@ final class ConfigWriter implements EventSubscriberInterface
         }
 
         $cronMinutes = implode(',', $scheduleMinutes);
+        $cronDays = self::buildAiNewsCronDays($backendConfig->ai_news_active_days ?? []);
 
         $newsBulletinQueueName = 'requests';
         $event->appendBlock(
@@ -531,9 +532,31 @@ final class ConfigWriter implements EventSubscriberInterface
             def queue_news_bulletin() =
               requests.push(request.create(news_bulletin_request))
             end
-            cron.add("{$cronMinutes} * * * *", {queue_news_bulletin()})
+            cron.add("{$cronMinutes} * * * {$cronDays}", {queue_news_bulletin()})
             LIQ
         );
+    }
+
+    private static function buildAiNewsCronDays(array $activeDays): string
+    {
+        $normalizedDays = array_map(
+            static fn(mixed $day): int => (int) $day,
+            $activeDays
+        );
+        $normalizedDays = array_values(array_unique(array_filter(
+            $normalizedDays,
+            static fn(int $day): bool => $day >= 1 && $day <= 7
+        )));
+        sort($normalizedDays);
+
+        if ([] === $normalizedDays) {
+            return '*';
+        }
+
+        return implode(',', array_map(
+            static fn(int $day): int => $day % 7,
+            $normalizedDays
+        ));
     }
 
     public function writeCrossfadeConfiguration(WriteLiquidsoapConfiguration $event): void

@@ -40,7 +40,7 @@
                             {{ $gettext('This page mirrors the client dashboard while staying connected to the current AzuraCast AI News APIs.') }}
                         </p>
                         <p class="mb-0">
-                            {{ $gettext('Active hours format: HH:MM-HH:MM. Leave blank to run all day. Source URLs should be one per line.') }}
+                            {{ $gettext('Active hours format: HH:MM-HH:MM. Leave blank to run all day. Source URLs should be one per line, and regular website pages will be scraped before feed fallback is attempted.') }}
                         </p>
                     </div>
 
@@ -353,6 +353,19 @@
                                         />
                                     </div>
                                 </div>
+                                <form-group-multi-check
+                                    id="edit_ai_news_active_days"
+                                    v-model="form.ai_news_active_days"
+                                    class="day-selector"
+                                    :options="dayOptions"
+                                >
+                                    <template #label>
+                                        {{ $gettext('Run On Days') }}
+                                    </template>
+                                    <template #description>
+                                        {{ $gettext('Leave all days unchecked to allow bulletins every day. Select one or more days to limit when scheduled bulletins can run.') }}
+                                    </template>
+                                </form-group-multi-check>
                                 <div class="broadcast-slots">
                                     <label class="broadcast-slot-option">
                                         <input
@@ -384,7 +397,7 @@
                                 :field="r$.ai_news_source_urls"
                             >
                                 <template #label>
-                                    {{ $gettext('RSS/Atom Feed Sources') }}
+                                    {{ $gettext('Website or Feed Sources') }}
                                 </template>
                                 <template #default="{id, model}">
                                     <textarea
@@ -395,7 +408,7 @@
                                     />
                                 </template>
                                 <template #description>
-                                    {{ $gettext('One RSS or Atom feed URL per line. Unsupported or non-feed URLs are skipped during generation unless a backend scraper is added for them.') }}
+                                    {{ $gettext('One source URL per line. The backend now tries to scrape website headlines first and falls back to RSS/Atom parsing when a feed is detected or HTML scraping returns nothing useful.') }}
                                 </template>
                             </form-group-field>
 
@@ -458,9 +471,11 @@ import {computed, onMounted, onUnmounted, ref} from "vue";
 import {useGettext} from "vue3-gettext";
 import {DateTimeMaybeValid} from "luxon";
 import FormGroupField from "~/components/Form/FormGroupField.vue";
+import FormGroupMultiCheck from "~/components/Form/FormGroupMultiCheck.vue";
 import FormSelect from "~/components/Form/FormSelect.vue";
 import Loading from "~/components/Common/Loading.vue";
 import mergeExisting from "~/functions/mergeExisting";
+import normalizeStationScheduleDays from "~/functions/normalizeStationScheduleDays";
 import {useResettableRef} from "~/functions/useResettableRef.ts";
 import {useAxios} from "~/vendor/axios";
 import {useNotify} from "~/components/Common/Toasts/useNotify.ts";
@@ -477,6 +492,7 @@ interface AiNewsForm {
     ai_news_source_urls: string | null;
     ai_news_story_count: number;
     ai_news_active_hours: string | null;
+    ai_news_active_days: number[];
     ai_news_top_of_hour: boolean;
     ai_news_bottom_of_hour: boolean;
     ai_news_voice_model_path: string | null;
@@ -493,6 +509,7 @@ interface AiNewsHeadlinePreviewItem {
     title: string;
     description: string;
     source_url?: string;
+    source_type?: string;
 }
 
 interface AiNewsSourceResult {
@@ -500,6 +517,7 @@ interface AiNewsSourceResult {
     status: string;
     message: string;
     headline_count: number;
+    source_type?: string;
 }
 
 interface AiNewsVoiceOption {
@@ -575,6 +593,7 @@ const {record: form, reset: resetForm} = useResettableRef<AiNewsForm>(() => ({
     ai_news_source_urls: null,
     ai_news_story_count: 10,
     ai_news_active_hours: null,
+    ai_news_active_days: [],
     ai_news_top_of_hour: true,
     ai_news_bottom_of_hour: false,
     ai_news_voice_model_path: null,
@@ -619,25 +638,39 @@ const formatBrowserDateTime = (value: string | null | undefined, fallback = '—
     return parsed.setZone(browserTimezone).toLocaleString(displayDateTimeFormat);
 };
 
-const formatBrowserTime = (value: string | null | undefined, fallback = '—') => {
-    if (!value) {
-        return fallback;
-    }
-
-    const parsed = DateTime.fromISO(value, {setZone: true});
-    if (!parsed.isValid) {
-        return fallback;
-    }
-
-    return parsed.setZone(browserTimezone).toLocaleString(displayTimeFormat);
-};
-
 const formatBrowserNow = (value: DateTimeMaybeValid | null, fallback = '—') => {
     if (!value || !value.isValid) {
         return fallback;
     }
 
     return value.toLocaleString(displayDateTimeFormat);
+};
+
+const formatStoredClockTime = (value: string, fallback = '—') => {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = DateTime.fromFormat(value, 'HH:mm');
+    if (!parsed.isValid) {
+        return fallback;
+    }
+
+    return parsed.toLocaleString(displayTimeFormat);
+};
+
+const formatActiveHoursRange = (value: string | null | undefined, fallback = '—') => {
+    const trimmedValue = value?.trim() ?? '';
+    if (!trimmedValue) {
+        return fallback;
+    }
+
+    const [start = '', end = ''] = trimmedValue.split('-');
+    if (!start || !end) {
+        return trimmedValue;
+    }
+
+    return `${formatStoredClockTime(start, start)} - ${formatStoredClockTime(end, end)}`;
 };
 
 const formatRelativeDuration = (targetIso: string | null | undefined) => {
@@ -713,20 +746,24 @@ const voiceSelectOptions = computed(() => {
 const sourceCatalog = [
     {
         label: $gettext('Worthy News'),
-        url: 'https://worthynews.com/feed/',
+        url: 'https://worthynews.com/',
         tone: 'src-worthy'
     },
     {
         label: $gettext('Rapture Ready'),
-        url: 'https://www.raptureready.com/category/rapture-ready-news/feed/',
+        url: 'https://www.raptureready.com/',
         tone: 'src-rapture'
-    },
-    {
-        label: $gettext('BBC World'),
-        url: 'https://feeds.bbci.co.uk/news/world/rss.xml',
-        tone: 'src-bbc'
     }
 ] as const;
+const dayOptions = [
+    {value: 1, text: $gettext('Monday')},
+    {value: 2, text: $gettext('Tuesday')},
+    {value: 3, text: $gettext('Wednesday')},
+    {value: 4, text: $gettext('Thursday')},
+    {value: 5, text: $gettext('Friday')},
+    {value: 6, text: $gettext('Saturday')},
+    {value: 7, text: $gettext('Sunday')}
+];
 
 const activeHoursParts = computed(() => {
     const value = form.value.ai_news_active_hours?.trim() ?? '';
@@ -816,6 +853,18 @@ const broadcastSlotLabels = computed(() => {
 
     return labels;
 });
+const activeDayLabels = computed(() => {
+    const days = normalizeStationScheduleDays(form.value.ai_news_active_days);
+
+    if (days.length === 0) {
+        return $gettext('Every day');
+    }
+
+    return dayOptions
+        .filter((option) => days.includes(option.value))
+        .map((option) => option.text)
+        .join(', ');
+});
 
 const liveBadgeClass = computed(() => {
     return form.value.ai_news_enabled ? 'is-live' : 'is-off';
@@ -856,10 +905,12 @@ const scheduleText = computed(() => {
         return $gettext('OFF');
     }
 
-    const activeWindow = form.value.ai_news_active_hours?.trim() || $gettext('All Day');
+    const activeWindow = form.value.ai_news_active_hours?.trim()
+        ? formatActiveHoursRange(form.value.ai_news_active_hours, form.value.ai_news_active_hours)
+        : $gettext('All Day');
     const slotSummary = broadcastSlotLabels.value.join(', ') || $gettext('No slots selected');
 
-    return `${activeWindow} • ${slotSummary}`;
+    return `${activeWindow}\n${activeDayLabels.value}\n${slotSummary}`;
 });
 
 const nextBulletinText = computed(() => {
@@ -934,7 +985,7 @@ const fixedSources = computed(() => {
 
             return {
                 key: `custom-${index}-${url}`,
-                label: $gettext('Custom RSS/Atom Feed'),
+                label: $gettext('Custom Source'),
                 url,
                 active: activeUrls.includes(url),
                 status: result?.status ?? 'idle',
@@ -991,7 +1042,7 @@ const headlinePreviewItems = computed(() => {
 
         return {
             id: `${index}-${item.title}`,
-            source: source?.label ?? $gettext('Feed'),
+            source: source?.label ?? (item.source_type === 'website' ? $gettext('Website') : $gettext('Feed')),
             title: item.title,
             summary: item.description || $gettext('No summary available for this story.'),
             tone: source?.tone ?? 'src-info'
@@ -1059,6 +1110,17 @@ const generateHelpText = computed(() => {
         : $gettext('Re-enable the bulletin before running a manual generation test.');
 });
 
+const sourceTypeLabel = (sourceType?: string) => {
+    switch (sourceType) {
+        case 'website':
+            return $gettext('Website');
+        case 'feed':
+            return $gettext('Feed');
+        default:
+            return $gettext('Source');
+    }
+};
+
 const sourceStatusLabel = (status: string) => {
     switch (status) {
         case 'ok':
@@ -1099,7 +1161,7 @@ const appendSourceResultsToLog = (sourceResults: AiNewsSourceResult[] = []) => {
             ? 'log-ok'
             : (result.status === 'skipped' ? 'log-err' : 'log-info');
 
-        appendLog(`[${label}] ${result.url} - ${result.message}${headlineSuffix}`, type);
+        appendLog(`[${label}] ${sourceTypeLabel(result.source_type)} ${result.url} - ${result.message}${headlineSuffix}`, type);
     });
 };
 
@@ -1112,6 +1174,7 @@ const hydrateFromResponse = (data: AiNewsResponse) => {
     resetForm();
     r$.$reset();
     form.value = mergeExisting(form.value, data);
+    form.value.ai_news_active_days = normalizeStationScheduleDays(form.value.ai_news_active_days);
 
     lastStatus.value = data.ai_news_last_generation_status ?? null;
     lastTime.value = data.ai_news_last_generation_time ?? null;
@@ -1167,6 +1230,8 @@ const saveChanges = async () => {
         return;
     }
 
+    form.value.ai_news_active_days = normalizeStationScheduleDays(form.value.ai_news_active_days);
+
     const {data} = await axios.put<ApiStatus>(apiUrl.value, form.value);
 
     notifySuccess(data.message);
@@ -1184,7 +1249,7 @@ const runTest = async () => {
     }
 
     isTesting.value = true;
-    appendLog($gettext('Fetching headlines from configured RSS/Atom feeds...'), 'log-info');
+    appendLog($gettext('Fetching headlines from configured website and feed sources...'), 'log-info');
 
     try {
         const {data} = await axios.post<AiNewsTestResponse>(testUrl.value);

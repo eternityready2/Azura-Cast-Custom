@@ -49,13 +49,14 @@ final class GetAction implements SingleActionInterface
             'ai_news_source_urls' => $backendConfig->ai_news_source_urls,
             'ai_news_story_count' => $backendConfig->ai_news_story_count,
             'ai_news_active_hours' => $backendConfig->ai_news_active_hours,
+            'ai_news_active_days' => $backendConfig->ai_news_active_days,
             'ai_news_top_of_hour' => $backendConfig->ai_news_top_of_hour,
             'ai_news_bottom_of_hour' => $backendConfig->ai_news_bottom_of_hour,
             'ai_news_voice_model_path' => $backendConfig->ai_news_voice_model_path,
             'ai_news_outro' => $backendConfig->ai_news_outro,
-            'ai_news_last_generation_status' => $backendConfig->ai_news_last_generation_status,
-            'ai_news_last_generation_time' => $backendConfig->ai_news_last_generation_time,
-            'ai_news_last_error' => $backendConfig->ai_news_last_error,
+            'ai_news_last_generation_status' => $station->ai_news_last_generation_status,
+            'ai_news_last_generation_time' => $station->ai_news_last_generation_time?->format('Y-m-d\TH:i:s\Z'),
+            'ai_news_last_error' => $station->ai_news_last_error,
             'dashboard' => $this->buildDashboardPayload($station),
             'voice_options' => AiNewsGenerator::AVAILABLE_VOICE_MODELS,
         ]);
@@ -66,8 +67,8 @@ final class GetAction implements SingleActionInterface
         $backendConfig = $station->backend_config;
         $bulletinPath = $station->getRadioTempDir() . '/' . AiNewsGenerator::OUTPUT_FILENAME;
         $fileExists = file_exists($bulletinPath);
-        $latestBulletin = is_array($backendConfig->ai_news_latest_bulletin)
-            ? $backendConfig->ai_news_latest_bulletin
+        $latestBulletin = is_array($station->ai_news_latest_bulletin)
+            ? $station->ai_news_latest_bulletin
             : [];
 
         $fileInfo = null;
@@ -92,6 +93,7 @@ final class GetAction implements SingleActionInterface
             'file_info' => $fileInfo,
             'next_bulletin_time' => self::computeNextBulletinTime(
                 $backendConfig->ai_news_active_hours,
+                $backendConfig->ai_news_active_days,
                 $station,
                 $backendConfig->ai_news_top_of_hour,
                 $backendConfig->ai_news_bottom_of_hour
@@ -105,6 +107,7 @@ final class GetAction implements SingleActionInterface
 
     private static function computeNextBulletinTime(
         ?string $activeHours,
+        array $activeDays,
         \App\Entity\Station $station,
         bool $topOfHour,
         bool $bottomOfHour
@@ -113,11 +116,12 @@ final class GetAction implements SingleActionInterface
             return null;
         }
 
+        $activeDays = self::normalizeActiveDays($activeDays);
         $now = new \DateTimeImmutable('now', $station->getTimezoneObject());
         $scheduleMinutes = self::getScheduleMinutes($topOfHour, $bottomOfHour);
 
         if (null === $activeHours || '' === trim($activeHours)) {
-            return self::findNextScheduledTime($now, $scheduleMinutes)?->format(DATE_ATOM);
+            return self::findNextScheduledTime($now, $scheduleMinutes, $activeDays)?->format(DATE_ATOM);
         }
 
         $activeHours = trim($activeHours);
@@ -126,17 +130,17 @@ final class GetAction implements SingleActionInterface
             $startMinutes = ((int) $matches[1]) * 60 + (int) $matches[2];
             $endMinutes = ((int) $matches[3]) * 60 + (int) $matches[4];
 
-            return self::findNextScheduledTimeInWindow($now, $scheduleMinutes, $startMinutes, $endMinutes)?->format(DATE_ATOM);
+            return self::findNextScheduledTimeInWindow($now, $scheduleMinutes, $startMinutes, $endMinutes, $activeDays)?->format(DATE_ATOM);
         }
 
         if (preg_match('/^(\d{1,2})-(\d{1,2})$/', $activeHours, $matches)) {
             $startMinutes = ((int) $matches[1]) * 60;
             $endMinutes = ((int) $matches[2]) * 60;
 
-            return self::findNextScheduledTimeInWindow($now, $scheduleMinutes, $startMinutes, $endMinutes)?->format(DATE_ATOM);
+            return self::findNextScheduledTimeInWindow($now, $scheduleMinutes, $startMinutes, $endMinutes, $activeDays)?->format(DATE_ATOM);
         }
 
-        return self::findNextScheduledTime($now, $scheduleMinutes)?->format(DATE_ATOM);
+        return self::findNextScheduledTime($now, $scheduleMinutes, $activeDays)?->format(DATE_ATOM);
     }
 
     private static function getScheduleMinutes(bool $topOfHour, bool $bottomOfHour): array
@@ -156,15 +160,44 @@ final class GetAction implements SingleActionInterface
         return $scheduleMinutes;
     }
 
+    private static function normalizeActiveDays(array $activeDays): array
+    {
+        $normalizedDays = array_map(
+            static fn(mixed $day): int => (int) $day,
+            $activeDays
+        );
+        $normalizedDays = array_values(array_unique(array_filter(
+            $normalizedDays,
+            static fn(int $day): bool => $day >= 1 && $day <= 7
+        )));
+        sort($normalizedDays);
+
+        return $normalizedDays;
+    }
+
+    private static function isWeekdayAllowed(\DateTimeImmutable $candidate, array $activeDays): bool
+    {
+        if ([] === $activeDays) {
+            return true;
+        }
+
+        return in_array((int) $candidate->format('N'), $activeDays, true);
+    }
+
     private static function findNextScheduledTime(
         \DateTimeImmutable $now,
-        array $scheduleMinutes
+        array $scheduleMinutes,
+        array $activeDays
     ): ?\DateTimeImmutable {
-        for ($hourOffset = 0; $hourOffset <= 24; $hourOffset++) {
+        for ($hourOffset = 0; $hourOffset <= 168; $hourOffset++) {
             $candidateHour = $now->modify(sprintf('+%d hour', $hourOffset));
 
             foreach ($scheduleMinutes as $minute) {
                 $candidate = $candidateHour->setTime((int) $candidateHour->format('G'), $minute);
+                if (!self::isWeekdayAllowed($candidate, $activeDays)) {
+                    continue;
+                }
+
                 if ($candidate > $now) {
                     return $candidate;
                 }
@@ -178,15 +211,20 @@ final class GetAction implements SingleActionInterface
         \DateTimeImmutable $now,
         array $scheduleMinutes,
         int $startMinutes,
-        int $endMinutes
+        int $endMinutes,
+        array $activeDays
     ): ?\DateTimeImmutable {
-        for ($hourOffset = 0; $hourOffset <= 48; $hourOffset++) {
+        for ($hourOffset = 0; $hourOffset <= 168; $hourOffset++) {
             $candidateHour = $now->modify(sprintf('+%d hour', $hourOffset));
             $hour = (int) $candidateHour->format('G');
 
             foreach ($scheduleMinutes as $minute) {
                 $candidate = $candidateHour->setTime($hour, $minute);
                 $candidateMinutes = $hour * 60 + $minute;
+
+                if (!self::isWeekdayAllowed($candidate, $activeDays)) {
+                    continue;
+                }
 
                 if (!self::isMinuteWithinWindow($candidateMinutes, $startMinutes, $endMinutes)) {
                     continue;

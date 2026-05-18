@@ -42,6 +42,7 @@ final class PutAction implements SingleActionInterface
         'ai_news_source_urls',
         'ai_news_story_count',
         'ai_news_active_hours',
+        'ai_news_active_days',
         'ai_news_top_of_hour',
         'ai_news_bottom_of_hour',
         'ai_news_voice_model_path',
@@ -52,6 +53,7 @@ final class PutAction implements SingleActionInterface
     private const array RESTART_REQUIRED_FIELDS = [
         'ai_news_enabled',
         'ai_news_active_hours',
+        'ai_news_active_days',
         'ai_news_top_of_hour',
         'ai_news_bottom_of_hour',
     ];

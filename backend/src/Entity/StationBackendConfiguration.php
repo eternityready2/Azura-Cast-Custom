@@ -324,6 +324,27 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         set => Types::stringOrNull($value, true);
     }
 
+    /** @var int[] */
+    #[OA\Property(
+        description: 'Array of ISO-8601 days (1 for Monday, 7 for Sunday)'
+    )]
+    public array $ai_news_active_days = [] {
+        set (mixed $value) {
+            $days = array_map(
+                static fn(mixed $day): int => (int)$day,
+                Types::array($value)
+            );
+
+            $days = array_values(array_unique(array_filter(
+                $days,
+                static fn(int $day): bool => $day >= 1 && $day <= 7
+            )));
+            sort($days);
+
+            $this->ai_news_active_days = $days;
+        }
+    }
+
     #[OA\Property]
     public bool $ai_news_top_of_hour = true {
         set (bool|string|null $value) => Types::bool($value, true, true);
@@ -343,28 +364,6 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     public ?string $ai_news_outro = null {
         set => Types::stringOrNull($value, true);
     }
-
-    #[OA\Property]
-    public ?string $ai_news_last_generation_status = null {
-        set => Types::stringOrNull($value, true);
-    }
-
-    #[OA\Property]
-    public ?string $ai_news_last_generation_time = null {
-        set => Types::stringOrNull($value, true);
-    }
-
-    #[OA\Property]
-    public ?string $ai_news_last_error = null {
-        set => Types::stringOrNull($value, true);
-    }
-
-    #[OA\Property(
-        description: 'Latest bulletin metadata (structured)',
-        type: 'object',
-        additionalProperties: true
-    )]
-    public ?array $ai_news_latest_bulletin = null;
 
     /*
      * Liquidsoap Custom Configuration Sections

@@ -66,14 +66,13 @@ final class TestPostAction implements SingleActionInterface
         try {
             $this->generator->generate($station, true);
             $station = $this->em->refetch($station);
-            $backendConfig = $station->backend_config;
 
             return $response->withJson([
                 'success' => true,
                 'message' => __('AI news bulletin generated successfully.'),
-                'ai_news_last_generation_status' => $backendConfig->ai_news_last_generation_status,
-                'ai_news_last_generation_time' => $backendConfig->ai_news_last_generation_time,
-                'ai_news_last_error' => $backendConfig->ai_news_last_error,
+                'ai_news_last_generation_status' => $station->ai_news_last_generation_status,
+                'ai_news_last_generation_time' => $station->ai_news_last_generation_time?->format('Y-m-d\TH:i:s\Z'),
+                'ai_news_last_error' => $station->ai_news_last_error,
                 'dashboard' => GetAction::buildDashboardPayload($station),
             ]);
         } catch (Throwable $e) {
