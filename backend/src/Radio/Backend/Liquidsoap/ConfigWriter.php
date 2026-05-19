@@ -502,6 +502,7 @@ final class ConfigWriter implements EventSubscriberInterface
 
         $newsBulletinAnnotations = self::annotateArray([
             'azuracast_ai_news' => true,
+            'title' => 'News Hour',
         ]);
         $newsBulletinRequest = self::toRawString(
             'annotate:' . $newsBulletinAnnotations . ':' . $station->getRadioTempDir() . '/news_bulletin.mp3'
