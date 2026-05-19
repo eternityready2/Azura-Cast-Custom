@@ -40,7 +40,7 @@
                             {{ $gettext('This page mirrors the client dashboard while staying connected to the current AzuraCast AI News APIs.') }}
                         </p>
                         <p class="mb-0">
-                            {{ $gettext('Active hours format: HH:MM-HH:MM. Leave blank to run all day. Source URLs should be one per line, and regular website pages will be scraped before feed fallback is attempted.') }}
+                            {{ $gettext('Active hours format: start and end times use 12-hour text like 01:00 AM. Leave both blank to run all day. Source URLs should be one per line, and regular website pages will be scraped before feed fallback is attempted.') }}
                         </p>
                     </div>
 
@@ -337,20 +337,52 @@
                                 <label>{{ $gettext('Broadcast Window') }}</label>
                                 <div class="time-row">
                                     <div class="time-field">
-                                        <label class="time-field-label">{{ $gettext('Start Time') }}</label>
-                                        <vue-date-picker
-                                            v-model="activeHoursStartPicker"
-                                            v-bind="timePickerOptions"
-                                            class="ai-news-time-picker"
-                                        />
+                                        <label
+                                            class="time-field-label"
+                                            for="edit_ai_news_start_time"
+                                        >
+                                            {{ $gettext('Start Time') }}
+                                        </label>
+                                        <input
+                                            id="edit_ai_news_start_time"
+                                            v-model="activeHoursStartInput"
+                                            class="form-control form-control-dark"
+                                            type="text"
+                                            :placeholder="$gettext('01:00 AM')"
+                                        >
+                                        <div class="field-note">
+                                            {{ $gettext('Format: 01:00 AM') }}
+                                        </div>
+                                        <div
+                                            v-if="activeHoursStartError"
+                                            class="invalid-feedback d-block"
+                                        >
+                                            {{ activeHoursStartError }}
+                                        </div>
                                     </div>
                                     <div class="time-field">
-                                        <label class="time-field-label">{{ $gettext('End Time') }}</label>
-                                        <vue-date-picker
-                                            v-model="activeHoursEndPicker"
-                                            v-bind="timePickerOptions"
-                                            class="ai-news-time-picker"
-                                        />
+                                        <label
+                                            class="time-field-label"
+                                            for="edit_ai_news_end_time"
+                                        >
+                                            {{ $gettext('End Time') }}
+                                        </label>
+                                        <input
+                                            id="edit_ai_news_end_time"
+                                            v-model="activeHoursEndInput"
+                                            class="form-control form-control-dark"
+                                            type="text"
+                                            :placeholder="$gettext('01:00 AM')"
+                                        >
+                                        <div class="field-note">
+                                            {{ $gettext('Format: 01:00 AM') }}
+                                        </div>
+                                        <div
+                                            v-if="activeHoursEndError"
+                                            class="invalid-feedback d-block"
+                                        >
+                                            {{ activeHoursEndError }}
+                                        </div>
                                     </div>
                                 </div>
                                 <form-group-multi-check
@@ -466,7 +498,6 @@
 </template>
 
 <script setup lang="ts">
-import {RootProps, VueDatePicker} from "@vuepic/vue-datepicker";
 import {computed, onMounted, onUnmounted, ref} from "vue";
 import {useGettext} from "vue3-gettext";
 import {DateTimeMaybeValid} from "luxon";
@@ -523,12 +554,6 @@ interface AiNewsSourceResult {
 interface AiNewsVoiceOption {
     label: string;
     path: string;
-}
-
-interface AiNewsTimeValue {
-    hours: number;
-    minutes: number;
-    seconds?: number;
 }
 
 interface AiNewsDashboardPayload {
@@ -601,6 +626,44 @@ const {record: form, reset: resetForm} = useResettableRef<AiNewsForm>(() => ({
 }));
 
 const {r$} = useAppRegle(form, {}, {});
+const activeHoursStartInput = ref('');
+const activeHoursEndInput = ref('');
+const activeHoursStartError = computed(() => {
+    const start = activeHoursStartInput.value.trim();
+    const end = activeHoursEndInput.value.trim();
+
+    if (!start && !end) {
+        return '';
+    }
+
+    if (!start) {
+        return $gettext('Enter a start time or leave both fields blank.');
+    }
+
+    if (!parseMeridiemTimeInput(start)) {
+        return $gettext('Use format 01:00 AM.');
+    }
+
+    return '';
+});
+const activeHoursEndError = computed(() => {
+    const start = activeHoursStartInput.value.trim();
+    const end = activeHoursEndInput.value.trim();
+
+    if (!start && !end) {
+        return '';
+    }
+
+    if (!end) {
+        return $gettext('Enter an end time or leave both fields blank.');
+    }
+
+    if (!parseMeridiemTimeInput(end)) {
+        return $gettext('Use format 01:00 AM.');
+    }
+
+    return '';
+});
 
 const {axios} = useAxios();
 const {notifySuccess, notifyError} = useNotify();
@@ -657,6 +720,38 @@ const formatStoredClockTime = (value: string, fallback = '—') => {
     }
 
     return parsed.toLocaleString(displayTimeFormat);
+};
+
+const parseMeridiemTimeInput = (value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+        return null;
+    }
+
+    const parsed = DateTime.fromFormat(trimmedValue.toUpperCase(), 'hh:mm a');
+    if (!parsed.isValid) {
+        return null;
+    }
+
+    return parsed;
+};
+
+const formatStoredTimeForInput = (value: string) => {
+    if (!value) {
+        return '';
+    }
+
+    const parsed = DateTime.fromFormat(value, 'HH:mm');
+    if (!parsed.isValid) {
+        return value;
+    }
+
+    return parsed.toFormat('hh:mm a');
+};
+
+const normalizeMeridiemTimeInput = (value: string) => {
+    const parsed = parseMeridiemTimeInput(value);
+    return parsed ? parsed.toFormat('HH:mm') : null;
 };
 
 const formatActiveHoursRange = (value: string | null | undefined, fallback = '—') => {
@@ -777,67 +872,6 @@ const activeHoursParts = computed(() => {
 
 const activeHoursStart = computed(() => activeHoursParts.value.start);
 const activeHoursEnd = computed(() => activeHoursParts.value.end);
-
-const timePickerOptions = computed<Partial<RootProps>>(() => ({
-    timePicker: true,
-    autoApply: true,
-    closeOnAutoApply: true,
-    textInput: false,
-    placeholder: $gettext('Select time'),
-    dark: true,
-    ui: {
-        input: 'form-control form-control-dark'
-    },
-    timeConfig: {
-        is24: false,
-        minutesIncrement: 5,
-        secondsIncrement: 1,
-        enableSeconds: false,
-    }
-}));
-
-const timeStringToPickerValue = (value: string): AiNewsTimeValue | null => {
-    if (!value) {
-        return null;
-    }
-
-    const parsed = DateTime.fromFormat(value, 'HH:mm');
-    if (!parsed.isValid) {
-        return null;
-    }
-
-    return {
-        hours: parsed.hour,
-        minutes: parsed.minute,
-        seconds: 0,
-    };
-};
-
-const pickerValueToTimeString = (value: AiNewsTimeValue | null) => {
-    if (!value) {
-        return '';
-    }
-
-    return DateTime.fromObject({
-        hour: value.hours,
-        minute: value.minutes,
-        second: value.seconds ?? 0,
-    }).toFormat('HH:mm');
-};
-
-const activeHoursStartPicker = computed<AiNewsTimeValue | null>({
-    get: () => timeStringToPickerValue(activeHoursStart.value),
-    set: (value) => {
-        updateActiveHours(pickerValueToTimeString(value), activeHoursEnd.value);
-    }
-});
-
-const activeHoursEndPicker = computed<AiNewsTimeValue | null>({
-    get: () => timeStringToPickerValue(activeHoursEnd.value),
-    set: (value) => {
-        updateActiveHours(activeHoursStart.value, pickerValueToTimeString(value));
-    }
-});
 
 const hasBroadcastSlotSelected = computed(() => form.value.ai_news_top_of_hour || form.value.ai_news_bottom_of_hour);
 const broadcastSlotLabels = computed(() => {
@@ -1175,6 +1209,8 @@ const hydrateFromResponse = (data: AiNewsResponse) => {
     r$.$reset();
     form.value = mergeExisting(form.value, data);
     form.value.ai_news_active_days = normalizeStationScheduleDays(form.value.ai_news_active_days);
+    activeHoursStartInput.value = formatStoredTimeForInput(activeHoursStart.value);
+    activeHoursEndInput.value = formatStoredTimeForInput(activeHoursEnd.value);
 
     lastStatus.value = data.ai_news_last_generation_status ?? null;
     lastTime.value = data.ai_news_last_generation_time ?? null;
@@ -1223,6 +1259,13 @@ const saveChanges = async () => {
     if (!valid) {
         return;
     }
+
+    if (activeHoursStartError.value || activeHoursEndError.value) {
+        notifyError($gettext('Fix the broadcast window time fields before saving.'));
+        return;
+    }
+
+    updateActiveHours(activeHoursStartInput.value, activeHoursEndInput.value);
 
     if (!hasBroadcastSlotSelected.value) {
         notifyError($gettext('Select at least one broadcast slot.'));
@@ -1275,11 +1318,15 @@ const runTest = async () => {
 };
 
 const updateActiveHours = (start: string, end: string) => {
-    const normalizedStart = start.trim();
-    const normalizedEnd = end.trim();
+    const normalizedStart = normalizeMeridiemTimeInput(start);
+    const normalizedEnd = normalizeMeridiemTimeInput(end);
 
-    if (normalizedStart.length === 0 && normalizedEnd.length === 0) {
+    if (!start.trim() && !end.trim()) {
         form.value.ai_news_active_hours = null;
+        return;
+    }
+
+    if (!normalizedStart || !normalizedEnd) {
         return;
     }
 

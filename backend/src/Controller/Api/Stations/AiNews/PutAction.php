@@ -7,11 +7,15 @@ namespace App\Controller\Api\Stations\AiNews;
 use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Entity\Api\Status;
+use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Validator\Constraints\Regex;
+use Symfony\Component\Validator\Constraints\Sequentially;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[
     OA\Put(
@@ -58,6 +62,11 @@ final class PutAction implements SingleActionInterface
         'ai_news_bottom_of_hour',
     ];
 
+    public function __construct(
+        private readonly ValidatorInterface $validator,
+    ) {
+    }
+
     public function __invoke(
         ServerRequest $request,
         Response $response,
@@ -73,6 +82,25 @@ final class PutAction implements SingleActionInterface
             if (array_key_exists($field, $body)) {
                 $backendConfig->$field = $body[$field];
             }
+        }
+
+        $errors = $this->validator->validate(
+            $backendConfig->ai_news_active_hours,
+            [
+                new Sequentially([
+                    new Regex(
+                        pattern: '/^(|\d{2}:\d{2}-\d{2}:\d{2})$/',
+                        message: __('Active hours must be empty or use the internal HH:MM-HH:MM format.')
+                    ),
+                    new Regex(
+                        pattern: '/^$|^(?:[01]\d|2[0-3]):[0-5]\d-(?:[01]\d|2[0-3]):[0-5]\d$/',
+                        message: __('Active hours must use valid times in HH:MM-HH:MM format.')
+                    ),
+                ]),
+            ]
+        );
+        if (count($errors) > 0) {
+            throw ValidationException::fromValidationErrors($errors);
         }
 
         if (!$backendConfig->ai_news_top_of_hour && !$backendConfig->ai_news_bottom_of_hour) {
