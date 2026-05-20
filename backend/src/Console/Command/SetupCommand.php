@@ -78,23 +78,22 @@ final class SetupCommand extends CommandAbstract
         $io->newLine();
         $io->section(__('Reload System Data'));
 
-        $this->runCommand($output, 'cache:clear');
-
-        // Reset Doctrine connection state after migrations. Sub-commands share the same
-        // EntityManager instance, so the connection's transaction nesting level can be
-        // out of sync with MySQL after migrations complete, causing SAVEPOINT errors on
-        // the next flush. Roll back all active transactions to reset the nesting counter,
-        // then close so the next query reconnects with a clean connection.
+        // Reset Doctrine connection state before any further DB operations.
+        // Migrations run in the same process and leave the DBAL connection's
+        // transaction nesting level out of sync with MySQL, causing SAVEPOINT
+        // errors in cache:clear warmers and subsequent flushes.
         $conn = $this->em->getConnection();
         while ($conn->isTransactionActive()) {
             try {
                 $conn->rollBack();
             } catch (\Throwable) {
-                $conn->close();
                 break;
             }
         }
+        $conn->close();
         $this->em->clear();
+
+        $this->runCommand($output, 'cache:clear');
 
         // Ensure default storage locations exist.
         $this->storageLocationRepo->createDefaultStorageLocations();
