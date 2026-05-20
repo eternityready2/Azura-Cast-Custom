@@ -15,6 +15,7 @@
                 :entries="entries"
                 :add-entry="addEntry"
                 :remove-entry="removeEntry"
+                @update:color="form.color = $event"
             />
             <FormSchedule v-model:schedule-items="scheduleItems" />
         </tabs>

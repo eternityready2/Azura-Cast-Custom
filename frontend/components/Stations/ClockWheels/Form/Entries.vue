@@ -8,23 +8,24 @@
             />
         </div>
 
-        <!-- Color swatch -->
+        <!-- Color picker -->
         <div class="mb-4">
-            <label class="form-label fw-semibold">{{ $gettext('Color') }} *</label>
-        <div>
-            <div
-                class="color-swatch-input"
-                :style="{ backgroundColor: color.value }"
-                style="width: 3rem; height: 3rem; border: 2px solid #555; border-radius: 6px;"
-            />
-            <input
-                id="color"
-                type="color"
-                class="form-control form-control-color d-none"
-                style="width: 3rem; height: 3rem; padding: 0.15rem;"
-                @input="color.value = ($event.target as HTMLInputElement).value"
-            />
-        </div>
+            <label
+                for="color"
+                class="form-label fw-semibold"
+            >
+                {{ $gettext('Color') }} *
+            </label>
+            <div>
+                <input
+                    id="color"
+                    :value="form.color"
+                    type="color"
+                    class="form-control form-control-color"
+                    style="width: 3rem; height: 3rem; padding: 0.15rem; border: 2px solid #555; border-radius: 6px; cursor: pointer; background: none;"
+                    @input="onColorInput"
+                />
+            </div>
         </div>
 
         <!-- Entries section -->
@@ -127,7 +128,7 @@
 <script setup lang="ts">
 import FormGroupField from '~/components/Form/FormGroupField.vue';
 import Tab from '~/components/Common/Tab.vue';
-import {computed, ref} from 'vue';
+import {ref} from 'vue';
 import {useTranslate} from '~/vendor/gettext';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useAxios} from '~/vendor/axios.ts';
@@ -142,11 +143,13 @@ const props = defineProps<{
     removeEntry: (index: number) => void;
 }>();
 
-/** Two-way binding to form.color without mutating props directly */
-const color = computed({
-    get: () => props.form.color,
-    set: (v: string) => { props.form.color = v; },
-});
+const emit = defineEmits<{
+    (e: 'update:color', value: string): void;
+}>();
+
+const onColorInput = (event: Event) => {
+    emit('update:color', (event.target as HTMLInputElement).value);
+};
 
 const {getStationApiUrl} = useApiRouter();
 const {axios} = useAxios();
