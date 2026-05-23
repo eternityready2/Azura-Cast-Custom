@@ -51,6 +51,13 @@
                         >
                             {{ $gettext('Position') }}
                         </th>
+                        <th
+                            class="text-uppercase small text-center"
+                            style="width: 70px;"
+                            :title="$gettext('Anchor this slot to its position so it preempts the rotation when the clock crosses it (news, IDs, time checks).')"
+                        >
+                            {{ $gettext('Anchor') }}
+                        </th>
                         <th class="text-uppercase small">{{ $gettext('Type or Category') }}</th>
                         <th class="text-uppercase small">{{ $gettext('Algorithm') }}</th>
                         <th class="text-uppercase small">{{ $gettext('Pin to Playlist') }}</th>
@@ -71,7 +78,7 @@
                 <tbody>
                     <tr v-if="entries.length === 0">
                         <td
-                            colspan="6"
+                            colspan="7"
                             class="text-center text-muted py-3"
                         >
                             {{ $gettext('No Clockwheel Entries found.') }}
@@ -90,6 +97,14 @@
                                 placeholder="mm:ss"
                                 class="form-control form-control-sm text-center"
                                 @input="onPositionInput(entry, $event)"
+                            />
+                        </td>
+                        <td class="text-center align-middle">
+                            <input
+                                v-model="entry.is_rigid"
+                                type="checkbox"
+                                class="form-check-input"
+                                :title="$gettext('Preempt the rotation at this position.')"
                             />
                         </td>
                         <td>
@@ -232,6 +247,7 @@ import {useAxios} from '~/vendor/axios.ts';
 interface ClockWheelEntry {
     _key: number;
     position_seconds: number;
+    is_rigid: boolean;
     slot_value: string;
     algorithm: string;
     playlist_id: number | null;
@@ -339,6 +355,7 @@ const addEntry = () => {
     entries.push({
         _key: nextKey++,
         position_seconds: nextFreePosition(),
+        is_rigid: false,
         slot_value: 'type:music',
         algorithm: 'random',
         playlist_id: null,
@@ -375,9 +392,11 @@ const populateForm = (data: Record<string, unknown>) => {
             playlist_id?: number | null;
             duration_seconds?: number | null;
             position_seconds?: number | null;
+            is_rigid?: boolean | null;
         }[]).map((s) => ({
             _key: nextKey++,
             position_seconds: Math.max(0, Math.min(3599, s.position_seconds ?? 0)),
+            is_rigid: !!s.is_rigid,
             slot_value: slotToValue(s),
             algorithm: s.algorithm ?? 'random',
             playlist_id: s.playlist_id ?? null,
@@ -395,6 +414,7 @@ const validateForm = async () => {
         playlist_id: e.playlist_id ?? null,
         duration_seconds: normaliseDuration(e.duration_seconds),
         position_seconds: e.position_seconds,
+        is_rigid: !!e.is_rigid,
     }));
     return {valid, data: {...form.value, slots}};
 };
