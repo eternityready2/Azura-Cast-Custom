@@ -14,6 +14,8 @@ final class HourTimeline
 {
     use LoggerAwareTrait;
 
+    public const int RIGID_GRACE_SECONDS = 90;
+
     public function planNext(
         StationClockWheel $wheel,
         DateTimeImmutable $expectedPlayTime
@@ -27,14 +29,10 @@ final class HourTimeline
         $expected = CarbonImmutable::instance($expectedPlayTime)->setTimezone($tz);
         $t = $this->computeT($expected);
 
-        $idx = null;
-        foreach ($slots as $i => $slot) {
-            if ($slot->position_seconds >= $t) {
-                $idx = $i;
-                break;
-            }
-        }
+        $rigidIdx = $this->findCrossedRigid($slots, $t);
+        $upcomingIdx = $this->findUpcoming($slots, $t);
 
+        $idx = $rigidIdx ?? $upcomingIdx;
         if ($idx === null) {
             return null;
         }
@@ -44,6 +42,34 @@ final class HourTimeline
         $available = max(0, $nextAnchor - max($t, $chosen->position_seconds));
 
         return new TimelinePlan($chosen, $available, $t);
+    }
+
+    /**
+     * @param StationClockWheelSlot[] $slots
+     */
+    private function findCrossedRigid(array $slots, int $t): ?int
+    {
+        $best = null;
+        foreach ($slots as $i => $slot) {
+            $crossedRigid = $slot->is_rigid
+                && $slot->position_seconds <= $t
+                && ($t - $slot->position_seconds) <= self::RIGID_GRACE_SECONDS;
+            $best = $crossedRigid ? $i : $best;
+        }
+        return $best;
+    }
+
+    /**
+     * @param StationClockWheelSlot[] $slots
+     */
+    private function findUpcoming(array $slots, int $t): ?int
+    {
+        foreach ($slots as $i => $slot) {
+            if ($slot->position_seconds >= $t) {
+                return $i;
+            }
+        }
+        return null;
     }
 
     /** @return StationClockWheelSlot[] */
