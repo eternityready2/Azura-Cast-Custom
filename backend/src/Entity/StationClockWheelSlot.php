@@ -142,6 +142,17 @@ final class StationClockWheelSlot implements IdentifiableEntityInterface
     public int $position_seconds = 0;
 
     /**
+     * When true, this slot is a rigid top-of-hour-style anchor: the scheduler
+     * picks it the first time the clock crosses its position, even if a normal
+     * upcoming slot would otherwise be chosen. Use for news, IDs, time checks.
+     */
+    #[
+        OA\Property(example: false),
+        ORM\Column(type: 'boolean', options: ['default' => 0])
+    ]
+    public bool $is_rigid = false;
+
+    /**
      * Soft duration cap in seconds.
      * NULL = play one complete track, no time constraint.
      * Positive value = the generator wraps this slot in a max_duration operator
