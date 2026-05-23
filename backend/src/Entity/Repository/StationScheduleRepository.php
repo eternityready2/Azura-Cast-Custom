@@ -16,6 +16,7 @@ use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Entity\StationStreamer;
 use App\Exception\ValidationException;
+use App\Radio\AutoDJ\ScheduleConflictChecker;
 use App\Radio\AutoDJ\Scheduler;
 use App\Utilities\DateRange;
 use App\Utilities\ScheduleRecurrence;
@@ -32,7 +33,8 @@ final class StationScheduleRepository extends Repository
 
     public function __construct(
         private readonly Scheduler $scheduler,
-        private readonly ScheduleApiGenerator $scheduleApiGenerator
+        private readonly ScheduleApiGenerator $scheduleApiGenerator,
+        private readonly ScheduleConflictChecker $conflictChecker
     ) {
     }
 
@@ -92,6 +94,15 @@ final class StationScheduleRepository extends Repository
                 : RecurrenceEndType::Never;
             $record->recurrence_end_after = isset($item['recurrence_end_after']) ? (int)$item['recurrence_end_after'] : null;
             $record->recurrence_end_date = $item['recurrence_end_date'] ?? null;
+
+            $conflicts = $this->conflictChecker->findConflicts($relation->station, $record, $relation);
+            if ($conflicts !== []) {
+                throw new ValidationException(sprintf(
+                    'Schedule conflict: %s overlaps an existing entry (%s).',
+                    (string)$record,
+                    $this->describeScheduleOwner($conflicts[0])
+                ));
+            }
 
             $this->em->persist($record);
         }
@@ -164,6 +175,16 @@ final class StationScheduleRepository extends Repository
                 throw new ValidationException(__('Recurrence end date must be in Y-m-d format.'));
             }
         }
+    }
+
+    private function describeScheduleOwner(StationSchedule $schedule): string
+    {
+        return match (true) {
+            $schedule->playlist !== null    => 'playlist "' . $schedule->playlist->name . '"',
+            $schedule->streamer !== null    => 'streamer "' . $schedule->streamer->display_name . '"',
+            $schedule->clock_wheel !== null => 'clock wheel "' . $schedule->clock_wheel->name . '"',
+            default                          => 'an unrelated schedule entry',
+        };
     }
 
     /**
