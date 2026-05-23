@@ -142,29 +142,31 @@
                 class="col-md-4"
                 :label="$gettext('Scheduling')"
             >
-                <div class="form-check">
-                    <input
-                        id="scheduling_flexible"
-                        v-model="scheduleRow.loop_once"
-                        class="form-check-input"
-                        type="radio"
-                        :value="false"
-                    >
-                    <label class="form-check-label" for="scheduling_flexible">
-                        {{ $gettext('Flexible') }}
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input
-                        id="scheduling_loop_once"
-                        v-model="scheduleRow.loop_once"
-                        class="form-check-input"
-                        type="radio"
-                        :value="true"
-                    >
-                    <label class="form-check-label" for="scheduling_loop_once">
-                        {{ $gettext('Loop Once') }}
-                    </label>
+                <div class="d-flex gap-3">
+                    <div class="form-check form-check-inline m-0">
+                        <input
+                            id="scheduling_flexible"
+                            v-model="scheduleRow.loop_once"
+                            class="form-check-input"
+                            type="radio"
+                            :value="false"
+                        >
+                        <label class="form-check-label" for="scheduling_flexible">
+                            {{ $gettext('Flexible') }}
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline m-0">
+                        <input
+                            id="scheduling_loop_once"
+                            v-model="scheduleRow.loop_once"
+                            class="form-check-input"
+                            type="radio"
+                            :value="true"
+                        >
+                        <label class="form-check-label" for="scheduling_loop_once">
+                            {{ $gettext('Loop Once') }}
+                        </label>
+                    </div>
                 </div>
             </form-markup>
         </div>
