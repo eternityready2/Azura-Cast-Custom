@@ -55,8 +55,8 @@
                 :description="$gettext('To play once per day, set the start and end times to the same value.')"
             >
                 <template #default="{id, model, fieldClass}">
-                    <playlist-time
-                        :id="id"
+                    <circular-time-picker
+                        :input-id="id"
                         v-model="model.$model"
                         :class="fieldClass"
                     />
@@ -71,8 +71,8 @@
                 :description="$gettext('If the end time is before the start time, the playlist will play overnight.')"
             >
                 <template #default="{id, model, fieldClass}">
-                    <playlist-time
-                        :id="id"
+                    <circular-time-picker
+                        :input-id="id"
                         v-model="model.$model"
                         :class="fieldClass"
                     />
@@ -301,7 +301,7 @@
 
 <script setup lang="ts">
 import ModalForm from '~/components/Common/ModalForm.vue';
-import PlaylistTime from '~/components/Common/TimeCode.vue';
+import CircularTimePicker from '~/components/Common/CircularTimePicker.vue';
 import FormGroupField from '~/components/Form/FormGroupField.vue';
 import FormGroupCheckbox from '~/components/Form/FormGroupCheckbox.vue';
 import FormGroupMultiCheck from '~/components/Form/FormGroupMultiCheck.vue';
