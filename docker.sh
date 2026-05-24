@@ -141,21 +141,11 @@ version-number() {
 
 # Get the current release channel for AzuraCast
 get-release-channel() {
-  local AZURACAST_VERSION="latest"
-  if [[ -f .env ]]; then
-    .env --file .env get AZURACAST_VERSION
-    AZURACAST_VERSION="${REPLY:-latest}"
-  fi
-
-  echo "$AZURACAST_VERSION"
+  echo "stable"
 }
 
 get-release-branch-name() {
-  if [[ $(get-release-channel) == "stable" ]]; then
-    echo "main"
-  else
-    echo "dev"
-  fi
+  echo "main"
 }
 
 # This is a general-purpose function to ask Yes/No questions in Bash, either
@@ -231,36 +221,7 @@ setup-release() {
     curl -fsSL https://raw.githubusercontent.com/eternityready2/Azura-Cast-Custom/main/sample.env -o .env
   fi
 
-  local OLD_RELEASE_CHANNEL
-  .env --file .env get AZURACAST_VERSION
-  OLD_RELEASE_CHANNEL="${REPLY:-latest}"
-
-  local AZURACAST_VERSION="${OLD_RELEASE_CHANNEL}"
-
-  if [[ ! -z "${1}" ]]; then
-    echo "Setting release channel to the specific value: ${1}"
-    AZURACAST_VERSION="${1}"
-  elif [[ $AZURACAST_VERSION == "latest" ]]; then
-    if ask "Your current release channel is 'Rolling Release'. Switch to 'Stable' release channel?" N; then
-      AZURACAST_VERSION="stable"
-    fi
-  elif [[ $AZURACAST_VERSION == "stable" ]]; then
-    if ask "Your current release channel is 'Stable'. Switch to 'Rolling Release' release channel?" N; then
-      AZURACAST_VERSION="latest"
-    fi
-  else
-    if ask "Your current release channel is locked to a stable release, version '${OLD_RELEASE_CHANNEL}'. Switch to the 'Stable' release channel?" N; then
-      AZURACAST_VERSION="stable"
-    fi
-  fi
-
-  .env --file .env set AZURACAST_VERSION=${AZURACAST_VERSION}
-
-  if [[ $AZURACAST_VERSION != $OLD_RELEASE_CHANNEL ]]; then
-    if ask "You should update the Docker Utility Script after changing release channels. Automatically update it now?" Y; then
-      update-self
-    fi
-  fi
+  .env --file .env set AZURACAST_VERSION=stable
 }
 
 check-install-requirements() {

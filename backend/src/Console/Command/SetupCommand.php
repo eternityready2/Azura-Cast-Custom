@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Command;
 
+use App\Container\EntityManagerAwareTrait;
 use App\Container\EnvironmentAwareTrait;
 use App\Container\SettingsAwareTrait;
 use App\Entity\Repository\StorageLocationRepository;
@@ -20,6 +21,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 final class SetupCommand extends CommandAbstract
 {
+    use EntityManagerAwareTrait;
     use EnvironmentAwareTrait;
     use SettingsAwareTrait;
 
@@ -75,6 +77,21 @@ final class SetupCommand extends CommandAbstract
 
         $io->newLine();
         $io->section(__('Reload System Data'));
+
+        // Reset Doctrine connection state before any further DB operations.
+        // Migrations run in the same process and leave the DBAL connection's
+        // transaction nesting level out of sync with MySQL, causing SAVEPOINT
+        // errors in cache:clear warmers and subsequent flushes.
+        $conn = $this->em->getConnection();
+        while ($conn->isTransactionActive()) {
+            try {
+                $conn->rollBack();
+            } catch (\Throwable) {
+                break;
+            }
+        }
+        $conn->close();
+        $this->em->clear();
 
         $this->runCommand($output, 'cache:clear');
 
