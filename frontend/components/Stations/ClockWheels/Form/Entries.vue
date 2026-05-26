@@ -171,11 +171,15 @@
                                 <option value="oldest_album">
                                     {{ $gettext('Oldest Album') }}
                                 </option>
-                                        {{ $gettext('Oldest Track') }}
-                                    </option>
-                                    <option value="most_recent_album">
-                                        {{ $gettext('Most Recent Album') }}
-                                    </option>
+                                <option value="oldest_artist">
+                                    {{ $gettext('Oldest Artist') }}
+                                </option>
+                                <option value="oldest_track">
+                                    {{ $gettext('Oldest Track') }}
+                                </option>
+                                <option value="most_recent_album">
+                                    {{ $gettext('Most Recent Album') }}
+                                </option>
                                     <option value="most_recent_artist">
                                         {{ $gettext('Most Recent Artist') }}
                                     </option>
