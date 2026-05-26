@@ -124,7 +124,7 @@ Goal: only if precision handoffs require it beyond AutoDJ queue planning.
 
 ## Known limitations / gaps (to address next)
 
-- **Planner uses “current second in hour” only**, not a “cumulative planned timeline” from previously queued items within the same hour (runtime schedule activation now uses full calendar rules via `Scheduler::shouldSchedulePlayNow`).
+- **Planner timeline** now uses `expectedPlayTime` plus unplayed queue rows in the same hour (`getPlannedSecondsIntoHour`). Remaining edge case: actual on-air drift vs metadata duration until the next queue rebuild.
   - This is good enough for basic anchors but needs refinement if you want strict adherence across drift scenarios.
 - **Schedule conflict detection** currently uses a **fixed validation window** (90 days) for recurrence expansion.
   - This is intentional for performance but should be configurable and well-tested.
@@ -141,18 +141,19 @@ Goal: only if precision handoffs require it beyond AutoDJ queue planning.
 - Run PHP lint/format/static analysis in the container CI environment (`phpcs`, `phpstan`).
 - API/schedule tests added (see Tests section above); run `composer run codeception` in Docker to verify.
 
-### 2) Improve conflict checker correctness
-- Add a dedicated test suite for:
+### 2) Improve conflict checker correctness — **done**
+- Dedicated unit suite: `tests/Unit/ScheduleConflictCheckerTest.php`
   - weekly vs monthly recurrence
   - overnight windows
   - boundary behavior (end == start)
   - “play once” items
+  - cross-entity conflicts (playlist vs clock wheel)
 
-### 3) Improve planner (professionalism)
-- Implement “fit-to-window” selection more robustly:
-  - choose from candidates that fit the available seconds
-  - if none fit (music/talk), choose a “shortest reasonable” track, but log it clearly
-- Add a “min window” policy per slot type.
+### 3) Improve planner (professionalism) — **done (core)**
+- Fixed anchor math: position within hour (0–3599), not seconds since midnight.
+- Planned timeline: `getPlannedSecondsIntoHour()` uses `expectedPlayTime` + queued items in the same hour.
+- Per-slot minimum window before deferring (music/talk/short-form).
+- Unit tests: `tests/Unit/ClockWheelPlaybackPlannerTest.php`
 
 ### 4) UX upgrade for fast edits
 - Add a lightweight “timeline list” editor first (sortable rows by time + quick duplicate/insert).

@@ -8,11 +8,13 @@ use App\Entity\Api\StationPlaylistQueue;
 use App\Entity\Enums\ClockWheelSlotAlgorithms;
 use App\Entity\Enums\ClockWheelSlotTypes;
 use App\Entity\Repository\StationQueueRepository;
+use App\Entity\Station;
 use App\Entity\StationClockWheel;
 use App\Entity\StationClockWheelSlot;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Radio\AutoDJ\DuplicatePrevention;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,8 +28,12 @@ final class ClockWheelPlaybackPlanner
 {
     private const int HOUR_SECONDS = 3600;
 
-    /** Minimum playable window (seconds) before skipping a music slot. */
+    /** Minimum playable window (seconds) before deferring a flexible music slot. */
     private const int MIN_MUSIC_WINDOW_SECONDS = 30;
+
+    private const int MIN_TALK_WINDOW_SECONDS = 45;
+
+    private const int MIN_SHORT_FORM_WINDOW_SECONDS = 10;
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -51,31 +57,36 @@ final class ClockWheelPlaybackPlanner
             return null;
         }
 
-        $tz = $wheel->station->getTimezoneObject();
-        $secondsIntoHour = $this->getSecondsIntoHour($expectedPlayTime, $tz);
+        $station = $wheel->station;
+        $tz = $station->getTimezoneObject();
+        $secondsIntoHour = $this->getPlannedSecondsIntoHour($station, $expectedPlayTime, $tz);
 
         $activeIndex = $this->getActiveSlotIndex($slots, $secondsIntoHour);
         $activeSlot = $slots[$activeIndex];
         $nextAnchor = $this->getNextAnchorSeconds($slots, $activeIndex);
         $availableSeconds = max(1, $nextAnchor - $secondsIntoHour);
+        $minWindow = $this->getMinWindowSeconds($activeSlot);
 
         $this->logger->info('Clock Wheel slot selection.', [
             'clock_wheel_id' => $wheel->id,
             'seconds_into_hour' => $secondsIntoHour,
+            'expected_play_time' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
             'active_slot_order' => $activeSlot->slot_order,
             'active_position_seconds' => $activeSlot->position_seconds,
             'next_anchor_seconds' => $nextAnchor,
             'available_seconds' => $availableSeconds,
+            'min_window_seconds' => $minWindow,
             'slot_type' => $activeSlot->type?->value,
         ]);
 
-        if (
-            $this->isFlexibleMusicSlot($activeSlot)
-            && $availableSeconds < self::MIN_MUSIC_WINDOW_SECONDS
-        ) {
+        if ($this->isFlexibleMusicSlot($activeSlot) && $availableSeconds < $minWindow) {
             $this->logger->info(
-                'Clock Wheel: insufficient time before next anchor for music; deferring to next BuildQueue tick.',
-                ['available_seconds' => $availableSeconds]
+                'Clock Wheel: insufficient time before next anchor; deferring to next BuildQueue tick.',
+                [
+                    'available_seconds' => $availableSeconds,
+                    'min_window_seconds' => $minWindow,
+                    'slot_type' => $activeSlot->type?->value,
+                ]
             );
             return null;
         }
@@ -104,13 +115,56 @@ final class ClockWheelPlaybackPlanner
         return $slots;
     }
 
-    private function getSecondsIntoHour(DateTimeImmutable $time, DateTimeZone $tz): int
-    {
-        $local = $time->setTimezone($tz);
+    /**
+     * Planned position within the broadcast hour (0–3599), using expected play time
+     * and already-queued items in the same hour so anchors stay aligned when the
+     * AutoDJ queue is built ahead of wall clock time.
+     */
+    private function getPlannedSecondsIntoHour(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+        DateTimeZone $tz,
+    ): int {
+        $local = CarbonImmutable::instance($expectedPlayTime)->setTimezone($tz);
+        $hourStart = $local->startOf('hour');
+        $seconds = $local->getTimestamp() - $hourStart->getTimestamp();
 
-        return ((int)$local->format('G') * 3600)
-            + ((int)$local->format('i') * 60)
-            + (int)$local->format('s');
+        foreach ($this->queueRepo->getUnplayedQueue($station) as $row) {
+            $playedAt = $row->timestamp_played;
+            if ($playedAt === null) {
+                continue;
+            }
+
+            $queuedLocal = CarbonImmutable::instance($playedAt)->setTimezone($tz);
+            if ($queuedLocal->format('Y-m-d H') !== $local->format('Y-m-d H')) {
+                continue;
+            }
+
+            if ($queuedLocal->greaterThanOrEqualTo($local)) {
+                continue;
+            }
+
+            $queuedHourStart = $queuedLocal->startOf('hour');
+            $queuedStartOffset = $queuedLocal->getTimestamp() - $queuedHourStart->getTimestamp();
+            $queuedEndOffset = $queuedStartOffset + (int)ceil((float)($row->duration ?? 0));
+
+            $seconds = max($seconds, min($queuedEndOffset, self::HOUR_SECONDS - 1));
+        }
+
+        return min(max(0, $seconds), self::HOUR_SECONDS - 1);
+    }
+
+    private function getMinWindowSeconds(StationClockWheelSlot $slot): int
+    {
+        if (!$this->isFlexibleMusicSlot($slot)) {
+            return self::MIN_SHORT_FORM_WINDOW_SECONDS;
+        }
+
+        return match ($slot->type) {
+            ClockWheelSlotTypes::Talk => self::MIN_TALK_WINDOW_SECONDS,
+            ClockWheelSlotTypes::Music, null => self::MIN_MUSIC_WINDOW_SECONDS,
+            default => self::MIN_MUSIC_WINDOW_SECONDS,
+        };
     }
 
     /**
