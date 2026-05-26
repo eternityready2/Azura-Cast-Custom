@@ -45,151 +45,195 @@
             </select>
         </div>
 
-        <!-- Start Date + Start Time -->
-        <div class="row g-2 mb-3">
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">{{ $gettext('Start Date') }}</label>
-                <input
-                    v-model="form.start_date"
-                    type="date"
-                    class="form-control"
-                    required
-                >
-            </div>
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">{{ $gettext('Start Time') }}</label>
-                <input
-                    v-model="form.start_time_str"
-                    type="time"
-                    class="form-control"
-                    required
-                >
-            </div>
+        <!-- Schedule Row - Time section -->
+        <div class="row g-3 mb-3">
+            <form-group-field
+                id="edit_form_start_time"
+                class="col-md-4"
+                :field="r$.start_time"
+                :label="$gettext('Start Time')"
+                :description="$gettext('To play once per day, set the start and end times to the same value.')"
+            >
+                <template #default="{id, model, fieldClass}">
+                    <playlist-time
+                        :id="id"
+                        v-model="model.$model"
+                        :class="fieldClass"
+                    />
+                </template>
+            </form-group-field>
+
+            <form-group-field
+                id="edit_form_end_time"
+                class="col-md-4"
+                :field="r$.end_time"
+                :label="$gettext('End Time')"
+                :description="$gettext('If the end time is before the start time, the playlist will play overnight.')"
+            >
+                <template #default="{id, model, fieldClass}">
+                    <playlist-time
+                        :id="id"
+                        v-model="model.$model"
+                        :class="fieldClass"
+                    />
+                </template>
+            </form-group-field>
+
+            <form-markup
+                id="station_time_zone"
+                class="col-md-4"
+                :label="$gettext('Station Time Zone')"
+            >
+                <time-zone />
+            </form-markup>
+
+            <!-- Date section -->
+            <form-group-field
+                id="edit_form_start_date"
+                class="col-md-4"
+                :field="r$.start_date"
+                input-type="date"
+                :label="$gettext('Start Date')"
+                :description="$gettext('Required. Use with End date to limit when the schedule runs.')"
+            />
+
+            <form-group-field
+                id="edit_form_end_date"
+                class="col-md-4"
+                :field="r$.end_date"
+                input-type="date"
+                :label="$gettext('End Date')"
+                :description="$gettext('Use with Start date to limit when the schedule runs. Recurrence uses this as the last day.')"
+                :required="scheduleRow.recurrence_end_type !== 'after'"
+                :input-attrs="{ disabled: scheduleRow.recurrence_end_type === 'after' }"
+            />
+
+            <form-group-checkbox
+                id="edit_form_loop_once"
+                class="col-md-4"
+                :field="r$.loop_once"
+                :label="$gettext('Loop Once')"
+                :description="$gettext('Only loop through playlist once.')"
+            />
         </div>
 
-        <!-- Duration -->
+        <!-- Days of Week -->
+        <form-group-multi-check
+            id="edit_form_days"
+            class="mb-3"
+            :field="r$.days"
+            :label="$gettext('Scheduled Play Days of Week')"
+            :description="daysOfWeekFieldDescription"
+            :options="dayOptions"
+            :required="!isMonthlyDatePattern"
+            :disabled="isMonthlyDatePattern"
+            stacked
+        />
+
+        <!-- Repeat section -->
         <div class="mb-3">
-            <label class="form-label fw-semibold">{{ $gettext('Duration') }}</label>
-            <div class="input-group">
-                <input
-                    v-model.number="form.duration_h"
-                    type="number"
-                    min="0"
-                    max="23"
-                    class="form-control"
-                    :placeholder="$gettext('Hours')"
-                >
-                <span class="input-group-text">:</span>
-                <input
-                    v-model.number="form.duration_m"
-                    type="number"
-                    min="0"
-                    max="59"
-                    class="form-control"
-                    :placeholder="$gettext('Minutes')"
-                >
-            </div>
-            <small class="text-muted">{{ $gettext('Hours : Minutes') }}</small>
+            <h6 class="text-muted mb-2">
+                {{ $gettext('Repeat') }}
+            </h6>
         </div>
 
-        <!-- Scheduling -->
-        <div class="mb-3">
-            <label class="form-label fw-semibold">{{ $gettext('Scheduling') }}</label>
-            <div class="d-flex gap-3">
-                <div class="form-check">
-                    <input
-                        id="sched_flexible"
-                        v-model="form.loop_once"
-                        :value="false"
-                        type="radio"
-                        class="form-check-input"
-                    >
-                    <label
-                        class="form-check-label"
-                        for="sched_flexible"
-                    >{{ $gettext('Flexible') }}</label>
-                </div>
-                <div class="form-check">
-                    <input
-                        id="sched_strict"
-                        v-model="form.loop_once"
-                        :value="true"
-                        type="radio"
-                        class="form-check-input"
-                    >
-                    <label
-                        class="form-check-label"
-                        for="sched_strict"
-                    >{{ $gettext('Strict') }}</label>
-                </div>
-            </div>
+        <div class="row g-3 mb-3">
+            <form-group-select
+                id="edit_form_recurrence_type"
+                class="col-md-4"
+                :field="r$.recurrence_type"
+                :label="$gettext('Repeat')"
+                :description="$gettext('Weekly = every week; Bi-weekly = every 2 weeks; Custom = every N weeks; Monthly = by date or specific day of week.')"
+                :options="recurrenceTypeOptions"
+            />
+
+            <form-group-field
+                v-if="scheduleRow.recurrence_type === 'custom'"
+                id="edit_form_recurrence_interval"
+                class="col-md-4"
+                :field="r$.recurrence_interval"
+                input-type="number"
+                min="1"
+                max="52"
+                :label="$gettext('Every (weeks)')"
+                :description="$gettext('E.g. 3 = every 3 weeks. Set Start date for correct alignment.')"
+            />
+
+            <template v-if="scheduleRow.recurrence_type === 'monthly'">
+                <form-group-select
+                    id="edit_form_recurrence_monthly_pattern"
+                    class="col-md-4"
+                    :field="r$.recurrence_monthly_pattern"
+                    :label="$gettext('Monthly Pattern')"
+                    :options="recurrenceMonthlyPatternOptions"
+                />
+
+                <form-group-field
+                    v-if="scheduleRow.recurrence_monthly_pattern === 'date'"
+                    id="edit_form_recurrence_monthly_day"
+                    class="col-md-4"
+                    :field="r$.recurrence_monthly_day"
+                    input-type="number"
+                    min="1"
+                    max="31"
+                    :label="$gettext('Day of Month')"
+                    :description="$gettext('Day of the month (1–31).')"
+                />
+
+                <template v-if="scheduleRow.recurrence_monthly_pattern === 'day_of_week'">
+                    <form-group-select
+                        id="edit_form_recurrence_monthly_week"
+                        class="col-md-4"
+                        :field="r$.recurrence_monthly_week"
+                        :label="$gettext('Week of Month')"
+                        :description="$gettext('For monthly specific day of week.')"
+                        :options="recurrenceMonthlyWeekOptions"
+                    />
+                </template>
+            </template>
+
+            <form-group-select
+                id="edit_form_recurrence_end_type"
+                class="col-md-4"
+                :field="r$.recurrence_end_type"
+                :label="$gettext('Stop Recurrence')"
+                :description="$gettext('Optional: stop after a number of occurrences or use End date above.')"
+                :options="recurrenceEndTypeOptions"
+            />
+
+            <form-group-field
+                v-if="scheduleRow.recurrence_end_type === 'after'"
+                id="edit_form_recurrence_end_after"
+                class="col-md-4"
+                :field="r$.recurrence_end_after"
+                input-type="number"
+                min="1"
+                :label="$gettext('Stop After (occurrences)')"
+            />
         </div>
-
-        <!-- Recurring -->
-        <div class="mb-3">
-            <div class="form-check">
-                <input
-                    id="create_event_recurring"
-                    v-model="form.recurring"
-                    type="checkbox"
-                    class="form-check-input"
-                >
-                <label
-                    class="form-check-label fw-semibold"
-                    for="create_event_recurring"
-                >
-                    {{ $gettext('Recurring') }}
-                </label>
-            </div>
-        </div>
-
-        <template v-if="form.recurring">
-            <!-- Recurring Days -->
-            <div class="mb-3">
-                <label class="form-label fw-semibold">{{ $gettext('Recurring Days') }}</label>
-                <div class="d-flex flex-wrap gap-3">
-                    <div
-                        v-for="day in dayOptions"
-                        :key="day.value"
-                        class="form-check"
-                    >
-                        <input
-                            :id="'create_event_day_' + day.value"
-                            v-model="form.days"
-                            :value="day.value"
-                            type="checkbox"
-                            class="form-check-input"
-                        >
-                        <label
-                            :for="'create_event_day_' + day.value"
-                            class="form-check-label"
-                        >
-                            {{ day.label }}
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Repeat Until -->
-            <div class="mb-3">
-                <label class="form-label fw-semibold">{{ $gettext('Repeat Until') }}</label>
-                <input
-                    v-model="form.end_date"
-                    type="date"
-                    class="form-control"
-                >
-            </div>
-        </template>
     </modal-form>
 </template>
 
 <script setup lang="ts">
 import ModalForm from '~/components/Common/ModalForm.vue';
+import PlaylistTime from '~/components/Common/TimeCode.vue';
+import FormGroupField from '~/components/Form/FormGroupField.vue';
+import FormGroupCheckbox from '~/components/Form/FormGroupCheckbox.vue';
+import FormGroupMultiCheck from '~/components/Form/FormGroupMultiCheck.vue';
+import FormGroupSelect from '~/components/Form/FormGroupSelect.vue';
+import FormMarkup from '~/components/Form/FormMarkup.vue';
+import TimeZone from '~/components/Stations/Common/TimeZone.vue';
+import {applyIf, minLength, minValue, required, requiredIf, withMessage} from '@regle/rules';
+import {useAppScopedRegle} from '~/vendor/regle.ts';
 import {ref, computed, onMounted, watch, useTemplateRef} from 'vue';
 import {useTranslate} from '~/vendor/gettext';
 import {useAxios} from '~/vendor/axios';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useNotify} from '~/components/Common/Toasts/useNotify.ts';
+import {
+    type PlaylistScheduleRow,
+    createScheduleItemDefaults,
+} from '~/components/Stations/Common/scheduleItemDefaults.ts';
 
 const {$gettext} = useTranslate();
 const {axios} = useAxios();
@@ -228,22 +272,16 @@ onMounted(async () => {
     }));
 });
 
-const today = () => new Date().toISOString().substring(0, 10);
-
 const blankForm = () => ({
     source: 'clock_wheel' as 'playlist' | 'clock_wheel',
     entity_id: null as number | null,
-    start_date: today(),
-    start_time_str: '08:00',
-    duration_h: 1,
-    duration_m: 0,
-    loop_once: false,
-    recurring: false,
-    days: [] as number[],
-    end_date: '',
 });
 
 const form = ref(blankForm());
+
+// Schedule row state - matches PlaylistScheduleRow interface
+const scheduleRow = ref<PlaylistScheduleRow>(createScheduleItemDefaults());
+
 const loading = ref(false);
 const error = ref<string | null>(null);
 const $modal = useTemplateRef('$modal');
@@ -259,11 +297,82 @@ watch(currentEntityOptions, (opts) => {
     }
 }, {immediate: true});
 
+// Regle validation for schedule row
+const isMonthlyDatePattern = computed(
+    () => scheduleRow.value.recurrence_type === 'monthly' && scheduleRow.value.recurrence_monthly_pattern === 'date'
+);
+
+const isMonthlyDayOfWeekPattern = computed(
+    () => scheduleRow.value.recurrence_type === 'monthly' && scheduleRow.value.recurrence_monthly_pattern === 'day_of_week'
+);
+
+const requiresDaysOfWeek = computed(() => !isMonthlyDatePattern.value);
+
+const daysOfWeekFieldDescription = computed(() => {
+    if (isMonthlyDatePattern.value) {
+        return $gettext('Not used when monthly pattern is "On day of month" — pick the calendar day below instead.');
+    }
+    if (isMonthlyDayOfWeekPattern.value) {
+        return $gettext('For monthly "specific day of week", select one or more days; each gets that week-of-month (e.g. 1st + Mon–Wed).');
+    }
+    return $gettext('Select at least one day of the week.');
+});
+
+const {r$} = useAppScopedRegle(
+    scheduleRow,
+    {
+        start_time: {required},
+        end_time: {required},
+        start_date: {required},
+        end_date: {
+            required: requiredIf(() => scheduleRow.value.recurrence_end_type !== 'after'),
+        },
+        days: {
+            minLength: withMessage(
+                applyIf(requiresDaysOfWeek, minLength(1)),
+                () => $gettext('Select at least one day of the week.')
+            ),
+        },
+        recurrence_end_after: {
+            required: requiredIf(() => scheduleRow.value.recurrence_end_type === 'after'),
+            minValue: minValue(1),
+        },
+        recurrence_monthly_day: {
+            required: requiredIf(
+                () => scheduleRow.value.recurrence_type === 'monthly' && scheduleRow.value.recurrence_monthly_pattern === 'date'
+            ),
+        },
+    },
+    {
+        namespace: 'stations-playlists'
+    }
+);
+
+// Sync recurrence_interval when type changes
+watch(
+    () => scheduleRow.value.recurrence_type,
+    (newType: string | null) => {
+        if (newType === 'biweekly') {
+            scheduleRow.value.recurrence_interval = 2;
+        } else if (newType === 'weekly') {
+            scheduleRow.value.recurrence_interval = 1;
+        }
+    }
+);
+
+// Clear days when monthly date pattern is selected
+watch(
+    () => [scheduleRow.value.recurrence_type, scheduleRow.value.recurrence_monthly_pattern] as const,
+    () => {
+        if (isMonthlyDatePattern.value) {
+            scheduleRow.value.days = [];
+        }
+    }
+);
+
 const isFormValid = computed(() =>
     form.value.entity_id !== null &&
-    form.value.start_date !== '' &&
-    form.value.start_time_str !== '' &&
-    (form.value.duration_h > 0 || form.value.duration_m > 0)
+    !r$.$invalid
 );
 
 const onSourceChange = () => {
@@ -271,30 +380,43 @@ const onSourceChange = () => {
 };
 
 const dayOptions = [
-    {value: 1, label: $gettext('Mon')},
-    {value: 2, label: $gettext('Tue')},
-    {value: 3, label: $gettext('Wed')},
-    {value: 4, label: $gettext('Thu')},
-    {value: 5, label: $gettext('Fri')},
-    {value: 6, label: $gettext('Sat')},
-    {value: 7, label: $gettext('Sun')},
+    {value: 1, text: $gettext('Monday')},
+    {value: 2, text: $gettext('Tuesday')},
+    {value: 3, text: $gettext('Wednesday')},
+    {value: 4, text: $gettext('Thursday')},
+    {value: 5, text: $gettext('Friday')},
+    {value: 6, text: $gettext('Saturday')},
+    {value: 7, text: $gettext('Sunday')}
 ];
 
-// TimeCode format used by AzuraCast: HH * 100 + MM  (e.g. 08:30 → 830, 13:00 → 1300)
-const timeStrToCode = (str: string): number => {
-    const [h, m] = str.split(':').map(Number);
-    return h * 100 + m;
-};
+const recurrenceTypeOptions = [
+    {value: 'weekly', text: $gettext('Weekly (default)')},
+    {value: 'biweekly', text: $gettext('Bi-weekly (every 2 weeks)')},
+    {value: 'monthly', text: $gettext('Monthly')},
+    {value: 'custom', text: $gettext('Custom (every N weeks)')}
+];
 
-const addMinutesToCode = (tc: number, minutes: number): number => {
-    const totalMin = ((tc / 100 | 0) * 60 + tc % 100) + minutes;
-    const h = Math.floor(totalMin / 60) % 24;
-    const m = totalMin % 60;
-    return h * 100 + m;
-};
+const recurrenceMonthlyPatternOptions = [
+    {value: 'date', text: $gettext('On day of month (e.g. 15th)')},
+    {value: 'day_of_week', text: $gettext('Specific day of week (e.g. 3rd Monday)')}
+];
+
+const recurrenceMonthlyWeekOptions = [
+    {value: 1, text: $gettext('1st')},
+    {value: 2, text: $gettext('2nd')},
+    {value: 3, text: $gettext('3rd')},
+    {value: 4, text: $gettext('4th')},
+    {value: 5, text: $gettext('Last')}
+];
+
+const recurrenceEndTypeOptions = [
+    {value: 'never', text: $gettext('Never (use End date above to limit range)')},
+    {value: 'after', text: $gettext('After number of occurrences')}
+];
 
 const clearForm = () => {
     form.value = blankForm();
+    scheduleRow.value = createScheduleItemDefaults();
     error.value = null;
 };
 
@@ -322,28 +444,23 @@ const doSave = async () => {
         // Fetch current entity data
         const {data: entityData} = await axios.get(entityApiUrl);
 
-        const startTimeCode = timeStrToCode(form.value.start_time_str);
-        const durationMin = form.value.duration_h * 60 + form.value.duration_m;
-        const endTimeCode = addMinutesToCode(startTimeCode, durationMin);
-
-        const newScheduleItem: Record<string, unknown> = {
-            start_time: startTimeCode,
-            end_time: endTimeCode,
-            start_date: form.value.start_date,
-            end_date: form.value.recurring && form.value.end_date
-                ? form.value.end_date
-                : form.value.start_date,
-            days: form.value.recurring ? form.value.days : [],
-            loop_once: form.value.loop_once,
-            recurrence_type: 'weekly',
-            recurrence_interval: 1,
-            recurrence_monthly_pattern: null,
-            recurrence_monthly_day: null,
-            recurrence_monthly_week: null,
-            recurrence_monthly_day_of_week: null,
-            recurrence_end_type: 'never',
-            recurrence_end_after: null,
-            recurrence_end_date: null,
+        // Use scheduleRow data directly - it already has all the fields in the correct format
+        const newScheduleItem: PlaylistScheduleRow = {
+            start_time: scheduleRow.value.start_time,
+            end_time: scheduleRow.value.end_time,
+            start_date: scheduleRow.value.start_date,
+            end_date: scheduleRow.value.end_date || scheduleRow.value.start_date,
+            days: scheduleRow.value.days,
+            loop_once: scheduleRow.value.loop_once,
+            recurrence_type: scheduleRow.value.recurrence_type,
+            recurrence_interval: scheduleRow.value.recurrence_interval,
+            recurrence_monthly_pattern: scheduleRow.value.recurrence_monthly_pattern,
+            recurrence_monthly_day: scheduleRow.value.recurrence_monthly_day,
+            recurrence_monthly_week: scheduleRow.value.recurrence_monthly_week,
+            recurrence_monthly_day_of_week: scheduleRow.value.recurrence_monthly_day_of_week,
+            recurrence_end_type: scheduleRow.value.recurrence_end_type,
+            recurrence_end_after: scheduleRow.value.recurrence_end_after,
+            recurrence_end_date: scheduleRow.value.recurrence_end_date,
         };
 
         const {id: _id, links: _links, ...putData} = entityData as Record<string, unknown>;

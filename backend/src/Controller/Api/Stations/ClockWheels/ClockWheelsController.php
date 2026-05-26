@@ -340,11 +340,11 @@ final class ClockWheelsController extends AbstractScheduledEntityController
             $request,
             $response,
             $scheduleItems,
-            static function (
+            function (
                 Station $station,
                 StationSchedule $scheduleItem,
                 DateRange $dateRange
-            ) {
+            ) use ($request) {
                 /** @var StationClockWheel $wheel */
                 $wheel = $scheduleItem->clock_wheel;
 
@@ -354,6 +354,10 @@ final class ClockWheelsController extends AbstractScheduledEntityController
                     'backgroundColor' => $wheel->color,
                     'start'           => $dateRange->start->toIso8601String(),
                     'end'             => $dateRange->end->toIso8601String(),
+                    'edit_url'        => $request->getRouter()->named(
+                        'api:stations:clock-wheel',
+                        ['station_id' => $station->id, 'id' => $wheel->id]
+                    ),
                 ];
             }
         );
@@ -495,14 +499,37 @@ final class ClockWheelsController extends AbstractScheduledEntityController
     {
         $wheel->slots->clear();
 
-        $order = 0;
+        $normalized = [];
         foreach ($slotsData as $datum) {
             if (!is_array($datum)) {
                 continue;
             }
+            $normalized[] = $datum;
+        }
 
+        usort(
+            $normalized,
+            static function (array $a, array $b): int {
+                $posA = isset($a['position_seconds']) && is_numeric($a['position_seconds'])
+                    ? (int)$a['position_seconds']
+                    : 0;
+                $posB = isset($b['position_seconds']) && is_numeric($b['position_seconds'])
+                    ? (int)$b['position_seconds']
+                    : 0;
+
+                return $posA <=> $posB;
+            }
+        );
+
+        $order = 0;
+        foreach ($normalized as $datum) {
             $slot = new StationClockWheelSlot($wheel);
             $slot->slot_order = $order++;
+
+            $posRaw = $datum['position_seconds'] ?? null;
+            $slot->position_seconds = (is_numeric($posRaw) && (int)$posRaw >= 0)
+                ? min(3599, (int)$posRaw)
+                : 0;
 
             // Resolve category_id first — a category slot has no type.
             $categoryId = array_key_exists('category_id', $datum) && is_numeric($datum['category_id'])

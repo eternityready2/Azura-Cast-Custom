@@ -17,6 +17,7 @@ use App\Entity\StationSchedule;
 use App\Entity\StationStreamer;
 use App\Exception\ValidationException;
 use App\Radio\AutoDJ\Scheduler;
+use App\Radio\Schedule\ScheduleConflictChecker;
 use App\Utilities\DateRange;
 use App\Utilities\ScheduleRecurrence;
 use App\Utilities\Time;
@@ -32,7 +33,8 @@ final class StationScheduleRepository extends Repository
 
     public function __construct(
         private readonly Scheduler $scheduler,
-        private readonly ScheduleApiGenerator $scheduleApiGenerator
+        private readonly ScheduleApiGenerator $scheduleApiGenerator,
+        private readonly ScheduleConflictChecker $conflictChecker,
     ) {
     }
 
@@ -44,6 +46,14 @@ final class StationScheduleRepository extends Repository
         StationPlaylist|StationStreamer|StationClockWheel $relation,
         array $items = []
     ): void {
+        $station = match (true) {
+            $relation instanceof StationPlaylist => $relation->station,
+            $relation instanceof StationStreamer => $relation->station,
+            $relation instanceof StationClockWheel => $relation->station,
+        };
+
+        $this->conflictChecker->assertBatchHasNoConflicts($station, $relation, $items);
+
         $rawScheduleItems = $this->findByRelation($relation);
 
         $scheduleItems = [];

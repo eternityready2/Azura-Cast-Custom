@@ -136,7 +136,7 @@ final class StationClockWheel implements
             orphanRemoval: true,
             fetch: 'EXTRA_LAZY'
         ),
-        ORM\OrderBy(['slot_order' => 'ASC'])
+        ORM\OrderBy(['position_seconds' => 'ASC', 'slot_order' => 'ASC'])
     ]
     public private(set) Collection $slots;
 

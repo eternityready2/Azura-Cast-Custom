@@ -72,6 +72,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:playlists:index'
                 },
                 {
+                    path: 'schedule',
+                    component: () => import('~/components/Stations/Schedule.vue'),
+                    name: 'stations:schedule:index'
+                },
+                {
                     path: 'podcasts',
                     component: () => import('~/components/Stations/Podcasts.vue'),
                     name: 'stations:podcasts:index',

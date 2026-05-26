@@ -13,9 +13,9 @@ import IconIcPodcasts from "~icons/ic/baseline-podcasts";
 import IconIcPublic from "~icons/ic/baseline-public";
 import IconIcInsertChart from "~icons/ic/baseline-insert-chart";
 import IconIcSettingsApplication from "~icons/ic/baseline-settings-applications";
+import IconIcPsychology from "~icons/ic/baseline-psychology";
 import IconBiBroadcast from "~icons/bi/broadcast";
 import IconIcSchedule from "~icons/ic/baseline-schedule";
-import IconIcCalendarToday from "~icons/ic/baseline-calendar-today";
 import IconIcCategory from "~icons/ic/baseline-category";
 import {useUserAllowedForStation} from "~/functions/useUserallowedForStation.ts";
 
@@ -170,6 +170,16 @@ export function useStationsMenu() {
                 && station.value.features.media,
         },
         {
+            key: 'schedule',
+            label: $gettext('Schedule'),
+            icon: () => IconIcSchedule,
+            url: {
+                name: 'stations:schedule:index'
+            },
+            visible: () => userAllowedForStation(StationPermissions.Media)
+                && station.value.features.media,
+        },
+        {
             key: 'podcasts',
             label: $gettext('Podcasts'),
             icon: () => IconIcPodcasts,
@@ -277,7 +287,7 @@ export function useStationsMenu() {
         {
             key: 'ai_news',
             label: $gettext('AI News Bulletin'),
-            icon: () => IconBiBroadcast,
+            icon: () => IconIcPsychology,
             url: {
                 name: 'stations:ai_news'
             },

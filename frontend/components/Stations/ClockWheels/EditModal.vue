@@ -8,123 +8,16 @@
         @submit="doSubmit"
         @hidden="clearContents"
     >
-        <!-- Title -->
-        <div class="mb-3">
-            <form-group-field
-                id="name"
-                :field="r$.name"
-                :label="$gettext('Title')"
+        <tabs>
+            <ClockWheelsFormEntries
+                :form="form"
+                :r$="r$"
+                :entries="entries"
+                :add-entry="addEntry"
+                :remove-entry="removeEntry"
             />
-        </div>
-
-        <!-- Color swatch -->
-        <div class="mb-4">
-            <label class="form-label fw-semibold">{{ $gettext('Color') }} *</label>
-            <div>
-                <input
-                    id="color"
-                    v-model="form.color"
-                    type="color"
-                    class="color-swatch-input"
-                    style="width: 3rem; height: 3rem; padding: 0.15rem; border: 2px solid #555; border-radius: 6px; cursor: pointer; background: none;"
-                />
-            </div>
-        </div>
-
-        <!-- Entries section -->
-        <div class="mb-1">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fw-semibold">
-                    {{ $gettext('Clockwheel entries') }} ({{ entries.length }})
-                </span>
-            </div>
-
-            <table class="table table-sm table-bordered mb-0">
-                <thead>
-                    <tr>
-                        <th class="text-uppercase small">{{ $gettext('Type or Category') }}</th>
-                        <th class="text-uppercase small">{{ $gettext('Algorithm') }}</th>
-                        <th
-                            class="text-uppercase small text-center"
-                            style="width: 60px;"
-                        >
-                            {{ $gettext('Del') }}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-if="entries.length === 0">
-                        <td
-                            colspan="3"
-                            class="text-center text-muted py-3"
-                        >
-                            {{ $gettext('No Clockwheel Entries found.') }}
-                        </td>
-                    </tr>
-                    <tr
-                        v-for="(entry, index) in entries"
-                        :key="index"
-                    >
-                        <td>
-                            <select
-                                v-model="entry.slot_value"
-                                class="form-select form-select-sm"
-                            >
-                                <optgroup :label="$gettext('Types')">
-                                    <option value="type:music">{{ $gettext('Music (music and copyrighted material)') }}</option>
-                                    <option value="type:talk">{{ $gettext('Talk (sermons, speeches, and live recordings)') }}</option>
-                                    <option value="type:id">{{ $gettext('ID (station identification such as sweepers and jingles)') }}</option>
-                                    <option value="type:promo">{{ $gettext('Promo (station promotion that is not considered an ID)') }}</option>
-                                    <option value="type:ad">{{ $gettext('Ad (advert replacement files)') }}</option>
-                                </optgroup>
-                                <optgroup
-                                    v-if="categories.length > 0"
-                                    :label="$gettext('Categories')"
-                                >
-                                    <option
-                                        v-for="cat in categories"
-                                        :key="cat.id"
-                                        :value="'cat:' + cat.id"
-                                    >
-                                        {{ cat.name }}
-                                    </option>
-                                </optgroup>
-                            </select>
-                        </td>
-                        <td>
-                            <select
-                                v-model="entry.algorithm"
-                                class="form-select form-select-sm"
-                            >
-                                <option value="random">{{ $gettext('Random') }}</option>
-                                <option value="oldest_album">{{ $gettext('Oldest Album') }}</option>
-                                <option value="oldest_artist">{{ $gettext('Oldest Artist') }}</option>
-                                <option value="oldest_track">{{ $gettext('Oldest Track') }}</option>
-                                <option value="most_recent_album">{{ $gettext('Most Recent Album') }}</option>
-                                <option value="most_recent_artist">{{ $gettext('Most Recent Artist') }}</option>
-                            </select>
-                        </td>
-                        <td class="text-center">
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-danger"
-                                @click="removeEntry(index)"
-                            >
-                                &times;
-                            </button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <button
-                type="button"
-                class="btn btn-secondary w-100 mt-2"
-                @click="addEntry"
-            >
-                {{ $gettext('Add Clockwheel Entry') }}
-            </button>
-        </div>
+            <FormSchedule v-model:schedule-items="scheduleItems" />
+        </tabs>
 
         <template
             v-if="isEditMode"
@@ -158,21 +51,25 @@
 
 <script setup lang="ts">
 import ModalForm from '~/components/Common/ModalForm.vue';
-import FormGroupField from '~/components/Form/FormGroupField.vue';
+import Tabs from '~/components/Common/Tabs.vue';
 import {BaseEditModalEmits, BaseEditModalProps, useBaseEditModal} from '~/functions/useBaseEditModal';
-import {computed, onMounted, reactive, ref, useTemplateRef} from 'vue';
+import {computed, reactive, ref, useTemplateRef} from 'vue';
 import {useTranslate} from '~/vendor/gettext';
 import {useNotify} from '~/components/Common/Toasts/useNotify.ts';
 import {useAppRegle} from '~/vendor/regle.ts';
 import {required} from '@regle/rules';
 import mergeExisting from '~/functions/mergeExisting.ts';
 import useConfirmAndDelete from '~/functions/useConfirmAndDelete.ts';
-import {useApiRouter} from '~/functions/useApiRouter.ts';
-import {useAxios} from '~/vendor/axios.ts';
+import ClockWheelsFormEntries from '~/components/Stations/ClockWheels/Form/Entries.vue';
+import FormSchedule from '~/components/Stations/ClockWheels/Form/Schedule.vue';
+import type {PlaylistScheduleRow} from '~/components/Stations/Common/scheduleItemDefaults.ts';
+import normalizeStationScheduleDays from '~/functions/normalizeStationScheduleDays';
 
 interface ClockWheelEntry {
-    slot_value: string;  // "type:music" | "type:talk" | ... | "cat:5"
+    slot_value: string;
     algorithm: string;
+    position_seconds: number;
+    duration_seconds: number | null;
 }
 
 /** Convert a raw slot from the API (type + category_id) to a combined slot_value. */
@@ -198,19 +95,6 @@ const $modal = useTemplateRef('$modal');
 const {notifySuccess} = useNotify();
 const {$gettext} = useTranslate();
 
-const {getStationApiUrl} = useApiRouter();
-const {axios} = useAxios();
-const categories = ref<{id: number; name: string}[]>([]);
-
-onMounted(async () => {
-    try {
-        const resp = await axios.get(getStationApiUrl('/media-categories').value);
-        categories.value = resp.data?.rows ?? resp.data ?? [];
-    } catch {
-        categories.value = [];
-    }
-});
-
 const blankForm = {
     name: '',
     color: '#e87722',
@@ -219,6 +103,7 @@ const blankForm = {
 
 const form = ref({...blankForm});
 const entries = reactive<ClockWheelEntry[]>([]);
+const scheduleItems = ref<PlaylistScheduleRow[]>([]);
 
 const {r$} = useAppRegle(form, {
     name: {required},
@@ -227,7 +112,15 @@ const {r$} = useAppRegle(form, {
 });
 
 const addEntry = () => {
-    entries.push({slot_value: 'type:music', algorithm: 'random'});
+    const lastPosition = entries.length > 0
+        ? entries[entries.length - 1].position_seconds + 300
+        : 0;
+    entries.push({
+        slot_value: 'type:music',
+        algorithm: 'random',
+        position_seconds: Math.min(3599, lastPosition),
+        duration_seconds: null,
+    });
 };
 
 const removeEntry = (index: number) => {
@@ -237,22 +130,81 @@ const removeEntry = (index: number) => {
 const resetForm = () => {
     form.value = {...blankForm};
     entries.splice(0, entries.length);
+    scheduleItems.value.splice(0, scheduleItems.value.length);
 };
 
 const populateForm = (data: Record<string, unknown>) => {
     form.value = mergeExisting(form.value, data);
     if (Array.isArray(data.slots)) {
-        const converted = (data.slots as {type?: string | null; category_id?: number | null; algorithm?: string}[]).map(
-            (s) => ({slot_value: slotToValue(s), algorithm: s.algorithm ?? 'random'})
+        const converted = (data.slots as {
+            type?: string | null;
+            category_id?: number | null;
+            algorithm?: string;
+            position_seconds?: number;
+            duration_seconds?: number | null;
+        }[]).map(
+            (s) => ({
+                slot_value: slotToValue(s),
+                algorithm: s.algorithm ?? 'random',
+                position_seconds: s.position_seconds ?? 0,
+                duration_seconds: s.duration_seconds ?? null,
+            })
         );
         entries.splice(0, entries.length, ...converted);
+    }
+    if (Array.isArray(data.schedule_items)) {
+        scheduleItems.value.splice(0, scheduleItems.value.length, ...(data.schedule_items as PlaylistScheduleRow[]).map((item: Record<string, unknown>) => {
+            const endType = item.recurrence_end_type ?? 'never';
+            const merged: Record<string, unknown> = {
+                ...item,
+                recurrence_type: item.recurrence_type ?? 'weekly',
+                recurrence_interval: item.recurrence_interval ?? 1,
+                recurrence_end_type: (endType === 'on_date' ? 'never' : endType) as string,
+                recurrence_end_after: endType === 'after' ? (item.recurrence_end_after ?? null) : null,
+                recurrence_end_date: null
+            };
+            if (endType === 'after') {
+                merged.end_date = null;
+            }
+            if (merged.recurrence_type === 'monthly' && merged.recurrence_monthly_pattern === 'day_of_week' && merged.recurrence_monthly_day_of_week != null && (!merged.days || (merged.days as number[]).length === 0)) {
+                merged.days = [Number(merged.recurrence_monthly_day_of_week)];
+            }
+            return merged;
+        }));
     }
 };
 
 const validateForm = async () => {
     const {valid} = await r$.$validate();
-    const slots = entries.map((e) => ({...valueToSlot(e.slot_value), algorithm: e.algorithm}));
-    return {valid, data: {...form.value, slots}};
+    const slots = entries.map((e) => ({
+        ...valueToSlot(e.slot_value),
+        algorithm: e.algorithm,
+        position_seconds: e.position_seconds,
+        duration_seconds: e.duration_seconds,
+    }));
+    const schedule_items = scheduleItems.value.map((item) => {
+        const out = {...item};
+        out.recurrence_type = item.recurrence_type ?? 'weekly';
+        out.recurrence_interval = (item.recurrence_type === 'biweekly' ? 2 : Number(item.recurrence_interval)) || 1;
+        out.recurrence_end_type = item.recurrence_end_type ?? 'never';
+        out.recurrence_end_after = (item.recurrence_end_type === 'after' && item.recurrence_end_after != null)
+            ? Number(item.recurrence_end_after) : null;
+        out.recurrence_end_date = null;
+        if (item.recurrence_end_type === 'after') {
+            out.end_date = null;
+        }
+        const normalizedDays = normalizeStationScheduleDays(item.days);
+        if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'date') {
+            out.days = [];
+        } else {
+            out.days = normalizedDays;
+        }
+        if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'day_of_week' && normalizedDays.length > 0) {
+            out.recurrence_monthly_day_of_week = normalizedDays[0];
+        }
+        return out;
+    });
+    return {valid, data: {...form.value, slots, schedule_items}};
 };
 
 const langTitle = computed(() =>
@@ -279,6 +231,8 @@ const {
     {
         onSubmitSuccess: () => {
             notifySuccess($gettext('Clock Wheel saved.'));
+            emit('relist');
+            close();
         },
     }
 );
@@ -293,7 +247,7 @@ const {doDelete} = useConfirmAndDelete(
 const doDeleteFromModal = () => {
     if (editUrl.value) {
         $modal.value?.hide();
-        doDelete(editUrl.value);
+        void doDelete(editUrl.value);
     }
 };
 

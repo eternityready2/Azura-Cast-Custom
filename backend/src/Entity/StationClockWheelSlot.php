@@ -36,11 +36,14 @@ use Symfony\Component\Validator\Constraints as Assert;
  *   Defaults to Random, which is the safest choice for live broadcast because
  *   it cannot get "stuck" on a single track if the playlist runs short.
  *
- * - `slot_order` (smallint, default 0): absolute position of this slot within
- *   the wheel. The generator reads slots in ascending slot_order, so the first
- *   slot that runs at the top of the hour has order=0. Using a plain integer
- *   (not a sequence with gaps) keeps re-ordering straightforward: the API just
- *   accepts the full ordered list and writes new order values.
+ * - `position_seconds` (0–3599): anchor time within the broadcast hour (seconds
+ *   from top of hour). The generator selects the active slot as the latest
+ *   anchor whose position_seconds is less than or equal to the current second
+ *   into the hour.
+ *
+ * - `slot_order` (smallint, default 0): tie-breaker when two slots share the
+ *   same position_seconds. The API accepts the full ordered list and writes new
+ *   order values on save.
  *
  * - `duration_seconds` (nullable smallint): the intended length of this slot in
  *   seconds. NULL means "no hard limit — play one track and move on". When set,
@@ -129,8 +132,17 @@ final class StationClockWheelSlot implements IdentifiableEntityInterface
     // ------------------------------------------------------------------
 
     /**
-     * Zero-based position of this slot in the wheel.
-     * The Liquidsoap generator iterates slots in ascending order of this value.
+     * Seconds from the top of the hour (0–3599) when this slot's content should start.
+     */
+    #[
+        OA\Property(example: 0),
+        ORM\Column(type: 'smallint', options: ['unsigned' => true]),
+        Assert\Range(min: 0, max: 3599)
+    ]
+    public int $position_seconds = 0;
+
+    /**
+     * Tie-breaker when multiple slots share the same position_seconds.
      */
     #[
         OA\Property(example: 0),
