@@ -9,7 +9,7 @@
             </template>
             <p>
                 {{
-                    $gettext('This clock wheel currently has no scheduled times. It will play at all times. To add a new scheduled time, click the button below.')
+                    $gettext('This clock wheel has no scheduled times and will not run on-air until you add at least one schedule item below (or assign it from the station Schedule page).')
                 }}
             </p>
         </form-markup>

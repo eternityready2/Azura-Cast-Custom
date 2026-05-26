@@ -7,6 +7,8 @@ namespace App\Radio\AutoDJ;
 use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Repository\StationQueueRepository;
+use App\Entity\Repository\StationScheduleRepository;
+use App\Entity\Station;
 use App\Entity\StationSchedule;
 use App\Event\Radio\BuildQueue;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelPlaybackPlanner;
@@ -27,6 +29,8 @@ final class ClockWheelScheduler implements EventSubscriberInterface
 
     public function __construct(
         private readonly StationQueueRepository $queueRepo,
+        private readonly StationScheduleRepository $scheduleRepo,
+        private readonly Scheduler $scheduler,
         private readonly ClockWheelPlaybackPlanner $planner,
         private readonly ScheduleConflictChecker $conflictChecker,
     ) {
@@ -58,7 +62,7 @@ final class ClockWheelScheduler implements EventSubscriberInterface
             return;
         }
 
-        $activeEvent = $this->findActiveClockWheelSchedule($station->id, $expectedPlayTime);
+        $activeEvent = $this->findActiveClockWheelSchedule($station, $expectedPlayTime);
 
         if (null === $activeEvent || null === $activeEvent->clock_wheel) {
             return;
@@ -104,29 +108,20 @@ final class ClockWheelScheduler implements EventSubscriberInterface
     }
 
     /**
-     * Find a StationSchedule that links to an active Clock Wheel for the given station and time.
+     * Find a StationSchedule that links to an active clock wheel for the station at the given time.
+     *
+     * Uses the same date/recurrence/overnight rules as playlist scheduling.
      */
-    private function findActiveClockWheelSchedule(int $stationId, DateTimeImmutable $now): ?StationSchedule
+    private function findActiveClockWheelSchedule(Station $station, DateTimeImmutable $now): ?StationSchedule
     {
-        $timeCode = (int)$now->format('G') * 100 + (int)$now->format('i');
-        $weekday = (int)$now->format('N');
+        $tz = $station->getTimezoneObject();
 
-        /** @var StationSchedule[] $schedules */
-        $schedules = $this->em->createQuery(
-            'SELECT s, w FROM App\Entity\StationSchedule s
-             JOIN s.clock_wheel w
-             WHERE w.station = :stationId
-             AND w.is_active = true
-             AND s.start_time <= :timeCode
-             AND s.end_time > :timeCode'
-        )
-            ->setParameter('stationId', $stationId)
-            ->setParameter('timeCode', $timeCode)
-            ->getResult();
+        foreach ($this->scheduleRepo->getAllScheduledItemsForStation($station) as $schedule) {
+            if ($schedule->clock_wheel === null) {
+                continue;
+            }
 
-        foreach ($schedules as $schedule) {
-            $days = $schedule->days;
-            if ($days === [] || in_array($weekday, $days, true)) {
+            if ($this->scheduler->shouldSchedulePlayNow($schedule, $tz, $now)) {
                 return $schedule;
             }
         }
