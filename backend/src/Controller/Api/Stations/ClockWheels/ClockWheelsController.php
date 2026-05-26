@@ -305,8 +305,6 @@ final class ClockWheelsController extends AbstractScheduledEntityController
             $this->scheduleRepo->setScheduleItems($wheel, $scheduleItems);
         }
 
-        $this->assertActiveClockWheelHasSchedule($wheel);
-
         $this->em->flush();
 
         // Refresh slot entities so the read-only category_id column reflects
@@ -479,27 +477,6 @@ final class ClockWheelsController extends AbstractScheduledEntityController
         }
 
         return $response->withJson($savedSlots);
-    }
-
-    /**
-     * Active clock wheels must have at least one calendar schedule entry (must-schedule policy).
-     */
-    private function assertActiveClockWheelHasSchedule(StationClockWheel $wheel): void
-    {
-        if (!$wheel->is_active) {
-            return;
-        }
-
-        if ($this->scheduleRepo->findByRelation($wheel) !== []) {
-            return;
-        }
-
-        throw new ValidationException(
-            __(
-                'Active clock wheels must have at least one scheduled time. '
-                . 'Add a schedule item on the Schedule tab, or deactivate this wheel.'
-            )
-        );
     }
 
     // ------------------------------------------------------------------
