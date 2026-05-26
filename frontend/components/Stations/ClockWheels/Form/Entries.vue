@@ -21,7 +21,7 @@
                     id="color"
                     ref="colorInput"
                     type="color"
-                    class="form-control form-control-color"
+                    class="form-control form-control-color d-none"
                     style="width: 3rem; height: 3rem; padding: 0.15rem;"
                     @input="color.value = ($event.target as HTMLInputElement).value"
                 >
