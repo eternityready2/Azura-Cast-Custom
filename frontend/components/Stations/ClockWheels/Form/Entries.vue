@@ -10,19 +10,21 @@
 
         <!-- Color picker -->
         <div class="mb-4">
-            <label
-                for="color"
-                class="form-label fw-semibold"
-            >
-                {{ $gettext('Color') }} *
-            </label>
-            <div>
+            <label class="form-label fw-semibold">{{ $gettext('Color') }} *</label>
+            <div class="d-flex align-items-center gap-2">
+                <div
+                    class="color-swatch-input"
+                    :style="{ backgroundColor: form.color }"
+                    style="width: 3rem; height: 3rem; border: 2px solid #555; border-radius: 6px; cursor: pointer;"
+                    @click="colorInput?.click()"
+                />
                 <input
                     id="color"
+                    ref="colorInput"
                     :value="form.color"
                     type="color"
-                    class="form-control form-control-color"
-                    style="width: 3rem; height: 3rem; padding: 0.15rem; border: 2px solid #555; border-radius: 6px; cursor: pointer; background: none;"
+                    class="form-control form-control-color d-none"
+                    style="width: 3rem; height: 3rem; padding: 0.15rem;"
                     @input="onColorInput"
                 />
             </div>
@@ -128,7 +130,7 @@
 <script setup lang="ts">
 import FormGroupField from '~/components/Form/FormGroupField.vue';
 import Tab from '~/components/Common/Tab.vue';
-import {ref} from 'vue';
+import {ref, useTemplateRef} from 'vue';
 import {useTranslate} from '~/vendor/gettext';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useAxios} from '~/vendor/axios.ts';
@@ -146,6 +148,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'update:color', value: string): void;
 }>();
+
+const colorInput = useTemplateRef<HTMLInputElement>('colorInput');
 
 const onColorInput = (event: Event) => {
     emit('update:color', (event.target as HTMLInputElement).value);
