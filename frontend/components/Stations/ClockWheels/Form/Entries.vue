@@ -245,7 +245,7 @@
 <script setup lang="ts">
 import FormGroupField from '~/components/Form/FormGroupField.vue';
 import Tab from '~/components/Common/Tab.vue';
-import {ref, useTemplateRef} from 'vue';
+import {computed, ref, useTemplateRef} from 'vue';
 import {useTranslate} from '~/vendor/gettext';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useAxios} from '~/vendor/axios.ts';
