@@ -513,11 +513,29 @@ final class ClockWheelsController extends AbstractScheduledEntityController
             $normalized[] = $datum;
         }
 
+        usort(
+            $normalized,
+            static function (array $a, array $b): int {
+                $posA = isset($a['position_seconds']) && is_numeric($a['position_seconds'])
+                    ? (int)$a['position_seconds']
+                    : 0;
+                $posB = isset($b['position_seconds']) && is_numeric($b['position_seconds'])
+                    ? (int)$b['position_seconds']
+                    : 0;
+
+                return $posA <=> $posB;
+            }
+        );
+
         $order = 0;
         foreach ($normalized as $datum) {
             $slot = new StationClockWheelSlot($wheel);
             $slot->slot_order = $order++;
-            $slot->position_seconds = 0;
+
+            $posRaw = $datum['position_seconds'] ?? null;
+            $slot->position_seconds = (is_numeric($posRaw) && (int)$posRaw >= 0)
+                ? min(3599, (int)$posRaw)
+                : 0;
 
             // Resolve category_id first — a category slot has no type.
             $categoryId = array_key_exists('category_id', $datum) && is_numeric($datum['category_id'])
