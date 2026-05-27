@@ -350,6 +350,7 @@ final class ClockWheelsController extends AbstractScheduledEntityController
 
                 return [
                     'id'              => $scheduleItem->id . '_' . $dateRange->start->getTimestamp(),
+                    'schedule_id'     => $scheduleItem->id,
                     'title'           => $wheel->name,
                     'backgroundColor' => $wheel->color,
                     'start'           => $dateRange->start->toIso8601String(),

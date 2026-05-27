@@ -75,17 +75,7 @@ const $scheduleTab = useTemplateRef('$scheduleTab');
 const $createEventModal = useTemplateRef('$createEventModal');
 
 const doCalendarClick = (event: EventImpl) => {
-    const editUrl = event.extendedProps.edit_url as string | undefined;
-    if (!editUrl) {
-        return;
-    }
-
-    if (editUrl.includes('clock-wheel')) {
-        doEditClockWheel(editUrl);
-        return;
-    }
-
-    doEdit(editUrl);
+    $createEventModal.value?.openForEdit(event);
 };
 
 const doCreateEvent = () => {

@@ -37,9 +37,6 @@
                 <span class="fw-semibold">
                     {{ $gettext('Clockwheel entries') }} ({{ entries.length }})
                 </span>
-                <small class="text-muted">
-                    {{ $gettext('Drag to reorder; times stay on the hour unless you edit them.') }}
-                </small>
             </div>
 
             <div
@@ -206,23 +203,23 @@
                             <div class="btn-group btn-group-sm w-100 justify-content-center">
                                 <button
                                     type="button"
-                                    class="btn btn-outline-primary"
-                                    :title="$gettext('Insert entry after this anchor')"
+                                    class="btn btn-outline-primary cw-action-btn"
+                                    :title="$gettext('Insert after')"
                                     @click="props.insertEntryAfter(index)"
                                 >
                                     <icon-ic-add />
                                 </button>
                                 <button
                                     type="button"
-                                    class="btn btn-outline-secondary"
-                                    :title="$gettext('Duplicate this entry')"
+                                    class="btn btn-outline-secondary cw-action-btn"
+                                    :title="$gettext('Duplicate')"
                                     @click="props.duplicateEntry(index)"
                                 >
                                     <icon-ic-copy />
                                 </button>
                                 <button
                                     type="button"
-                                    class="btn btn-outline-danger"
+                                    class="btn btn-outline-danger cw-action-btn"
                                     :title="$gettext('Delete')"
                                     @click="props.removeEntry(index)"
                                 >
@@ -255,6 +252,8 @@ import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useAxios} from '~/vendor/axios.ts';
 import {useDraggable} from 'vue-draggable-plus';
 import IconIcDelete from '~icons/ic/baseline-delete';
+import IconIcAdd from '~icons/ic/baseline-add';
+import IconIcCopy from '~icons/ic/baseline-content-copy';
 import {
     formatClockWheelPosition,
     getClockWheelTimelineWarnings,
@@ -314,7 +313,7 @@ onMounted(() => {
         return;
     }
 
-    useDraggable($tbody, entries, {
+    useDraggable($tbody.value, entries, {
         handle: '.drag-handle',
         animation: 150,
         onEnd() {
@@ -402,5 +401,14 @@ const focusRow = (index: number) => {
 
 .clock-wheel-entries-table .drag-handle:active {
     cursor: grabbing;
+}
+
+.cw-action-btn {
+    width: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
 }
 </style>

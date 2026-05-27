@@ -532,11 +532,14 @@ const recurrenceEndTypeOptions = [
     {value: 'after', text: $gettext('After number of occurrences')}
 ];
 
+const editingScheduleId = ref<number | null>(null);
+
 const clearForm = () => {
     form.value = blankForm();
     schedulingMode.value = 'flexible';
     scheduleRow.value = createScheduleItemDefaults();
     error.value = null;
+    editingScheduleId.value = null;
 };
 
 const open = () => {
@@ -545,6 +548,53 @@ const open = () => {
     if (currentEntityOptions.value.length > 0) {
         form.value.entity_id = currentEntityOptions.value[0].id;
     }
+    ($modal.value as any)?.show();
+};
+
+const openForEdit = (event: EventImpl) => {
+    clearForm();
+
+    const editUrl = event.extendedProps.edit_url as string | undefined;
+    const scheduleIdRaw = event.extendedProps.schedule_id as number | string | undefined;
+    const scheduleId = scheduleIdRaw !== undefined ? Number(scheduleIdRaw) : NaN;
+    editingScheduleId.value = Number.isFinite(scheduleId) ? scheduleId : null;
+
+    if (editUrl?.includes('/clock-wheel/')) {
+        form.value.source = 'clock_wheel';
+    } else {
+        form.value.source = 'playlist';
+    }
+
+    // Infer entity_id from edit_url (/playlist/{id} or /clock-wheel/{id})
+    if (editUrl) {
+        const m = editUrl.match(/\/(playlist|clock-wheel)\/(\d+)/);
+        if (m?.[2]) {
+            form.value.entity_id = Number(m[2]);
+        }
+    }
+
+    // Prefill the form from the current event time window.
+    const start = event.start;
+    const end = event.end ?? undefined;
+    if (start) {
+        const startDate = start.toISOString().slice(0, 10);
+        const startH = start.getHours().toString().padStart(2, '0');
+        const startM = start.getMinutes().toString().padStart(2, '0');
+        scheduleRow.value.start_date = startDate;
+        scheduleRow.value.end_date = startDate;
+        scheduleRow.value.start_time = Number(`${startH}${startM}`);
+    }
+    if (end) {
+        const endH = end.getHours().toString().padStart(2, '0');
+        const endM = end.getMinutes().toString().padStart(2, '0');
+        scheduleRow.value.end_time = Number(`${endH}${endM}`);
+    }
+
+    // Ensure the entity dropdown isn't empty if options are loaded.
+    if (!form.value.entity_id && currentEntityOptions.value.length > 0) {
+        form.value.entity_id = currentEntityOptions.value[0].id;
+    }
+
     ($modal.value as any)?.show();
 };
 
@@ -564,7 +614,7 @@ const doSave = async () => {
         const {data: entityData} = await axios.get(entityApiUrl);
 
         // Use scheduleRow data directly - it already has all the fields in the correct format
-        const newScheduleItem: PlaylistScheduleRow = {
+        const newScheduleItem: PlaylistScheduleRow & {id?: number} = {
             start_time: scheduleRow.value.start_time,
             end_time: scheduleRow.value.end_time,
             start_date: scheduleRow.value.start_date,
@@ -583,14 +633,34 @@ const doSave = async () => {
         };
 
         const {id: _id, links: _links, ...putData} = entityData as Record<string, unknown>;
-        const updatedScheduleItems = [...((putData.schedule_items as unknown[]) ?? []), newScheduleItem];
+        const existingScheduleItems = (putData.schedule_items as unknown[]) ?? [];
+
+        let updatedScheduleItems: unknown[];
+        if (editingScheduleId.value !== null) {
+            newScheduleItem.id = editingScheduleId.value;
+
+            let replaced = false;
+            updatedScheduleItems = existingScheduleItems.map((row: any) => {
+                if (row?.id === editingScheduleId.value) {
+                    replaced = true;
+                    return newScheduleItem;
+                }
+                return row;
+            });
+
+            if (!replaced) {
+                updatedScheduleItems = [...updatedScheduleItems, newScheduleItem];
+            }
+        } else {
+            updatedScheduleItems = [...existingScheduleItems, newScheduleItem];
+        }
 
         await axios.put(entityApiUrl, {
             ...putData,
             schedule_items: updatedScheduleItems,
         });
 
-        notifySuccess($gettext('Event created.'));
+        notifySuccess(editingScheduleId.value !== null ? $gettext('Event updated.') : $gettext('Event created.'));
         ($modal.value as any)?.hide();
         emit('relist');
     } catch (e: unknown) {
@@ -601,5 +671,5 @@ const doSave = async () => {
     }
 };
 
-defineExpose({open});
+defineExpose({open, openForEdit});
 </script>
