@@ -54,7 +54,7 @@
                         type="button"
                         class="clock-wheel-timeline__marker"
                         :style="{ left: timelinePercent(entry.position_seconds) + '%' }"
-                        :title="formatPosition(entry.position_seconds) + ' — ' + slotLabel(entry.slot_value)"
+                        :title="formatPosition(entry.position_seconds) + ' — ' + slotLabel(entry)"
                         @click="focusRow(entries.indexOf(entry))"
                     />
                 </div>
@@ -85,7 +85,10 @@
                             {{ $gettext('Position (m:s)') }}
                         </th>
                         <th class="text-uppercase small">
-                            {{ $gettext('Type or Category') }}
+                            {{ $gettext('Type') }}
+                        </th>
+                        <th class="text-uppercase small">
+                            {{ $gettext('Category') }}
                         </th>
                         <th class="text-uppercase small">
                             {{ $gettext('Algorithm') }}
@@ -104,7 +107,7 @@
                 <tbody ref="$tbody">
                     <tr v-if="entries.length === 0">
                         <td
-                            colspan="6"
+                            colspan="7"
                             class="text-center text-muted py-3"
                         >
                             {{ $gettext('No Clockwheel Entries found.') }}
@@ -130,38 +133,34 @@
                         </td>
                         <td>
                             <select
-                                v-model="entry.slot_value"
+                                v-model="entry.type"
+                                class="form-select form-select-sm"
+                                required
+                            >
+                                <option
+                                    v-for="opt in mediaTypeOptions"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                >
+                                    {{ opt.label }}
+                                </option>
+                            </select>
+                        </td>
+                        <td>
+                            <select
+                                v-model="entry.category_id"
                                 class="form-select form-select-sm"
                             >
-                                <optgroup :label="$gettext('Types')">
-                                    <option value="type:music">
-                                        {{ $gettext('Music (music and copyrighted material)') }}
-                                    </option>
-                                    <option value="type:talk">
-                                        {{ $gettext('Talk (sermons, speeches, and live recordings)') }}
-                                    </option>
-                                    <option value="type:id">
-                                        {{ $gettext('ID (station identification such as sweepers and jingles)') }}
-                                    </option>
-                                    <option value="type:promo">
-                                        {{ $gettext('Promo (station promotion that is not considered an ID)') }}
-                                    </option>
-                                    <option value="type:ad">
-                                        {{ $gettext('Ad (advert replacement files)') }}
-                                    </option>
-                                </optgroup>
-                                <optgroup
-                                    v-if="categories.length > 0"
-                                    :label="$gettext('Categories')"
+                                <option :value="null">
+                                    {{ $gettext('— Any —') }}
+                                </option>
+                                <option
+                                    v-for="cat in categories"
+                                    :key="cat.id"
+                                    :value="cat.id"
                                 >
-                                    <option
-                                        v-for="cat in categories"
-                                        :key="cat.id"
-                                        :value="'cat:' + cat.id"
-                                    >
-                                        {{ cat.name }}
-                                    </option>
-                                </optgroup>
+                                    {{ cat.name }}
+                                </option>
                             </select>
                         </td>
                         <td>
@@ -255,17 +254,19 @@ import IconIcDelete from '~icons/ic/baseline-delete';
 import IconIcAdd from '~icons/ic/baseline-add';
 import IconIcCopy from '~icons/ic/baseline-content-copy';
 import {
+    entrySlotShortLabel,
     formatClockWheelPosition,
     getClockWheelTimelineWarnings,
     parseClockWheelPosition,
-    slotValueShortLabel,
     timelinePercent,
 } from '~/functions/clockWheelPosition.ts';
+import {formatMediaType, getMediaTypeOptions, type MediaTypeValue} from '~/functions/mediaTypes.ts';
 
 const {$gettext} = useTranslate();
 
 export interface ClockWheelEntryRow {
-    slot_value: string;
+    type: MediaTypeValue;
+    category_id: number | null;
     algorithm: string;
     position_seconds: number;
     duration_seconds: number | null;
@@ -288,6 +289,7 @@ const entries = defineModel<ClockWheelEntryRow[]>('entries', {required: true});
 const {getStationApiUrl} = useApiRouter();
 const {axios} = useAxios();
 const categories = ref<{id: number; name: string}[]>([]);
+const mediaTypeOptions = computed(() => getMediaTypeOptions($gettext));
 
 void axios.get(getStationApiUrl('/media-categories').value).then(
     (resp) => {
@@ -323,10 +325,11 @@ onMounted(() => {
 });
 
 const formatPosition = formatClockWheelPosition;
-const slotLabel = (slotValue: string) => slotValueShortLabel(slotValue, categories.value);
+const slotLabel = (entry: ClockWheelEntryRow) =>
+    entrySlotShortLabel(entry, categories.value, (type) => formatMediaType(type, $gettext));
 
 const rowKey = (entry: ClockWheelEntryRow, index: number) =>
-    `${index}-${entry.position_seconds}-${entry.slot_value}`;
+    `${index}-${entry.position_seconds}-${entry.type}-${entry.category_id ?? ''}`;
 
 const rowHasWarning = (index: number) =>
     timelineWarnings.value.some((w) => w.index === index);

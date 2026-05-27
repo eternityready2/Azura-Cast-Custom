@@ -54,7 +54,7 @@ Delivered items in this repo:
   - track duration (seconds)
   - duplicate prevention
   - algorithm choice (random/oldest/etc.)
-  - optional playlist pin, type/category filter
+  - optional playlist pin; **type** (required) and **category** (optional) filters on media
 - **Unified schedule dashboard** that displays playlist + clock wheel events and supports creating events.
 
 ### Phase 2 — UX improvements (recommended next)

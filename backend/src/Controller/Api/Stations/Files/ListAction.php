@@ -417,6 +417,8 @@ final class ListAction implements SingleActionInterface
             return [];
         }
 
+        $qb->leftJoin('sm.category', 'smc');
+
         $qb->select(
             'sm.id',
             'sm.unique_id',
@@ -430,7 +432,10 @@ final class ListAction implements SingleActionInterface
             'sm.length',
             'sm.mtime',
             'sm.uploaded_at',
-            'sm.art_updated_at'
+            'sm.art_updated_at',
+            'sm.type',
+            'sm.category_id',
+            'smc.name AS category_name'
         );
 
         /** @var array<array{
@@ -446,7 +451,10 @@ final class ListAction implements SingleActionInterface
          *     length: string,
          *     mtime: int,
          *     uploaded_at: int,
-         *     art_updated_at: int
+         *     art_updated_at: int,
+         *     type: string,
+         *     category_id: int|null,
+         *     category_name: string|null
          * }> $mediaInDirRaw
          */
         $mediaInDirRaw = $qb->getQuery()->getScalarResult();

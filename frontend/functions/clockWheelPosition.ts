@@ -90,15 +90,21 @@ export function getClockWheelTimelineWarnings(
     return warnings;
 }
 
-export function slotValueShortLabel(
-    slotValue: string,
-    categories: { id: number; name: string }[],
+export interface ClockWheelSlotFilter {
+    type: string;
+    category_id: number | null;
+}
+
+export function entrySlotShortLabel(
+    entry: ClockWheelSlotFilter,
+    categories: {id: number; name: string}[],
+    formatType: (type: string) => string,
 ): string {
-    if (slotValue.startsWith('cat:')) {
-        const id = parseInt(slotValue.slice(4), 10);
-        return categories.find((c) => c.id === id)?.name ?? 'Category';
+    const typeLabel = formatType(entry.type);
+    if (entry.category_id == null) {
+        return typeLabel;
     }
 
-    const type = slotValue.replace('type:', '');
-    return type.charAt(0).toUpperCase() + type.slice(1);
+    const categoryName = categories.find((c) => c.id === entry.category_id)?.name;
+    return categoryName ? `${typeLabel} · ${categoryName}` : typeLabel;
 }

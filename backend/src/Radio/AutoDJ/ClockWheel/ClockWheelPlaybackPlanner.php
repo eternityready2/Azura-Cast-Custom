@@ -231,8 +231,8 @@ final class ClockWheelPlaybackPlanner
         $categoryId = $slot->category_id;
         $playlistId = $slot->playlist_id;
 
-        if ($type === null && $categoryId === null && ($playlistId === null || $playlistId === 0)) {
-            $this->logger->warning('Clock Wheel slot has no type, category, or playlist — skipping.');
+        if ($type === null) {
+            $this->logger->warning('Clock Wheel slot has no type — skipping.');
             return null;
         }
 
@@ -250,10 +250,8 @@ final class ClockWheelPlaybackPlanner
             $params['playlistId'] = $playlistId;
         }
 
-        if ($type !== null) {
-            $dql .= ' AND m.type = :type';
-            $params['type'] = $type;
-        }
+        $dql .= ' AND m.type = :type';
+        $params['type'] = $type->value;
 
         if ($categoryId !== null) {
             $dql .= ' AND m.category_id = :categoryId';

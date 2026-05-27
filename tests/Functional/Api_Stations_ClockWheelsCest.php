@@ -159,6 +159,7 @@ final class Api_Stations_ClockWheelsCest extends CestAbstract
             'slots' => [
                 [
                     'type' => 'promo',
+                    'category_id' => null,
                     'algorithm' => 'oldest_track',
                     'position_seconds' => 600,
                     'duration_seconds' => 45,
@@ -167,7 +168,7 @@ final class Api_Stations_ClockWheelsCest extends CestAbstract
         ]);
         $I->seeResponseCodeIs(200);
         $I->seeResponseContainsJson([
-            ['position_seconds' => 600, 'type' => 'promo'],
+            ['position_seconds' => 600, 'type' => 'promo', 'category_id' => null],
         ]);
 
         $I->sendGET(

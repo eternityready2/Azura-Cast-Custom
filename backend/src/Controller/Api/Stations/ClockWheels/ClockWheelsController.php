@@ -538,7 +538,11 @@ final class ClockWheelsController extends AbstractScheduledEntityController
                 ? min(3599, (int)$posRaw)
                 : 0;
 
-            // Resolve category_id first — a category slot has no type.
+            $typeRaw = (array_key_exists('type', $datum) && $datum['type'] !== null && $datum['type'] !== '')
+                ? (string)$datum['type']
+                : 'music';
+            $slot->type = ClockWheelSlotTypes::tryFrom($typeRaw) ?? ClockWheelSlotTypes::Music;
+
             $categoryId = array_key_exists('category_id', $datum) && is_numeric($datum['category_id'])
                 ? (int)$datum['category_id']
                 : null;
@@ -547,17 +551,11 @@ final class ClockWheelsController extends AbstractScheduledEntityController
                 $category = $this->em->find(StationMediaCategory::class, $categoryId);
                 if ($category !== null && $category->station->id === $wheel->station->id) {
                     $slot->category = $category;
-                    $slot->type = null;
                 } else {
-                    // Fallback to music if category is invalid or from another station.
-                    $slot->type = ClockWheelSlotTypes::Music;
+                    $slot->category = null;
                 }
             } else {
-                // Use array_key_exists so null values don't fall back to 'music'.
-                $typeRaw = (array_key_exists('type', $datum) && $datum['type'] !== null)
-                    ? (string)$datum['type']
-                    : 'music';
-                $slot->type = ClockWheelSlotTypes::tryFrom($typeRaw) ?? ClockWheelSlotTypes::Music;
+                $slot->category = null;
             }
 
             $algoRaw = isset($datum['algorithm']) ? (string)$datum['algorithm'] : 'random';

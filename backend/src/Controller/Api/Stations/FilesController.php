@@ -231,6 +231,9 @@ final class FilesController extends AbstractStationApiCrudController
             $this->customFieldsRepo->getCustomFields($record),
             StationMediaPlaylist::aggregate($playlists),
         );
+        $return->type = $record->type;
+        $return->category_id = $record->category_id;
+        $return->category_name = $record->category?->name;
 
         $isInternal = $request->isInternal();
         $router = $request->getRouter();

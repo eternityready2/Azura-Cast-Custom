@@ -163,6 +163,22 @@
             <template #cell(media.length)="{ item }">
                 {{ item.media?.length_text }}
             </template>
+            <template #cell(media.type)="{ item }">
+                <template v-if="item.type === FileTypes.Media">
+                    {{ formatMediaType(item.media?.type, $gettext) }}
+                </template>
+                <template v-else>
+                    &nbsp;
+                </template>
+            </template>
+            <template #cell(media.category_name)="{ item }">
+                <template v-if="item.type === FileTypes.Media">
+                    {{ item.media?.category_name || '—' }}
+                </template>
+                <template v-else>
+                    &nbsp;
+                </template>
+            </template>
             <template #cell(size)="{ item }">
                 <template v-if="!item.size">
                     &nbsp;
@@ -274,6 +290,7 @@ import IconIcInsertDriveFile from "~icons/ic/baseline-insert-drive-file";
 import IconIcFolder from "~icons/ic/baseline-folder";
 import IconIcImage from "~icons/ic/baseline-image";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
+import {formatMediaType} from "~/functions/mediaTypes.ts";
 
 const props = defineProps<StationsVueFilesPropsRequired>();
 
@@ -361,6 +378,8 @@ const fields = computed<DataTableField<MediaRow>[]>(() => {
         {key: 'media.album', label: $gettext('Album'), sortable: true, selectable: true, visible: false},
         {key: 'media.genre', label: $gettext('Genre'), sortable: true, selectable: true, visible: false},
         {key: 'media.isrc', label: $gettext('ISRC'), sortable: true, selectable: true, visible: false},
+        {key: 'media.type', label: $gettext('Type'), sortable: true, selectable: true, visible: true},
+        {key: 'media.category_name', label: $gettext('Category'), sortable: true, selectable: true, visible: true},
         {key: 'media.length', label: $gettext('Length'), sortable: true, selectable: true, visible: true}
     ];
 
