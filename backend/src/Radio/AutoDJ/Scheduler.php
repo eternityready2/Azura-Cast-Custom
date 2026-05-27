@@ -258,57 +258,80 @@ final class Scheduler
     ): bool {
         $now = Time::nowInTimezone($tz, $now);
 
-        $startTime = StationSchedule::getDateTime($schedule->start_time, $tz, $now);
-        $endTime = StationSchedule::getDateTime($schedule->end_time, $tz, $now);
-
-        $this->logger->debug('Checking to see whether schedule should play now.', [
-            'startTime' => $startTime,
-            'endTime' => $endTime,
-        ]);
+        $this->logger->debug('Checking to see whether schedule should play now.');
 
         if (!$this->shouldSchedulePlayOnCurrentDate($schedule, $tz, $now)) {
             $this->logger->debug('Schedule is not scheduled to play today.');
             return false;
         }
 
-        /** @var DateRange[] $comparePeriods */
-        $comparePeriods = [];
-
-        if ($startTime->equalTo($endTime)) {
-            // Create intervals for "play once" type dates.
-            $comparePeriods[] = new DateRange(
-                $startTime,
-                $endTime->addMinutes(15)
-            );
-            $comparePeriods[] = new DateRange(
-                $startTime->subDay(),
-                $endTime->subDay()->addMinutes(15)
-            );
-            $comparePeriods[] = new DateRange(
-                $startTime->addDay(),
-                $endTime->addDay()->addMinutes(15)
-            );
-        } elseif ($startTime->greaterThan($endTime)) {
-            // Create intervals for overnight playlists (one from yesterday to today, one from today to tomorrow).
-            $comparePeriods[] = new DateRange(
-                $startTime->subDay(),
-                $endTime
-            );
-            $comparePeriods[] = new DateRange(
-                $startTime,
-                $endTime->addDay()
-            );
-        } else {
-            $comparePeriods[] = new DateRange(
-                $startTime,
-                $endTime
-            );
-        }
+        $comparePeriods = $this->buildScheduleComparePeriods($schedule, $tz, $now);
 
         return array_any(
             $comparePeriods,
             fn($dateRange) => $this->shouldPlayInSchedulePeriod($schedule, $dateRange, $now, $excludeSpecialRules)
         );
+    }
+
+    /**
+     * Returns the calendar occurrence window that contains $now, or null if the schedule is not active.
+     */
+    public function getActiveOccurrenceRange(
+        StationSchedule $schedule,
+        DateTimeZone $tz,
+        ?DateTimeImmutable $now = null,
+    ): ?DateRange {
+        $now = Time::nowInTimezone($tz, $now);
+
+        if (!$this->shouldSchedulePlayOnCurrentDate($schedule, $tz, $now)) {
+            return null;
+        }
+
+        foreach ($this->buildScheduleComparePeriods($schedule, $tz, $now) as $dateRange) {
+            if (!$dateRange->contains($now)) {
+                continue;
+            }
+
+            $dayToCheck = $dateRange->start->dayOfWeekIso;
+            if (!$this->isScheduleScheduledToPlayToday($schedule, $dayToCheck)) {
+                continue;
+            }
+
+            return $dateRange;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return DateRange[]
+     */
+    private function buildScheduleComparePeriods(
+        StationSchedule $schedule,
+        DateTimeZone $tz,
+        DateTimeImmutable $now,
+    ): array {
+        $startTime = StationSchedule::getDateTime($schedule->start_time, $tz, $now);
+        $endTime = StationSchedule::getDateTime($schedule->end_time, $tz, $now);
+
+        if ($startTime->equalTo($endTime)) {
+            return [
+                new DateRange($startTime, $endTime->addMinutes(15)),
+                new DateRange($startTime->subDay(), $endTime->subDay()->addMinutes(15)),
+                new DateRange($startTime->addDay(), $endTime->addDay()->addMinutes(15)),
+            ];
+        }
+
+        if ($startTime->greaterThan($endTime)) {
+            return [
+                new DateRange($startTime->subDay(), $endTime),
+                new DateRange($startTime, $endTime->addDay()),
+            ];
+        }
+
+        return [
+            new DateRange($startTime, $endTime),
+        ];
     }
 
     private function shouldPlayInSchedulePeriod(

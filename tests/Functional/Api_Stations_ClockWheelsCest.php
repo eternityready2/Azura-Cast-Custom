@@ -117,7 +117,7 @@ final class Api_Stations_ClockWheelsCest extends CestAbstract
      */
     public function clockWheelSlotsAndScheduleFeed(FunctionalTester $I): void
     {
-        $I->wantTo('Save timed slots and expose clock wheel events on the schedule feed.');
+        $I->wantTo('Save ordered slots and expose clock wheel events on the schedule feed.');
 
         $station = $this->getTestStation();
         $baseUrl = '/api/station/' . $station->id . '/clock-wheels';
@@ -131,14 +131,10 @@ final class Api_Stations_ClockWheelsCest extends CestAbstract
                 [
                     'type' => 'music',
                     'algorithm' => 'random',
-                    'position_seconds' => 0,
-                    'duration_seconds' => null,
                 ],
                 [
                     'type' => 'id',
                     'algorithm' => 'random',
-                    'position_seconds' => 1200,
-                    'duration_seconds' => 30,
                 ],
             ],
         ]);
@@ -150,8 +146,8 @@ final class Api_Stations_ClockWheelsCest extends CestAbstract
         $I->sendGET($selfLink);
         $I->seeResponseContainsJson([
             'slots' => [
-                ['position_seconds' => 0],
-                ['position_seconds' => 1200],
+                ['slot_order' => 0, 'type' => 'music'],
+                ['slot_order' => 1, 'type' => 'id'],
             ],
         ]);
 
@@ -160,14 +156,12 @@ final class Api_Stations_ClockWheelsCest extends CestAbstract
                 [
                     'type' => 'promo',
                     'algorithm' => 'oldest_track',
-                    'position_seconds' => 600,
-                    'duration_seconds' => 45,
                 ],
             ],
         ]);
         $I->seeResponseCodeIs(200);
         $I->seeResponseContainsJson([
-            ['position_seconds' => 600, 'type' => 'promo'],
+            ['slot_order' => 0, 'type' => 'promo'],
         ]);
 
         $I->sendGET(

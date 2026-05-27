@@ -20,7 +20,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * Intercepts the AutoDJ queue building process to inject Clock Wheel playback.
  *
  * When a clock wheel schedule is active and no other calendar item takes priority,
- * resolves the next song from timed format-clock anchors.
+ * resolves the next song from the wheel's ordered entry list (loops until the event ends).
  */
 final class ClockWheelScheduler implements EventSubscriberInterface
 {
@@ -85,7 +85,12 @@ final class ClockWheelScheduler implements EventSubscriberInterface
             $station->backend_config->duplicate_prevention_time_range
         );
 
-        $nextSong = $this->planner->resolveNextQueueEntry($wheel, $recentHistory, $expectedPlayTime);
+        $nextSong = $this->planner->resolveNextQueueEntry(
+            $wheel,
+            $activeEvent,
+            $recentHistory,
+            $expectedPlayTime
+        );
 
         if (null !== $nextSong) {
             $set = $event->setNextSongs($nextSong);
