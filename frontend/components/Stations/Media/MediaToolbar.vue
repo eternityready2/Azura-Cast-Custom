@@ -8,6 +8,57 @@
                 {{ $gettext('With selected:') }}
             </span>
 
+            <select
+                id="bulk_media_type"
+                class="form-select form-select-sm bulk-classify-select"
+                :disabled="!hasSelectedClassifyItems || classifyPending"
+                :title="$gettext('Set type on selected files')"
+                @change="onBulkTypeChange"
+            >
+                <option
+                    value=""
+                    selected
+                    disabled
+                    hidden
+                >
+                    {{ $gettext('Set type…') }}
+                </option>
+                <option
+                    v-for="opt in mediaTypeOptions"
+                    :key="opt.value"
+                    :value="opt.value"
+                >
+                    {{ opt.shortLabel }}
+                </option>
+            </select>
+
+            <select
+                id="bulk_media_category"
+                class="form-select form-select-sm bulk-classify-select"
+                :disabled="!hasSelectedClassifyItems || classifyPending"
+                :title="$gettext('Set category on selected files')"
+                @change="onBulkCategoryChange"
+            >
+                <option
+                    value=""
+                    selected
+                    disabled
+                    hidden
+                >
+                    {{ $gettext('Set category…') }}
+                </option>
+                <option value="none">
+                    {{ $gettext('No category') }}
+                </option>
+                <option
+                    v-for="cat in mediaCategories"
+                    :key="cat.id"
+                    :value="String(cat.id)"
+                >
+                    {{ cat.name }}
+                </option>
+            </select>
+
             <div
                 class="btn-group btn-group-sm dropdown allow-focus"
             >
@@ -220,20 +271,22 @@ import {useAxios} from "~/vendor/axios";
 import useHandleBatchResponse from "~/components/Stations/Media/useHandleBatchResponse.ts";
 import {useNotify} from "~/components/Common/Toasts/useNotify.ts";
 import {useDialog} from "~/components/Common/Dialogs/useDialog.ts";
-import {MediaInitialPlaylist, MediaSelectedItems} from "~/components/Stations/Media.vue";
+import type {MediaInitialPlaylist, MediaSelectedItems} from "~/components/Stations/Media.vue";
 import {ApiStationMediaPlaylist} from "~/entities/ApiInterfaces";
 import IconIcClearAll from "~icons/ic/baseline-clear-all";
 import IconIcDelete from "~icons/ic/baseline-delete";
 import IconIcFolder from "~icons/ic/baseline-folder";
 import IconIcMoreHoriz from "~icons/ic/baseline-more-horiz";
 import IconIcOpenWith from "~icons/ic/baseline-open-with";
+import {formatMediaType, getMediaTypeOptions} from "~/functions/mediaTypes.ts";
 
 const props = defineProps<{
     currentDirectory: string,
     selectedItems: MediaSelectedItems,
     playlists?: MediaInitialPlaylist[],
     batchUrl: string,
-    supportsImmediateQueue: boolean
+    supportsImmediateQueue: boolean,
+    mediaCategories?: {id: number; name: string}[],
 }>();
 
 const emit = defineEmits<{
@@ -243,16 +296,37 @@ const emit = defineEmits<{
     (e: 'create-directory'): void
 }>();
 
+const {$gettext} = useTranslate();
+
 const selectedItems = toRef(props, 'selectedItems');
 
 const hasSelectedItems = computed(() => {
     return selectedItems.value.all.length > 0;
 });
 
+const hasSelectedClassifyItems = computed(
+    () => selectedItems.value.files.length > 0 || selectedItems.value.directories.length > 0
+);
+
+const mediaCategories = computed(() => props.mediaCategories ?? []);
+const mediaTypeOptions = computed(() =>
+    getMediaTypeOptions($gettext).map((opt) => ({
+        ...opt,
+        shortLabel: formatMediaType(opt.value, $gettext),
+    }))
+);
+
+const classifyPending = ref(false);
+
 const checkedPlaylists = ref<(number | string)[]>([]);
 const newPlaylist = ref('');
 
 watch(selectedItems, (items) => {
+    if (items.all.length === 0) {
+        checkedPlaylists.value = [];
+        return;
+    }
+
     // Get all playlists that are active on ALL selected items.
     const playlistsForItems = map(items.all, (item) => {
         const itemPlaylists = (item.dir?.playlists ?? item.media?.playlists ?? []) as Required<ApiStationMediaPlaylist>[];
@@ -278,7 +352,6 @@ watch(newPlaylist, (text: string) => {
     }
 });
 
-const {$gettext} = useTranslate();
 const {axios} = useAxios();
 
 const {handleBatchResponse} = useHandleBatchResponse();
@@ -289,13 +362,19 @@ const notifyNoFiles = () => {
     notifyError($gettext('No files selected.'));
 }
 
-const doBatch = async (action: string, successMessage: string, errorMessage: string) => {
+const doBatch = async (
+    action: string,
+    successMessage: string,
+    errorMessage: string,
+    extraPayload: Record<string, unknown> = {},
+) => {
     if (hasSelectedItems.value) {
         const {data} = await axios.put(props.batchUrl, {
             'do': action,
             'current_directory': props.currentDirectory,
             'files': selectedItems.value.files,
-            'dirs': selectedItems.value.directories
+            'dirs': selectedItems.value.directories,
+            ...extraPayload,
         });
 
         handleBatchResponse(data, successMessage, errorMessage);
@@ -303,6 +382,56 @@ const doBatch = async (action: string, successMessage: string, errorMessage: str
     } else {
         notifyNoFiles();
     }
+};
+
+const applyClassify = async (payload: Record<string, unknown>) => {
+    if (!hasSelectedClassifyItems.value) {
+        notifyNoFiles();
+        return;
+    }
+
+    classifyPending.value = true;
+
+    try {
+        await doBatch(
+            'classify',
+            $gettext('Updated type/category for files:'),
+            $gettext('Error updating files:'),
+            payload,
+        );
+    } finally {
+        classifyPending.value = false;
+    }
+};
+
+const resetBulkSelect = (select: HTMLSelectElement) => {
+    select.selectedIndex = 0;
+};
+
+const onBulkTypeChange = async (event: Event) => {
+    const select = event.currentTarget as HTMLSelectElement;
+    const type = select.value;
+    resetBulkSelect(select);
+
+    if (!type || classifyPending.value) {
+        return;
+    }
+
+    await applyClassify({media_type: type});
+};
+
+const onBulkCategoryChange = async (event: Event) => {
+    const select = event.currentTarget as HTMLSelectElement;
+    const category = select.value;
+    resetBulkSelect(select);
+
+    if (!category || classifyPending.value) {
+        return;
+    }
+
+    await applyClassify({
+        category_id: category === 'none' ? null : Number(category),
+    });
 };
 
 const doImmediateQueue = () => {
@@ -417,3 +546,11 @@ const createDirectory = () => {
     emit('create-directory');
 }
 </script>
+
+<style lang="scss" scoped>
+.bulk-classify-select {
+    width: auto;
+    min-width: 8.5rem;
+    max-width: 11rem;
+}
+</style>

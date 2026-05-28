@@ -7,6 +7,7 @@ namespace App\Entity\ApiGenerator;
 use App\Entity\Api\DetailedSongHistory;
 use App\Entity\Api\NowPlaying\SongHistory;
 use App\Entity\SongHistory as SongHistoryEntity;
+use App\Entity\StationClockWheel;
 use App\Entity\StationPlaylist;
 use App\Entity\StationStreamer;
 use Carbon\CarbonImmutable;
@@ -44,6 +45,12 @@ final readonly class SongHistoryApiGenerator
             $response->playlist = $record->playlist->name;
         } else {
             $response->playlist = '';
+        }
+
+        if ($record->clock_wheel instanceof StationClockWheel) {
+            $response->clock_wheel = $record->clock_wheel->name;
+        } else {
+            $response->clock_wheel = '';
         }
 
         if ($record->streamer instanceof StationStreamer) {

@@ -44,6 +44,14 @@ final class StationQueue implements
     public private(set) ?int $playlist_id = null;
 
     #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'clock_wheel_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public ?StationClockWheel $clock_wheel = null;
+
+    /* TODO Remove direct identifier access. */
+    #[ORM\Column(nullable: true, insertable: false, updatable: false)]
+    public private(set) ?int $clock_wheel_id = null;
+
+    #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'media_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     public ?StationMedia $media = null {
         set {
@@ -100,6 +108,18 @@ final class StationQueue implements
 
     #[ORM\Column(type: 'float', nullable: true)]
     public ?float $duration = null;
+
+    /** Max on-air seconds for clock-wheel playback cap (annotate mode). */
+    #[ORM\Column(nullable: true)]
+    public ?int $clock_wheel_max_play_seconds = null;
+
+    /** Snapshot of schedule mode when the row was queued. */
+    #[ORM\Column(length: 20, nullable: true)]
+    public ?string $clock_wheel_schedule_mode = null;
+
+    /** Whether AnnotateNextSong should apply a cue_out cap for this row. */
+    #[ORM\Column]
+    public bool $clock_wheel_enforce_cap = false;
 
     public function __construct(Station $station, Interfaces\SongInterface $song)
     {

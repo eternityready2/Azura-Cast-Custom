@@ -15,6 +15,7 @@ final class StationSchedule
 {
     public const string TYPE_PLAYLIST = 'playlist';
     public const string TYPE_STREAMER = 'streamer';
+    public const string TYPE_CLOCK_WHEEL = 'clock_wheel';
 
     #[OA\Property(
         description: 'Unique identifier for this schedule entry.',
@@ -27,6 +28,7 @@ final class StationSchedule
         enum: [
             StationSchedule::TYPE_PLAYLIST,
             StationSchedule::TYPE_STREAMER,
+            StationSchedule::TYPE_CLOCK_WHEEL,
         ],
         example: StationSchedule::TYPE_PLAYLIST
     )]

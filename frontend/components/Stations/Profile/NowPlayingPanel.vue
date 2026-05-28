@@ -107,6 +107,11 @@
                                             {{ $gettext('Playlist') }}
                                             : {{ np.now_playing.playlist }}</small>
                                     </div>
+                                    <div v-if="np.now_playing?.clock_wheel">
+                                        <small class="text-muted">
+                                            {{ $gettext('Clock Wheel') }}
+                                            : {{ np.now_playing.clock_wheel }}</small>
+                                    </div>
                                     <div
                                         v-if="currentTrackElapsedDisplay"
                                         class="nowplaying-progress"
@@ -175,6 +180,11 @@
                                         <small class="text-muted">
                                             {{ $gettext('Playlist') }}
                                             : {{ np.playing_next.playlist }}</small>
+                                    </div>
+                                    <div v-if="np.playing_next.clock_wheel">
+                                        <small class="text-muted">
+                                            {{ $gettext('Clock Wheel') }}
+                                            : {{ np.playing_next.clock_wheel }}</small>
                                     </div>
                                 </div>
                             </div>

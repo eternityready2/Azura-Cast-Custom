@@ -12,7 +12,7 @@
             <ClockWheelsFormEntries
                 :form="form"
                 :r$="r$"
-                :entries="entries"
+                v-model:entries="entries"
                 :add-entry="addEntry"
                 :remove-entry="removeEntry"
                 :duplicate-entry="duplicateEntry"
@@ -76,7 +76,6 @@ interface ClockWheelEntry {
     duration_seconds: number | null;
 }
 
-/** Convert a raw slot from the API (type + category_id) to a combined slot_value. */
 function slotToValue(slot: {type?: string | null; category_id?: number | null}): string {
     if (slot.category_id != null) {
         return 'cat:' + slot.category_id;
@@ -84,12 +83,11 @@ function slotToValue(slot: {type?: string | null; category_id?: number | null}):
     return 'type:' + (slot.type ?? 'music');
 }
 
-/** Convert a slot_value back to { type, category_id } for the API payload. */
-function valueToSlot(slot_value: string): {type: string | null; category_id: number | null} {
-    if (slot_value.startsWith('cat:')) {
-        return {type: null, category_id: parseInt(slot_value.slice(4), 10)};
+function valueToSlot(slotValue: string): {type: string | null; category_id: number | null} {
+    if (slotValue.startsWith('cat:')) {
+        return {type: null, category_id: parseInt(slotValue.slice(4), 10)};
     }
-    return {type: slot_value.replace('type:', ''), category_id: null};
+    return {type: slotValue.replace('type:', ''), category_id: null};
 }
 
 const props = defineProps<BaseEditModalProps>();

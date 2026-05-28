@@ -94,6 +94,14 @@ final class AnnotateNextSong extends Event
         $this->annotations = array_merge($this->annotations, $annotations);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function getAnnotations(): array
+    {
+        return $this->annotations;
+    }
+
     public function setSongPath(string $songPath): void
     {
         $this->songPath = $songPath;

@@ -58,6 +58,7 @@
                 :current-directory="currentDirectory"
                 :supports-immediate-queue="supportsImmediateQueue"
                 :playlists="playlists"
+                :media-categories="mediaCategories"
                 @add-playlist="onAddPlaylist"
                 @relist="onTriggerRelist"
                 @create-directory="createDirectory"
@@ -163,6 +164,22 @@
             <template #cell(media.length)="{ item }">
                 {{ item.media?.length_text }}
             </template>
+            <template #cell(media.type)="{ item }">
+                <template v-if="item.type === FileTypes.Media">
+                    {{ formatMediaType(item.media?.type, $gettext) }}
+                </template>
+                <template v-else>
+                    &nbsp;
+                </template>
+            </template>
+            <template #cell(media.category_name)="{ item }">
+                <template v-if="item.type === FileTypes.Media">
+                    {{ item.media?.category_name ?? '' }}
+                </template>
+                <template v-else>
+                    &nbsp;
+                </template>
+            </template>
             <template #cell(size)="{ item }">
                 <template v-if="!item.size">
                     &nbsp;
@@ -252,7 +269,7 @@ import StationsCommonQuota from "~/components/Stations/Common/Quota.vue";
 import AlbumArt from "~/components/Common/AlbumArt.vue";
 import PlayButton from "~/components/Common/Audio/PlayButton.vue";
 import {useTranslate} from "~/vendor/gettext";
-import {computed, ref, useTemplateRef, watch} from "vue";
+import {computed, onMounted, ref, useTemplateRef, watch} from "vue";
 import {forEach, map, partition} from "es-toolkit/compat";
 import formatFileSize from "~/functions/formatFileSize";
 import InfoCard from "~/components/Common/InfoCard.vue";
@@ -274,6 +291,8 @@ import IconIcInsertDriveFile from "~icons/ic/baseline-insert-drive-file";
 import IconIcFolder from "~icons/ic/baseline-folder";
 import IconIcImage from "~icons/ic/baseline-image";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
+import {formatMediaType} from "~/functions/mediaTypes.ts";
+import {useAxios} from "~/vendor/axios.ts";
 
 const props = defineProps<StationsVueFilesPropsRequired>();
 
@@ -333,6 +352,21 @@ const {$gettext} = useTranslate();
 
 const {formatTimestampAsDateTime} = useStationDateTimeFormatter();
 
+const mediaCategories = ref<{id: number; name: string}[]>([]);
+
+const {axios} = useAxios();
+
+onMounted(() => {
+    void axios.get(getStationApiUrl('/media-categories').value).then(
+        (resp) => {
+            mediaCategories.value = resp.data?.rows ?? resp.data ?? [];
+        },
+        () => {
+            mediaCategories.value = [];
+        }
+    );
+});
+
 const listItemProvider = useApiItemProvider<MediaRow>(
     listUrl,
     queryKeyWithStation(
@@ -361,6 +395,8 @@ const fields = computed<DataTableField<MediaRow>[]>(() => {
         {key: 'media.album', label: $gettext('Album'), sortable: true, selectable: true, visible: false},
         {key: 'media.genre', label: $gettext('Genre'), sortable: true, selectable: true, visible: false},
         {key: 'media.isrc', label: $gettext('ISRC'), sortable: true, selectable: true, visible: false},
+        {key: 'media.type', label: $gettext('Type'), sortable: true, selectable: true, visible: true},
+        {key: 'media.category_name', label: $gettext('Category'), sortable: true, selectable: true, visible: true},
         {key: 'media.length', label: $gettext('Length'), sortable: true, selectable: true, visible: true}
     ];
 
@@ -445,7 +481,7 @@ const filter = (newFilter: string) => {
 const $quota = useTemplateRef('$quota');
 
 const onTriggerRelist = () => {
-    void listItemProvider.refresh(false);
+    $dataTable.value?.relist();
 
     $quota.value?.update();
 };

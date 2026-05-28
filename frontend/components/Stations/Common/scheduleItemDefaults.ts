@@ -5,6 +5,8 @@ export interface PlaylistScheduleRow {
     end_date: string,
     days: number[],
     loop_once: boolean,
+    /** Clock wheel schedule only: flexible | strict (not loop_once). */
+    clock_wheel_mode?: 'flexible' | 'strict',
     recurrence_type: string | null,
     recurrence_interval: number,
     recurrence_monthly_pattern: string | null,
@@ -32,6 +34,7 @@ export function createScheduleItemDefaults(): PlaylistScheduleRow {
         end_date: '',
         days: [],
         loop_once: false,
+        clock_wheel_mode: 'flexible',
         recurrence_type: null,
         recurrence_interval: 1,
         recurrence_monthly_pattern: null,

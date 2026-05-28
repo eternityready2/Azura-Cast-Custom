@@ -82,6 +82,26 @@ class StationMedia
     public string $length_text = '0:00';
 
     #[OA\Property(
+        description: "Media type used for clock wheel and library filtering.",
+        example: "music"
+    )]
+    public string $type = 'music';
+
+    #[OA\Property(
+        description: "Optional media category ID.",
+        example: 1,
+        nullable: true
+    )]
+    public ?int $category_id = null;
+
+    #[OA\Property(
+        description: "Optional media category display name.",
+        example: "Local Artists",
+        nullable: true
+    )]
+    public ?string $category_name = null;
+
+    #[OA\Property(
         description: "An object containing all custom fields, with the key being the value name.",
     )]
     public HashMap $custom_fields;
@@ -124,6 +144,11 @@ class StationMedia
         $media->length = Types::int($row['length']);
         $media->length_text = self::getLengthText($row['length']);
         $media->art_updated_at = $row['art_updated_at'];
+        $media->type = Types::string($row['type'] ?? 'music');
+        $media->category_id = isset($row['category_id']) && $row['category_id'] !== ''
+            ? Types::int($row['category_id'])
+            : null;
+        $media->category_name = Types::stringOrNull($row['category_name'] ?? null, true);
 
         $media->mtime = Types::int($row['mtime'] ?? 0);
         $media->uploaded_at = Types::int($row['uploaded_at'] ?? 0);

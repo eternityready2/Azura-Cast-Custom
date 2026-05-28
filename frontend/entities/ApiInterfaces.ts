@@ -889,6 +889,11 @@ export interface ApiNowPlayingSongHistory {
    */
   playlist: string | null;
   /**
+   * Indicates the clock wheel that played the song, if available, or empty string if not.
+   * @example "Morning Drive"
+   */
+  clock_wheel: string | null;
+  /**
    * Indicates the current streamer that was connected, if available, or empty string if not.
    * @example "Test DJ"
    */
@@ -1028,6 +1033,11 @@ export interface ApiNowPlayingStationQueue {
    * @example "Top 100"
    */
   playlist: string | null;
+  /**
+   * Indicates the clock wheel that queued the song, if available, or empty string if not.
+   * @example "Morning Drive"
+   */
+  clock_wheel: string | null;
   /** Indicates whether the song is a listener request. */
   is_request: boolean;
   song: ApiSong;
@@ -1227,12 +1237,14 @@ export type ApiStationMedia = ApiHasSongFields &
     extra_metadata?: HashMap;
     playlists?: (ApiStationMediaPlaylist | number)[];
     /**
-     * The media type/category for Clock Wheel scheduling.
+     * The media type for Clock Wheel scheduling.
      * @example "music"
      */
     type?: string;
     /** The ID of the assigned media category, or null. */
     category_id?: number | null;
+    /** Display name of the media category, if assigned. */
+    category_name?: string | null;
   };
 
 export interface ApiStationMediaPlaylist {
@@ -1348,7 +1360,7 @@ export interface ApiStationSchedule {
    * The type of this schedule entry.
    * @example "playlist"
    */
-  type?: "playlist" | "streamer";
+  type?: "playlist" | "streamer" | "clock_wheel";
   /**
    * Either the playlist or streamer's display name.
    * @example "Example Schedule Entry"
@@ -2240,6 +2252,8 @@ export interface StationBackendConfiguration {
   /** @format float */
   crossfade?: number;
   duplicate_prevention_time_range?: number;
+  /** Clock wheel: php = selection only; annotate = hard stop via cue_out. */
+  clock_wheel_duration_enforcement?: 'php' | 'annotate';
   performance_mode?: string;
   hls_segment_length?: number;
   hls_segments_in_playlist?: number;

@@ -14,6 +14,7 @@ use App\Entity\Repository\StationPlaylistMediaRepository;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
 use App\Entity\StationMedia;
+use App\Entity\StationMediaCategory;
 use App\Entity\StationPlaylist;
 use App\Entity\StationPlaylistFolder;
 use App\Entity\StationQueue;
@@ -102,6 +103,7 @@ final class BatchAction implements SingleActionInterface
             'immediate' => $this->doPlayImmediately($request, $station, $storageLocation, $fsMedia),
             'reprocess' => $this->doReprocess($request, $station, $storageLocation, $fsMedia),
             'clear-extra' => $this->doClearExtra($request, $station, $storageLocation, $fsMedia),
+            'classify' => $this->doClassify($request, $station, $storageLocation, $fsMedia),
             default => throw new InvalidArgumentException('Invalid batch action specified.')
         };
 
@@ -478,6 +480,67 @@ final class BatchAction implements SingleActionInterface
 
             $this->em->persist($media);
         }
+
+        return $result;
+    }
+
+    private function doClassify(
+        ServerRequest $request,
+        Station $station,
+        StorageLocation $storageLocation,
+        ExtendedFilesystemInterface $fs
+    ): MediaBatchResult {
+        $result = $this->parseRequest($request, $fs, true);
+
+        $allowedTypes = ['music', 'talk', 'id', 'promo', 'ad'];
+
+        $body = $request->getParsedBody();
+        if (!is_array($body)) {
+            $body = [];
+        }
+
+        $mediaType = Types::stringOrNull($body['media_type'] ?? null, true);
+        $updateType = null !== $mediaType && '' !== $mediaType;
+
+        if ($updateType && !in_array($mediaType, $allowedTypes, true)) {
+            throw new InvalidArgumentException('Invalid media type specified.');
+        }
+
+        $updateCategory = array_key_exists('category_id', $body);
+        $category = null;
+        if ($updateCategory) {
+            $categoryIdRaw = $body['category_id'];
+
+            if (null !== $categoryIdRaw && '' !== $categoryIdRaw && 'none' !== $categoryIdRaw) {
+                if (!is_numeric($categoryIdRaw)) {
+                    throw new InvalidArgumentException('Invalid category specified.');
+                }
+
+                $category = $this->em->find(StationMediaCategory::class, (int)$categoryIdRaw);
+                if (!$category instanceof StationMediaCategory || $category->station->id !== $station->id) {
+                    throw new InvalidArgumentException('Invalid category specified.');
+                }
+            }
+        }
+
+        if (!$updateType && !$updateCategory) {
+            throw new InvalidArgumentException('Specify a type and/or category to update.');
+        }
+
+        foreach ($this->batchUtilities->iterateMedia($storageLocation, $result->files) as $media) {
+            if ($updateType) {
+                $media->type = $mediaType;
+            }
+
+            if ($updateCategory) {
+                $media->category = $category;
+            }
+
+            $this->em->persist($media);
+        }
+
+        $this->em->flush();
+        $this->mediaListCache->clearCache($storageLocation);
 
         return $result;
     }

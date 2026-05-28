@@ -126,6 +126,8 @@ const {
     {
         onSubmitSuccess: () => {
             notifySuccess($gettext('Category saved.'));
+            emit('relist');
+            close();
         },
     }
 );

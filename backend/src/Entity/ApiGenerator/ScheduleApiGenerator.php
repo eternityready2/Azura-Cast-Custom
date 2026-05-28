@@ -6,6 +6,7 @@ namespace App\Entity\ApiGenerator;
 
 use App\Entity\Api\StationSchedule as StationScheduleApi;
 use App\Entity\Station;
+use App\Entity\StationClockWheel;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Entity\StationStreamer;
@@ -23,6 +24,7 @@ final class ScheduleApiGenerator
     ): StationScheduleApi {
         $playlist = $scheduleItem->playlist;
         $streamer = $scheduleItem->streamer;
+        $clockWheel = $scheduleItem->clock_wheel;
 
         $stationTz = $station->getTimezoneObject();
         $now = Time::nowInTimezone($stationTz, $now);
@@ -48,6 +50,11 @@ final class ScheduleApiGenerator
             $row->name = $streamer->display_name;
             $row->title = $row->name;
             $row->description = sprintf(__('Streamer: %s'), $row->name);
+        } elseif ($clockWheel instanceof StationClockWheel) {
+            $row->type = StationScheduleApi::TYPE_CLOCK_WHEEL;
+            $row->name = $clockWheel->name;
+            $row->title = $row->name;
+            $row->description = sprintf(__('Clock Wheel: %s'), $row->name);
         }
 
         return $row;

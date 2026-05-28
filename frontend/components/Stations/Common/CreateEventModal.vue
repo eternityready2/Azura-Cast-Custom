@@ -2,7 +2,7 @@
     <modal-form
         ref="$modal"
         :loading="loading"
-        :title="$gettext('Create Event')"
+        :title="modalTitle"
         :error="error"
         :disable-save-button="!isFormValid"
         @submit="doSave"
@@ -138,6 +138,44 @@
             />
 
             <form-markup
+                v-if="isClockWheelSchedule"
+                id="edit_form_clock_wheel_scheduling"
+                class="col-md-4"
+                :label="$gettext('Clock Wheel Timing')"
+            >
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check mb-0">
+                        <input
+                            id="clock_wheel_scheduling_flexible"
+                            v-model="clockWheelScheduleMode"
+                            class="form-check-input"
+                            type="radio"
+                            value="flexible"
+                        >
+                        <label class="form-check-label" for="clock_wheel_scheduling_flexible">
+                            {{ $gettext('Flexible') }}
+                        </label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input
+                            id="clock_wheel_scheduling_strict"
+                            v-model="clockWheelScheduleMode"
+                            class="form-check-input"
+                            type="radio"
+                            value="strict"
+                        >
+                        <label class="form-check-label" for="clock_wheel_scheduling_strict">
+                            {{ $gettext('Strict') }}
+                        </label>
+                    </div>
+                </div>
+                <small class="form-text text-muted d-block mt-2">
+                    {{ $gettext('Flexible prefers full songs when they fit; AutoDJ may cut at anchors only when selection cannot guarantee timing (short slots, strict mode, or no track fits the window).') }}
+                </small>
+            </form-markup>
+
+            <form-markup
+                v-if="isPlaylistSchedule"
                 id="edit_form_scheduling"
                 class="col-md-4"
                 :label="$gettext('Scheduling')"
@@ -319,6 +357,7 @@ import {
     type PlaylistScheduleRow,
     createScheduleItemDefaults,
 } from '~/components/Stations/Common/scheduleItemDefaults.ts';
+import normalizeStationScheduleDays from '~/functions/normalizeStationScheduleDays';
 
 const {$gettext} = useTranslate();
 const {axios} = useAxios();
@@ -365,6 +404,7 @@ const blankForm = () => ({
 const form = ref(blankForm());
 
 const schedulingMode = ref<'flexible' | 'strict' | 'loop_once'>('flexible');
+const clockWheelScheduleMode = ref<'flexible' | 'strict'>('flexible');
 
 // Schedule row state - matches PlaylistScheduleRow interface
 const scheduleRow = ref<PlaylistScheduleRow>(createScheduleItemDefaults());
@@ -400,6 +440,9 @@ const currentEntityOptions = computed(() =>
     form.value.source === 'playlist' ? playlists.value : clockWheels.value
 );
 
+const isPlaylistSchedule = computed(() => form.value.source === 'playlist');
+const isClockWheelSchedule = computed(() => form.value.source === 'clock_wheel');
+
 // Auto-select first entity whenever options change or source changes
 watch(currentEntityOptions, (opts) => {
     if (opts.length > 0 && (form.value.entity_id === null || !opts.find(e => e.id === form.value.entity_id))) {
@@ -407,13 +450,28 @@ watch(currentEntityOptions, (opts) => {
     }
 }, {immediate: true});
 
+watch(schedulingMode, (mode) => {
+    if (!isPlaylistSchedule.value) {
+        return;
+    }
+    scheduleRow.value.loop_once = mode !== 'flexible';
+});
+
 watch(
-    schedulingMode,
-    (mode) => {
-        scheduleRow.value.loop_once = mode !== 'flexible';
-    },
-    {immediate: true}
+    () => form.value.source,
+    (source) => {
+        if (source === 'clock_wheel') {
+            scheduleRow.value.loop_once = false;
+            scheduleRow.value.clock_wheel_mode = clockWheelScheduleMode.value;
+        }
+    }
 );
+
+watch(clockWheelScheduleMode, (mode) => {
+    if (isClockWheelSchedule.value) {
+        scheduleRow.value.clock_wheel_mode = mode;
+    }
+});
 
 // Regle validation for schedule row
 const isMonthlyDatePattern = computed(
@@ -495,6 +553,10 @@ const isFormValid = computed(() =>
 
 const onSourceChange = () => {
     form.value.entity_id = null;
+    if (form.value.source === 'clock_wheel') {
+        scheduleRow.value.loop_once = false;
+        clockWheelScheduleMode.value = scheduleRow.value.clock_wheel_mode ?? 'flexible';
+    }
 };
 
 const dayOptions = [
@@ -532,11 +594,117 @@ const recurrenceEndTypeOptions = [
     {value: 'after', text: $gettext('After number of occurrences')}
 ];
 
+const editingScheduleId = ref<number | null>(null);
+
+const modalTitle = computed(() =>
+    editingScheduleId.value !== null
+        ? $gettext('Edit Event')
+        : $gettext('Create Event')
+);
+
+const applyCalendarTimesToRow = (start: Date, end?: Date) => {
+    const startDate = start.toISOString().slice(0, 10);
+    const startH = start.getHours().toString().padStart(2, '0');
+    const startM = start.getMinutes().toString().padStart(2, '0');
+    scheduleRow.value.start_date = startDate;
+    scheduleRow.value.end_date = startDate;
+    scheduleRow.value.start_time = Number(`${startH}${startM}`);
+
+    if (end) {
+        const endH = end.getHours().toString().padStart(2, '0');
+        const endM = end.getMinutes().toString().padStart(2, '0');
+        scheduleRow.value.end_time = Number(`${endH}${endM}`);
+    }
+};
+
+const apiScheduleItemToRow = (item: Record<string, unknown>): PlaylistScheduleRow => {
+    const endType = (item.recurrence_end_type as string | undefined) ?? 'never';
+    const recurrenceType = item.recurrence_type as string | null | undefined;
+
+    const row: PlaylistScheduleRow = {
+        start_time: Number(item.start_time),
+        end_time: Number(item.end_time),
+        start_date: String(item.start_date ?? ''),
+        end_date: String(item.end_date ?? ''),
+        days: normalizeStationScheduleDays(item.days),
+        loop_once: Boolean(item.loop_once),
+        clock_wheel_mode: (item.clock_wheel_mode === 'strict' ? 'strict' : 'flexible') as 'flexible' | 'strict',
+        recurrence_type: recurrenceType ?? null,
+        recurrence_interval: Number(item.recurrence_interval ?? 1),
+        recurrence_monthly_pattern: (item.recurrence_monthly_pattern as string | null) ?? null,
+        recurrence_monthly_day: item.recurrence_monthly_day != null ? Number(item.recurrence_monthly_day) : null,
+        recurrence_monthly_week: item.recurrence_monthly_week != null ? Number(item.recurrence_monthly_week) : null,
+        recurrence_monthly_day_of_week: item.recurrence_monthly_day_of_week != null
+            ? Number(item.recurrence_monthly_day_of_week)
+            : null,
+        recurrence_end_type: endType === 'on_date' ? 'never' : endType,
+        recurrence_end_after: endType === 'after' && item.recurrence_end_after != null
+            ? Number(item.recurrence_end_after)
+            : null,
+        recurrence_end_date: null,
+    };
+
+    if (
+        row.recurrence_type === 'monthly'
+        && row.recurrence_monthly_pattern === 'day_of_week'
+        && row.recurrence_monthly_day_of_week != null
+        && row.days.length === 0
+    ) {
+        row.days = [row.recurrence_monthly_day_of_week];
+    }
+
+    return row;
+};
+
+const buildSchedulePayload = (
+    row: PlaylistScheduleRow,
+    scheduleId?: number
+): PlaylistScheduleRow & {id?: number} => {
+    const out: PlaylistScheduleRow & {id?: number} = {
+        ...row,
+        end_date: row.end_date || row.start_date,
+        recurrence_type: row.recurrence_type,
+        recurrence_interval: (row.recurrence_type === 'biweekly' ? 2 : Number(row.recurrence_interval)) || 1,
+        recurrence_end_type: row.recurrence_end_type ?? 'never',
+        recurrence_end_after: (row.recurrence_end_type === 'after' && row.recurrence_end_after != null)
+            ? Number(row.recurrence_end_after)
+            : null,
+        recurrence_end_date: null,
+    };
+
+    if (out.recurrence_end_type === 'after') {
+        out.end_date = '';
+    }
+
+    const normalizedDays = normalizeStationScheduleDays(row.days);
+    if (out.recurrence_type === 'monthly' && out.recurrence_monthly_pattern === 'date') {
+        out.days = [];
+    } else {
+        out.days = normalizedDays;
+    }
+
+    if (
+        out.recurrence_type === 'monthly'
+        && out.recurrence_monthly_pattern === 'day_of_week'
+        && normalizedDays.length > 0
+    ) {
+        out.recurrence_monthly_day_of_week = normalizedDays[0];
+    }
+
+    if (scheduleId !== undefined) {
+        out.id = scheduleId;
+    }
+
+    return out;
+};
+
 const clearForm = () => {
     form.value = blankForm();
     schedulingMode.value = 'flexible';
+    clockWheelScheduleMode.value = 'flexible';
     scheduleRow.value = createScheduleItemDefaults();
     error.value = null;
+    editingScheduleId.value = null;
 };
 
 const open = () => {
@@ -546,6 +714,73 @@ const open = () => {
         form.value.entity_id = currentEntityOptions.value[0].id;
     }
     ($modal.value as any)?.show();
+};
+
+const openForEdit = async (event: EventImpl) => {
+    clearForm();
+
+    const editUrl = event.extendedProps.edit_url as string | undefined;
+    const scheduleIdRaw = event.extendedProps.schedule_id as number | string | undefined;
+    const scheduleId = scheduleIdRaw !== undefined ? Number(scheduleIdRaw) : NaN;
+    editingScheduleId.value = Number.isFinite(scheduleId) ? scheduleId : null;
+
+    if (editUrl?.includes('/clock-wheel/')) {
+        form.value.source = 'clock_wheel';
+    } else {
+        form.value.source = 'playlist';
+    }
+
+    if (editUrl) {
+        const m = editUrl.match(/\/(playlist|clock-wheel)\/(\d+)/);
+        if (m?.[2]) {
+            form.value.entity_id = Number(m[2]);
+        }
+    }
+
+    if (!form.value.entity_id && currentEntityOptions.value.length > 0) {
+        form.value.entity_id = currentEntityOptions.value[0].id;
+    }
+
+    ($modal.value as any)?.show();
+
+    const start = event.start;
+    const end = event.end ?? undefined;
+
+    if (form.value.entity_id && editingScheduleId.value !== null) {
+        loading.value = true;
+        error.value = null;
+
+        try {
+            const entityType = form.value.source === 'playlist' ? 'playlist' : 'clock-wheel';
+            const entityApiUrl = getStationApiUrl(`/${entityType}/${form.value.entity_id}`).value;
+            const {data: entityData} = await axios.get(entityApiUrl);
+            const items = (entityData.schedule_items as Record<string, unknown>[] | undefined) ?? [];
+            const existing = items.find((row) => Number(row.id) === editingScheduleId.value);
+
+            if (existing) {
+                scheduleRow.value = apiScheduleItemToRow(existing);
+                isRecurring.value = existing.recurrence_type != null && existing.recurrence_type !== '';
+                if (form.value.source === 'clock_wheel') {
+                    scheduleRow.value.loop_once = false;
+                    clockWheelScheduleMode.value = scheduleRow.value.clock_wheel_mode ?? 'flexible';
+                } else {
+                    schedulingMode.value = scheduleRow.value.loop_once ? 'loop_once' : 'flexible';
+                }
+            } else if (start) {
+                applyCalendarTimesToRow(start, end);
+            }
+        } catch (e: unknown) {
+            const err = e as {response?: {data?: {message?: string}}};
+            error.value = err?.response?.data?.message ?? $gettext('An error occurred.');
+            if (start) {
+                applyCalendarTimesToRow(start, end);
+            }
+        } finally {
+            loading.value = false;
+        }
+    } else if (start) {
+        applyCalendarTimesToRow(start, end);
+    }
 };
 
 const doSave = async () => {
@@ -563,34 +798,42 @@ const doSave = async () => {
         // Fetch current entity data
         const {data: entityData} = await axios.get(entityApiUrl);
 
-        // Use scheduleRow data directly - it already has all the fields in the correct format
-        const newScheduleItem: PlaylistScheduleRow = {
-            start_time: scheduleRow.value.start_time,
-            end_time: scheduleRow.value.end_time,
-            start_date: scheduleRow.value.start_date,
-            end_date: scheduleRow.value.end_date || scheduleRow.value.start_date,
-            days: scheduleRow.value.days,
-            loop_once: scheduleRow.value.loop_once,
-            recurrence_type: scheduleRow.value.recurrence_type,
-            recurrence_interval: scheduleRow.value.recurrence_interval,
-            recurrence_monthly_pattern: scheduleRow.value.recurrence_monthly_pattern,
-            recurrence_monthly_day: scheduleRow.value.recurrence_monthly_day,
-            recurrence_monthly_week: scheduleRow.value.recurrence_monthly_week,
-            recurrence_monthly_day_of_week: scheduleRow.value.recurrence_monthly_day_of_week,
-            recurrence_end_type: scheduleRow.value.recurrence_end_type,
-            recurrence_end_after: scheduleRow.value.recurrence_end_after,
-            recurrence_end_date: scheduleRow.value.recurrence_end_date,
-        };
+        const newScheduleItem = buildSchedulePayload(
+            scheduleRow.value,
+            editingScheduleId.value ?? undefined
+        );
+        if (form.value.source === 'clock_wheel') {
+            newScheduleItem.loop_once = false;
+            newScheduleItem.clock_wheel_mode = scheduleRow.value.clock_wheel_mode ?? 'flexible';
+        }
 
-        const {id: _id, links: _links, ...putData} = entityData as Record<string, unknown>;
-        const updatedScheduleItems = [...((putData.schedule_items as unknown[]) ?? []), newScheduleItem];
+        const existingScheduleItems = (entityData.schedule_items as unknown[]) ?? [];
 
+        let updatedScheduleItems: unknown[];
+        if (editingScheduleId.value !== null) {
+            let replaced = false;
+            updatedScheduleItems = existingScheduleItems.map((row: any) => {
+                if (row?.id === editingScheduleId.value) {
+                    replaced = true;
+                    return newScheduleItem;
+                }
+                return row;
+            });
+
+            if (!replaced) {
+                updatedScheduleItems = [...updatedScheduleItems, newScheduleItem];
+            }
+        } else {
+            updatedScheduleItems = [...existingScheduleItems, newScheduleItem];
+        }
+
+        // Only send schedule_items — a full entity PUT includes relation arrays (e.g. podcasts)
+        // that the serializer cannot denormalize back into Doctrine collections.
         await axios.put(entityApiUrl, {
-            ...putData,
             schedule_items: updatedScheduleItems,
         });
 
-        notifySuccess($gettext('Event created.'));
+        notifySuccess(editingScheduleId.value !== null ? $gettext('Event updated.') : $gettext('Event created.'));
         ($modal.value as any)?.hide();
         emit('relist');
     } catch (e: unknown) {
@@ -601,5 +844,5 @@ const doSave = async () => {
     }
 };
 
-defineExpose({open});
+defineExpose({open, openForEdit});
 </script>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Doctrine\AbstractArrayEntity;
+use App\Entity\Enums\ClockWheelDurationEnforcement;
 use App\Entity\Enums\StationBackendPerformanceModes;
 use App\Radio\Backend\Liquidsoap\EncodingFormat;
 use App\Radio\Enums\AudioProcessingMethods;
@@ -228,6 +229,28 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     #[OA\Property]
     public int $duplicate_prevention_time_range = self::DEFAULT_DUPLICATE_PREVENTION_TIME_RANGE {
         set (int|string|null $value) => Types::int($value, self::DEFAULT_DUPLICATE_PREVENTION_TIME_RANGE);
+    }
+
+    #[OA\Property(example: 'php')]
+    public string $clock_wheel_duration_enforcement = '' {
+        set (string|ClockWheelDurationEnforcement|null $value) {
+            if ($value instanceof ClockWheelDurationEnforcement) {
+                $value = $value->value;
+            } elseif ($value !== null) {
+                $value = strtolower($value);
+                if (null === ClockWheelDurationEnforcement::tryFrom($value)) {
+                    $value = null;
+                }
+            }
+
+            $this->clock_wheel_duration_enforcement = $value ?? '';
+        }
+    }
+
+    public function getClockWheelDurationEnforcementEnum(): ClockWheelDurationEnforcement
+    {
+        return ClockWheelDurationEnforcement::tryFrom($this->clock_wheel_duration_enforcement)
+            ?? ClockWheelDurationEnforcement::Php;
     }
 
     #[OA\Property]

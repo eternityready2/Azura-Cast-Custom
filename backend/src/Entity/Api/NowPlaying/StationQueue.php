@@ -40,6 +40,12 @@ class StationQueue
     public ?string $playlist = null;
 
     #[OA\Property(
+        description: 'Indicates the clock wheel that queued the song, if available, or empty string if not.',
+        example: 'Morning Drive'
+    )]
+    public ?string $clock_wheel = null;
+
+    #[OA\Property(
         description: 'Indicates whether the song is a listener request.',
     )]
     public bool $is_request = false;

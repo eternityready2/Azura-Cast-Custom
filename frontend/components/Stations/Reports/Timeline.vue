@@ -78,6 +78,10 @@
                     {{ $gettext('Playlist:') }}
                     {{ row.item.playlist }}
                 </template>
+                <template v-else-if="row.item.clock_wheel">
+                    {{ $gettext('Clock Wheel:') }}
+                    {{ row.item.clock_wheel }}
+                </template>
                 <template v-else-if="row.item.streamer">
                     {{ $gettext('Live Streamer:') }}
                     {{ row.item.streamer }}

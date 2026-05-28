@@ -39,6 +39,12 @@ class SongHistory
     public ?string $playlist = null;
 
     #[OA\Property(
+        description: 'Indicates the clock wheel that played the song, if available, or empty string if not.',
+        example: 'Morning Drive'
+    )]
+    public ?string $clock_wheel = null;
+
+    #[OA\Property(
         description: 'Indicates the current streamer that was connected, if available, or empty string if not.',
         example: 'Test DJ'
     )]

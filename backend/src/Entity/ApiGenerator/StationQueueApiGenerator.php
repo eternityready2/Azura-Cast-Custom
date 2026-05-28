@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity\ApiGenerator;
 
 use App\Entity\Api\NowPlaying\StationQueue as NowPlayingStationQueue;
+use App\Entity\StationClockWheel;
 use App\Entity\StationPlaylist;
 use App\Entity\StationQueue;
 use Psr\Http\Message\UriInterface;
@@ -31,6 +32,12 @@ final readonly class StationQueueApiGenerator
             $response->playlist = $record->playlist->name;
         } else {
             $response->playlist = '';
+        }
+
+        if ($record->clock_wheel instanceof StationClockWheel) {
+            $response->clock_wheel = $record->clock_wheel->name;
+        } else {
+            $response->clock_wheel = '';
         }
 
         $recordMedia = $record->media;

@@ -85,7 +85,7 @@ final class ClockWheelScheduler implements EventSubscriberInterface
             $station->backend_config->duplicate_prevention_time_range
         );
 
-        $nextSong = $this->planner->resolveNextQueueEntry($wheel, $recentHistory, $expectedPlayTime);
+        $nextSong = $this->planner->resolveNextQueueEntry($wheel, $recentHistory, $expectedPlayTime, $activeEvent);
 
         if (null !== $nextSong) {
             $set = $event->setNextSongs($nextSong);
