@@ -174,7 +174,7 @@
             </template>
             <template #cell(media.category_name)="{ item }">
                 <template v-if="item.type === FileTypes.Media">
-                    {{ item.media?.category_name || '—' }}
+                    {{ item.media?.category_name ?? '' }}
                 </template>
                 <template v-else>
                     &nbsp;
