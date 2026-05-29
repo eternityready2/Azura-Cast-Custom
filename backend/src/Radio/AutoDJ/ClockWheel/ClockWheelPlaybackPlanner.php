@@ -8,13 +8,13 @@ use App\Entity\Api\StationPlaylistQueue;
 use App\Entity\Enums\ClockWheelScheduleMode;
 use App\Entity\Enums\ClockWheelSlotAlgorithms;
 use App\Entity\Enums\ClockWheelSlotTypes;
+use App\Entity\StationSchedule;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
 use App\Entity\StationClockWheel;
 use App\Entity\StationClockWheelSlot;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
-use App\Entity\StationSchedule;
 use App\Radio\AutoDJ\DuplicatePrevention;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -45,7 +45,7 @@ final class ClockWheelPlaybackPlanner
     ) {
     }
 
-    /**
+  /**
      * @param array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null}> $recentHistory
      */
     public function resolveNextQueueEntry(
@@ -123,7 +123,7 @@ final class ClockWheelPlaybackPlanner
     }
 
     /**
-     * Planned position within the broadcast hour (0-3599), using expected play time
+     * Planned position within the broadcast hour (0–3599), using expected play time
      * and already-queued items in the same hour so anchors stay aligned when the
      * AutoDJ queue is built ahead of wall clock time.
      */
@@ -231,8 +231,8 @@ final class ClockWheelPlaybackPlanner
         $categoryId = $slot->category_id;
         $playlistId = $slot->playlist_id;
 
-        if ($type === null && $categoryId === null && ($playlistId === null || $playlistId === 0)) {
-            $this->logger->warning('Clock Wheel slot has no type, category, or playlist - skipping.');
+        if ($type === null) {
+            $this->logger->warning('Clock Wheel slot has no type — skipping.');
             return null;
         }
 
@@ -250,10 +250,8 @@ final class ClockWheelPlaybackPlanner
             $params['playlistId'] = $playlistId;
         }
 
-        if ($type !== null) {
-            $dql .= ' AND m.type = :type';
-            $params['type'] = $type->value;
-        }
+        $dql .= ' AND m.type = :type';
+        $params['type'] = $type->value;
 
         if ($categoryId !== null) {
             $dql .= ' AND m.category_id = :categoryId';
@@ -350,6 +348,11 @@ final class ClockWheelPlaybackPlanner
     }
 
     /**
+     * @param StationMedia[] $candidates
+     *
+     * @return StationMedia[]
+     */
+    /**
      * When true, AutoDJ applies a cue_out cap (Liquidsoap) as a fallback after PHP track selection.
      */
     private function shouldEnforcePlaybackCap(
@@ -369,11 +372,6 @@ final class ClockWheelPlaybackPlanner
         return $media->getCalculatedLength() > $maxDuration;
     }
 
-    /**
-     * @param StationMedia[] $candidates
-     *
-     * @return StationMedia[]
-     */
     private function filterByDuration(
         array $candidates,
         float $maxDuration,

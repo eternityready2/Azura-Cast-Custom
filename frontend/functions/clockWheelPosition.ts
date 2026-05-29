@@ -90,15 +90,3 @@ export function getClockWheelTimelineWarnings(
     return warnings;
 }
 
-export function slotValueShortLabel(
-    slotValue: string,
-    categories: { id: number; name: string }[],
-): string {
-    if (slotValue.startsWith('cat:')) {
-        const id = parseInt(slotValue.slice(4), 10);
-        return categories.find((c) => c.id === id)?.name ?? 'Category';
-    }
-
-    const type = slotValue.replace('type:', '');
-    return type.charAt(0).toUpperCase() + type.slice(1);
-}
