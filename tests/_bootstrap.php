@@ -1,7 +1,6 @@
 <?php
 // This is global bootstrap for autoloading
 $autoloader = require __DIR__.'/../vendor/autoload.php';
-$autoloader->addPsr4('App\\Tests\\Support\\', __DIR__ . '/_support');
 $autoloader->addClassMap([
     'Functional\CestAbstract' => __DIR__ . '/Functional/CestAbstract.php',
 ]);

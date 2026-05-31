@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Unit;
 
+use App\Doctrine\ReloadableEntityManagerInterface;
 use App\Entity\Enums\ClockWheelScheduleMode;
 use App\Entity\Enums\ClockWheelSlotTypes;
-use App\Entity\Api\StationPlaylistQueue;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
 use App\Entity\StationClockWheel;
@@ -17,17 +17,13 @@ use App\Entity\Song;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelPlaybackPlanner;
 use App\Radio\AutoDJ\DuplicatePrevention;
 use App\Tests\Module;
-use App\Tests\Support\ReflectionObjectFactory;
 use Carbon\CarbonImmutable;
 use Codeception\Test\Unit;
-use Mockery;
-use Mockery\MockInterface;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
-use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 
@@ -39,8 +35,6 @@ final class ClockWheelPlaybackPlannerTest extends Unit
 
     private Module $testsModule;
 
-    private MockInterface $queueRepo;
-
     protected function _inject(Module $testsModule): void
     {
         $this->testsModule = $testsModule;
@@ -50,18 +44,11 @@ final class ClockWheelPlaybackPlannerTest extends Unit
     {
         $this->station = new Station();
         $this->station->name = 'Planner Test';
-        $this->station->short_name = 'planner_test';
+        $this->station->short_name = 'planner_test_' . substr(uniqid('', true), -8);
         $this->station->timezone = 'UTC';
         $this->station->ensureDirectoriesExist();
 
-        $realQueueRepo = $this->testsModule->container->get(StationQueueRepository::class);
-        $this->queueRepo = Mockery::mock($realQueueRepo);
         $this->planner = $this->makePlanner();
-    }
-
-    protected function _after(): void
-    {
-        Mockery::close();
     }
 
     public function testResolveSlotMediaQueryUsesStationStorageLocation(): void
@@ -115,20 +102,7 @@ final class ClockWheelPlaybackPlannerTest extends Unit
         $em->method('find')->with(StationMedia::class, 42)->willReturn($media);
         $em->expects(self::once())->method('persist')->with(self::isInstanceOf(StationQueue::class));
 
-        $realDuplicatePrevention = $this->testsModule->container->get(DuplicatePrevention::class);
-        $duplicatePrevention = Mockery::mock($realDuplicatePrevention);
-        $duplicatePrevention->allows('preventDuplicates')->andReturnUsing(
-            static function (array $eligibleTracks): ?StationPlaylistQueue {
-                return $eligibleTracks[0] ?? null;
-            }
-        );
-
-        $planner = ReflectionObjectFactory::create(ClockWheelPlaybackPlanner::class, [
-            'em' => $em,
-            'queueRepo' => $this->queueRepo,
-            'duplicatePrevention' => $duplicatePrevention,
-            'logger' => $this->createMock(LoggerInterface::class),
-        ]);
+        $planner = $this->makePlanner($em);
 
         $wheel = new StationClockWheel($this->station);
         $slot = new StationClockWheelSlot($wheel);
@@ -153,18 +127,30 @@ final class ClockWheelPlaybackPlannerTest extends Unit
 
     public function testPlannedSecondsAdvancesPastQueuedItemsInSameHour(): void
     {
-        $expected = CarbonImmutable::parse('2026-05-26 09:55:00', 'UTC');
+        $em = $this->testsModule->em;
+        $station = $this->persistStation($em);
 
-        $queued = new StationQueue($this->station, Song::createFromText('Artist - Test'));
+        $queued = new StationQueue($station, Song::createFromText('Artist - Test'));
         $queued->timestamp_played = CarbonImmutable::parse('2026-05-26 09:50:00', 'UTC');
         $queued->duration = 600.0;
+        $queued->sent_to_autodj = 0;
+        $queued->is_played = 0;
+        $queued->timestamp_cued = CarbonImmutable::parse('2026-05-26 09:49:00', 'UTC');
+        $em->persist($queued);
+        $em->flush();
 
-        $this->queueRepo->allows('getUnplayedQueue')->andReturn([$queued]);
+        $planner = $this->makePlanner();
 
-        $seconds = $this->invokePlannedSeconds($expected);
+        try {
+            $expected = CarbonImmutable::parse('2026-05-26 09:55:00', 'UTC');
+            $seconds = $this->invokePlannedSecondsOn($planner, $station, $expected);
 
-        // Queued item ends at 09:50 + 600s = 10:00 → 3600s into hour, capped at 3599.
-        self::assertSame(self::hourSeconds() - 1, $seconds);
+            // Queued item ends at 09:50 + 600s = 10:00 → 3600s into hour, capped at 3599.
+            self::assertSame(self::hourSeconds() - 1, $seconds);
+        } finally {
+            $em->remove($queued);
+            $this->removeStation($em, $station);
+        }
     }
 
     public function testShortFormSlotUsesShortestCandidateWhenWindowIsTooSmall(): void
@@ -280,10 +266,18 @@ final class ClockWheelPlaybackPlannerTest extends Unit
 
     private function invokePlannedSeconds(DateTimeImmutable $expectedPlayTime): int
     {
+        return $this->invokePlannedSecondsOn($this->planner, $this->station, $expectedPlayTime);
+    }
+
+    private function invokePlannedSecondsOn(
+        ClockWheelPlaybackPlanner $planner,
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): int {
         $method = new ReflectionMethod(ClockWheelPlaybackPlanner::class, 'getPlannedSecondsIntoHour');
         $result = $method->invoke(
-            $this->planner,
-            $this->station,
+            $planner,
+            $station,
             $expectedPlayTime,
             new DateTimeZone('UTC')
         );
@@ -320,12 +314,12 @@ final class ClockWheelPlaybackPlannerTest extends Unit
 
     private function makePlanner(?EntityManagerInterface $em = null): ClockWheelPlaybackPlanner
     {
-        return ReflectionObjectFactory::create(ClockWheelPlaybackPlanner::class, [
-            'em' => $em ?? $this->createMock(EntityManagerInterface::class),
-            'queueRepo' => $this->queueRepo,
-            'duplicatePrevention' => $this->testsModule->container->get(DuplicatePrevention::class),
-            'logger' => $this->createMock(LoggerInterface::class),
-        ]);
+        return new ClockWheelPlaybackPlanner(
+            $em ?? $this->createMock(EntityManagerInterface::class),
+            $this->testsModule->container->get(StationQueueRepository::class),
+            $this->testsModule->container->get(DuplicatePrevention::class),
+            $this->createMock(LoggerInterface::class),
+        );
     }
 
     /**
@@ -380,6 +374,36 @@ final class ClockWheelPlaybackPlannerTest extends Unit
         $this->setEntityId($media, $id);
 
         return $media;
+    }
+
+    private function persistStation(ReloadableEntityManagerInterface $em): Station
+    {
+        $station = new Station();
+        $station->name = 'Planner DB Test';
+        $station->short_name = 'planner_db_' . substr(uniqid('', true), -8);
+        $station->timezone = 'UTC';
+        $station->ensureDirectoriesExist();
+
+        $em->persist($station->media_storage_location);
+        $em->persist($station->recordings_storage_location);
+        $em->persist($station->podcasts_storage_location);
+        $em->persist($station);
+        $em->flush();
+
+        return $station;
+    }
+
+    private function removeStation(ReloadableEntityManagerInterface $em, Station $station): void
+    {
+        $em->createQuery('DELETE FROM App\Entity\StationQueue sq WHERE sq.station = :station')
+            ->setParameter('station', $station)
+            ->execute();
+
+        $em->remove($station);
+        $em->remove($station->media_storage_location);
+        $em->remove($station->recordings_storage_location);
+        $em->remove($station->podcasts_storage_location);
+        $em->flush();
     }
 
     private function setEntityId(object $entity, int $id): void
