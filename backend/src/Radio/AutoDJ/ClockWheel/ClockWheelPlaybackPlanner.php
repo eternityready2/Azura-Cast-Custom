@@ -236,11 +236,9 @@ final class ClockWheelPlaybackPlanner
             return null;
         }
 
-        $params = ['stationId' => $station->id];
+        $params = ['storageLocation' => $station->media_storage_location];
         $dql = 'SELECT m FROM App\Entity\StationMedia m
-             JOIN m.storage_location sl
-             JOIN sl.stations st
-             WHERE st.id = :stationId';
+             WHERE m.storage_location = :storageLocation';
 
         if ($playlistId !== null && $playlistId > 0) {
             $dql .= ' AND EXISTS (
