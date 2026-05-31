@@ -35,8 +35,7 @@ final class ClockWheelSchedulerTest extends Unit
 
     private Module $testsModule;
 
-    /** @var StationScheduleRepository&MockInterface */
-    private StationScheduleRepository $scheduleRepo;
+    private MockInterface $scheduleRepo;
 
     /** @var ScheduleConflictChecker&MockObject */
     private ScheduleConflictChecker $conflictChecker;
@@ -44,8 +43,7 @@ final class ClockWheelSchedulerTest extends Unit
     /** @var ClockWheelPlaybackPlanner&MockObject */
     private ClockWheelPlaybackPlanner $planner;
 
-    /** @var StationQueueRepository&MockObject */
-    private StationQueueRepository $queueRepo;
+    private MockInterface $queueRepo;
 
     private ClockWheelScheduler $clockWheelScheduler;
 
@@ -64,9 +62,13 @@ final class ClockWheelSchedulerTest extends Unit
 
         $realScheduleRepo = $this->testsModule->container->get(StationScheduleRepository::class);
         $this->scheduleRepo = Mockery::mock($realScheduleRepo);
+
+        $realQueueRepo = $this->testsModule->container->get(StationQueueRepository::class);
+        $this->queueRepo = Mockery::mock($realQueueRepo);
+        $this->queueRepo->allows('getRecentlyPlayedByTimeRange')->andReturn([]);
+
         $this->conflictChecker = $this->createMock(ScheduleConflictChecker::class);
         $this->planner = $this->createMock(ClockWheelPlaybackPlanner::class);
-        $this->queueRepo = $this->createMock(StationQueueRepository::class);
 
         $this->clockWheelScheduler = new ClockWheelScheduler(
             $this->queueRepo,
@@ -81,8 +83,6 @@ final class ClockWheelSchedulerTest extends Unit
 
         $this->clockWheelScheduler->setEntityManager($em);
         $this->clockWheelScheduler->setLogger($this->createMock(LoggerInterface::class));
-
-        $this->queueRepo->method('getRecentlyPlayedByTimeRange')->willReturn([]);
     }
 
     protected function _after(): void

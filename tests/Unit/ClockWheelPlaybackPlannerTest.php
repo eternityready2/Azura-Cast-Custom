@@ -16,8 +16,11 @@ use App\Entity\StationQueue;
 use App\Entity\Song;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelPlaybackPlanner;
 use App\Radio\AutoDJ\DuplicatePrevention;
+use App\Tests\Module;
 use Carbon\CarbonImmutable;
 use Codeception\Test\Unit;
+use Mockery;
+use Mockery\MockInterface;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ORM\AbstractQuery;
@@ -33,8 +36,14 @@ final class ClockWheelPlaybackPlannerTest extends Unit
 
     private Station $station;
 
-    /** @var StationQueueRepository&MockObject */
-    private StationQueueRepository $queueRepo;
+    private Module $testsModule;
+
+    private MockInterface $queueRepo;
+
+    protected function _inject(Module $testsModule): void
+    {
+        $this->testsModule = $testsModule;
+    }
 
     protected function _before(): void
     {
@@ -44,8 +53,14 @@ final class ClockWheelPlaybackPlannerTest extends Unit
         $this->station->timezone = 'UTC';
         $this->station->ensureDirectoriesExist();
 
-        $this->queueRepo = $this->createMock(StationQueueRepository::class);
+        $realQueueRepo = $this->testsModule->container->get(StationQueueRepository::class);
+        $this->queueRepo = Mockery::mock($realQueueRepo);
         $this->planner = $this->makePlanner();
+    }
+
+    protected function _after(): void
+    {
+        Mockery::close();
     }
 
     public function testResolveSlotMediaQueryUsesStationStorageLocation(): void
@@ -147,7 +162,7 @@ final class ClockWheelPlaybackPlannerTest extends Unit
         $queued->timestamp_played = CarbonImmutable::parse('2026-05-26 09:50:00', 'UTC');
         $queued->duration = 600.0;
 
-        $this->queueRepo->method('getUnplayedQueue')->willReturn([$queued]);
+        $this->queueRepo->allows('getUnplayedQueue')->andReturn([$queued]);
 
         $seconds = $this->invokePlannedSeconds($expected);
 

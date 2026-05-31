@@ -13,7 +13,6 @@ use App\Tests\Module;
 use Carbon\CarbonImmutable;
 use Codeception\Test\Unit;
 use DateTimeZone;
-use Mockery;
 use UnitTester;
 
 class StationPlaylistTest extends Unit
@@ -30,8 +29,7 @@ class StationPlaylistTest extends Unit
 
     public function testScheduledPlaylist(): void
     {
-        /** @var Station $station */
-        $station = Mockery::mock(Station::class);
+        $station = $this->makeStation();
 
         $playlist = new StationPlaylist($station);
         $playlist->name = 'Test Playlist';
@@ -97,8 +95,7 @@ class StationPlaylistTest extends Unit
 
     public function testOncePerHourPlaylist()
     {
-        /** @var Station $station */
-        $station = Mockery::mock(Station::class);
+        $station = $this->makeStation();
 
         $playlist = new StationPlaylist($station);
         $playlist->name = 'Test Playlist';
@@ -123,5 +120,15 @@ class StationPlaylistTest extends Unit
         // Playlist SHOULD NOT try to play at 12:06 PM.
         $testTime = $testDay->setTime(12, 6);
         self::assertFalse($this->scheduler->shouldPlaylistPlayNow($playlist, $testTime));
+    }
+
+    private function makeStation(): Station
+    {
+        $station = new Station();
+        $station->name = 'Playlist Test Station';
+        $station->short_name = 'playlist_test';
+        $station->timezone = 'UTC';
+
+        return $station;
     }
 }

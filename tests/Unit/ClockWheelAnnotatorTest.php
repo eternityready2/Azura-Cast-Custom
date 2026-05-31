@@ -25,6 +25,7 @@ final class ClockWheelAnnotatorTest extends Unit
         $this->station->name = 'Annotator Test';
         $this->station->short_name = 'annotator_test';
         $this->station->timezone = 'UTC';
+        $this->station->ensureDirectoriesExist();
     }
 
     public function testSkipsWhenNotAutoDj(): void
