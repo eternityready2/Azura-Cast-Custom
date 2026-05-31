@@ -141,10 +141,14 @@ Two automatic layers — **no operator toggle** between “PHP only” and Liqui
 - **PR8 fallback caps** via `ClockWheelAnnotator` when `station_queue.clock_wheel_enforce_cap` is set (no admin mode switch).
   - Files: `ClockWheelPlaybackPlanner.php`, `ClockWheelAnnotator.php`
 
-### Tests (partial)
+### Tests (PHPUnit / Codeception)
 - Date range overlap helper: `tests/Unit/ScheduleConflictDateRangeTest.php`
+- Schedule conflict checker (weekly/monthly/overnight, playlist vs wheel): `tests/Unit/ScheduleConflictCheckerTest.php`
+- Planner anchor math + media query by `storage_location` (regression for invalid `sl.stations` DQL): `tests/Unit/ClockWheelPlaybackPlannerTest.php`
 - Clock wheel schedule activation (overnight, play-once, window boundaries): `tests/Unit/ClockWheelScheduleActivationTest.php`
-- Clock wheel API (CRUD, must-schedule, overlap rejection, slots, schedule feed): `tests/Functional/Api_Stations_ClockWheelsCest.php`
+- AutoDJ `ClockWheelScheduler` (skip/active/resolve/fall-through): `tests/Unit/ClockWheelSchedulerTest.php`
+- Clock wheel API (CRUD, overlap rejection, slots, schedule feed): `tests/Functional/Api_Stations_ClockWheelsCest.php`
+- Manual dev script only (not CI): `util/test_clock_wheels.sh`
 
 ## Known limitations / gaps (to address next)
 
@@ -154,10 +158,8 @@ Two automatic layers — **no operator toggle** between “PHP only” and Liqui
   - This is intentional for performance but should be configurable and well-tested.
 - **Front-end typed schedule row import**: the clock wheel edit modal currently reuses the playlist schedule row type.
   - This is fine for now but should be cleaned up for long-term maintainability.
-- **No full Codeception/API tests** yet for:
-  - “overlap save is rejected”
-  - “clock wheel runs only when window is free”
-  - “fallback occurs cleanly”
+- **CI** does not run Codeception on PRs yet (image build only); run `composer run codeception` locally or in Docker before release.
+- **Still light coverage:** PR8 `ClockWheelAnnotator`, `hasNonClockWheelScheduleActive` runtime path, frontend timeline UI (no JS test suite).
 
 ## Required next steps (recommended order)
 
