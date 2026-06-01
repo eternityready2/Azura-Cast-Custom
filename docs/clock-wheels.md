@@ -57,13 +57,17 @@ Delivered items in this repo:
   - optional playlist pin; **type** (required) filter on media
 - **Unified schedule dashboard** that displays playlist + clock wheel events and supports creating events.
 
-### Phase 2 — UX improvements (recommended next)
+### Phase 2 — UX improvements (partially done; see v7 doc)
 Goal: make “tweaks on the fly” extremely fast and reduce operator errors.
-- Visual “wheel” editor (drag/resize blocks) backed by `position_seconds`.
-- Per-slot validation + warnings:
-  - overlapping anchors, impossible windows, too-small gaps
-  - “no media fits this slot” preview warnings
-- Better “preview hour” / “dry run” screen.
+
+**Done in repo:**
+- Hour timeline bar + table editor (`Entries.vue`) backed by `position_seconds`.
+- Overlap/gap warnings in the slot editor.
+- **PR7 (MVP)** — Schedule → **Live Clock Wheel** tab (`Schedule/ClockWheelLiveTab.vue`): station clock face, now playing, hour anchors + queue titles, upcoming wheels, schedule conflict warning.
+
+**Remaining (enterprise v7 — `docs/clock-wheels-remaining-phases-v7.md`):**
+- **PR12** — Next-hour preview simulator + analytics dashboard.
+- Optional: full circular drag/resize wheel UI (deferred in v7 PDF).
 
 ### Phase 3 — Hardening + tests + production guardrails (**largely implemented**)
 Goal: ensure reliability and prevent regressions.
@@ -340,6 +344,19 @@ During active wheel windows, see **PR8 Phase 2 — production monitoring**. PHP 
 docker compose exec web bash -c \
   "grep -i 'clock wheel' /var/azuracast/www_tmp/app_nowplaying-$(date -u +%Y-%m-%d).log | tail -30"
 ```
+
+### Remaining enterprise phases (PR7–PR13)
+
+Full breakdown: **`docs/clock-wheels-remaining-phases-v7.md`** (from `docs/AzuraCast_ClockWheel_Remaining_Phases_v7.pdf`).
+
+| PR | Summary |
+|----|---------|
+| PR7 | **Done (MVP)** — Schedule → Live Clock Wheel tab (`queue` + now playing + `/schedule`) |
+| PR9 | Separation rules + burn rate in planner |
+| PR10 | Daypart templates / inheritance |
+| PR11 | `clock_wheel_events` audit table |
+| PR12 | Preview API + analytics + `fill_strategy` |
+| PR13 | `is_emergency` schedule override (optional) |
 
 ### Remaining gaps (honest)
 

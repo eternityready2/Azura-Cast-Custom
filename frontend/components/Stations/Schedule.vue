@@ -19,13 +19,55 @@
                 </div>
             </div>
         </div>
+        <div class="card-body pb-0">
+            <nav
+                class="nav nav-tabs"
+                role="tablist"
+            >
+                <div
+                    class="nav-item"
+                    role="presentation"
+                >
+                    <button
+                        type="button"
+                        class="nav-link"
+                        :class="{active: activeTab === 'calendar'}"
+                        role="tab"
+                        :aria-selected="activeTab === 'calendar'"
+                        @click="activeTab = 'calendar'"
+                    >
+                        {{ $gettext('Calendar') }}
+                    </button>
+                </div>
+                <div
+                    class="nav-item"
+                    role="presentation"
+                >
+                    <button
+                        type="button"
+                        class="nav-link"
+                        :class="{active: activeTab === 'live'}"
+                        role="tab"
+                        :aria-selected="activeTab === 'live'"
+                        @click="activeTab = 'live'"
+                    >
+                        {{ $gettext('Live Clock Wheel') }}
+                    </button>
+                </div>
+            </nav>
+        </div>
         <div class="card-body">
             <schedule-calendar
+                v-show="activeTab === 'calendar'"
                 ref="$scheduleTab"
                 :schedule-url="[scheduleUrl, clockWheelsScheduleUrl]"
                 :show-create-button="true"
                 @click="doCalendarClick"
                 @create="doCreateEvent"
+            />
+            <clock-wheel-live-tab
+                v-show="activeTab === 'live'"
+                :active="activeTab === 'live'"
             />
         </div>
         <edit-modal
@@ -47,18 +89,21 @@
 
 <script setup lang="ts">
 import ScheduleCalendar from "~/components/Stations/Common/ScheduleCalendar.vue";
+import ClockWheelLiveTab from "~/components/Stations/Schedule/ClockWheelLiveTab.vue";
 import EditModal from "~/components/Stations/Playlists/EditModal.vue";
 import ClockWheelEditModal from "~/components/Stations/ClockWheels/EditModal.vue";
 import CreateEventModal from "~/components/Stations/Common/CreateEventModal.vue";
 import TimeZone from "~/components/Stations/Common/TimeZone.vue";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
-import {useTemplateRef} from "vue";
+import {ref, useTemplateRef} from "vue";
 import {EventImpl} from "@fullcalendar/core/internal";
 import useHasEditModal from "~/functions/useHasEditModal";
 import {useTranslate} from "~/vendor/gettext";
 
 const {$gettext} = useTranslate();
 const {getStationApiUrl} = useApiRouter();
+
+const activeTab = ref<'calendar' | 'live'>('calendar');
 
 const listUrl = getStationApiUrl('/playlists');
 const clockWheelsListUrl = getStationApiUrl('/clock-wheels');
