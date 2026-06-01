@@ -65,11 +65,15 @@ Goal: make “tweaks on the fly” extremely fast and reduce operator errors.
   - “no media fits this slot” preview warnings
 - Better “preview hour” / “dry run” screen.
 
-### Phase 3 — Hardening + tests + production guardrails (required before wide deployment)
+### Phase 3 — Hardening + tests + production guardrails (**largely implemented**)
 Goal: ensure reliability and prevent regressions.
-- Automated tests for:
-  - conflict checker (weekly/monthly/overnight)
-  - planner slot selection and “fit-to-window” behavior
+
+**Done (PR 6):**
+- Unit + functional Codeception coverage for conflict checker, planner, scheduler, API slots/schedules (see **PR 6 — Tests & regression coverage** below).
+- Run in Docker: `vendor/bin/codecept run tests/Unit` (44 tests) and optionally `tests/Functional/Api_Stations_ClockWheelsCest.php`.
+
+**Still open:**
+- Wire Codeception into CI (today `composer run dev-test` is phpcs/phpstan only).
 - Improve runtime fallback logging/metrics.
 - Verify Docker upgrade/migration flow for existing installs.
 
@@ -193,15 +197,12 @@ Log files (inside container): `/var/azuracast/www_tmp/app_nowplaying-YYYY-MM-DD.
   - Files: `ClockWheelPlaybackPlanner.php`, `ClockWheelAnnotator.php`
 
 ### Tests (PHPUnit / Codeception)
-- Date range overlap helper: `tests/Unit/ScheduleConflictDateRangeTest.php`
-- Schedule conflict checker (weekly/monthly/overnight, playlist vs wheel): `tests/Unit/ScheduleConflictCheckerTest.php`
-- Planner anchor math + media query by `storage_location` (regression for invalid `sl.stations` DQL): `tests/Unit/ClockWheelPlaybackPlannerTest.php`
-- Clock wheel schedule activation (overnight, play-once, window boundaries): `tests/Unit/ClockWheelScheduleActivationTest.php`
-- AutoDJ `ClockWheelScheduler` (skip/active/resolve/fall-through): `tests/Unit/ClockWheelSchedulerTest.php`
-- PR8 `ClockWheelAnnotator` (`cue_out` caps): `tests/Unit/ClockWheelAnnotatorTest.php`
-- PR8 planner caps and short-form overflow: `tests/Unit/ClockWheelPlaybackPlannerTest.php` (`shouldEnforcePlaybackCap`, `filterByDuration`)
-- Clock wheel API (CRUD, overlap rejection, slots, schedule feed): `tests/Functional/Api_Stations_ClockWheelsCest.php`
-- Manual dev script only (not CI): `util/test_clock_wheels.sh`
+
+See **PR 6 — Tests & regression coverage** for the full matrix, run commands, and reviewer notes.
+
+**Harness (not product tests):** `backend/src/Tests/Module.php`, `backend/src/Tests/Connector.php` — Codeception bootstrap only.
+
+**Manual smoke (not automated):** `util/test_clock_wheels.sh` — curl against a live station; no assertions; not part of `composer run dev-test`.
 
 ## Known limitations / gaps (to address next)
 
@@ -211,22 +212,18 @@ Log files (inside container): `/var/azuracast/www_tmp/app_nowplaying-YYYY-MM-DD.
   - This is intentional for performance but should be configurable and well-tested.
 - **Front-end typed schedule row import**: the clock wheel edit modal currently reuses the playlist schedule row type.
   - This is fine for now but should be cleaned up for long-term maintainability.
-- **CI** does not run Codeception on PRs yet (image build only); run `composer run codeception` locally or in Docker before release.
-- **Still light coverage:** `hasNonClockWheelScheduleActive` runtime integration, Liquidsoap fallback paths, frontend timeline UI (no JS test suite).
+- **CI** does not run Codeception on PRs yet (image build only); run `vendor/bin/codecept` in Docker before release (see PR 6 section).
+- **Still light coverage:** Liquidsoap fallback paths, full end-to-end on-air proof in CI, frontend hour-timeline UI (no JS test suite; backend anchors covered in `ClockWheelPlaybackPlannerTest`).
 
 ## Required next steps (recommended order)
 
 ### 1) Fix and harden current changes
-- Run PHP lint/format/static analysis in the container CI environment (`phpcs`, `phpstan`).
-- API/schedule tests added (see Tests section above); run `composer run codeception` in Docker to verify.
+- Run PHP lint/format/static analysis (`composer run dev-test`: phpcs, phpstan).
+- Run Codeception in Docker: `vendor/bin/codecept run tests/Unit` and functional clock-wheel Cest (see **PR 6** below).
 
 ### 2) Improve conflict checker correctness — **done**
-- Dedicated unit suite: `tests/Unit/ScheduleConflictCheckerTest.php`
-  - weekly vs monthly recurrence
-  - overnight windows
-  - boundary behavior (end == start)
-  - “play once” items
-  - cross-entity conflicts (playlist vs clock wheel)
+- Unit: `tests/Unit/ScheduleConflictCheckerTest.php`, `tests/Unit/ScheduleConflictDateRangeTest.php`
+- Functional overlap on create: `Api_Stations_ClockWheelsCest::clockWheelScheduleOverlapIsRejected`
 
 ### 3) Improve planner (professionalism) — **done (core)**
 - Fixed anchor math: position within hour (0–3599), not seconds since midnight.
@@ -258,4 +255,97 @@ Log files (inside container): `/var/azuracast/www_tmp/app_nowplaying-YYYY-MM-DD.
 - Create an overlapping playlist schedule in the same window:
   - verify the save is **blocked**
   - and/or at runtime the wheel is **skipped** and normal AutoDJ runs
+
+## PR 6 — Tests & regression coverage
+
+This section maps the **PR 6 spec** to what exists in the repo today. It is intended for reviewers who asked for “greenfield” clock-wheel tests.
+
+### Status summary
+
+| PR 6 requirement | Status | Primary test file(s) |
+|------------------|--------|----------------------|
+| Schedule conflict matrix (same-day, partial, overnight, recurring) | **Done** | `tests/Unit/ScheduleConflictCheckerTest.php`, `ScheduleConflictDateRangeTest.php` |
+| Planner / hour timeline (slot resolution, window fit, fallback) | **Done** (no class named `HourTimelineTest`) | `tests/Unit/ClockWheelPlaybackPlannerTest.php` |
+| Scheduler (playlist blocks wheel, active window, null fallback) | **Done** | `tests/Unit/ClockWheelSchedulerTest.php` |
+| Schedule activation (windows, overnight, play-once) | **Done** | `tests/Unit/ClockWheelScheduleActivationTest.php` |
+| API PUT `/slots` + `position_seconds` | **Done** | `tests/Functional/Api_Stations_ClockWheelsCest.php` → `clockWheelSlotsAndScheduleFeed` |
+| Conflicting schedule save rejected | **Done** (HTTP **400**, not 422) | Same Cest → `clockWheelScheduleOverlapIsRejected` |
+| PR8 `cue_out` enforcement | **Done** (bonus) | `tests/Unit/ClockWheelAnnotatorTest.php` |
+| Manual curl smoke | **Exists, not CI** | `util/test_clock_wheels.sh` |
+
+The statement *“there are no clock wheel tests anywhere”* applied to an earlier revision; it **no longer applies**.
+
+### Unit tests (`tests/Unit/`)
+
+Run all unit tests (44 total in full suite; includes non–clock-wheel tests):
+
+```bash
+docker compose exec --user=azuracast web bash -c \
+  "cd /var/azuracast/www && vendor/bin/codecept run tests/Unit"
+```
+
+Clock-wheel–related files only:
+
+```bash
+docker compose exec --user=azuracast web bash -c \
+  "cd /var/azuracast/www && vendor/bin/codecept run tests/Unit/ClockWheel* tests/Unit/ScheduleConflict*"
+```
+
+| File | What it asserts |
+|------|-----------------|
+| `ScheduleConflictCheckerTest.php` | Different weekdays OK; batch overlap rejected; adjacent boundaries (non-touching); overnight overlap; monthly date patterns; play-once overlap; existing wheel blocks new wheel; playlist blocks wheel; biweekly alternation |
+| `ScheduleConflictDateRangeTest.php` | `DateRange::isWithin` overlap helpers |
+| `ClockWheelPlaybackPlannerTest.php` | DQL uses `m.storage_location` (not invalid `sl.stations`); resolve slot by type; planned seconds within hour + queue advance; short-form shortest overflow; strict empty window; `shouldEnforcePlaybackCap`; active slot by `position_seconds` |
+| `ClockWheelSchedulerTest.php` | Skip if next songs set; **scheduled playlist blocks wheel**; no wheel schedule; inactive wheel; **active wheel resolves track**; **planner null → no next song** |
+| `ClockWheelScheduleActivationTest.php` | In/out of window; overnight after midnight; play-once 15-minute window |
+| `ClockWheelAnnotatorTest.php` | Skip non-AutoDJ / no cap flag; apply `autocue_cue_out`; cap ≤ media length |
+
+Planner tests cover **backend** anchor behavior. The Vue hour timeline bar (`Entries.vue`) has no JS test suite.
+
+### Functional tests (`tests/Functional/`)
+
+Requires database + full app bootstrap (Codeception `App\Tests\Module`):
+
+```bash
+docker compose exec --user=azuracast web bash -c \
+  "cd /var/azuracast/www && vendor/bin/codecept run tests/Functional/Api_Stations_ClockWheelsCest.php"
+```
+
+| Scenario | Method |
+|----------|--------|
+| CRUD clock wheels | `manageClockWheels` |
+| Active wheel without schedule rows | `activeClockWheelMayExistWithoutSchedule` |
+| Overlapping wheel schedules rejected | `clockWheelScheduleOverlapIsRejected` → **400** + `conflict` |
+| POST/PUT slots with `position_seconds`, schedule feed | `clockWheelSlotsAndScheduleFeed` |
+
+### HTTP status: 400 vs 422
+
+Schedule validation failures throw `App\Exception\ValidationException` with **default code 400**. Functional tests assert **400**, not 422. If API consumers require 422, that is a separate contract change.
+
+### CI vs local
+
+| Command | Runs Codeception? |
+|---------|-------------------|
+| `composer run dev-test` | **No** (phpcs, phpstan, phplint) |
+| `composer run codeception` | **Yes** (full suite + coverage) |
+| `vendor/bin/codecept run tests/Unit` | **Yes** (recommended pre-merge for clock wheels) |
+
+Production Docker images built with `composer install --no-dev` do not include `codecept` until dev dependencies are installed (e.g. `composer install` in the container for test runs).
+
+### Logs for manual validation (not assertions)
+
+During active wheel windows, see **PR8 Phase 2 — production monitoring**. PHP logs: `/var/azuracast/www_tmp/app_nowplaying-YYYY-MM-DD.log`.
+
+```bash
+docker compose exec web bash -c \
+  "grep -i 'clock wheel' /var/azuracast/www_tmp/app_nowplaying-$(date -u +%Y-%m-%d).log | tail -30"
+```
+
+### Remaining gaps (honest)
+
+- Codeception not wired into GitHub Actions for this fork.
+- No dedicated `HourTimelineTest` class name (behavior covered under planner tests).
+- Limited functional coverage of every recurrence type via HTTP (unit tests cover more).
+- No automated test for Liquidsoap `standard_playlists` fallback during a wheel window.
+- `util/test_clock_wheels.sh` remains optional manual smoke only.
 
