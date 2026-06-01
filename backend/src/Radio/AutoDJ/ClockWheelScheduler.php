@@ -6,11 +6,13 @@ namespace App\Radio\AutoDJ;
 
 use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
+use App\Entity\Enums\ClockWheelFallbackReason;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Station;
 use App\Entity\StationSchedule;
 use App\Event\Radio\BuildQueue;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelPlaybackPlanner;
 use App\Radio\Schedule\ScheduleConflictChecker;
 use DateTimeImmutable;
@@ -33,6 +35,7 @@ final class ClockWheelScheduler implements EventSubscriberInterface
         private readonly Scheduler $scheduler,
         private readonly ClockWheelPlaybackPlanner $planner,
         private readonly ScheduleConflictChecker $conflictChecker,
+        private readonly ClockWheelEventLogger $eventLogger,
     ) {
     }
 
@@ -59,6 +62,15 @@ final class ClockWheelScheduler implements EventSubscriberInterface
             $this->logger->debug(
                 'Clock Wheel skipped: another scheduled playlist or streamer is active.'
             );
+            $this->eventLogger->recordFallback(
+                $station,
+                null,
+                null,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::ScheduleConflict,
+            );
+            $this->em->flush();
+
             return;
         }
 
@@ -71,6 +83,15 @@ final class ClockWheelScheduler implements EventSubscriberInterface
         $wheel = $activeEvent->clock_wheel;
 
         if (!$wheel->is_active) {
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                null,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::WheelInactive,
+            );
+            $this->em->flush();
+
             return;
         }
 
@@ -104,6 +125,7 @@ final class ClockWheelScheduler implements EventSubscriberInterface
                     $wheel->name
                 )
             );
+            $this->em->flush();
         }
     }
 

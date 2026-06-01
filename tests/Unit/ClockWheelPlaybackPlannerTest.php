@@ -14,6 +14,7 @@ use App\Entity\StationClockWheelSlot;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Entity\Song;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelPlaybackPlanner;
 use App\Radio\AutoDJ\DuplicatePrevention;
 use App\Tests\Module;
@@ -300,15 +301,19 @@ final class ClockWheelPlaybackPlannerTest extends Unit
         StationClockWheelSlot $slot,
         int $availableSeconds,
     ): ?StationQueue {
+        $wheel = $slot->clock_wheel;
         $method = new ReflectionMethod(ClockWheelPlaybackPlanner::class, 'resolveSlot');
 
         return $method->invoke(
             $planner,
+            $wheel,
             $slot,
             [],
             $availableSeconds,
             ClockWheelScheduleMode::Flexible,
             $this->station,
+            new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            $slot->position_seconds,
         );
     }
 
@@ -318,6 +323,7 @@ final class ClockWheelPlaybackPlannerTest extends Unit
             $em ?? $this->createMock(EntityManagerInterface::class),
             $this->testsModule->container->get(StationQueueRepository::class),
             $this->testsModule->container->get(DuplicatePrevention::class),
+            $this->createMock(ClockWheelEventLogger::class),
             $this->createMock(LoggerInterface::class),
         );
     }

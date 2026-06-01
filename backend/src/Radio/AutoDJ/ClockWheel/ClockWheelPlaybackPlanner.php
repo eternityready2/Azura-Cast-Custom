@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ\ClockWheel;
 
 use App\Entity\Api\StationPlaylistQueue;
+use App\Entity\Enums\ClockWheelFallbackReason;
 use App\Entity\Enums\ClockWheelScheduleMode;
 use App\Entity\Enums\ClockWheelSlotAlgorithms;
 use App\Entity\Enums\ClockWheelSlotTypes;
@@ -41,6 +42,7 @@ final class ClockWheelPlaybackPlanner
         private readonly EntityManagerInterface $em,
         private readonly StationQueueRepository $queueRepo,
         private readonly DuplicatePrevention $duplicatePrevention,
+        private readonly ClockWheelEventLogger $eventLogger,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -56,11 +58,19 @@ final class ClockWheelPlaybackPlanner
     ): ?StationQueue {
         $slots = $this->sortSlots($wheel->slots->toArray());
 
+        $station = $wheel->station;
+
         if ($slots === []) {
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                null,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::NoSlots,
+            );
+
             return null;
         }
-
-        $station = $wheel->station;
         $tz = $station->getTimezoneObject();
         $secondsIntoHour = $this->getPlannedSecondsIntoHour($station, $expectedPlayTime, $tz);
 
@@ -91,17 +101,29 @@ final class ClockWheelPlaybackPlanner
                     'slot_type' => $activeSlot->type?->value,
                 ]
             );
+            $this->eventLogger->recordDeferred(
+                $station,
+                $wheel,
+                $activeSlot,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::DeferredInsufficientWindow,
+                $secondsIntoHour,
+            );
+
             return null;
         }
 
         $scheduleMode = $activeSchedule->clock_wheel_mode ?? ClockWheelScheduleMode::Flexible;
 
         return $this->resolveSlot(
+            $wheel,
             $activeSlot,
             $recentHistory,
             $availableSeconds,
             $scheduleMode,
-            $station
+            $station,
+            $expectedPlayTime,
+            $secondsIntoHour,
         );
     }
 
@@ -221,11 +243,14 @@ final class ClockWheelPlaybackPlanner
      * @param array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null}> $recentHistory
      */
     private function resolveSlot(
+        StationClockWheel $wheel,
         StationClockWheelSlot $slot,
         array $recentHistory,
         int $availableSeconds,
         ClockWheelScheduleMode $scheduleMode,
         Station $station,
+        DateTimeImmutable $expectedPlayTime,
+        int $secondsIntoHour,
     ): ?StationQueue {
         $type = $slot->type;
         $categoryId = $slot->category_id;
@@ -233,6 +258,15 @@ final class ClockWheelPlaybackPlanner
 
         if ($type === null) {
             $this->logger->warning('Clock Wheel slot has no type — skipping.');
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                $slot,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::NoSlotType,
+                $secondsIntoHour,
+            );
+
             return null;
         }
 
@@ -270,6 +304,15 @@ final class ClockWheelPlaybackPlanner
                     $playlistId ?? '(any)',
                 )
             );
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                $slot,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::NoMediaCandidates,
+                $secondsIntoHour,
+            );
+
             return null;
         }
 
@@ -283,6 +326,15 @@ final class ClockWheelPlaybackPlanner
                 'Clock Wheel slot: no media fits the available window.',
                 ['available_seconds' => $availableSeconds, 'max_duration' => $maxDuration]
             );
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                $slot,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::NoMediaFitsWindow,
+                $secondsIntoHour,
+            );
+
             return null;
         }
 
@@ -304,11 +356,29 @@ final class ClockWheelPlaybackPlanner
             ?? $this->duplicatePrevention->preventDuplicates($mediaQueue, $recentHistory, true);
 
         if ($validTrack === null) {
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                $slot,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::DuplicatePreventionEmpty,
+                $secondsIntoHour,
+            );
+
             return null;
         }
 
         $media = $this->em->find(StationMedia::class, $validTrack->media_id);
         if (!$media instanceof StationMedia) {
+            $this->eventLogger->recordFallback(
+                $station,
+                $wheel,
+                $slot,
+                $expectedPlayTime,
+                ClockWheelFallbackReason::MediaNotFound,
+                $secondsIntoHour,
+            );
+
             return null;
         }
 
@@ -323,6 +393,15 @@ final class ClockWheelPlaybackPlanner
             $maxDuration
         );
         $this->em->persist($queueEntry);
+
+        $this->eventLogger->recordTrackQueued(
+            $station,
+            $wheel,
+            $slot,
+            $media,
+            $expectedPlayTime,
+            $secondsIntoHour,
+        );
 
         $this->logger->info('Clock Wheel resolved track.', [
             'media_id' => $media->id,

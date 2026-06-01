@@ -30,7 +30,7 @@ See `docs/clock-wheels.md` for operational detail, tests, and monitoring.
 | PR8 complete | **True** |
 | PR7 “zero backend changes” | **Partially true** — tab can use existing queue/nowplaying/schedule APIs; PDF also references **`GET .../preview`** and **`clock_wheel_events`** which **do not exist yet** (PR12 / PR11) |
 | PR5 preview endpoint | **Not found** in routes — no `/clock-wheel/.../preview` |
-| PR11 `clock_wheel_events` | **Not implemented** |
+| PR11 `clock_wheel_events` | **Implemented** — `clock_wheel_events` table + `ClockWheelEventLogger` hooks |
 | PR9 `SeparationRulesChecker` | **Not implemented** (duplicate prevention exists globally, not wheel-specific separation/burn rate) |
 | PR10 `ClockTemplate` / `ClockInstance` / `Daypart` | **Not implemented** |
 | PR13 `is_emergency` | **Not implemented** |
@@ -46,7 +46,7 @@ See `docs/clock-wheels.md` for operational detail, tests, and monitoring.
 | **7** | Schedule page — Live Clock Wheel tab | High | Medium | None required for MVP | New tab on `Schedule.vue` |
 | **9** | Separation rules + burn rate | High | Medium | `SeparationRulesChecker` + planner hook | Config UI (wheel/template later) |
 | **10** | Daypart clock inheritance | High | Medium | New entities + migrations + APIs | Templates / dayparts / instances UI |
-| **11** | Audit event database | High | Small | `clock_wheel_events` + write hooks | — |
+| **11** | Audit event database | High | Small | **Done** — `clock_wheel_events` + `ClockWheelEventLogger` | — |
 | **12** | Preview simulator + analytics | Medium | Medium | Preview API + metrics queries | Dashboard + fill_strategy |
 | **13** | Emergency override (optional) | Optional | Small | `is_emergency` on `StationSchedule` | Checkbox in `CreateEventModal` |
 
@@ -65,8 +65,8 @@ PR11 ──► PR12   (audit table before analytics/preview)
 
 **Recommended implementation sequence:**
 
-1. **PR7 (MVP)** — Frontend-only; use `nowplaying`, `queue`, `clock-wheels/schedule` (no new PHP).
-2. **PR11** — Small schema + scheduler/planner write hooks (unblocks PR12 and enriches PR7 later).
+1. **PR7 (MVP)** — Done.
+2. **PR11** — Done (`clock_wheel_events` + logger hooks).
 3. **PR9** — Extends `ClockWheelPlaybackPlanner` candidate filtering.
 4. **PR12** — Preview endpoint + analytics UI (depends on PR11).
 5. **PR10** — Largest product surface (templates/dayparts); can start DB/API in parallel with PR9 if staffed.
@@ -137,11 +137,33 @@ Live hand in station TZ; now playing shows track + artist; current hour shows qu
 
 ## PR11 — Audit event database
 
+**Status: Done**
+
 **Goal:** Table `clock_wheel_events` with columns from PDF (timestamp, wheel_id, slot_id, media_id, expected/actual time, drift_seconds, anchor_type, fallback_reason, separation_relaxed, burn_rate_warning).
 
-**Write hooks:** `ClockWheelScheduler`, `ClockWheelPlaybackPlanner`, AutoDJ fallback paths.
+**Implemented:**
 
-**Unblocks:** PR12 analytics, PR7 “future content” depth, PR9/PR13 logging.
+| Piece | Location |
+|-------|----------|
+| Migration | `Version20260529120000` → table `clock_wheel_events` |
+| Entity | `App\Entity\ClockWheelEvent` |
+| Logger | `App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger` |
+| Hooks | `ClockWheelPlaybackPlanner` (queue / defer / slot fallbacks), `ClockWheelScheduler` (schedule conflict, inactive wheel) |
+| Tests | `tests/Unit/ClockWheelEventLoggerTest.php` |
+
+`separation_relaxed` / `burn_rate_warning` default to `false` until PR9. `actual_play_at` reserved for a future playback hook (PR12).
+
+**Verify on server:**
+
+```sql
+SELECT event_kind, fallback_reason, anchor_type, drift_seconds, event_timestamp
+FROM clock_wheel_events
+WHERE station_id = YOUR_STATION_ID
+ORDER BY id DESC
+LIMIT 20;
+```
+
+**Unblocks:** PR12 analytics, richer PR7 live tab, PR9/PR13 logging flags.
 
 ---
 

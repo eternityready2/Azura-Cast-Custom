@@ -345,6 +345,19 @@ docker compose exec web bash -c \
   "grep -i 'clock wheel' /var/azuracast/www_tmp/app_nowplaying-$(date -u +%Y-%m-%d).log | tail -30"
 ```
 
+### PR 11 — Audit events (`clock_wheel_events`)
+
+AutoDJ and the clock wheel scheduler append rows when they queue, defer, or fall back. Use for ops forensics and PR12 analytics.
+
+| Column / concept | Meaning |
+|------------------|---------|
+| `event_kind` | `track_queued`, `deferred`, `fallback` |
+| `fallback_reason` | e.g. `schedule_conflict`, `no_media_candidates`, `deferred_insufficient_window` |
+| `drift_seconds` | Seconds into the hour minus slot `position_seconds` at decision time |
+| `separation_relaxed` / `burn_rate_warning` | Reserved for PR9 (currently always false) |
+
+Migration: `Version20260529120000`. Retention helper: `ClockWheelEventRepository::deleteOlderThan()` (30 days default; not wired to cron yet).
+
 ### Remaining enterprise phases (PR7–PR13)
 
 Full breakdown: **`docs/clock-wheels-remaining-phases-v7.md`** (from `docs/AzuraCast_ClockWheel_Remaining_Phases_v7.pdf`).
@@ -354,7 +367,7 @@ Full breakdown: **`docs/clock-wheels-remaining-phases-v7.md`** (from `docs/Azura
 | PR7 | **Done (MVP)** — Schedule → Live Clock Wheel tab (`queue` + now playing + `/schedule`) |
 | PR9 | Separation rules + burn rate in planner |
 | PR10 | Daypart templates / inheritance |
-| PR11 | `clock_wheel_events` audit table |
+| PR11 | **Done** — `clock_wheel_events` audit table + planner/scheduler hooks |
 | PR12 | Preview API + analytics + `fill_strategy` |
 | PR13 | `is_emergency` schedule override (optional) |
 
