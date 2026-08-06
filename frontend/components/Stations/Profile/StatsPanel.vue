@@ -153,7 +153,7 @@
 
 <script setup lang="ts">
 import {computed, ref} from 'vue';
-import {toRefs} from '@vueuse/core';
+import {toRefs, useDocumentVisibility} from '@vueuse/core';
 import {useQuery} from '@tanstack/vue-query';
 import CardPage from '~/components/Common/CardPage.vue';
 import {useAxios} from '~/vendor/axios';
@@ -170,7 +170,7 @@ import IconIcHeadphones from '~icons/ic/baseline-headphones';
 import IconIcAssignment from '~icons/ic/baseline-assignment';
 
 const {$gettext} = useTranslate();
-const {axios} = useAxios();
+const {axiosSilent} = useAxios();
 const {getStationApiUrl} = useApiRouter();
 const {userAllowedForStation} = useUserAllowedForStation();
 
@@ -194,17 +194,28 @@ interface OverviewStats {
 
 const apiUrl = getStationApiUrl('/overview-stats');
 
+// This data (24h unique listeners, total listening hours, storage) moves on the
+// scale of minutes, not seconds. More importantly: Chrome freezes hidden tabs after
+// several minutes of being backgrounded (its Page Lifecycle API), and forcibly
+// terminates any network request that's in-flight at the moment of freeze. A fast
+// interval left running in the background all but guarantees a request is caught
+// mid-flight when that happens, producing a real, unavoidable network error on
+// resume. Rather than just handling that error more quietly, this query is fully
+// disabled while the tab is hidden, so nothing is ever in-flight for Chrome to kill.
+// A single clean refetch fires when the tab becomes visible again.
+const visibility = useDocumentVisibility();
+
 const {data: stats} = useQuery<OverviewStats>({
     queryKey: queryKeyWithStation([
         QueryKeys.StationProfile,
         'overview-stats',
     ]),
     queryFn: async ({signal}) => {
-        const {data} = await axios.get<OverviewStats>(apiUrl.value, {signal});
+        const {data} = await axiosSilent.get<OverviewStats>(apiUrl.value, {signal});
         return data;
     },
-    refetchInterval: 15 * 1000,
-    enabled: isEnabled,
+    refetchInterval: 60 * 1000,
+    enabled: computed(() => isEnabled.value && visibility.value === 'visible'),
 });
 
 const tlhPeriod = ref<'24h' | '7d' | '30d'>('30d');

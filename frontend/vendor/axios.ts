@@ -66,7 +66,10 @@ export default function installAxios(vueApp: App) {
     }
 
     // Configure some Axios settings that depend on the BootstrapVue $bvToast superglobal.
-    const handleAxiosError = (error: any) => {
+    // `silent` is true for background/periodic requests (polling, focus-triggered refetches)
+    // where a user isn't actively waiting on the result, so transient failures shouldn't
+    // interrupt them with a toast. Auth redirects and console logging still always happen.
+    const handleAxiosError = (error: any, silent: boolean = false) => {
         const {$gettext} = useTranslate();
 
         // Canceled HTTP requests are expected.
@@ -82,6 +85,7 @@ export default function installAxios(vueApp: App) {
             const responseJson = error.response.data;
 
             // Immediately redirect back to login page if the HTTP request returns a 403 NotLoggedIn error.
+            // This always applies, silent or not, since a stale session is never something to hide.
             if (responseJson.type === "NotLoggedInException") {
                 window.location.href = "/login";
                 return;
@@ -95,6 +99,10 @@ export default function installAxios(vueApp: App) {
         } else {
             // Something happened in setting up the request that triggered an Error
             console.error('Error', error.message);
+        }
+
+        if (silent) {
+            return;
         }
 
         const {notifyError} = useNotify();
@@ -130,7 +138,7 @@ export default function installAxios(vueApp: App) {
     axiosSilent.interceptors.request.use(
         (config) => (config),
         (error) => {
-            handleAxiosError(error);
+            handleAxiosError(error, true);
 
             return Promise.reject(error);
         }
@@ -139,7 +147,7 @@ export default function installAxios(vueApp: App) {
     axiosSilent.interceptors.response.use(
         (response) => (response),
         (error) => {
-            handleAxiosError(error);
+            handleAxiosError(error, true);
 
             return Promise.reject(error);
         }
