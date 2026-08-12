@@ -20,6 +20,8 @@
     "@flowjs/flow.js": "^2.14.1",
     "@fullcalendar/bootstrap5": "^6.1.8",
     "@fullcalendar/core": "^6",
+    "@fullcalendar/daygrid": "^6.1.21",
+    "@fullcalendar/interaction": "^6.1.21",
     "@fullcalendar/luxon3": "^6",
     "@fullcalendar/timegrid": "^6",
     "@fullcalendar/vue3": "^6",

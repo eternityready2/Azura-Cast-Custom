@@ -155,6 +155,16 @@ final class PlaylistsController extends AbstractScheduledEntityController
             ->where('sp.station = :station')
             ->setParameter('station', $station);
 
+        // Used by the dedicated Smart Blocks page to show only Smart Block playlists
+        // (and, conversely, by the main Playlists page to hide them, since they're
+        // fully managed on their own page).
+        $smartBlockFilter = $request->getParam('is_smart_block');
+        if ('1' === $smartBlockFilter) {
+            $qb->andWhere('sp.is_smart_block = true');
+        } elseif ('0' === $smartBlockFilter) {
+            $qb->andWhere('sp.is_smart_block = false');
+        }
+
         $qb = $this->sortQueryBuilder(
             $request,
             $qb,
@@ -193,7 +203,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
                 SELECT ssc, sp
                 FROM App\Entity\StationSchedule ssc
                 JOIN ssc.playlist sp
-                WHERE sp.station = :station AND sp.is_jingle = 0 AND sp.is_enabled = 1
+                WHERE sp.station = :station AND sp.is_jingle = 0
             DQL
         )->setParameter('station', $station)
             ->execute();
@@ -216,7 +226,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
                     'id' => $scheduleItem->id . '_' . $dateRange->start->getTimestamp(),
                     'schedule_id' => $scheduleItem->id,
                     'playlist_id' => $playlist->id,
-                    'title' => $playlist->name,
+                    'title' => $playlist->name . ($playlist->is_enabled ? '' : ' (' . __('Disabled') . ')'),
                     'start' => $dateRange->start->toIso8601String(),
                     'end' => $dateRange->end->toIso8601String(),
                     'edit_url' => $request->getRouter()->named(
@@ -228,6 +238,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
                     'order' => $playlist->order->value,
                     'playlist_type' => $playlist->type->value,
                     'weight' => $playlist->weight,
+                    'is_enabled' => $playlist->is_enabled,
                     'play_per_songs' => $playlist->play_per_songs,
                     'play_per_minutes' => $playlist->play_per_minutes,
                     'play_per_hour_minute' => $playlist->play_per_hour_minute,

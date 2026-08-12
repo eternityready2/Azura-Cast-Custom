@@ -22,13 +22,16 @@
                 <option value="playlist">
                     {{ $gettext('Playlist') }}
                 </option>
+                <option value="smart_block">
+                    {{ $gettext('Smart Block') }}
+                </option>
             </select>
         </div>
 
         <!-- Entity selection -->
         <div v-if="!isScopedMode" class="mb-3">
             <label class="form-label fw-semibold">
-                {{ form.source === 'playlist' ? $gettext('Playlist') : $gettext('Clock Wheel') }}
+                {{ form.source === 'clock_wheel' ? $gettext('Clock Wheel') : (form.source === 'smart_block' ? $gettext('Smart Block') : $gettext('Playlist')) }}
             </label>
             <select
                 v-model="form.entity_id"
@@ -47,7 +50,7 @@
         </div>
 
         <div
-            v-if="form.source === 'playlist'"
+            v-if="isPlaylistSchedule"
             class="mb-3"
         >
             <div class="form-check">
@@ -408,6 +411,9 @@ import TimeZone from '~/components/Stations/Common/TimeZone.vue';
 import {applyIf, minLength, minValue, required, requiredIf, withMessage} from '@regle/rules';
 import {useAppScopedRegle} from '~/vendor/regle.ts';
 import {ref, computed, onMounted, watch, useTemplateRef} from 'vue';
+import {toRefs} from '@vueuse/core';
+import {DateTime} from 'luxon';
+import {useStationData} from '~/functions/useStationQuery.ts';
 import {useTranslate} from '~/vendor/gettext';
 import {useAxios} from '~/vendor/axios';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
@@ -422,6 +428,9 @@ import {scheduleTimeWindowForHourOfDay} from '~/functions/amPmTime.ts';
 
 const {$gettext} = useTranslate();
 const {axios} = useAxios();
+
+const stationData = useStationData();
+const {timezone: stationTimezone} = toRefs(stationData);
 const {getStationApiUrl} = useApiRouter();
 const {notifySuccess} = useNotify();
 const {confirmDelete} = useDialog();
@@ -434,6 +443,7 @@ interface EntityOption {
     id: number;
     name: string;
     self_url: string;
+    is_smart_block?: boolean;
 }
 
 interface ClockWheelOption extends EntityOption {
@@ -454,6 +464,7 @@ onMounted(async () => {
         id: p.id as number,
         name: p.name as string,
         self_url: (p.links as Record<string, string>).self,
+        is_smart_block: Boolean(p.is_smart_block),
     }));
 
     clockWheels.value = (cwResp.data as Array<Record<string, unknown>>).map((cw) => ({
@@ -465,11 +476,18 @@ onMounted(async () => {
 });
 
 const blankForm = () => ({
-    source: 'clock_wheel' as 'playlist' | 'clock_wheel',
+    source: 'clock_wheel' as 'playlist' | 'smart_block' | 'clock_wheel',
     entity_id: null as number | null,
 });
 
 const form = ref(blankForm());
+
+/** Both 'playlist' and 'smart_block' sources ultimately POST to the same /playlist/{id}
+ *  entity API endpoint -- a Smart Block is just a playlist under the hood. This keeps
+ *  every one of the (several) places below that need to map source -> API entity type
+ *  in agreement, instead of repeating the ternary and risking one getting missed. */
+const apiEntityType = (source: string): 'playlist' | 'clock-wheel' =>
+    'clock_wheel' === source ? 'clock-wheel' : 'playlist';
 
 const startTimingMode = ref<'flexible' | 'strict'>('flexible');
 const clockWheelScheduleMode = ref<'flexible' | 'strict'>('flexible');
@@ -583,11 +601,18 @@ const onEntityChange = () => {
     }
 };
 
-const currentEntityOptions = computed(() =>
-    form.value.source === 'playlist' ? playlists.value : clockWheels.value
-);
+const currentEntityOptions = computed(() => {
+    if (form.value.source === 'clock_wheel') {
+        return clockWheels.value;
+    }
+    // 'playlist' shows regular playlists; 'smart_block' shows just the Smart Blocks --
+    // two focused pickers over the same underlying /playlists collection.
+    return playlists.value.filter(
+        (p) => Boolean(p.is_smart_block) === (form.value.source === 'smart_block')
+    );
+});
 
-const isPlaylistSchedule = computed(() => form.value.source === 'playlist');
+const isPlaylistSchedule = computed(() => form.value.source === 'playlist' || form.value.source === 'smart_block');
 const isClockWheelSchedule = computed(() => form.value.source === 'clock_wheel');
 
 // Auto-select first entity whenever options change or source changes
@@ -781,17 +806,24 @@ const modalTitle = computed(() =>
 );
 
 const applyCalendarTimesToRow = (start: Date, end?: Date) => {
-    const startDate = start.toISOString().slice(0, 10);
-    const startH = start.getHours().toString().padStart(2, '0');
-    const startM = start.getMinutes().toString().padStart(2, '0');
-    scheduleRow.value.start_date = startDate;
-    scheduleRow.value.end_date = startDate;
-    scheduleRow.value.start_time = Number(`${startH}${startM}`);
+    // IMPORTANT: the calendar displays (and drag-drop positions events) in the
+    // STATION's configured timezone, not necessarily the browser's local timezone.
+    // Reading .getHours()/.getMinutes() directly off the JS Date object returns
+    // components in the *browser's* local time, and .toISOString() returns the
+    // date in UTC -- mixing those two was the bug that caused a dropped/clicked
+    // slot to end up saved at a different time than where it visually landed
+    // whenever the station's timezone differs from the visitor's own. Converting
+    // explicitly into the station's timezone first keeps date and time consistent
+    // with what was actually clicked/dropped on the calendar.
+    const startInStationTz = DateTime.fromJSDate(start, {zone: stationTimezone.value});
+
+    scheduleRow.value.start_date = startInStationTz.toFormat('yyyy-MM-dd');
+    scheduleRow.value.end_date = startInStationTz.toFormat('yyyy-MM-dd');
+    scheduleRow.value.start_time = Number(startInStationTz.toFormat('HHmm'));
 
     if (end) {
-        const endH = end.getHours().toString().padStart(2, '0');
-        const endM = end.getMinutes().toString().padStart(2, '0');
-        scheduleRow.value.end_time = Number(`${endH}${endM}`);
+        const endInStationTz = DateTime.fromJSDate(end, {zone: stationTimezone.value});
+        scheduleRow.value.end_time = Number(endInStationTz.toFormat('HHmm'));
     }
 };
 
@@ -917,6 +949,15 @@ const openForEdit = async (event: EventImpl) => {
         const m = editUrl.match(/\/(playlist|clock-wheel)\/(\d+)/);
         if (m?.[2]) {
             form.value.entity_id = Number(m[2]);
+
+            // If this is actually a Smart Block (not a regular playlist), reflect that
+            // in the Source dropdown too, rather than showing it as a generic Playlist.
+            if (form.value.source === 'playlist') {
+                const matchedPlaylist = playlists.value.find((p) => p.id === form.value.entity_id);
+                if (matchedPlaylist?.is_smart_block) {
+                    form.value.source = 'smart_block';
+                }
+            }
         }
     }
 
@@ -934,7 +975,7 @@ const openForEdit = async (event: EventImpl) => {
         error.value = null;
 
         try {
-            const entityType = form.value.source === 'playlist' ? 'playlist' : 'clock-wheel';
+            const entityType = apiEntityType(form.value.source);
             const entityApiUrl = getStationApiUrl(`/${entityType}/${form.value.entity_id}`).value;
             const {data: entityData} = await axios.get(entityApiUrl);
             const items = (entityData.schedule_items as Record<string, unknown>[] | undefined) ?? [];
@@ -997,7 +1038,7 @@ const openScopedForEdit = async (
     error.value = null;
 
     try {
-        const entityType = source === 'playlist' ? 'playlist' : 'clock-wheel';
+        const entityType = apiEntityType(source);
         const entityApiUrl = getStationApiUrl(`/${entityType}/${entityId}`).value;
         const {data: entityData} = await axios.get(entityApiUrl);
         const items = (entityData.schedule_items as Record<string, unknown>[] | undefined) ?? [];
@@ -1031,7 +1072,7 @@ const doSave = async () => {
     try {
         // Build URL using getStationApiUrl to avoid Docker-internal host issues
         // Note: individual endpoints use singular: /playlist/{id} and /clock-wheel/{id}
-        const entityType = form.value.source === 'playlist' ? 'playlist' : 'clock-wheel';
+        const entityType = apiEntityType(form.value.source);
         const entityApiUrl = getStationApiUrl(`/${entityType}/${form.value.entity_id}`).value;
 
         // Fetch current entity data
@@ -1114,7 +1155,7 @@ const doDelete = async () => {
     }
 
     try {
-        const entityType = source === 'playlist' ? 'playlist' : 'clock-wheel';
+        const entityType = apiEntityType(source);
         const entityApiUrl = getStationApiUrl(`/${entityType}/${entityId}`).value;
 
         const {data: entityData} = await axios.get(entityApiUrl);
@@ -1135,6 +1176,19 @@ const doDelete = async () => {
     }
 };
 
-defineExpose({open, openForEdit, openScopedForCreate, openScopedForEdit});
-</script>
+const openForDrop = (
+    entityId: number,
+    start: Date,
+    end?: Date,
+    source: 'playlist' | 'smart_block' | 'clock_wheel' = 'playlist',
+) => {
+    clearForm();
+    form.value.source = source;
+    form.value.entity_id = entityId;
+    applyCalendarTimesToRow(start, end);
+    syncDurationFromTimes();
+    ($modal.value as any)?.show();
+};
 
+defineExpose({open, openForEdit, openScopedForCreate, openScopedForEdit, openForDrop});
+</script>

@@ -22,6 +22,7 @@ import allLocales from "@fullcalendar/core/locales-all";
 import luxon3Plugin from "@fullcalendar/luxon3";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
 import {computed, useTemplateRef} from "vue";
 import {useAzuraCast} from "~/vendor/azuracast";
 import {Calendar, CalendarOptions} from "@fullcalendar/core";
@@ -67,11 +68,13 @@ bootstrap5Plugin.themeClasses["bootstrap5"].prototype.rtlIconClasses = {
 
 const {localeShort, timeConfig} = useAzuraCast();
 
+const basePlugins = [luxon3Plugin, timeGridPlugin, dayGridPlugin, bootstrap5Plugin, interactionPlugin];
+
 const calendarOptions = computed<CalendarOptions>(() => {
     return {
         locale: localeShort,
         locales: allLocales,
-        plugins: [luxon3Plugin, timeGridPlugin, dayGridPlugin, bootstrap5Plugin],
+        plugins: basePlugins,
         themeSystem: 'bootstrap5',
         initialView: 'timeGridWeek',
         nowIndicator: true,
@@ -90,7 +93,13 @@ const calendarOptions = computed<CalendarOptions>(() => {
                 }
             }
         },
-        ...props.options
+        ...props.options,
+        // Always keep the base plugins (interaction, luxon, timeGrid, dayGrid,
+        // bootstrap5) even if the caller supplies its own `plugins` -- additive,
+        // not a replacement, so external-drag/drop keeps working everywhere.
+        plugins: props.options?.plugins
+            ? [...basePlugins, ...props.options.plugins]
+            : basePlugins,
     };
 });
 </script>

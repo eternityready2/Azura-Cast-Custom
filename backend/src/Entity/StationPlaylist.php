@@ -8,6 +8,9 @@ use App\Entity\Enums\PlaylistOrders;
 use App\Entity\Enums\PlaylistRemoteTypes;
 use App\Entity\Enums\PlaylistSources;
 use App\Entity\Enums\PlaylistTypes;
+use App\Entity\Enums\SmartBlockLimitType;
+use App\Entity\Enums\SmartBlockMatchType;
+use App\Entity\Enums\SmartBlockType;
 use App\Utilities\File;
 use App\Utilities\Time;
 use Azura\Normalizer\Attributes\DeepNormalize;
@@ -339,6 +342,71 @@ final class StationPlaylist implements
     ]
     public bool $avoid_duplicates = true;
 
+    /**
+     * Smart Block: when enabled (only valid for `source = songs` playlists), this
+     * playlist's membership is not managed by hand -- it is automatically kept in sync
+     * with the station's media library based on its {@see self::$smart_block_criteria}
+     * rules by a recurring background task. Everything else about the playlist (weight,
+     * scheduling, rotation goal, duplicate avoidance, etc.) works exactly as normal.
+     */
+    #[
+        OA\Property(example: false),
+        ORM\Column(options: ['default' => false])
+    ]
+    public bool $is_smart_block = false;
+
+    #[
+        OA\Property(example: 'all'),
+        ORM\Column(type: 'string', length: 10, enumType: SmartBlockMatchType::class, options: ['default' => 'all'])
+    ]
+    public SmartBlockMatchType $smart_block_match_type = SmartBlockMatchType::All;
+
+    /**
+     * Optional cap on how much content the Smart Block will keep as members at once,
+     * measured either in track count or total duration depending on
+     * {@see self::$smart_block_limit_type} (e.g. "50 tracks" or "3600 seconds"). If more
+     * matching content exists than this, a random sample is kept and refreshed on every
+     * sync. NULL means no cap (all matching tracks are included).
+     */
+    #[
+        OA\Property(example: 50, nullable: true),
+        ORM\Column(nullable: true)
+    ]
+    public ?int $smart_block_limit = null {
+        set (int|string|null $value) {
+            if (null === $value || '' === $value) {
+                $this->smart_block_limit = null;
+                return;
+            }
+
+            $limit = (int)$value;
+            $this->smart_block_limit = $limit > 0 ? $limit : null;
+        }
+    }
+
+    /**
+     * Whether {@see self::$smart_block_limit} counts tracks or seconds of duration --
+     * mirrors LibreTime/Airtime's "Limit to X items" vs "Limit to X time" choice.
+     */
+    #[
+        OA\Property(example: 'tracks'),
+        ORM\Column(type: 'string', length: 10, enumType: SmartBlockLimitType::class, options: ['default' => 'tracks'])
+    ]
+    public SmartBlockLimitType $smart_block_limit_type = SmartBlockLimitType::Tracks;
+
+    /**
+     * Airtime Pro's Static vs Dynamic distinction (see {@see SmartBlockType}).
+     * Static: criteria generate a one-time, hand-editable tracklist -- the recurring
+     * sync task leaves it alone once generated. Dynamic: membership is continuously
+     * kept in sync with the criteria, including being resolved fresh at the moment
+     * AutoDJ is about to play from it (see QueueBuilder).
+     */
+    #[
+        OA\Property(example: 'dynamic'),
+        ORM\Column(type: 'string', length: 10, enumType: SmartBlockType::class, options: ['default' => 'dynamic'])
+    ]
+    public SmartBlockType $smart_block_type = SmartBlockType::Dynamic;
+
     #[
         ORM\Column(type: 'datetime_immutable', precision: 6, nullable: true),
         Attributes\AuditIgnore
@@ -367,6 +435,27 @@ final class StationPlaylist implements
         ORM\OneToMany(targetEntity: StationPlaylistFolder::class, mappedBy: 'playlist', fetch: 'EXTRA_LAZY')
     ]
     public private(set) Collection $folders;
+
+    /**
+     * The filter rules for this playlist's Smart Block, if {@see self::$is_smart_block}
+     * is enabled. See {@see StationPlaylistSmartBlockCriteria} for details.
+     *
+     * @var Collection<int, StationPlaylistSmartBlockCriteria>
+     */
+    #[
+        OA\Property(type: "array", items: new OA\Items()),
+        ORM\OneToMany(
+            targetEntity: StationPlaylistSmartBlockCriteria::class,
+            mappedBy: 'playlist',
+            fetch: 'EXTRA_LAZY',
+            cascade: ['persist', 'remove'],
+            orphanRemoval: true
+        ),
+        ORM\OrderBy(['weight' => 'ASC']),
+        DeepNormalize(true),
+        Serializer\MaxDepth(1)
+    ]
+    public private(set) Collection $smart_block_criteria;
 
     /** @var Collection<int, StationSchedule> */
     #[
@@ -447,6 +536,7 @@ final class StationPlaylist implements
 
         $this->media_items = new ArrayCollection();
         $this->folders = new ArrayCollection();
+        $this->smart_block_criteria = new ArrayCollection();
         $this->schedule_items = new ArrayCollection();
         $this->podcasts = new ArrayCollection();
         $this->playlists = new ArrayCollection();
@@ -499,6 +589,7 @@ final class StationPlaylist implements
 
         $this->media_items = new ArrayCollection();
         $this->folders = new ArrayCollection();
+        $this->smart_block_criteria = new ArrayCollection();
         $this->schedule_items = new ArrayCollection();
         $this->podcasts = new ArrayCollection();
         $this->playlists = new ArrayCollection();

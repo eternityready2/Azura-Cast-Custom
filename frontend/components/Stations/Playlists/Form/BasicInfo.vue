@@ -3,6 +3,19 @@
         :label="$gettext('Basic Info')"
         :item-header-class="tabClass"
     >
+        <div
+            v-if="form.is_smart_block"
+            class="alert alert-info d-flex align-items-center gap-2 mb-3"
+        >
+            <span>
+                {{ $gettext('This playlist\'s membership is auto-managed by a Smart Block. Its filter criteria are edited on the dedicated') }}
+                <router-link :to="{name: 'stations:smart_blocks:index'}">
+                    {{ $gettext('Smart Blocks') }}
+                </router-link>
+                {{ $gettext('page — the fields below (weight, scheduling, etc.) still apply normally.') }}
+            </span>
+        </div>
+
         <div class="row g-3 mb-3">
             <form-group-field
                 id="form_edit_name"
@@ -29,6 +42,7 @@
             />
 
             <form-group-multi-check
+                v-if="!form.is_smart_block"
                 id="edit_form_source"
                 class="col-md-12"
                 :field="r$.source"
@@ -37,6 +51,16 @@
                 radio
                 :label="$gettext('Source')"
             />
+
+            <div
+                v-else
+                class="col-md-12"
+            >
+                <label class="form-label">{{ $gettext('Source') }}</label>
+                <p class="text-muted mb-0">
+                    {{ $gettext('Song-Based (locked — Smart Blocks always pull from your media library).') }}
+                </p>
+            </div>
         </div>
 
         <section

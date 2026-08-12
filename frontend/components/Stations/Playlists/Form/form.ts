@@ -45,7 +45,11 @@ export const useStationsPlaylistsForm = defineStore(
             rotation_goal_days: null as number | null,
             crossfade_profile: null as string | null,
             backend_options: [],
-            schedule_items: []
+            schedule_items: [],
+            is_smart_block: false,
+            smart_block_match_type: 'all',
+            smart_block_limit: null as number | null,
+            smart_block_limit_type: 'tracks'
         });
 
         const {r$} = useAppScopedRegle(
@@ -75,6 +79,10 @@ export const useStationsPlaylistsForm = defineStore(
                         fields.avoid_duplicates,
                         fields.rotation_goal_days,
                         fields.crossfade_profile,
+                        fields.is_smart_block,
+                        fields.smart_block_match_type,
+                        fields.smart_block_limit,
+                        fields.smart_block_limit_type,
                     ],
                     advancedTab: [
                         fields.backend_options

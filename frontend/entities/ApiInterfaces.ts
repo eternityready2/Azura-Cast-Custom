@@ -2485,6 +2485,64 @@ export type StationPlaylist = HasAutoIncrementId & {
   playlists?: StationPlaylistGroupMember[];
   /** The Playlist Groups (if any) this playlist is currently a member of. */
   playlist_groups?: StationPlaylistGroupMember[];
+  /** Smart Block: whether this playlist's membership is auto-managed by criteria. */
+  is_smart_block?: boolean;
+  /** Smart Block: whether ALL or ANY criteria rows must match a track. */
+  smart_block_match_type?: SmartBlockMatchType;
+  /** Smart Block: optional cap on the number of matching tracks kept as members. */
+  smart_block_limit?: number | null;
+  /** Smart Block: whether smart_block_limit is measured in tracks or seconds. */
+  smart_block_limit_type?: SmartBlockLimitType;
+  /** Smart Block: Static (generate once, hand-editable) or Dynamic (always kept in sync). */
+  smart_block_type?: SmartBlockType;
+  /** Smart Block: the filter rules, if is_smart_block is enabled. */
+  smart_block_criteria?: StationPlaylistSmartBlockCriterion[];
+};
+
+export enum SmartBlockCriteriaField {
+  Genre = "genre",
+  Artist = "artist",
+  Album = "album",
+  Title = "title",
+  Duration = "duration",
+  CustomField = "custom_field",
+  LastPlayed = "last_played_days_ago",
+}
+
+export enum SmartBlockCriteriaComparison {
+  Is = "is",
+  IsNot = "is_not",
+  Contains = "contains",
+  NotContains = "not_contains",
+  GreaterThan = "greater_than",
+  LessThan = "less_than",
+  Between = "between",
+}
+
+export enum SmartBlockMatchType {
+  All = "all",
+  Any = "any",
+}
+
+export enum SmartBlockLimitType {
+  Tracks = "tracks",
+  Duration = "duration",
+}
+
+export enum SmartBlockType {
+  Static = "static",
+  Dynamic = "dynamic",
+}
+
+export type StationPlaylistSmartBlockCriterion = {
+  id?: number;
+  field?: SmartBlockCriteriaField;
+  custom_field_id?: number | null;
+  custom_field_name?: string | null;
+  comparison?: SmartBlockCriteriaComparison;
+  value?: string | null;
+  value2?: string | null;
+  weight?: number;
 };
 
 export type StationPlaylistGroupMember = {

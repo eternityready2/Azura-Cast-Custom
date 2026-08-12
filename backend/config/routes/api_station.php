@@ -675,6 +675,16 @@ return static function (RouteCollectorProxy $group) {
                                     )->setName('api:stations:playlist:members');
 
                                     $group->get(
+                                        '/smart-block',
+                                        Controller\Api\Stations\Playlists\GetSmartBlockAction::class
+                                    )->setName('api:stations:playlist:smart-block');
+
+                                    $group->put(
+                                        '/smart-block',
+                                        Controller\Api\Stations\Playlists\PutSmartBlockAction::class
+                                    );
+
+                                    $group->get(
                                         '/queue',
                                         Controller\Api\Stations\Playlists\GetQueueAction::class
                                     )->setName('api:stations:playlist:queue');

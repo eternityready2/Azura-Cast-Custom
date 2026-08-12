@@ -97,6 +97,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:playlists:index'
                 },
                 {
+                    path: 'smart-blocks',
+                    component: () => import('~/components/Stations/SmartBlocks.vue'),
+                    name: 'stations:smart-blocks:index'
+                },
+                {
                     path: 'schedule',
                     component: () => import('~/components/Stations/Schedule.vue'),
                     name: 'stations:schedule:index'
