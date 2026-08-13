@@ -24,10 +24,19 @@ final readonly class DateRange
         return CarbonImmutable::instance($time)->between($this->start, $this->end);
     }
 
+    /**
+     * True when this range and $toCompare share any moment in time.
+     *
+     * Uses a half-open interval comparison (start inclusive, end exclusive) so that
+     * back-to-back schedule items -- one ending exactly when the next begins, e.g.
+     * 1:00–2:00 PM followed by 2:00–3:00 PM -- are treated as adjacent, not
+     * overlapping. This matches how most radio scheduling software (Airtime Pro,
+     * Live365, etc.) allows shows to be scheduled edge-to-edge without a gap.
+     */
     public function isWithin(self $toCompare): bool
     {
-        return $this->end >= $toCompare->start
-            && $this->start <= $toCompare->end;
+        return $this->start < $toCompare->end
+            && $toCompare->start < $this->end;
     }
 
     public function format(

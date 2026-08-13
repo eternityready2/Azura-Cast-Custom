@@ -92,7 +92,7 @@
                 class="col-md-4"
                 :field="r$.end_time"
                 :label="$gettext('End Time')"
-                :description="$gettext('If end is before start, the event plays overnight. To avoid overlapping the next event, you can end at :59 (e.g. 1:59 PM before 2:00 PM).')"
+                :description="$gettext('If end is before start, the event plays overnight. Back-to-back events are fine -- e.g. end this one at 2:00 PM and start the next at 2:00 PM.')"
             >
                 <template #default="{id, model, fieldClass}">
                     <am-pm-time-input
@@ -164,6 +164,15 @@
                 :required="isRecurring && scheduleRow.recurrence_end_type !== 'after'"
                 :input-attrs="{ disabled: !isRecurring || scheduleRow.recurrence_end_type === 'after' }"
             />
+
+            <div
+                v-if="endDateSameAsStart"
+                class="col-12"
+            >
+                <div class="alert alert-danger py-2 px-3 mb-0 small">
+                    ⚠ {{ $gettext('End Date must be after Start Date for a recurring event. The event would end immediately and never repeat.') }}
+                </div>
+            </div>
 
             <form-markup
                 v-if="isClockWheelSchedule"
@@ -409,6 +418,7 @@ import FormGroupSelect from '~/components/Form/FormGroupSelect.vue';
 import FormMarkup from '~/components/Form/FormMarkup.vue';
 import TimeZone from '~/components/Stations/Common/TimeZone.vue';
 import {applyIf, minLength, minValue, required, requiredIf, withMessage} from '@regle/rules';
+import {createRule} from '@regle/core';
 import {useAppScopedRegle} from '~/vendor/regle.ts';
 import {ref, computed, onMounted, watch, useTemplateRef} from 'vue';
 import {toRefs} from '@vueuse/core';
@@ -514,6 +524,9 @@ watch(isRecurring, (recurring) => {
         if (!scheduleRow.value.recurrence_type) {
             scheduleRow.value.recurrence_type = 'weekly';
         }
+        // Clear end_date when switching to recurring — user must deliberately
+        // pick an end date, so it can't accidentally save as the same day as start.
+        scheduleRow.value.end_date = '';
     } else {
         scheduleRow.value.recurrence_type = null;
         scheduleRow.value.recurrence_monthly_pattern = null;
@@ -684,6 +697,21 @@ const daysOfWeekFieldDescription = computed(() => {
     return $gettext('Select at least one day of the week.');
 });
 
+// Custom rule: for recurring events, end date must be strictly after start date.
+// Using createRule so the validator function has access to external reactive state
+// (isRecurring, scheduleRow.start_date) without being limited to just the field value.
+const endDateAfterStart = createRule({
+    validator: (endDate: unknown) => {
+        if (!isRecurring.value) return true;
+        const end = String(endDate ?? '').trim();
+        const start = (scheduleRow.value.start_date ?? '').trim();
+        if (!end || !start) return true; // required validator handles the empty case
+        // YYYY-MM-DD string comparison is safe for ISO dates
+        return end > start;
+    },
+    message: () => $gettext('End Date must be after Start Date for recurring events.'),
+});
+
 const {r$} = useAppScopedRegle(
     scheduleRow,
     {
@@ -692,12 +720,16 @@ const {r$} = useAppScopedRegle(
         start_date: {required},
         end_date: {
             required: requiredIf(() => isRecurring.value && scheduleRow.value.recurrence_end_type !== 'after'),
+            endDateAfterStart,
         },
         days: {
             minLength: withMessage(
                 applyIf(requiresDaysOfWeek, minLength(1)),
                 () => $gettext('Select at least one day of the week.')
             ),
+        },
+        recurrence_type: {
+            required: requiredIf(() => isRecurring.value),
         },
         recurrence_end_after: {
             required: requiredIf(() => scheduleRow.value.recurrence_end_type === 'after'),
@@ -748,9 +780,19 @@ watch(
     }
 );
 
+// True when end_date is set for a recurring event but is NOT after start_date.
+// Checked both here (to disable Save) and in the template (to show a warning).
+const endDateSameAsStart = computed(() =>
+    isRecurring.value
+    && !!scheduleRow.value.end_date
+    && !!scheduleRow.value.start_date
+    && scheduleRow.value.end_date <= scheduleRow.value.start_date
+);
+
 const isFormValid = computed(() =>
     form.value.entity_id !== null &&
-    !r$.$invalid
+    !r$.$invalid &&
+    !endDateSameAsStart.value
 );
 
 const onSourceChange = () => {
@@ -1190,5 +1232,144 @@ const openForDrop = (
     ($modal.value as any)?.show();
 };
 
-defineExpose({open, openForEdit, openScopedForCreate, openScopedForEdit, openForDrop});
+/**
+ * Auto-save a dropped item directly to the API without opening the modal.
+ * Creates a one-time event at the dropped slot (same defaults openForDrop uses)
+ * and immediately PUTs it. Returns an undo function the caller can wire to a toast.
+ */
+const autoSaveFromDrop = async (
+    entityId: number,
+    start: Date,
+    durationMinutes: number,
+    recurrenceType: string | null,
+    days: number[],
+    source: 'playlist' | 'smart_block' | 'clock_wheel' = 'playlist',
+): Promise<{success: boolean}> => {
+    try {
+        const startInTz = DateTime.fromJSDate(start, {zone: stationTimezone.value});
+        const endInTz = startInTz.plus({minutes: durationMinutes});
+
+        const row = createScheduleItemDefaults();
+        row.start_date = startInTz.toFormat('yyyy-MM-dd');
+        row.end_date = recurrenceType ? '' : startInTz.toFormat('yyyy-MM-dd');
+        row.start_time = Number(startInTz.toFormat('HHmm'));
+        row.end_time = Number(endInTz.toFormat('HHmm'));
+        row.recurrence_type = recurrenceType ?? null;
+        row.days = days;
+
+        const entityType = apiEntityType(source);
+        const entityApiUrl = getStationApiUrl(`/${entityType}/${entityId}`).value;
+
+        const {data: entityData} = await axios.get(entityApiUrl);
+        const existing = (entityData.schedule_items as unknown[]) ?? [];
+
+        const newItem = buildSchedulePayload(row);
+        if (source === 'clock_wheel') {
+            (newItem as any).loop_once = false;
+            (newItem as any).clock_wheel_mode = 'flexible';
+        }
+
+        await axios.put(entityApiUrl, {
+            schedule_items: [...existing, newItem],
+        });
+
+        emit('relist');
+        return {success: true};
+    } catch {
+        return {success: false};
+    }
+};
+
+/**
+ * Auto-save a drag-to-move/resize operation for an existing schedule item.
+ * Fetches the entity, updates start/end times in the matching item, and PUTs.
+ * For one-time events also updates start_date/end_date. Recurring events only
+ * get new start_time/end_time — the recurrence boundary dates stay untouched.
+ * Returns {success} so the caller can revert the calendar event on failure.
+ */
+const autoSaveMove = async (
+    event: EventImpl,
+    newStart: Date,
+    newEnd: Date | null,
+): Promise<{success: boolean}> => {
+    const editUrl = event.extendedProps.edit_url as string | undefined;
+    const scheduleIdRaw = event.extendedProps.schedule_id as number | string | undefined;
+    const scheduleId = scheduleIdRaw !== undefined ? Number(scheduleIdRaw) : NaN;
+
+    if (!editUrl || !Number.isFinite(scheduleId)) return {success: false};
+
+    try {
+        const baseUrl = editUrl.replace(/\/schedule\/\d+$/, '');
+        const {data: entityData} = await axios.get(baseUrl);
+        const existingItems = (entityData.schedule_items as Record<string, unknown>[] | undefined) ?? [];
+
+        const targetItem = existingItems.find((row: any) => Number(row.id) === scheduleId) as Record<string, unknown> | undefined;
+        if (!targetItem) return {success: false};
+
+        const startInTz = DateTime.fromJSDate(newStart, {zone: stationTimezone.value});
+        const startTime = Number(startInTz.toFormat('HHmm'));
+        const startDate = startInTz.toFormat('yyyy-MM-dd');
+
+        let endTime: number;
+        let endDate: string | undefined;
+
+        if (newEnd) {
+            const endInTz = DateTime.fromJSDate(newEnd, {zone: stationTimezone.value});
+            endTime = Number(endInTz.toFormat('HHmm'));
+            endDate = endInTz.toFormat('yyyy-MM-dd');
+        } else {
+            endTime = Number(targetItem.end_time ?? 0);
+        }
+
+        const isRecurringItem = targetItem.recurrence_type != null && targetItem.recurrence_type !== '';
+
+        const updatedItem = {
+            ...targetItem,
+            start_time: startTime,
+            end_time: endTime,
+            start_date: startDate,
+            // Don't overwrite the recurrence boundary end_date for recurring events
+            ...(!isRecurringItem && endDate !== undefined ? {end_date: endDate} : {}),
+        };
+
+        const updatedItems = existingItems.map((row: any) =>
+            Number(row.id) === scheduleId ? updatedItem : row
+        );
+
+        await axios.put(baseUrl, {schedule_items: updatedItems});
+        emit('relist');
+        return {success: true};
+    } catch {
+        return {success: false};
+    }
+};
+
+/** Check whether a calendar event's schedule item is recurring, without opening the modal. */
+const checkIsRecurring = async (event: EventImpl): Promise<{isRecurring: boolean}> => {
+    const editUrl = event.extendedProps.edit_url as string | undefined;
+    const scheduleIdRaw = event.extendedProps.schedule_id as number | string | undefined;
+    const scheduleId = scheduleIdRaw !== undefined ? Number(scheduleIdRaw) : NaN;
+
+    if (!editUrl || !Number.isFinite(scheduleId)) return {isRecurring: false};
+
+    try {
+        const baseUrl = editUrl.replace(/\/schedule\/\d+$/, '');
+        const {data: entityData} = await axios.get(baseUrl);
+        const items = (entityData.schedule_items as Record<string, unknown>[] | undefined) ?? [];
+        const target = items.find((r: any) => Number(r?.id) === scheduleId) as any;
+        return {isRecurring: !!(target?.recurrence_type)};
+    } catch {
+        return {isRecurring: false};
+    }
+};
+
+/** Called when user clicks an empty calendar slot — opens the modal with time pre-filled. */
+const openAtTime = (date: Date) => {
+    clearForm();
+    applyCalendarTimesToRow(date);
+    syncDurationFromTimes();
+    ($modal.value as any)?.show();
+};
+
+defineExpose({open, openForEdit, openScopedForCreate, openScopedForEdit, openForDrop, autoSaveFromDrop, autoSaveMove, checkIsRecurring, openAtTime});
 </script>

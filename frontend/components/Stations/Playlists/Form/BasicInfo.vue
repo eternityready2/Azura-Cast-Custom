@@ -111,6 +111,25 @@
                     </form-group-checkbox>
 
                     <form-group-multi-check
+                        id="edit_form_type"
+                        class="col-md-6"
+                        :field="r$.type"
+                        :options="typeOptions"
+                        stacked
+                        radio
+                        :label="$gettext('Playlist Type')"
+                    >
+                        <template #description>
+                            <a
+                                href="/docs/user-guide/playlists/#advanced-playlists"
+                                target="_blank"
+                            >
+                                {{ $gettext('Learn about Advanced Playlists') }}
+                            </a>
+                        </template>
+                    </form-group-multi-check>
+
+                    <form-group-multi-check
                         id="edit_form_order"
                         class="col-md-6"
                         :field="r$.order"
@@ -145,88 +164,6 @@
                         :label="$gettext('Crossfade profile')"
                         :description="$gettext('Optional named profile from Crossfade Profiles settings. Leave empty for station default matrix.')"
                     />
-                </div>
-            </div>
-        </section>
-
-        <section
-            v-show="form.source === 'playlists'"
-            class="card mb-3"
-            role="region"
-        >
-            <div class="card-header text-bg-primary">
-                <h2 class="card-title">
-                    {{ $gettext('Playlist Group') }}
-                </h2>
-            </div>
-            <div class="card-body">
-                <div class="row g-3 mb-3">
-                    <form-group-checkbox
-                        id="form_edit_avoid_duplicates_group"
-                        class="col-md-6"
-                        :field="r$.avoid_duplicates"
-                        :label="$gettext('Avoid Duplicate Artists/Titles')"
-                        :description="$gettext('Applies to all member playlists in this group unless a member overrides it.')"
-                    />
-
-                    <form-group-multi-check
-                        id="edit_form_order_group"
-                        class="col-md-6"
-                        :field="r$.order"
-                        :options="groupOrderOptions"
-                        stacked
-                        radio
-                        :label="$gettext('Member Playback Order')"
-                    />
-                </div>
-
-                <p
-                    v-if="isExistingRecord"
-                    class="mb-0"
-                >
-                    <router-link :to="{name: 'stations:playlists:index', query: {tab: 'playlist_grouping', playlist: form.id}}">
-                        {{ $gettext('Manage this group\'s member playlists →') }}
-                    </router-link>
-                </p>
-                <p
-                    v-else
-                    class="mb-0 text-muted"
-                >
-                    {{ $gettext('Save this playlist first, then use the "Playlist Grouping" tab to add member playlists.') }}
-                </p>
-            </div>
-        </section>
-
-        <section
-            v-show="form.source === 'songs' || form.source === 'playlists' || form.source === 'requests'"
-            class="card mb-3"
-            role="region"
-        >
-            <div class="card-header text-bg-primary">
-                <h2 class="card-title">
-                    {{ $gettext('Scheduling') }}
-                </h2>
-            </div>
-            <div class="card-body">
-                <div class="row g-3 mb-3">
-                    <form-group-multi-check
-                        id="edit_form_type"
-                        class="col-md-6"
-                        :field="r$.type"
-                        :options="typeOptions"
-                        stacked
-                        radio
-                        :label="$gettext('Playlist Type')"
-                    >
-                        <template #description>
-                            <a
-                                href="/docs/user-guide/playlists/#advanced-playlists"
-                                target="_blank"
-                            >
-                                {{ $gettext('Learn about Advanced Playlists') }}
-                            </a>
-                        </template>
-                    </form-group-multi-check>
                 </div>
 
                 <form-fieldset v-show="form.type === 'default'">
@@ -290,6 +227,159 @@
                     <div class="row g-3">
                         <form-group-field
                             id="form_edit_play_per_hour_minute"
+                            class="col-md-12"
+                            :field="r$.play_per_hour_minute"
+                            input-type="number"
+                            :input-attrs="{min: '0', max: '59'}"
+                            :label="$gettext('Minute of Hour to Play')"
+                            :description="$gettext('Specify the minute of every hour that this playlist should play.')"
+                        />
+                    </div>
+                </form-fieldset>
+            </div>
+        </section>
+
+        <section
+            v-show="form.source === 'playlists'"
+            class="card mb-3"
+            role="region"
+        >
+            <div class="card-header text-bg-primary">
+                <h2 class="card-title">
+                    {{ $gettext('Playlist Group') }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <form-group-checkbox
+                        id="form_edit_avoid_duplicates_group"
+                        class="col-md-6"
+                        :field="r$.avoid_duplicates"
+                        :label="$gettext('Avoid Duplicate Artists/Titles')"
+                        :description="$gettext('Applies to all member playlists in this group unless a member overrides it.')"
+                    />
+
+                    <form-group-multi-check
+                        id="edit_form_order_group"
+                        class="col-md-6"
+                        :field="r$.order"
+                        :options="groupOrderOptions"
+                        stacked
+                        radio
+                        :label="$gettext('Member Playback Order')"
+                    />
+                </div>
+
+                <p
+                    v-if="isExistingRecord"
+                    class="mb-0"
+                >
+                    <router-link :to="{name: 'stations:playlists:index', query: {tab: 'playlist_grouping', playlist: form.id}}">
+                        {{ $gettext('Manage this group\'s member playlists →') }}
+                    </router-link>
+                </p>
+                <p
+                    v-else
+                    class="mb-0 text-muted"
+                >
+                    {{ $gettext('Save this playlist first, then use the "Playlist Grouping" tab to add member playlists.') }}
+                </p>
+            </div>
+        </section>
+
+        <section
+            v-show="form.source === 'playlists' || form.source === 'requests'"
+            class="card mb-3"
+            role="region"
+        >
+            <div class="card-header text-bg-primary">
+                <h2 class="card-title">
+                    {{ $gettext('Scheduling') }}
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <form-group-multi-check
+                        id="edit_form_type_group"
+                        class="col-md-6"
+                        :field="r$.type"
+                        :options="typeOptions"
+                        stacked
+                        radio
+                        :label="$gettext('Playlist Type')"
+                    >
+                        <template #description>
+                            <a
+                                href="/docs/user-guide/playlists/#advanced-playlists"
+                                target="_blank"
+                            >
+                                {{ $gettext('Learn about Advanced Playlists') }}
+                            </a>
+                        </template>
+                    </form-group-multi-check>
+                </div>
+
+                <form-fieldset v-show="form.type === 'default'">
+                    <template #label>
+                        {{ $gettext('General Rotation') }}
+                    </template>
+
+                    <div class="row g-3">
+                        <form-group-select
+                            id="form_edit_weight_group"
+                            class="col-md-12"
+                            :field="r$.weight"
+                            :options="weightOptions"
+                            :label="$gettext('Playlist Weight')"
+                            :description="$gettext('Playlists with larger number weights (i.e. 25) play more frequently than playlists with smaller number weights (i.e. 1).')"
+                        />
+                    </div>
+                </form-fieldset>
+
+                <form-fieldset v-show="form.type === 'once_per_x_songs'">
+                    <template #label>
+                        {{ $gettext('Once per x Songs') }}
+                    </template>
+
+                    <div class="row g-3">
+                        <form-group-field
+                            id="form_edit_play_per_songs_group"
+                            class="col-md-12"
+                            :field="r$.play_per_songs"
+                            input-type="number"
+                            :input-attrs="{min: '0', max: '150'}"
+                            :label="$gettext('Number of Songs Between Plays')"
+                            :description="$gettext('This playlist will play every $x songs, where $x is specified here.')"
+                        />
+                    </div>
+                </form-fieldset>
+
+                <form-fieldset v-show="form.type === 'once_per_x_minutes'">
+                    <template #label>
+                        {{ $gettext('Once per x Minutes') }}
+                    </template>
+
+                    <div class="row g-3">
+                        <form-group-field
+                            id="form_edit_play_per_minutes_group"
+                            class="col-md-12"
+                            :field="r$.play_per_minutes"
+                            input-type="number"
+                            :input-attrs="{min: '0', max: '360'}"
+                            :label="$gettext('Number of Minutes Between Plays')"
+                            :description="$gettext('This playlist will play every $x minutes, where $x is specified here.')"
+                        />
+                    </div>
+                </form-fieldset>
+
+                <form-fieldset v-show="form.type === 'once_per_hour'">
+                    <template #label>
+                        {{ $gettext('Once per Hour') }}
+                    </template>
+
+                    <div class="row g-3">
+                        <form-group-field
+                            id="form_edit_play_per_hour_minute_group"
                             class="col-md-12"
                             :field="r$.play_per_hour_minute"
                             input-type="number"
@@ -383,11 +473,6 @@ const sourceOptions = [
         text: $gettext('Request Queue'),
         description: $gettext('Pulls the next pending listener request when this playlist\'s rotation slot comes up.')
     },
-    {
-        value: 'remote_url',
-        text: $gettext('Remote URL'),
-        description: $gettext('A playlist that instructs the station to play from a remote URL.')
-    }
 ];
 
 const typeOptions = [

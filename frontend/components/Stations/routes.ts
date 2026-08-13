@@ -92,6 +92,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:logs'
                 },
                 {
+                    path: 'web-streams',
+                    component: () => import('~/components/Stations/WebStreams.vue'),
+                    name: 'stations:web_streams:index'
+                },
+                {
                     path: 'playlists',
                     component: () => import('~/components/Stations/Playlists.vue'),
                     name: 'stations:playlists:index'

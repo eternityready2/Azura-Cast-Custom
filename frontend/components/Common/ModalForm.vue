@@ -41,9 +41,8 @@
                     {{ $gettext('Close') }}
                 </button>
                 <button
-                    class="btn"
-                    :class="(disableSaveButton) ? 'btn-danger' : 'btn-primary'"
-                    :disabled="loading"
+                    class="btn btn-primary"
+                    :disabled="loading || disableSaveButton"
                     type="submit"
                     @click="doSubmit"
                 >

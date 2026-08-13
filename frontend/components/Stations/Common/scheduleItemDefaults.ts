@@ -31,11 +31,16 @@ export function todayDate(): string {
 }
 
 export function createScheduleItemDefaults(): PlaylistScheduleRow {
+    const startDate = todayDate();
+
     return {
         start_time: 800,
         end_time: 900,
-        start_date: todayDate(),
-        end_date: '',
+        start_date: startDate,
+        // One-time events are locked to a single day; default End Date to match
+        // Start Date immediately rather than leaving it blank until something
+        // else (e.g. buildSchedulePayload's fallback) patches it in later.
+        end_date: startDate,
         days: [],
         loop_once: false,
         is_emergency: false,

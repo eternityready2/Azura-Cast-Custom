@@ -164,6 +164,16 @@ export function useStationsMenu() {
             ]
         },
         {
+            key: 'schedule',
+            label: $gettext('Schedule'),
+            icon: () => IconIcSchedule,
+            url: {
+                name: 'stations:schedule:index'
+            },
+            visible: () => userAllowedForStation(StationPermissions.Media)
+                && station.value.features.media,
+        },
+        {
             key: 'playlists',
             label: $gettext('Playlists'),
             icon: () => IconIcQueueMusic,
@@ -184,14 +194,13 @@ export function useStationsMenu() {
                 && station.value.features.media,
         },
         {
-            key: 'schedule',
-            label: $gettext('Schedule'),
-            icon: () => IconIcSchedule,
+            key: 'web_streams',
+            label: $gettext('Web / Remote Streams'),
+            icon: () => IconIcPublic,
             url: {
-                name: 'stations:schedule:index'
+                name: 'stations:web_streams:index'
             },
-            visible: () => userAllowedForStation(StationPermissions.Media)
-                && station.value.features.media,
+            visible: () => userAllowedForStation(StationPermissions.Media),
         },
         {
             key: 'podcasts',

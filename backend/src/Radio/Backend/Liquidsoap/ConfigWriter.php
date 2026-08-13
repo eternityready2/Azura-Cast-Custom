@@ -1303,7 +1303,7 @@ LIQ;
         $startTime = $playlistSchedule->start_time;
         $endTime = $playlistSchedule->end_time;
 
-        // Handle multi-day playlists.
+        // Handle multi-day (overnight) playlists.
         if ($startTime > $endTime) {
             $playTimes = [
                 self::formatTimeCode($startTime) . '-23h59m59s',
@@ -1329,7 +1329,12 @@ LIQ;
                 $playTimes[1] = '(' . implode(' or ', $nextPlayDays) . ') and ' . $playTimes[1];
             }
 
-            return '(' . implode(') or (', $playTimes) . ')';
+            $playTime = '(' . implode(') or (', $playTimes) . ')';
+
+            // Same start/end-date boundary handling as the once-per-day branch below --
+            // without this, a one-time (non-recurring) overnight event would repeat
+            // every matching day forever instead of playing only on its scheduled date.
+            return $this->applyScheduleDateRangeBounds($event, $playlistSchedule, $playTime);
         }
 
         // Handle once-per-day playlists.
@@ -1347,55 +1352,67 @@ LIQ;
             $playTime = '(' . implode(' or ', $playDays) . ') and ' . $playTime;
         }
 
-        // Handle start-date and end-date boundaries.
+        return $this->applyScheduleDateRangeBounds($event, $playlistSchedule, $playTime);
+    }
+
+    /**
+     * Wraps a Liquidsoap time predicate with a start_date/end_date boundary check, if either
+     * is set on the schedule. Shared by both the once-per-day and overnight branches above so
+     * a one-time event (start_date == end_date) is bounded to its exact date either way.
+     */
+    private function applyScheduleDateRangeBounds(
+        WriteLiquidsoapConfiguration $event,
+        StationSchedule $playlistSchedule,
+        string $playTime
+    ): string {
         $startDate = $playlistSchedule->start_date;
         $endDate = $playlistSchedule->end_date;
 
-        if (!empty($startDate) || !empty($endDate)) {
-            $tzObject = $event->getStation()->getTimezoneObject();
-
-            $customFunctionBody = [];
-
-            $scheduleMethod = 'schedule_' . $playlistSchedule->id . '_date_range';
-            $customFunctionBody[] = 'def ' . $scheduleMethod . '() =';
-
-            $conditions = [];
-
-            if (!empty($startDate)) {
-                $startDateObj = CarbonImmutable::createFromFormat('Y-m-d', $startDate, $tzObject);
-
-                if (null !== $startDateObj) {
-                    $startDateObj = $startDateObj->setTime(0, 0);
-
-                    $customFunctionBody[] = '    # ' . $startDateObj->__toString();
-                    $customFunctionBody[] = '    range_start = ' . $startDateObj->getTimestamp() . '.';
-                    $conditions[] = 'range_start <= current_time';
-                }
-            }
-
-            if (!empty($endDate)) {
-                $endDateObj = CarbonImmutable::createFromFormat('Y-m-d', $endDate, $tzObject);
-
-                if (null !== $endDateObj) {
-                    $endDateObj = $endDateObj->setTime(23, 59, 59);
-
-                    $customFunctionBody[] = '    # ' . $endDateObj->__toString();
-                    $customFunctionBody[] = '    range_end = ' . $endDateObj->getTimestamp() . '.';
-
-                    $conditions[] = 'current_time <= range_end';
-                }
-            }
-
-            $customFunctionBody[] = '    current_time = time()';
-            $customFunctionBody[] = '    result = (' . implode(' and ', $conditions) . ')';
-            $customFunctionBody[] = '    result';
-            $customFunctionBody[] = 'end';
-            $event->appendLines($customFunctionBody);
-
-            $playTime = $scheduleMethod . '() and ' . $playTime;
+        if (empty($startDate) && empty($endDate)) {
+            return $playTime;
         }
 
-        return $playTime;
+        $tzObject = $event->getStation()->getTimezoneObject();
+
+        $customFunctionBody = [];
+
+        $scheduleMethod = 'schedule_' . $playlistSchedule->id . '_date_range';
+        $customFunctionBody[] = 'def ' . $scheduleMethod . '() =';
+
+        $conditions = [];
+
+        if (!empty($startDate)) {
+            $startDateObj = CarbonImmutable::createFromFormat('Y-m-d', $startDate, $tzObject);
+
+            if (null !== $startDateObj) {
+                $startDateObj = $startDateObj->setTime(0, 0);
+
+                $customFunctionBody[] = '    # ' . $startDateObj->__toString();
+                $customFunctionBody[] = '    range_start = ' . $startDateObj->getTimestamp() . '.';
+                $conditions[] = 'range_start <= current_time';
+            }
+        }
+
+        if (!empty($endDate)) {
+            $endDateObj = CarbonImmutable::createFromFormat('Y-m-d', $endDate, $tzObject);
+
+            if (null !== $endDateObj) {
+                $endDateObj = $endDateObj->setTime(23, 59, 59);
+
+                $customFunctionBody[] = '    # ' . $endDateObj->__toString();
+                $customFunctionBody[] = '    range_end = ' . $endDateObj->getTimestamp() . '.';
+
+                $conditions[] = 'current_time <= range_end';
+            }
+        }
+
+        $customFunctionBody[] = '    current_time = time()';
+        $customFunctionBody[] = '    result = (' . implode(' and ', $conditions) . ')';
+        $customFunctionBody[] = '    result';
+        $customFunctionBody[] = 'end';
+        $event->appendLines($customFunctionBody);
+
+        return $scheduleMethod . '() and ' . $playTime;
     }
 
     /**
