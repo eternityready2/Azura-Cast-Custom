@@ -19,6 +19,7 @@
             id="station_web_streams"
             :fields="fields"
             :provider="provider"
+            paginated
         >
             <template #cell(name)="row">
                 <div>
@@ -116,9 +117,16 @@ const {axios} = useAxios();
 
 const listUrl = getStationApiUrl('/playlists');
 
-// ── Manual provider matching DataTableItemProvider interface ──────────────────
+// ── Manual provider with client-side pagination ───────────────────────────────
 const streams = ref<any[]>([]);
 const isLoading = ref(false);
+const pageContext = ref({page: 1, perPage: 10});
+
+const pagedStreams = computed(() => {
+    const {page, perPage} = pageContext.value;
+    const start = (page - 1) * perPage;
+    return streams.value.slice(start, start + perPage);
+});
 
 const loadStreams = async () => {
     isLoading.value = true;
@@ -134,10 +142,15 @@ const loadStreams = async () => {
 };
 
 const provider = {
-    rows: computed(() => streams.value),
+    rows: pagedStreams,
     total: computed(() => streams.value.length),
     loading: computed(() => isLoading.value),
-    setContext: () => {},
+    setContext: (ctx: any) => {
+        pageContext.value = {
+            page: ctx.currentPage ?? pageContext.value.page,
+            perPage: ctx.perPage ?? pageContext.value.perPage,
+        };
+    },
     refresh: async () => { await loadStreams(); },
 };
 
@@ -189,3 +202,4 @@ const doSchedule = (item: any) => {
     $scheduleModal.value?.openScopedForCreate('playlist', id);
 };
 </script>
+
