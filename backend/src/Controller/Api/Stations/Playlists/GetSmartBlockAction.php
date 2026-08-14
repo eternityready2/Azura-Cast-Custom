@@ -105,6 +105,8 @@ final readonly class GetSmartBlockAction implements SingleActionInterface
                 'smart_block_match_type' => $record->smart_block_match_type->value,
                 'smart_block_limit' => $record->smart_block_limit,
                 'smart_block_limit_type' => $record->smart_block_limit_type->value,
+                'smart_block_sort_order' => $record->smart_block_sort_order->value,
+                'smart_block_avoid_duplicates' => $record->smart_block_avoid_duplicates,
                 'criteria' => $record->smart_block_criteria->toArray(),
                 'current_member_count' => $record->media_items->count(),
                 'matching_count' => count($matchingMedia),

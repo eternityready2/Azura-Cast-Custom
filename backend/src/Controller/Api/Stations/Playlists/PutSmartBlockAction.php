@@ -11,6 +11,7 @@ use App\Entity\Enums\SmartBlockCriteriaComparison;
 use App\Entity\Enums\SmartBlockCriteriaField;
 use App\Entity\Enums\SmartBlockLimitType;
 use App\Entity\Enums\SmartBlockMatchType;
+use App\Entity\Enums\SmartBlockSortOrder;
 use App\Entity\Enums\SmartBlockType;
 use App\Entity\Repository\StationPlaylistRepository;
 use App\Entity\StationPlaylistSmartBlockCriteria;
@@ -94,6 +95,18 @@ final readonly class PutSmartBlockAction implements SingleActionInterface
         $record->smart_block_limit_type = SmartBlockLimitType::tryFrom(
             Types::stringOrNull($request->getParam('smart_block_limit_type')) ?? ''
         ) ?? SmartBlockLimitType::Tracks;
+
+        $record->smart_block_sort_order = SmartBlockSortOrder::tryFrom(
+            Types::stringOrNull($request->getParam('smart_block_sort_order'), true) ?? SmartBlockSortOrder::Random->value
+        ) ?? SmartBlockSortOrder::Random;
+
+        // Read avoid_duplicates directly from parsed body so that an explicit `false`
+        // sent by the frontend is never silently swallowed by the getParam default.
+        $parsedBody = $request->getParsedBody();
+        $avoidDuplicatesRaw = $parsedBody['smart_block_avoid_duplicates'] ?? null;
+        $record->smart_block_avoid_duplicates = (null !== $avoidDuplicatesRaw)
+            ? Types::bool($avoidDuplicatesRaw)
+            : $record->smart_block_avoid_duplicates;
 
         /** @var array<array{
          *     field?: mixed,

@@ -97,6 +97,13 @@
         ref="$scheduleModal"
         @relist="refresh"
     />
+
+    <schedule-list-modal
+        ref="$scheduleListModal"
+        @edit="onScheduleListEdit"
+        @add-new="onScheduleListAddNew"
+        @relist="refresh"
+    />
 </template>
 
 <script setup lang="ts">
@@ -107,6 +114,7 @@ import AddButton from "~/components/Common/AddButton.vue";
 import DataTable from "~/components/Common/DataTable.vue";
 import EditModal from "~/components/Stations/WebStreams/EditModal.vue";
 import CreateEventModal from "~/components/Stations/Common/CreateEventModal.vue";
+import ScheduleListModal from "~/components/Stations/WebStreams/ScheduleListModal.vue";
 import {useApiRouter} from "~/functions/useApiRouter.ts";
 import {useAxios} from "~/vendor/axios.ts";
 import useConfirmAndDelete from "~/functions/useConfirmAndDelete.ts";
@@ -195,11 +203,23 @@ const {doDelete} = useConfirmAndDelete(
 );
 
 const $scheduleModal = useTemplateRef('$scheduleModal');
+const $scheduleListModal = useTemplateRef('$scheduleListModal');
 
+// Previously this jumped straight to a blank "Create Event" form, which meant
+// existing schedule entries (set from the main Schedule page, or a prior visit
+// here) were invisible from this page -- looking like the two pages disagreed.
+// Now it opens a list of what's actually scheduled for this stream first.
 const doSchedule = (item: any) => {
     const id = item.id as number;
     if (!id) return;
-    $scheduleModal.value?.openScopedForCreate('playlist', id);
+    void $scheduleListModal.value?.open(id, item.name as string | undefined);
+};
+
+const onScheduleListEdit = (entityId: number, scheduleId: number) => {
+    $scheduleModal.value?.openScopedForEdit('playlist', entityId, scheduleId);
+};
+
+const onScheduleListAddNew = (entityId: number) => {
+    $scheduleModal.value?.openScopedForCreate('playlist', entityId);
 };
 </script>
-

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Radio\SmartBlock;
 
 use App\Entity\Enums\PlaylistOrders;
+use App\Entity\Enums\SmartBlockSortOrder;
 use App\Entity\Repository\StationPlaylistSmartBlockCriteriaRepository;
+use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
 use App\Entity\StationPlaylistMedia;
 use App\Message\WritePlaylistFileMessage;
@@ -34,11 +36,20 @@ final readonly class SmartBlockSyncer
     public function sync(StationPlaylist $playlist, bool $dispatchWriteMessage = true): array
     {
         $matchingMedia = $this->criteriaRepo->getMatchingMedia($playlist);
+
+        // Apply the Smart Block's own sort order to the matched pool before assigning
+        // weights. Weight order IS playback order for Sequential playlists, and it
+        // seeds the shuffle for Shuffle/Random playlists -- so this must happen here,
+        // not in the AutoDJ, to be effective on-air.
+        $matchingMedia = $this->applySortOrder($matchingMedia, $playlist->smart_block_sort_order);
+
         $matchingIds = [];
         foreach ($matchingMedia as $media) {
             $matchingIds[$media->id] = $media;
         }
 
+        // Build a set of media IDs already in the playlist (excluding folder-managed rows).
+        $existingMediaIds = [];
         $existingCount = 0;
         $removedRecords = 0;
 
@@ -49,6 +60,7 @@ final readonly class SmartBlockSyncer
             }
 
             if (isset($matchingIds[$spm->media_id])) {
+                $existingMediaIds[$spm->media_id] = true;
                 $existingCount++;
                 unset($matchingIds[$spm->media_id]);
             } else {
@@ -58,11 +70,25 @@ final readonly class SmartBlockSyncer
         }
 
         $addedRecords = 0;
-        $weight = $this->highestExistingWeight($playlist);
         $isSequential = PlaylistOrders::Sequential === $playlist->order;
 
-        foreach ($matchingIds as $media) {
+        // Assign weights to the full sorted pool (existing + new) so the on-air order
+        // reflects the chosen sort -- existing rows keep their slot implicitly because
+        // they were removed from $matchingIds above; only genuinely new tracks are added.
+        $weight = 0;
+        foreach ($matchingMedia as $media) {
             $weight++;
+
+            // If avoid_duplicates is on and this track is already a member, skip adding
+            // a second copy -- the existing StationPlaylistMedia row stays as-is.
+            if ($playlist->smart_block_avoid_duplicates && isset($existingMediaIds[$media->id])) {
+                continue;
+            }
+
+            // Only add tracks that aren't already members (they were kept in $matchingIds).
+            if (!isset($matchingIds[$media->id])) {
+                continue;
+            }
 
             $record = new StationPlaylistMedia($playlist, $media);
             $record->weight = $isSequential ? $weight : random_int(1, max($weight, 1));
@@ -85,6 +111,43 @@ final readonly class SmartBlockSyncer
             'removed' => $removedRecords,
             'total' => $existingCount + $addedRecords,
         ];
+    }
+
+    /**
+     * Sort a pool of StationMedia according to the Smart Block's configured sort order.
+     * Random is already handled upstream by the repository (ORDER BY RAND()), so we
+     * only need to re-sort for the deterministic options.
+     *
+     * @param StationMedia[] $media
+     * @return StationMedia[]
+     */
+    private function applySortOrder(array $media, SmartBlockSortOrder $order): array
+    {
+        return match ($order) {
+            SmartBlockSortOrder::Random => $media, // Already randomised by the repo query.
+
+            SmartBlockSortOrder::NewestFirst => (static function (array $m): array {
+                usort($m, static fn(StationMedia $a, StationMedia $b) => $b->uploaded_at <=> $a->uploaded_at);
+                return $m;
+            })($media),
+
+            SmartBlockSortOrder::OldestFirst => (static function (array $m): array {
+                usort($m, static fn(StationMedia $a, StationMedia $b) => $a->uploaded_at <=> $b->uploaded_at);
+                return $m;
+            })($media),
+
+            SmartBlockSortOrder::AlphaTitle => (static function (array $m): array {
+                usort($m, static fn(StationMedia $a, StationMedia $b) =>
+                    strcasecmp($a->title ?? '', $b->title ?? ''));
+                return $m;
+            })($media),
+
+            SmartBlockSortOrder::AlphaArtist => (static function (array $m): array {
+                usort($m, static fn(StationMedia $a, StationMedia $b) =>
+                    strcasecmp($a->artist ?? '', $b->artist ?? ''));
+                return $m;
+            })($media),
+        };
     }
 
     private function highestExistingWeight(StationPlaylist $playlist): int

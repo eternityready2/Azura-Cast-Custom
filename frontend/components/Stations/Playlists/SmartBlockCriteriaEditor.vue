@@ -97,6 +97,23 @@
                                 />
                             </div>
                         </div>
+
+                        <form-group-select
+                            id="smart_block_sort_order"
+                            class="col-md-6"
+                            v-model="editor.smart_block_sort_order"
+                            :options="sortOrderOptions"
+                            :label="$gettext('Sort Tracks')"
+                            :description="$gettext('Controls the order tracks are weighted when the block syncs. For Sequential playlists this is the on-air playback order; for Shuffle/Random it seeds the initial order.')"
+                        />
+
+                        <form-group-checkbox
+                            id="smart_block_avoid_duplicates"
+                            class="col-md-6"
+                            v-model="editor.smart_block_avoid_duplicates"
+                            :label="$gettext('Allow Repeated Tracks')"
+                            :description="$gettext('When unchecked, tracks already in this block are not re-added on the next sync — useful for small libraries where you want strict rotation.')"
+                        />
                     </div>
                 </tab>
 
@@ -372,6 +389,8 @@ type EditorState = {
     smart_block_match_type: string,
     smart_block_limit: number | null,
     smart_block_limit_type: string,
+    smart_block_sort_order: string,
+    smart_block_avoid_duplicates: boolean,
     criteria: EditorCriterionRow[],
 };
 
@@ -380,6 +399,8 @@ const editor = ref<EditorState>({
     smart_block_match_type: 'all',
     smart_block_limit: null,
     smart_block_limit_type: SmartBlockLimitType.Tracks,
+    smart_block_sort_order: 'random',
+    smart_block_avoid_duplicates: true,
     criteria: [],
 });
 
@@ -437,6 +458,14 @@ const limitTypeOptions = [
     {value: SmartBlockLimitType.Tracks, text: $gettext('Number of Tracks')},
     {value: SmartBlockLimitType.Duration, text: $gettext('Total Duration')},
 ];
+
+const sortOrderOptions: Record<string, string> = {
+    'random': $gettext('Random'),
+    'newest_first': $gettext('Newest First'),
+    'oldest_first': $gettext('Oldest First'),
+    'alpha_title': $gettext('Alphabetical (Title)'),
+    'alpha_artist': $gettext('Alphabetical (Artist)'),
+};
 
 const baseFieldOptions: Record<string, string> = {
     [SmartBlockCriteriaField.Genre]: $gettext('Genre'),
@@ -532,6 +561,8 @@ const loadEditor = async (): Promise<void> => {
             smart_block_match_type: data.smart_block_match_type ?? 'all',
             smart_block_limit: data.smart_block_limit ?? null,
             smart_block_limit_type: data.smart_block_limit_type ?? SmartBlockLimitType.Tracks,
+            smart_block_sort_order: data.smart_block_sort_order ?? 'random',
+            smart_block_avoid_duplicates: data.smart_block_avoid_duplicates ?? true,
             criteria: dedupeCriteria((data.criteria ?? []) as StationPlaylistSmartBlockCriterion[])
                 .map((row) => ({...row, _rowId: nextRowId()})),
         };
@@ -620,6 +651,8 @@ const doSave = async (): Promise<void> => {
             smart_block_match_type: editor.value.smart_block_match_type,
             smart_block_limit: editor.value.smart_block_limit,
             smart_block_limit_type: editor.value.smart_block_limit_type,
+            smart_block_sort_order: editor.value.smart_block_sort_order,
+            smart_block_avoid_duplicates: editor.value.smart_block_avoid_duplicates,
             criteria: dedupedCriteria,
         });
 

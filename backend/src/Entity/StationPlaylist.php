@@ -10,6 +10,7 @@ use App\Entity\Enums\PlaylistSources;
 use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Enums\SmartBlockLimitType;
 use App\Entity\Enums\SmartBlockMatchType;
+use App\Entity\Enums\SmartBlockSortOrder;
 use App\Entity\Enums\SmartBlockType;
 use App\Utilities\File;
 use App\Utilities\Time;
@@ -406,6 +407,33 @@ final class StationPlaylist implements
         ORM\Column(type: 'string', length: 10, enumType: SmartBlockType::class, options: ['default' => 'dynamic'])
     ]
     public SmartBlockType $smart_block_type = SmartBlockType::Dynamic;
+
+    /**
+     * The order in which matching tracks are weighted when the Smart Block syncer
+     * builds the playlist. Because AutoDJ plays in weight order, this directly controls
+     * on-air playback order for Sequential playlists and the initial shuffle seed for
+     * Shuffle/Random playlists.
+     */
+    #[
+        OA\Property(example: 'random'),
+        ORM\Column(type: 'string', length: 20, enumType: SmartBlockSortOrder::class, options: ['default' => 'random'])
+    ]
+    public SmartBlockSortOrder $smart_block_sort_order = SmartBlockSortOrder::Random;
+
+    /**
+     * When false, the Smart Block syncer will not add a track that is already a member
+     * of this playlist -- effectively preventing repeated tracks in small libraries.
+     * When true (default), all matching tracks are eligible regardless of current membership.
+     *
+     * Note: this is distinct from the playlist-level $avoid_duplicates flag (which is an
+     * AutoDJ duplicate-prevention feature). This flag controls whether the syncer itself
+     * re-adds tracks that are already in the block.
+     */
+    #[
+        OA\Property(example: true),
+        ORM\Column(options: ['default' => true])
+    ]
+    public bool $smart_block_avoid_duplicates = true;
 
     #[
         ORM\Column(type: 'datetime_immutable', precision: 6, nullable: true),
