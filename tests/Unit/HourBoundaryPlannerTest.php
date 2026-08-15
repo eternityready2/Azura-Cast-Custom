@@ -105,7 +105,7 @@ final class HourBoundaryPlannerTest extends Unit
         $this->testsModule->em->flush();
 
         $topOfHour = CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC');
-        $before = CarbonImmutable::parse('2026-05-26 09:59:00', 'UTC');
+        $before = CarbonImmutable::parse('2026-05-26 09:58:00', 'UTC');
 
         self::assertTrue($this->planner->isTopOfHourIdDue($this->station, $topOfHour));
         self::assertFalse($this->planner->isTopOfHourIdDue($this->station, $before));
@@ -127,6 +127,76 @@ final class HourBoundaryPlannerTest extends Unit
 
         // 5 minutes until :00 minus 15s buffer minus 60s ID = 225s
         self::assertSame(225.0, $maxDuration);
+    }
+
+    public function testCapAt58MovesNextQueuePositionIntoTopOfHourWindow(): void
+    {
+        $backendConfig = $this->station->backend_config;
+        $backendConfig->top_of_hour_id_enabled = true;
+        $backendConfig->top_of_hour_lookahead_minutes = 10;
+        $backendConfig->top_of_hour_finish_buffer_seconds = 15;
+        $backendConfig->top_of_hour_id_max_seconds = 60;
+        $this->station->backend_config = $backendConfig;
+        $this->testsModule->em->persist($this->station);
+        $this->testsModule->em->flush();
+
+        $expectedPlayTime = CarbonImmutable::parse('2026-05-26 09:58:00', 'UTC');
+        $maxDuration = $this->planner->maxMusicDurationBeforeTopOfHour($this->station, $expectedPlayTime);
+
+        // 120s until :00 minus 15s finish buffer minus 60s ID headroom = 45s music.
+        self::assertSame(45.0, $maxDuration);
+
+        $nextExpectedPlayTime = $expectedPlayTime->addSeconds((int)$maxDuration);
+        self::assertSame('2026-05-26 09:58:45', $nextExpectedPlayTime->format('Y-m-d H:i:s'));
+        self::assertTrue($this->planner->isTopOfHourIdDue($this->station, $nextExpectedPlayTime));
+    }
+
+    public function testTopOfHourInterruptIsDueOnlyJustAfterHourBoundary(): void
+    {
+        $backendConfig = $this->station->backend_config;
+        $backendConfig->top_of_hour_id_enabled = true;
+        $backendConfig->top_of_hour_compliance_tolerance_seconds = 10;
+        $this->station->backend_config = $backendConfig;
+        $this->testsModule->em->persist($this->station);
+        $this->testsModule->em->flush();
+
+        self::assertFalse($this->planner->isTopOfHourInterruptDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 09:59:59', 'UTC'),
+        ));
+        self::assertTrue($this->planner->isTopOfHourInterruptDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC'),
+        ));
+        self::assertTrue($this->planner->isTopOfHourInterruptDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:10', 'UTC'),
+        ));
+        self::assertFalse($this->planner->isTopOfHourInterruptDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:11', 'UTC'),
+        ));
+    }
+
+    public function testTopOfHourInterruptIsNotQueuedTwiceForSameBoundary(): void
+    {
+        $backendConfig = $this->station->backend_config;
+        $backendConfig->top_of_hour_id_enabled = true;
+        $backendConfig->top_of_hour_compliance_tolerance_seconds = 10;
+        $this->station->backend_config = $backendConfig;
+
+        $queued = new StationQueue($this->station, Song::createFromText('Station - Legal ID'));
+        $queued->top_of_hour_legal_id = true;
+        $queued->timestamp_cued = CarbonImmutable::parse('2026-05-26 10:00:03', 'UTC');
+        $queued->is_played = true;
+        $this->testsModule->em->persist($queued);
+        $this->testsModule->em->persist($this->station);
+        $this->testsModule->em->flush();
+
+        self::assertFalse($this->planner->isTopOfHourInterruptDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:05', 'UTC'),
+        ));
     }
 
     public function testShouldSuppressOncePerHourPlaylistAtTopOfHour(): void

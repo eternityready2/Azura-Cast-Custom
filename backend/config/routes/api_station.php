@@ -669,10 +669,15 @@ return static function (RouteCollectorProxy $group) {
                                         Controller\Api\Stations\Playlists\PutOrderAction::class
                                     );
 
+                                    $group->get(
+                                        '/members',
+                                        Controller\Api\Stations\Playlists\GetGroupMembersAction::class
+                                    )->setName('api:stations:playlist:members');
+
                                     $group->put(
                                         '/members',
-                                        Controller\Api\Stations\Playlists\PutMembersAction::class
-                                    )->setName('api:stations:playlist:members');
+                                        Controller\Api\Stations\Playlists\PutGroupMembersAction::class
+                                    );
 
                                     $group->get(
                                         '/smart-block',
@@ -1044,6 +1049,11 @@ return static function (RouteCollectorProxy $group) {
                                 '/overview/clock-performance',
                                 Controller\Api\Stations\Reports\Overview\ClockPerformanceAction::class
                             )->setName('api:stations:reports:overview-clock-performance');
+
+                            $group->get(
+                                '/overview/top-of-hour-performance',
+                                Controller\Api\Stations\Reports\Overview\TopOfHourPerformanceAction::class
+                            )->setName('api:stations:reports:overview-top-of-hour-performance');
 
                             $group->get(
                                 '/overview/playlist-performance',

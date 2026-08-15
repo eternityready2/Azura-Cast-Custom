@@ -187,6 +187,42 @@ final class StationPlaylistMediaRepository extends Repository
         return $weight;
     }
 
+    /**
+     * Add a direct media membership only when one does not already exist.
+     *
+     * Unlike addMediaToPlaylist(), this is idempotent for sequential playlists.
+     * Folder-derived memberships do not count as direct memberships.
+     */
+    public function addMediaToPlaylistIfMissing(
+        StationMedia $media,
+        StationPlaylist $playlist
+    ): bool {
+        if (PlaylistSources::Songs !== $playlist->source) {
+            throw new RuntimeException('This playlist is not meant to contain songs!');
+        }
+
+        $existingRecord = $this->repository->findOneBy([
+            'media' => $media,
+            'playlist' => $playlist,
+            'folder' => null,
+        ]);
+
+        if ($existingRecord instanceof StationPlaylistMedia) {
+            return false;
+        }
+
+        $weight = $this->getHighestSongWeight($playlist) + 1;
+        if (PlaylistOrders::Sequential !== $playlist->order) {
+            $weight = random_int(1, $weight);
+        }
+
+        $record = new StationPlaylistMedia($playlist, $media);
+        $record->weight = $weight;
+        $this->em->persist($record);
+
+        return true;
+    }
+
     public function getHighestSongWeight(StationPlaylist $playlist): int
     {
         try {

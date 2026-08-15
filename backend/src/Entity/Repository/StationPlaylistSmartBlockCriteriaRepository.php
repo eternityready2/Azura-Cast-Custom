@@ -53,6 +53,17 @@ final class StationPlaylistSmartBlockCriteriaRepository extends Repository
             ->andWhere('sm.do_not_play_reason IS NULL')
             ->setParameter('storageLocation', $playlist->station->media_storage_location);
 
+        // Only join the Category relation when a criterion actually needs it -- it's a
+        // nullable relation on StationMedia, so a plain inner join would silently drop
+        // every track with no category assigned, even for rows we're not filtering on.
+        $usesCategory = $criteria->exists(
+            static fn (int $i, StationPlaylistSmartBlockCriteria $c): bool =>
+                SmartBlockCriteriaField::Category === $c->field
+        );
+        if ($usesCategory) {
+            $qb->leftJoin('sm.category', 'smcat');
+        }
+
         $conditions = [];
         $paramIndex = 0;
 
@@ -121,6 +132,7 @@ final class StationPlaylistSmartBlockCriteriaRepository extends Repository
 
         $column = match ($criterion->field) {
             SmartBlockCriteriaField::Genre => 'sm.genre',
+            SmartBlockCriteriaField::Category => 'smcat.name',
             SmartBlockCriteriaField::Artist => 'sm.artist',
             SmartBlockCriteriaField::Album => 'sm.album',
             SmartBlockCriteriaField::Title => 'sm.title',

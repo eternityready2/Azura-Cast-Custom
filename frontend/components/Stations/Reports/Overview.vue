@@ -60,6 +60,13 @@
                     />
                 </tab>
 
+                <tab :label="$gettext('Top of Hour')">
+                    <top-of-hour-performance-tab
+                        :api-url="topOfHourPerformanceUrl"
+                        :date-range="dateRange"
+                    />
+                </tab>
+
                 <tab :label="$gettext('Playlist Performance')">
                     <playlist-performance-tab
                         :api-url="playlistPerformanceUrl"
@@ -158,6 +165,7 @@ import ClientsTab from "~/components/Stations/Reports/Overview/ClientsTab.vue";
 import ListeningTimeTab from "~/components/Stations/Reports/Overview/ListeningTimeTab.vue";
 import HeatmapTab from "~/components/Stations/Reports/Overview/HeatmapTab.vue";
 import ClockPerformanceTab from "~/components/Stations/Reports/Overview/ClockPerformanceTab.vue";
+import TopOfHourPerformanceTab from "~/components/Stations/Reports/Overview/TopOfHourPerformanceTab.vue";
 import PlaylistPerformanceTab from "~/components/Stations/Reports/Overview/PlaylistPerformanceTab.vue";
 import DropoutTab from "~/components/Stations/Reports/Overview/DropoutTab.vue";
 import ListenerInsightsTab from "~/components/Stations/Reports/Overview/ListenerInsightsTab.vue";
@@ -188,6 +196,7 @@ const byClientUrl = getStationApiUrl('/reports/overview/by-client');
 const listeningTimeUrl = getStationApiUrl('/reports/overview/by-listening-time');
 const heatmapUrl = getStationApiUrl('/reports/overview/heatmap');
 const clockPerformanceUrl = getStationApiUrl('/reports/overview/clock-performance');
+const topOfHourPerformanceUrl = getStationApiUrl('/reports/overview/top-of-hour-performance');
 const playlistPerformanceUrl = getStationApiUrl('/reports/overview/playlist-performance');
 const dropoutUrl = getStationApiUrl('/reports/overview/dropout');
 const listenerInsightsUrl = getStationApiUrl('/reports/overview/listener-insights');

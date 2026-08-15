@@ -82,6 +82,19 @@
                     />
                 </div>
 
+                <div
+                    v-if="isIcecastFrontend"
+                    class="row g-3 mb-3"
+                >
+                    <form-group-field
+                        id="edit_form_frontend_trusted_proxy_address"
+                        class="col-md-6"
+                        :field="r$.frontend_config.trusted_proxy_address"
+                        :label="$gettext('Trusted Proxy Address')"
+                        :description="$gettext('IP address or hostname of the reverse proxy that connects directly to Icecast. Leave blank to trust the built-in AzuraCast proxy.')"
+                    />
+                </div>
+
                 <div class="row g-3 mb-3">
                     <div class="col">
                         <info-card v-if="isShoutcastFrontend">
@@ -203,7 +216,7 @@ const {$gettext} = useTranslate();
 const frontendTypeOptions = computed<SimpleFormOptionInput>(() => {
     const frontendOptions: SimpleFormOptionInput = [
         {
-            text: $gettext('Use Icecast 2.4 on this server.'),
+            text: $gettext('Use Icecast 2.5 on this server.'),
             value: FrontendAdapters.Icecast
         },
     ];
@@ -236,6 +249,10 @@ const isLocalFrontend = computed(() => {
 
 const isShoutcastFrontend = computed(() => {
     return form.value.frontend_type === FrontendAdapters.Shoutcast;
+});
+
+const isIcecastFrontend = computed(() => {
+    return form.value.frontend_type === FrontendAdapters.Icecast;
 });
 
 const clearCountries = () => {

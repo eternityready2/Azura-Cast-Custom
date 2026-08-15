@@ -469,6 +469,7 @@ const sortOrderOptions: Record<string, string> = {
 
 const baseFieldOptions: Record<string, string> = {
     [SmartBlockCriteriaField.Genre]: $gettext('Genre'),
+    [SmartBlockCriteriaField.Category]: $gettext('Category'),
     [SmartBlockCriteriaField.Artist]: $gettext('Artist'),
     [SmartBlockCriteriaField.Album]: $gettext('Album'),
     [SmartBlockCriteriaField.Title]: $gettext('Title'),

@@ -218,6 +218,10 @@ final class ConfigWriter implements EventSubscriberInterface
                 continue;
             }
 
+            if (PlaylistSources::Group === $playlist->source) {
+                continue;
+            }
+
             if (!self::shouldWritePlaylist($event, $playlist)) {
                 continue;
             }
@@ -228,16 +232,11 @@ final class ConfigWriter implements EventSubscriberInterface
                 continue;
             }
 
-            // Playlist Groups (source = playlists) and Request Queue playlists (source =
-            // requests) have no static content Liquidsoap can read natively (which member/
-            // request plays next is a runtime decision made by QueueBuilder), so they can't be
-            // represented as a `playlist()` object the way Songs/Remote URL playlists are.
-            //
-            // NOTE: these currently do NOT receive live airtime through the native rotation
-            // switch below. Wiring them into actual playback requires a dynamic Liquidsoap
-            // source (e.g. request.dynamic) that calls back into the API per-track -- see
-            // PLAYLIST_GROUPS_INTEGRATION.md for the specifics and current status.
-            if (PlaylistSources::Playlists === $playlist->source || PlaylistSources::Requests === $playlist->source) {
+            // Playlist Groups (source = group) and Request Queue playlists (source = requests)
+            // have no static content Liquidsoap can read natively -- which member/request plays
+            // next is a runtime decision made by QueueBuilder and pushed to Liquidsoap via the
+            // AutoDJ "next song" queue mechanism, not via a native `playlist()` rotation object.
+            if (PlaylistSources::Group === $playlist->source || PlaylistSources::Requests === $playlist->source) {
                 continue;
             }
 
@@ -293,15 +292,15 @@ final class ConfigWriter implements EventSubscriberInterface
                     default => 'input.ffmpeg'
                 };
 
-                $remoteUrlFunc = 'mksafe(buffer(buffer=' . $buffer . '., '
-                    . $inputFunc . '(' . self::toRawString($remoteUrl) . ')))';
+                $remoteUrlFunc = 'buffer(buffer=' . $buffer . '., '
+                    . $inputFunc . '(' . self::toRawString($remoteUrl) . '))';
 
                 if (0 === $scheduleItems->count()) {
                     $fallbackRemoteUrl = $remoteUrlFunc;
                     continue;
                 }
 
-                $playlistConfigLines[] = $playlistVarName . ' = ' . $remoteUrlFunc;
+                $playlistConfigLines[] = $playlistVarName . ' = mksafe(' . $remoteUrlFunc . ')';
                 $event->appendLines($playlistConfigLines);
 
                 foreach ($scheduleItems as $scheduleItem) {
@@ -479,7 +478,15 @@ final class ConfigWriter implements EventSubscriberInterface
             $event->appendBlock(
                 <<< LIQ
                 remote_url = {$fallbackRemoteUrl}
-                radio = fallback(id="fallback_remote_url", track_sensitive = false, [remote_url, radio])
+                thread.run.recurrent(fast=false, delay=1.0, { azuracast.update_autodj_queue_status() })
+                radio = switch(
+                    id="fallback_remote_url",
+                    track_sensitive=false,
+                    [
+                        ({ azuracast.autodj_queue_ready() }, radio),
+                        ({ true }, remote_url)
+                    ]
+                )
                 LIQ
             );
         }

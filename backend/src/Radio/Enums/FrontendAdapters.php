@@ -26,7 +26,7 @@ enum FrontendAdapters: string implements AdapterTypeInterface
     public function getName(): string
     {
         return match ($this) {
-            self::Icecast => 'Icecast 2.4',
+            self::Icecast => 'Icecast 2.5',
             self::Shoutcast => 'Shoutcast DNAS 2',
             self::Rsas => 'Rocket Streaming Audio Server (RSAS)',
             self::Remote => 'Remote',

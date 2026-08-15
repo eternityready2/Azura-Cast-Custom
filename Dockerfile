@@ -11,9 +11,51 @@ FROM mariadb:lts-noble AS mariadb
 FROM ghcr.io/azuracast/azuracast.com:builtin@sha256:f7c41278613d113375ca285ba85f770c6f1daf2a08d8a3da42540389b15a2647 AS docs
 
 #
-# Icecast-KH with AzuraCast customizations build step
+# AzuraCast Icecast web assets (pinned image digest)
 #
-FROM ghcr.io/azuracast/icecast-ac:2025-12-29 AS icecast
+FROM ghcr.io/azuracast/icecast-ac:2025-12-29@sha256:4a6b7cdfa5382e1e71a9e97d27c13ce3e188f73e13cb499117db39d7ce73b52a AS icecast-assets
+
+#
+# Icecast 2.5 stable build step
+#
+FROM debian:trixie-slim AS icecast
+
+ARG LIBIGLOO_VERSION=0.9.5
+ARG LIBIGLOO_SHA256=ea22e9119f7a2188810f99100c5155c6762d4595ae213b9ac29e69b4f0b87289
+ARG ICECAST_VERSION=2.5.0
+ARG ICECAST_SHA512=d92ce5d8ae1cd011eaa8c7424adea744f35e5c2d3e8244d362743be1c6bbc8fc44d76d7a212cf1eebe79da9b7d83b2ed5ab8659fb97929af316674b5ddf590b5
+
+RUN apt-get update \
+    && apt-get install -q -y --no-install-recommends \
+        build-essential ca-certificates curl pkg-config \
+        libcurl4-openssl-dev librhash-dev libssl-dev libvorbis-dev libxml2-dev libxslt1-dev \
+    && curl -fsSL \
+        "https://downloads.xiph.org/releases/igloo/libigloo-${LIBIGLOO_VERSION}.tar.gz" \
+        -o /tmp/libigloo.tar.gz \
+    && echo "${LIBIGLOO_SHA256}  /tmp/libigloo.tar.gz" | sha256sum --check --strict \
+    && mkdir /tmp/libigloo \
+    && tar -xzf /tmp/libigloo.tar.gz --strip-components=1 -C /tmp/libigloo \
+    && cd /tmp/libigloo \
+    && ./configure --prefix=/usr/local \
+    && make -j"$(nproc)" \
+    && make install \
+    && curl -fsSL \
+        "https://downloads.xiph.org/releases/icecast/icecast-${ICECAST_VERSION}.tar.gz" \
+        -o /tmp/icecast.tar.gz \
+    && echo "${ICECAST_SHA512}  /tmp/icecast.tar.gz" | sha512sum --check --strict \
+    && mkdir /tmp/icecast \
+    && tar -xzf /tmp/icecast.tar.gz --strip-components=1 -C /tmp/icecast \
+    && cd /tmp/icecast \
+    && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig ./configure --prefix=/usr/local \
+    && make -j"$(nproc)" \
+    && make install \
+    && ldconfig
+
+# Preserve only AzuraCast's custom status/fallback assets, not the KH binary or KH web UI.
+COPY --from=icecast-assets /usr/local/share/icecast/web/error.mp3 /usr/local/share/icecast/web/error.mp3
+COPY --from=icecast-assets /usr/local/share/icecast/web/fallback* /usr/local/share/icecast/web/
+COPY --from=icecast-assets /usr/local/share/icecast/web/status-json.xsl /usr/local/share/icecast/web/status-json.xsl
+COPY --from=icecast-assets /usr/local/share/icecast/web/xml2json.xslt /usr/local/share/icecast/web/xml2json.xslt
 
 #
 # PHP Extension Installer build step
@@ -34,6 +76,7 @@ COPY --from=mariadb /usr/local/bin/docker-entrypoint.sh /usr/local/bin/db_entryp
 # Add Icecast
 COPY --from=icecast /usr/local/bin/icecast /usr/local/bin/icecast
 COPY --from=icecast /usr/local/share/icecast /usr/local/share/icecast
+COPY --from=icecast /usr/local/lib/libigloo* /usr/local/lib/
 
 #
 # Final build image
@@ -47,6 +90,9 @@ ENV TZ="UTC" \
     LC_TYPE="en_US.UTF-8"
 
 COPY --link --from=dependencies / /
+
+# Register the libigloo shared libraries copied from the Icecast build stage.
+RUN ldconfig
 
 # Run base build process
 RUN --mount=type=bind,source=./util/docker/common,target=/bd_build,rw \

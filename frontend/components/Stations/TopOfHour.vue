@@ -213,6 +213,7 @@ interface TopOfHourSettings {
     top_of_hour_compliance_tolerance_seconds: number;
     top_of_hour_finish_buffer_seconds: number;
     top_of_hour_id_max_seconds: number;
+    id_media_count?: number;
     legal_id_media_count: number;
     compliance?: TopOfHourCompliance;
 }

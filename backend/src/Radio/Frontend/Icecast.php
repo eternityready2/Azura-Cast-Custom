@@ -154,7 +154,7 @@ class Icecast extends AbstractFrontend
             'limits' => [
                 'clients' => !empty($frontendConfig->max_listeners) ? $frontendConfig->max_listeners * 2 : 2500,
                 'max-listeners' => $frontendConfig->max_listeners ?? -1,
-                'sources' => $station->mounts->count(),
+                'sources' => IcecastConfig::getSourceLimit($station->mounts->count()),
                 'queue-size' => 524288,
                 'client-timeout' => 30,
                 'header-timeout' => 15,
@@ -168,9 +168,10 @@ class Icecast extends AbstractFrontend
                 'admin-password' => $frontendConfig->admin_pw,
             ],
 
-            'listen-socket' => [
-                'port' => $frontendConfig->port,
-            ],
+            'listen-socket' => IcecastConfig::getListenSockets(
+                $frontendConfig->port,
+                $frontendConfig->trusted_proxy_address
+            ),
 
             'mount' => [],
             'fileserve' => 1,
@@ -186,30 +187,36 @@ class Icecast extends AbstractFrontend
                         '@dest' => '/status.xsl',
                     ],
                 ],
-                'ssl-private-key' => $certKey,
-                'ssl-certificate' => $certPath,
-                // phpcs:disable Generic.Files.LineLength
-                'ssl-allowed-ciphers' => 'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS',
-                // phpcs:enable
                 'deny-ip' => $this->writeIpBansFile($station),
-                'deny-agents' => $this->writeUserAgentBansFile($station),
-                'x-forwarded-for' => '127.0.0.1',
             ],
             'logging' => [
                 'accesslog' => 'icecast_access.log',
-                'errorlog' => '/dev/stderr',
+                'errorlog' => '-',
                 'loglevel' => $this->environment->isProduction() ? self::LOGLEVEL_WARN : self::LOGLEVEL_INFO,
                 'logsize' => 10000,
             ],
             'security' => [
-                'chroot' => 0,
+                'chroot' => 'false',
+                'tls-context' => [
+                    // phpcs:disable Generic.Files.LineLength
+                    'tls-allowed-ciphers' => 'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:RSA+AESGCM:RSA+AES:!aNULL:!MD5:!DSS',
+                    // phpcs:enable
+                    'tls-certificate' => $certPath,
+                    'tls-key' => $certKey,
+                ],
+                'prng-seed' => [
+                    '@type' => 'read-write',
+                    '@size' => '1024',
+                    '_' => $configDir . '/icecast.prng-seed',
+                ],
             ],
         ];
 
         $bannedCountries = $frontendConfig->banned_countries ?? [];
+        $bannedUserAgents = trim($frontendConfig->banned_user_agents ?? '');
         $allowedIps = $this->getIpsAsArray($frontendConfig->allowed_ips);
 
-        $useListenerAuth = !empty($bannedCountries) || !empty($allowedIps);
+        $useListenerAuth = !empty($bannedCountries) || '' !== $bannedUserAgents || !empty($allowedIps);
         $charset = match ($station->backend_config->charset) {
             'ISO-8859-1' => 'ISO8859-1',
             default => 'UTF8',
@@ -257,13 +264,13 @@ class Icecast extends AbstractFrontend
 
             if (!empty($mountRow->fallback_mount)) {
                 $mount['fallback-mount'] = $mountRow->fallback_mount;
-                $mount['fallback-override'] = 1;
+                $mount['fallback-override'] = IcecastConfig::getFallbackOverride();
             } elseif ($mountRow->enable_autodj) {
                 $autoDjFormat = $mountRow->autodj_format ?? StreamFormats::default();
                 $autoDjBitrate = $mountRow->autodj_bitrate;
 
                 $mount['fallback-mount'] = '/fallback-[' . $autoDjBitrate . '].' . $autoDjFormat->getExtension();
-                $mount['fallback-override'] = 1;
+                $mount['fallback-override'] = IcecastConfig::getFallbackOverride();
             }
 
             if ($mountRow->max_listener_duration) {

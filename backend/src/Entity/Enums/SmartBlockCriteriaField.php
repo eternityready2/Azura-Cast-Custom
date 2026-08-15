@@ -13,6 +13,7 @@ use OpenApi\Attributes as OA;
 enum SmartBlockCriteriaField: string
 {
     case Genre = 'genre';
+    case Category = 'category';
     case Artist = 'artist';
     case Album = 'album';
     case Title = 'title';

@@ -121,6 +121,9 @@ let azuracast.autodj_is_loading = ref(true)
 # Number of attempts that have been made to ping the AutoDJ for the next song.
 let azuracast.autodj_ping_attempts = ref(0)
 
+# Whether the AzuraCast AutoDJ queue currently contains at least one unplayed item.
+let azuracast.autodj_queue_ready = ref(false)
+
 # The username/display name of the last authenticated DJ.
 let azuracast.last_authenticated_dj = ref("")
 let azuracast.last_authenticated_dj_name = ref("")
@@ -183,15 +186,17 @@ end
 API Utilities
 ----->#
 
-def azuracast.api_call(~timeout=null, endpoint_url, payload) =
+def azuracast.api_call(~timeout=null, ~log_response=true, endpoint_url, payload) =
     timeout = timeout ?? settings.azuracast.http_timeout()
     full_url = "#{settings.azuracast.api_url()}/#{endpoint_url}"
 
-    log(
-        level=3,
-        label="azuracast.api",
-        "API #{endpoint_url} - Sending POST request to '#{full_url}' with body: #{payload}"
-    )
+    if log_response then
+        log(
+            level=3,
+            label="azuracast.api",
+            "API #{endpoint_url} - Sending POST request to '#{full_url}' with body: #{payload}"
+        )
+    end
 
     try
         response = http.post(full_url,
@@ -204,11 +209,13 @@ def azuracast.api_call(~timeout=null, endpoint_url, payload) =
             data=payload
         )
 
-        log(
-            level=3,
-            label="azuracast.api",
-            "API #{endpoint_url} - Response (#{response.status_code}): #{response}"
-        )
+        if log_response then
+            log(
+                level=3,
+                label="azuracast.api",
+                "API #{endpoint_url} - Response (#{response.status_code}): #{response}"
+            )
+        end
 
         if response.status_code != 200 then
             null
@@ -403,6 +410,39 @@ def azuracast.autodj_next_song() =
 
         null
     end
+end
+
+# Cache AutoDJ queue readiness for source-selection predicates.
+# On API or JSON errors, retain the last known state to avoid source flapping.
+def azuracast.update_autodj_queue_status() =
+    try
+        api_response = azuracast.api_call(
+            timeout=2.0,
+            log_response=false,
+            "queuestatus",
+            ""
+        )
+
+        if null.defined(api_response) then
+            let json.parse (
+                {
+                    ready,
+                } : {
+                    ready: bool,
+                }
+            ) = null.get(api_response)
+
+            azuracast.autodj_queue_ready := ready
+        end
+    catch err do
+        log(
+            level=2,
+            label="azuracast.autodj",
+            "ERROR updating AutoDJ queue status: #{error.kind(err)} - #{error.message(err)}"
+        )
+    end
+
+    1.0
 end
 
 # Delayed ping for AutoDJ Next Song

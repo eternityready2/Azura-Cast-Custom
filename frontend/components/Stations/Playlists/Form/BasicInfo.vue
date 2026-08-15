@@ -240,7 +240,7 @@
         </section>
 
         <section
-            v-show="form.source === 'playlists'"
+            v-show="form.source === 'group'"
             class="card mb-3"
             role="region"
         >
@@ -258,37 +258,25 @@
                         :label="$gettext('Avoid Duplicate Artists/Titles')"
                         :description="$gettext('Applies to all member playlists in this group unless a member overrides it.')"
                     />
-
-                    <form-group-multi-check
-                        id="edit_form_order_group"
-                        class="col-md-6"
-                        :field="r$.order"
-                        :options="groupOrderOptions"
-                        stacked
-                        radio
-                        :label="$gettext('Member Playback Order')"
-                    />
                 </div>
 
                 <p
                     v-if="isExistingRecord"
-                    class="mb-0"
+                    class="mb-0 text-muted"
                 >
-                    <router-link :to="{name: 'stations:playlists:index', query: {tab: 'playlist_grouping', playlist: form.id}}">
-                        {{ $gettext('Manage this group\'s member playlists →') }}
-                    </router-link>
+                    {{ $gettext('Save this playlist, then use the "Manage Members" button on the Playlists list to add or reorder member playlists.') }}
                 </p>
                 <p
                     v-else
                     class="mb-0 text-muted"
                 >
-                    {{ $gettext('Save this playlist first, then use the "Playlist Grouping" tab to add member playlists.') }}
+                    {{ $gettext('Save this playlist first, then use the "Manage Members" button on the Playlists list to add member playlists.') }}
                 </p>
             </div>
         </section>
 
         <section
-            v-show="form.source === 'playlists' || form.source === 'requests'"
+            v-show="form.source === 'group' || form.source === 'requests'"
             class="card mb-3"
             role="region"
         >
@@ -464,9 +452,9 @@ const sourceOptions = [
         description: $gettext('A playlist containing media files hosted on this server.')
     },
     {
-        value: 'playlists',
+        value: 'group',
         text: $gettext('Playlist Group'),
-        description: $gettext('A "clock wheel" playlist made up of other playlists, played in sequence, shuffled, or by weight.')
+        description: $gettext('A "clock wheel" playlist made up of other playlists, played in a flat, explicitly-ordered sequence.')
     },
     {
         value: 'requests',
@@ -518,24 +506,6 @@ const orderOptions = [
         value: 'sequential',
         text: $gettext('Sequential'),
         description: $gettext('The order of the playlist is manually specified and followed by the AutoDJ.')
-    }
-];
-
-const groupOrderOptions = [
-    {
-        value: 'sequential',
-        text: $gettext('Sequential'),
-        description: $gettext('Members play in the order they were added (weight), one turn each.')
-    },
-    {
-        value: 'shuffle',
-        text: $gettext('Shuffled'),
-        description: $gettext('All members are shuffled into an order, then played through in that order before reshuffling.')
-    },
-    {
-        value: 'random',
-        text: $gettext('Random'),
-        description: $gettext('A completely random member is picked every time this group\'s turn comes up.')
     }
 ];
 

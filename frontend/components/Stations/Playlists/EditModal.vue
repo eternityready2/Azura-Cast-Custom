@@ -11,7 +11,6 @@ kk<template>
         <tabs>
             <form-basic-info/>
             <form-schedule v-model:schedule-items="form.schedule_items" />
-            <form-memberships v-if="isEditMode && !form.is_smart_block" />
             <form-advanced v-if="!form.is_smart_block" />
         </tabs>
     </modal-form>
@@ -20,7 +19,6 @@ kk<template>
 <script setup lang="ts">
 import FormBasicInfo from "~/components/Stations/Playlists/Form/BasicInfo.vue";
 import FormSchedule from "~/components/Stations/Playlists/Form/Schedule.vue";
-import FormMemberships from "~/components/Stations/Playlists/Form/Memberships.vue";
 import FormAdvanced from "~/components/Stations/Playlists/Form/Advanced.vue";
 import {BaseEditModalEmits, BaseEditModalProps, useBaseEditModal} from "~/functions/useBaseEditModal";
 import {computed, toRef, useTemplateRef} from "vue";

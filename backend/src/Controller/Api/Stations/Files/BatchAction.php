@@ -30,6 +30,7 @@ use App\Flysystem\StationFilesystems;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\Media\BatchUtilities;
+use App\Media\GenrePlaylistService;
 use App\Message;
 use App\OpenApi;
 use App\Radio\Adapters;
@@ -84,7 +85,8 @@ final class BatchAction implements SingleActionInterface
         private readonly StationPlaylistFolderRepository $playlistFolderRepo,
         private readonly StationQueueRepository $queueRepo,
         private readonly StationFilesystems $stationFilesystems,
-        private readonly MediaListCache $mediaListCache
+        private readonly MediaListCache $mediaListCache,
+        private readonly GenrePlaylistService $genrePlaylistService
     ) {
     }
 
@@ -107,6 +109,13 @@ final class BatchAction implements SingleActionInterface
             'reprocess' => $this->doReprocess($request, $station, $storageLocation, $fsMedia),
             'clear-extra' => $this->doClearExtra($request, $station, $storageLocation, $fsMedia),
             'classify' => $this->doClassify($request, $station, $storageLocation, $fsMedia),
+            'genre-playlists-preview' => $this->doGenrePlaylistsPreview(
+                $request,
+                $station,
+                $storageLocation,
+                $fsMedia
+            ),
+            'genre-playlists' => $this->doGenrePlaylists($request, $station, $storageLocation, $fsMedia),
             default => throw new InvalidArgumentException('Invalid batch action specified.')
         };
 
@@ -577,6 +586,38 @@ final class BatchAction implements SingleActionInterface
         }
 
         $this->em->flush();
+        $this->mediaListCache->clearCache($storageLocation);
+
+        return $result;
+    }
+
+    private function doGenrePlaylistsPreview(
+        ServerRequest $request,
+        Station $station,
+        StorageLocation $storageLocation,
+        ExtendedFilesystemInterface $fs
+    ): MediaBatchResult {
+        $result = $this->parseRequest($request, $fs, true);
+        $result->responseRecord = $this->genrePlaylistService->preview(
+            $station,
+            $this->batchUtilities->iterateMedia($storageLocation, $result->files)
+        );
+
+        return $result;
+    }
+
+    private function doGenrePlaylists(
+        ServerRequest $request,
+        Station $station,
+        StorageLocation $storageLocation,
+        ExtendedFilesystemInterface $fs
+    ): MediaBatchResult {
+        $result = $this->parseRequest($request, $fs, true);
+        $result->responseRecord = $this->genrePlaylistService->execute(
+            $station,
+            $this->batchUtilities->iterateMedia($storageLocation, $result->files)
+        );
+
         $this->mediaListCache->clearCache($storageLocation);
 
         return $result;

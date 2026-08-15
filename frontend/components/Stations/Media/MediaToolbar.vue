@@ -250,6 +250,18 @@
                                 {{ $gettext('Clear Extra Metadata') }}
                             </button>
                         </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <button
+                                type="button"
+                                class="dropdown-item"
+                                :disabled="!hasSelectedClassifyItems"
+                                :title="$gettext('Create or populate playlists from the MP3 genre of selected files')"
+                                @click="createGenrePlaylists"
+                            >
+                                {{ $gettext('Create Playlists from Genre') }}
+                            </button>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -280,6 +292,15 @@
             </button>
         </div>
     </div>
+
+    <genre-playlists-modal
+        ref="$genrePlaylistsModal"
+        :selected-items="selectedItems"
+        :current-directory="currentDirectory"
+        :batch-url="batchUrl"
+        @relist="emit('relist')"
+        @add-playlist="(playlist) => emit('add-playlist', playlist)"
+    />
 </template>
 
 <script setup lang="ts">
@@ -299,6 +320,7 @@ import IconIcFolder from "~icons/ic/baseline-folder";
 import IconIcMoreHoriz from "~icons/ic/baseline-more-horiz";
 import IconIcOpenWith from "~icons/ic/baseline-open-with";
 import {formatMediaType, getMediaTypeOptions} from "~/functions/mediaTypes.ts";
+import GenrePlaylistsModal from "~/components/Stations/Media/GenrePlaylistsModal.vue";
 
 const props = defineProps<{
     currentDirectory: string,
@@ -577,6 +599,12 @@ const moveFiles = () => {
 const createDirectory = () => {
     emit('create-directory');
 }
+
+const $genrePlaylistsModal = useTemplateRef('$genrePlaylistsModal');
+
+const createGenrePlaylists = () => {
+    void $genrePlaylistsModal.value?.open();
+};
 </script>
 
 <style lang="scss" scoped>

@@ -250,7 +250,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
                             fn ($spm) => $spm->media?->length ?? 0
                         )->toArray()
                     ),
-                    'members' => $playlist->playlists->map(
+                    'members' => $playlist->group_members->map(
                         fn ($spg) => [
                             'id' => $spg->playlist->id,
                             'name' => $spg->playlist->name,
@@ -259,7 +259,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
                             'play_full_cycle' => $spg->play_full_cycle,
                         ]
                     )->toArray(),
-                    'is_member_of_group' => $playlist->playlistGroupMemberships->count() > 0,
+                    'is_member_of_group' => $playlist->group_memberships->count() > 0,
                     'group_schedule_warning' => $this->hasGroupScheduleConflict(
                         $playlist,
                         $dateRange
@@ -281,7 +281,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
         StationPlaylist $playlist,
         DateRange $memberDateRange
     ): bool {
-        if ($playlist->playlistGroupMemberships->count() === 0) {
+        if ($playlist->group_memberships->count() === 0) {
             return false;
         }
 
@@ -289,8 +289,8 @@ final class PlaylistsController extends AbstractScheduledEntityController
         $memberStart = CarbonImmutable::instance($memberDateRange->start)->setTimezone($tz);
         $memberEnd = CarbonImmutable::instance($memberDateRange->end)->setTimezone($tz);
 
-        foreach ($playlist->playlistGroupMemberships as $membership) {
-            $group = $membership->playlist_group;
+        foreach ($playlist->group_memberships as $membership) {
+            $group = $membership->group;
 
             // No schedule on the parent group = it runs continuously, no conflict possible.
             if ($group->schedule_items->count() === 0) {
@@ -358,7 +358,7 @@ final class PlaylistsController extends AbstractScheduledEntityController
             ),
         ];
 
-        if (PlaylistSources::Playlists === $record->source) {
+        if (PlaylistSources::Group === $record->source) {
             $return['links']['members'] = $router->fromHere(
                 routeName: 'api:stations:playlist:members',
                 routeParams: ['id' => $record->id],

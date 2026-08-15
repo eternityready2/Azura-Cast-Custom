@@ -200,7 +200,7 @@ export enum PlaylistTypes {
 export enum PlaylistSources {
   Songs = "songs",
   RemoteUrl = "remote_url",
-  Playlists = "playlists",
+  Group = "group",
   Requests = "requests",
 }
 
@@ -2331,6 +2331,7 @@ export interface StationFrontendConfiguration {
   streamer_pw?: string;
   port?: number | null;
   max_listeners?: number | null;
+  trusted_proxy_address?: string | null;
   banned_ips?: string | null;
   banned_user_agents?: string | null;
   banned_countries?: string[] | null;
@@ -2501,6 +2502,7 @@ export type StationPlaylist = HasAutoIncrementId & {
 
 export enum SmartBlockCriteriaField {
   Genre = "genre",
+  Category = "category",
   Artist = "artist",
   Album = "album",
   Title = "title",

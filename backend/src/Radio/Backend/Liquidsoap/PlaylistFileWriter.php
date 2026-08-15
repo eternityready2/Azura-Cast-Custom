@@ -55,7 +55,7 @@ final class PlaylistFileWriter implements EventSubscriberInterface
             return;
         }
 
-        if (PlaylistSources::Playlists === $playlist->source || PlaylistSources::Requests === $playlist->source) {
+        if (PlaylistSources::Group === $playlist->source || PlaylistSources::Requests === $playlist->source) {
             // Playlist Groups and Request Queue playlists have no static media list of their own
             // -- there's no .m3u file to (re)write or reload for them.
             return;
@@ -114,7 +114,7 @@ final class PlaylistFileWriter implements EventSubscriberInterface
                 continue;
             }
 
-            if (PlaylistSources::Playlists === $playlist->source || PlaylistSources::Requests === $playlist->source) {
+            if (PlaylistSources::Group === $playlist->source || PlaylistSources::Requests === $playlist->source) {
                 continue;
             }
 

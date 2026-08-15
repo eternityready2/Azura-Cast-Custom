@@ -247,11 +247,11 @@ const loadFilterOptions = async () => {
         const rows: Record<string, unknown>[] = (data.rows as Record<string, unknown>[]) ?? [];
 
         groupFilterOptions.value = rows
-            .filter((p) => p.source === 'playlists')
+            .filter((p) => p.source === 'group')
             .map((p) => ({id: p.id as number, name: p.name as string}));
 
         playlistFilterOptions.value = rows
-            .filter((p) => p.source !== 'playlists')
+            .filter((p) => p.source !== 'group')
             .map((p) => ({id: p.id as number, name: p.name as string}));
     } catch {
         // Non-critical -- the timeline still works without the filter options loaded.

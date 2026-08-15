@@ -7,11 +7,13 @@ namespace App\Sync\Task;
 use App\Entity\Station;
 use App\Event\Radio\AnnotateNextSong;
 use App\Radio\Adapters;
+use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Radio\AutoDJ\Queue;
 use App\Radio\AutoDJ\Scheduler;
 use App\Radio\AutoDJ\SponsorGuaranteedPlayoutService;
 use App\Radio\Backend\Liquidsoap;
 use App\Radio\Enums\LiquidsoapQueues;
+use App\Utilities\Time;
 use Monolog\LogRecord;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
@@ -23,6 +25,7 @@ final class QueueInterruptingTracks extends AbstractTask
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly Scheduler $scheduler,
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
 
@@ -63,8 +66,11 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // This feature is not useful for stations without interrupting playlists.
-        $hasInterruptingPlaylist = false;
+        // TOPH is an interrupting source even when the station has no interrupting playlists.
+        $hasInterruptingPlaylist = $this->hourBoundaryPlanner->isTopOfHourInterruptDue(
+            $station,
+            Time::nowUtc(),
+        );
         $tz = $station->getTimezoneObject();
         foreach ($station->playlists as $playlist) {
             if (

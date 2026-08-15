@@ -251,7 +251,7 @@ const buildOverlay = async (event: EventImpl, el: HTMLElement) => {
 
     let headerCount: number | null = null;
     if (ep.source === 'songs') headerCount = ep.num_songs ?? 0;
-    if (ep.source === 'playlists') headerCount = (ep.members ?? []).length;
+    if (ep.source === 'group') headerCount = (ep.members ?? []).length;
 
     let rotationLabel = '';
     switch (ep.playlist_type) {

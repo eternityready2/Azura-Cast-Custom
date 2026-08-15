@@ -56,6 +56,11 @@ final class StationFrontendConfiguration extends AbstractArrayEntity
     }
 
     #[OA\Property]
+    public ?string $trusted_proxy_address = null {
+        set => Types::stringOrNull($value, true);
+    }
+
+    #[OA\Property]
     public ?string $banned_ips = null {
         set => Types::stringOrNull($value, true);
     }

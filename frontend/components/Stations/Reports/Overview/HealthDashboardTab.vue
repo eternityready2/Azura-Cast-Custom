@@ -54,7 +54,7 @@
                             class="fs-6"
                         >%</span>
                     </div>
-                    <div class="small text-muted">{{ $gettext('Legal ID compliance (7d)') }}</div>
+                    <div class="small text-muted">{{ $gettext('Top of Hour compliance (7d)') }}</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
