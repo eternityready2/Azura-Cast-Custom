@@ -228,7 +228,7 @@ final class ConfigWriter implements EventSubscriberInterface
 
             // Playlists that are members of a Playlist Group are not scheduled directly by
             // Liquidsoap -- their airtime comes entirely from their parent group's own slot.
-            if (count($playlist->playlist_groups) > 0) {
+            if (count($playlist->group_memberships) > 0) {
                 continue;
             }
 
@@ -433,7 +433,7 @@ final class ConfigWriter implements EventSubscriberInterface
                 $event->appendLines(
                     [
                         sprintf(
-                            'radio = switch(id="schedule_switch", track_sensitive=true, [ %s ])',
+                            'radio = switch(id="schedule_switch_playlists", track_sensitive=true, [ %s ])',
                             implode(', ', $scheduleSwitchesChunk)
                         ),
                     ]
@@ -457,7 +457,7 @@ final class ConfigWriter implements EventSubscriberInterface
                 $event->appendLines(
                     [
                         sprintf(
-                            'radio = switch(id="schedule_switch", track_sensitive=false, [ %s ])',
+                            'radio = switch(id="schedule_switch_interrupting", track_sensitive=false, [ %s ])',
                             implode(', ', $scheduleSwitchesChunk)
                         ),
                     ]
@@ -512,7 +512,7 @@ final class ConfigWriter implements EventSubscriberInterface
                 $event->appendLines(
                     [
                         sprintf(
-                            'radio = switch(id="schedule_switch", track_sensitive=false, [ %s ])',
+                            'radio = switch(id="schedule_switch_remote_url", track_sensitive=false, [ %s ])',
                             implode(', ', $scheduleSwitchesChunk)
                         ),
                     ]

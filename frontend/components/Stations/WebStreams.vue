@@ -139,7 +139,7 @@ const pagedStreams = computed(() => {
 const loadStreams = async () => {
     isLoading.value = true;
     try {
-        const {data} = await axios.get(listUrl.value, {params: {rowCount: -1}});
+        const {data} = await axios.get(listUrl.value, {params: {rowCount: -1, include_remote_url: 1}});
         const all: any[] = Array.isArray(data) ? data : (data.rows ?? []);
         streams.value = all.filter((item: any) => item.source === 'remote_url');
     } catch {

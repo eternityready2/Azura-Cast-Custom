@@ -43,23 +43,20 @@ final class DmcaComplianceAction extends AbstractReportAction
 
         // Pull recent play history for the date range window.
         $now     = new \DateTimeImmutable('now', $station->getTimezoneObject());
-        $history = $this->queueRepo->getRecentlyPlayedByTimeRange(
+        $history = $this->queueRepo->getPlayedMusicHistoryByTimeRange(
             $station,
             $now,
             $config->dmca_window_minutes ?? 180
         );
 
         // Build play counts per song, album, artist — music only.
+        // (getPlayedMusicHistoryByTimeRange already restricts to actually-played
+        // music tracks, so no additional media_type filtering is needed here.)
         $songCounts   = [];
         $albumCounts  = [];
         $artistCounts = [];
 
         foreach ($history as $row) {
-            // Skip non-music content (IDs, talk, promos, ads)
-            if (($row['media_type'] ?? 'music') !== 'music') {
-                continue;
-            }
-
             $songId = $row['song_id'] ?? null;
             $album  = strtolower(trim($row['album'] ?? ''));
             $artist = strtolower(trim($row['artist'] ?? ''));
@@ -82,11 +79,6 @@ final class DmcaComplianceAction extends AbstractReportAction
         // Songs approaching or exceeding limits — music only.
         $warnings = [];
         foreach ($history as $row) {
-            // Skip non-music content
-            if (($row['media_type'] ?? 'music') !== 'music') {
-                continue;
-            }
-
             $songId = $row['song_id'] ?? null;
             $title  = $row['title'] ?? '';
             $artist = $row['artist'] ?? '';

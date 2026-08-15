@@ -104,34 +104,61 @@ final class Queue
         $this->em->flush();
 
         // Build the remainder of the queue.
+        // A validator (e.g. DmcaComplianceListener) can reject a selector's pick by
+        // clearing next songs; when that happens we re-dispatch a fresh BuildQueue event
+        // so a selector gets another chance to choose a different track, instead of
+        // silently halting queue-building and leaving the station with dead air.
+        $maxAttemptsPerSlot = 10;
+
         while ($queueLength < $maxQueueLength) {
-            $this->logger->debug(
-                'Adding to station queue.',
-                [
-                    'now' => (string)$expectedPlayTime,
-                ]
-            );
+            $nextSongs = [];
+            $attempts = 0;
 
-            // Push another test handler specifically for this one queue task.
-            $testHandler = new TestHandler(LogLevel::DEBUG, true);
-            $this->logger->pushHandler($testHandler);
+            while ($attempts < $maxAttemptsPerSlot) {
+                $attempts++;
 
-            $event = new BuildQueue(
-                $station,
-                $expectedCueTime,
-                $expectedPlayTime,
-                $lastSongId
-            );
+                $this->logger->debug(
+                    'Adding to station queue.',
+                    [
+                        'now' => (string)$expectedPlayTime,
+                        'attempt' => $attempts,
+                    ]
+                );
 
-            try {
-                $this->dispatcher->dispatch($event);
-            } finally {
-                $this->logger->popHandler();
+                // Push another test handler specifically for this one queue task.
+                $testHandler = new TestHandler(LogLevel::DEBUG, true);
+                $this->logger->pushHandler($testHandler);
+
+                $event = new BuildQueue(
+                    $station,
+                    $expectedCueTime,
+                    $expectedPlayTime,
+                    $lastSongId
+                );
+
+                try {
+                    $this->dispatcher->dispatch($event);
+                } finally {
+                    $this->logger->popHandler();
+                }
+
+                $nextSongs = $event->getNextSongs();
+
+                if (!empty($nextSongs)) {
+                    break;
+                }
+
+                $this->logger->debug(
+                    'BuildQueue attempt produced no song (rejected by a validator); retrying.',
+                    ['attempt' => $attempts]
+                );
             }
 
-            $nextSongs = $event->getNextSongs();
-
             if (empty($nextSongs)) {
+                $this->logger->warning(
+                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
+                    ['attempts' => $attempts]
+                );
                 $this->em->flush();
                 break;
             }

@@ -83,7 +83,7 @@ final class DmcaComplianceListenerTest extends Unit
         $this->selectorPicks = [$violating];
         $this->queueRepo
             ->expects(self::once())
-            ->method('getRecentlyPlayedByTimeRange')
+            ->method('getPlayedMusicHistoryByTimeRange')
             ->willReturn($this->historyRows($violating->song_id, count: 3));
 
         $event = new BuildQueue($station, expectedPlayTime: new DateTimeImmutable('2026-07-25 12:00:00'));
@@ -104,7 +104,7 @@ final class DmcaComplianceListenerTest extends Unit
 
         $this->queueRepo
             ->expects(self::exactly(2))
-            ->method('getRecentlyPlayedByTimeRange')
+            ->method('getPlayedMusicHistoryByTimeRange')
             ->willReturn($this->historyRows($violating->song_id, count: 3));
 
         // Attempt 1: selector picks the violating track → DMCA clears it.
@@ -129,7 +129,7 @@ final class DmcaComplianceListenerTest extends Unit
 
         $this->selectorPicks = [$entry];
         $this->queueRepo
-            ->method('getRecentlyPlayedByTimeRange')
+            ->method('getPlayedMusicHistoryByTimeRange')
             ->willReturn($this->historyRows($entry->song_id, count: 1));
 
         $event = new BuildQueue($station, expectedPlayTime: new DateTimeImmutable('2026-07-25 12:00:00'));
@@ -146,7 +146,7 @@ final class DmcaComplianceListenerTest extends Unit
         $entry = $this->makeMusicQueueEntry($station, 'Artist', 'Song A', 'Album');
 
         $this->selectorPicks = [$entry];
-        $this->queueRepo->expects(self::never())->method('getRecentlyPlayedByTimeRange');
+        $this->queueRepo->expects(self::never())->method('getPlayedMusicHistoryByTimeRange');
 
         $event = new BuildQueue($station);
         $this->dispatcher->dispatch($event);

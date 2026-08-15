@@ -138,6 +138,37 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
+     * Legal-compliance history (DMCA §114 counting). Unlike getRecentlyPlayedByTimeRange()
+     * -- which intentionally includes not-yet-played queued rows for AutoDJ duplicate
+     * prevention -- this only returns tracks that have ACTUALLY aired, and only music-type
+     * media, so scheduled-but-unplayed picks and non-music items (AI DJ clips, AI News,
+     * station IDs) never inflate a DMCA play count.
+     */
+    public function getPlayedMusicHistoryByTimeRange(
+        Station $station,
+        DateTimeImmutable $now,
+        int $minutes
+    ): array {
+        $threshold = CarbonImmutable::instance($now)->subMinutes($minutes);
+
+        return $this->em->createQuery(
+            <<<'DQL'
+                SELECT sq.song_id, sq.timestamp_played, sq.title, sq.artist, sq.album, COALESCE(sm.type, 'music') as media_type
+                FROM App\Entity\StationQueue sq
+                LEFT JOIN sq.media sm
+                WHERE sq.station = :station
+                AND sq.is_played = 1
+                AND sq.timestamp_played >= :threshold
+                AND sq.media IS NOT NULL
+                AND sm.type = 'music'
+                ORDER BY sq.timestamp_played DESC
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('threshold', $threshold)
+            ->getArrayResult();
+    }
+
+    /**
      * Recent plays with media category for clock wheel category separation (PR9).
      *
      * @return array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null, category_id:int|null}>

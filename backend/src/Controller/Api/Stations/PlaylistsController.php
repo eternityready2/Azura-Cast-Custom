@@ -165,6 +165,19 @@ final class PlaylistsController extends AbstractScheduledEntityController
             $qb->andWhere('sp.is_smart_block = false');
         }
 
+        // Same pattern for Remote URL (Web/Remote Stream) playlists: they're fully
+        // managed on the dedicated Web / Remote Streams page, so the main Playlists
+        // page excludes them by default. Pass include_remote_url=1 to get them back
+        // (used by the Web / Remote Streams page itself).
+        $includeRemoteUrl = $request->getParam('include_remote_url');
+        if ('1' === $includeRemoteUrl) {
+            $qb->andWhere('sp.source = :remoteUrlSource')
+                ->setParameter('remoteUrlSource', PlaylistSources::RemoteUrl->value);
+        } else {
+            $qb->andWhere('sp.source != :remoteUrlSource')
+                ->setParameter('remoteUrlSource', PlaylistSources::RemoteUrl->value);
+        }
+
         $qb = $this->sortQueryBuilder(
             $request,
             $qb,

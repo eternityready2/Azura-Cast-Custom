@@ -74,7 +74,6 @@ final class DmcaComplianceListener implements EventSubscriberInterface
         foreach ($nextSongs as $queueEntry) {
             if (!$this->isCompliant($queueEntry, $station, $event->getExpectedPlayTime())) {
                 $event->setNextSongs(null); // clear selection so AutoDJ retries with a different track
-                $event->stopPropagation();
 
                 $this->logger->warning(
                     'DMCA Compliance: Rejected song — BuildQueue will retry with a different track.',
@@ -109,7 +108,7 @@ final class DmcaComplianceListener implements EventSubscriberInterface
         $maxConsecutiveArtist    = $config->dmca_max_consecutive_artist    ?? self::DEFAULT_MAX_CONSECUTIVE_ARTIST_PLAYS;
 
         try {
-            $history = $this->queueRepo->getRecentlyPlayedByTimeRange(
+            $history = $this->queueRepo->getPlayedMusicHistoryByTimeRange(
                 $station,
                 $expectedPlayTime,
                 $windowMinutes
@@ -177,6 +176,10 @@ final class DmcaComplianceListener implements EventSubscriberInterface
                 ]);
                 return false;
             }
+        } else {
+            $this->logger->debug('DMCA Compliance: Rule 3 (album) skipped — no album tag on this track.', [
+                'title' => $entry->title, 'artist' => $artist,
+            ]);
         }
 
         // Rule 4a: Max plays by same artist in rolling window.
@@ -215,6 +218,10 @@ final class DmcaComplianceListener implements EventSubscriberInterface
                 ]);
                 return false;
             }
+        } else {
+            $this->logger->debug('DMCA Compliance: Rules 4a/4b (artist) skipped — no artist tag on this track.', [
+                'title' => $entry->title,
+            ]);
         }
 
         return true;
