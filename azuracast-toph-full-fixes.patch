@@ -1,0 +1,1221 @@
+diff --git a/backend/config/events.php b/backend/config/events.php
+index d3aba45..8af40a1 100644
+--- a/backend/config/events.php
++++ b/backend/config/events.php
+@@ -88,6 +88,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
+                 App\Sync\Task\UpdateGeoLiteTask::class,
+                 App\Sync\Task\UpdateStorageLocationSizesTask::class,
+                 App\Sync\Task\AiDjCleanupTask::class,
++                App\Sync\Task\BuildLinearLogTask::class,
+             ]);
+         }
+     );
+diff --git a/backend/src/Console/Command/BuildLinearLogCommand.php b/backend/src/Console/Command/BuildLinearLogCommand.php
+new file mode 100644
+index 0000000..d61b943
+--- /dev/null
++++ b/backend/src/Console/Command/BuildLinearLogCommand.php
+@@ -0,0 +1,113 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Console\Command;
++
++use App\Entity\Repository\StationRepository;
++use App\Entity\Station;
++use App\Radio\AutoDJ\LinearLogBuilder;
++use App\Utilities\Types;
++use Symfony\Component\Console\Attribute\AsCommand;
++use Symfony\Component\Console\Input\InputArgument;
++use Symfony\Component\Console\Input\InputInterface;
++use Symfony\Component\Console\Input\InputOption;
++use Symfony\Component\Console\Output\OutputInterface;
++use Symfony\Component\Console\Style\SymfonyStyle;
++use Throwable;
++
++/**
++ * Projects and commits a full linear playout log ahead of real-time playback,
++ * reusing the same selection pipeline (playlists, clock wheels, schedules,
++ * top-of-hour protection) as live AutoDJ queue building -- just run with a much
++ * larger time horizon. Runs manually against any station regardless of that
++ * station's `linear_log_enabled` setting; {@see \App\Sync\Task\BuildLinearLogTask}
++ * is what runs this automatically for stations that have opted in.
++ *
++ * This does not replace live queue building: it fills the same station_queue
++ * table further out, and each future run (live or via this command again)
++ * re-times existing rows to absorb any drift before adding anything new, so
++ * the log stays accurate as real playback catches up.
++ */
++#[AsCommand(
++    name: 'azuracast:radio:build-linear-log',
++    description: 'Build a linear playout log up to N hours ahead for one or all stations.',
++)]
++final class BuildLinearLogCommand extends CommandAbstract
++{
++    private const int DEFAULT_HOURS = 24;
++
++    private const int MAX_HOURS = 48;
++
++    public function __construct(
++        private readonly StationRepository $stationRepo,
++        private readonly LinearLogBuilder $linearLogBuilder,
++    ) {
++        parent::__construct();
++    }
++
++    protected function configure(): void
++    {
++        $this->addArgument('station-name', InputArgument::OPTIONAL)
++            ->addOption(
++                'hours',
++                null,
++                InputOption::VALUE_REQUIRED,
++                'How many hours ahead to build the log to.',
++                (string)self::DEFAULT_HOURS,
++            );
++    }
++
++    protected function execute(InputInterface $input, OutputInterface $output): int
++    {
++        $io = new SymfonyStyle($input, $output);
++
++        $hours = Types::int($input->getOption('hours'), self::DEFAULT_HOURS);
++        $hours = max(1, min($hours, self::MAX_HOURS));
++
++        $stationName = Types::stringOrNull($input->getArgument('station-name'));
++
++        if (!empty($stationName)) {
++            $station = $this->stationRepo->findByIdentifier($stationName);
++
++            if (!$station instanceof Station) {
++                $io->error('Station not found.');
++                return 1;
++            }
++
++            $stations = [$station];
++        } else {
++            $stations = $this->stationRepo->fetchAll();
++        }
++
++        $io->section(sprintf('Building linear log %d hour(s) ahead...', $hours));
++        $io->progressStart(count($stations));
++
++        $failures = 0;
++
++        foreach ($stations as $station) {
++            if (!$station->supportsAutoDjQueue()) {
++                $io->progressAdvance();
++                continue;
++            }
++
++            try {
++                $this->linearLogBuilder->build($station, $hours);
++            } catch (Throwable $e) {
++                $failures++;
++                $io->warning($station . ': ' . $e->getMessage());
++            }
++
++            $io->progressAdvance();
++        }
++
++        $io->progressFinish();
++
++        if ($failures > 0) {
++            $io->warning(sprintf('%d station(s) failed to build.', $failures));
++        }
++
++        $io->success('Linear log build complete.');
++        return 0;
++    }
++}
+diff --git a/backend/src/Controller/Api/Stations/TopOfHour/GetAction.php b/backend/src/Controller/Api/Stations/TopOfHour/GetAction.php
+index ecd1cfe..85945ea 100644
+--- a/backend/src/Controller/Api/Stations/TopOfHour/GetAction.php
++++ b/backend/src/Controller/Api/Stations/TopOfHour/GetAction.php
+@@ -71,6 +71,12 @@ final class GetAction implements SingleActionInterface
+             'top_of_hour_compliance_tolerance_seconds' => $backendConfig->top_of_hour_compliance_tolerance_seconds,
+             'top_of_hour_finish_buffer_seconds' => $backendConfig->top_of_hour_finish_buffer_seconds,
+             'top_of_hour_id_max_seconds' => $backendConfig->top_of_hour_id_max_seconds,
++            'top_of_hour_hard_trigger_enabled' => $backendConfig->top_of_hour_hard_trigger_enabled,
++            'top_of_hour_hard_trigger_seconds' => $backendConfig->top_of_hour_hard_trigger_seconds,
++            'top_of_hour_hard_trigger_fade' => $backendConfig->top_of_hour_hard_trigger_fade,
++            'top_of_hour_duck_enabled' => $backendConfig->top_of_hour_duck_enabled,
++            'top_of_hour_duck_attenuation' => $backendConfig->top_of_hour_duck_attenuation,
++            'top_of_hour_duck_delay' => $backendConfig->top_of_hour_duck_delay,
+             'id_media_count' => $idMediaCount,
+             'legal_id_media_count' => $idMediaCount,
+             'compliance' => $this->eventRepo->getStationTopOfHourLegalIdComplianceSummary(
+diff --git a/backend/src/Controller/Api/Stations/TopOfHour/PutAction.php b/backend/src/Controller/Api/Stations/TopOfHour/PutAction.php
+index 34ce650..aa13c47 100644
+--- a/backend/src/Controller/Api/Stations/TopOfHour/PutAction.php
++++ b/backend/src/Controller/Api/Stations/TopOfHour/PutAction.php
+@@ -46,6 +46,12 @@ final class PutAction implements SingleActionInterface
+         'top_of_hour_compliance_tolerance_seconds',
+         'top_of_hour_finish_buffer_seconds',
+         'top_of_hour_id_max_seconds',
++        'top_of_hour_hard_trigger_enabled',
++        'top_of_hour_hard_trigger_seconds',
++        'top_of_hour_hard_trigger_fade',
++        'top_of_hour_duck_enabled',
++        'top_of_hour_duck_attenuation',
++        'top_of_hour_duck_delay',
+     ];
+ 
+     public function __construct(
+diff --git a/backend/src/Entity/Migration/Version20260817120000.php b/backend/src/Entity/Migration/Version20260817120000.php
+new file mode 100644
+index 0000000..7734dcd
+--- /dev/null
++++ b/backend/src/Entity/Migration/Version20260817120000.php
+@@ -0,0 +1,35 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Entity\Migration;
++
++use Doctrine\DBAL\Schema\Schema;
++use Doctrine\Migrations\AbstractMigration;
++
++final class Version20260817120000 extends AbstractMigration
++{
++    public function getDescription(): string
++    {
++        return 'Add top_of_hour_pre_id_fade and top_of_hour_pre_id_fade_seconds to station_queue '
++            . 'for dedicated early fade-out ahead of the mandatory top-of-hour ID.';
++    }
++
++    public function up(Schema $schema): void
++    {
++        $this->addSql(
++            'ALTER TABLE station_queue
++                ADD COLUMN IF NOT EXISTS top_of_hour_pre_id_fade TINYINT(1) NOT NULL DEFAULT 0'
++        );
++        $this->addSql(
++            'ALTER TABLE station_queue
++                ADD COLUMN IF NOT EXISTS top_of_hour_pre_id_fade_seconds INT DEFAULT NULL'
++        );
++    }
++
++    public function down(Schema $schema): void
++    {
++        $this->addSql('ALTER TABLE station_queue DROP COLUMN IF EXISTS top_of_hour_pre_id_fade');
++        $this->addSql('ALTER TABLE station_queue DROP COLUMN IF EXISTS top_of_hour_pre_id_fade_seconds');
++    }
++}
+diff --git a/backend/src/Entity/StationBackendConfiguration.php b/backend/src/Entity/StationBackendConfiguration.php
+index 9263711..e190c5d 100644
+--- a/backend/src/Entity/StationBackendConfiguration.php
++++ b/backend/src/Entity/StationBackendConfiguration.php
+@@ -92,6 +92,108 @@ final class StationBackendConfiguration extends AbstractArrayEntity
+         set(int|string|null $value) => Types::int($value, self::DEFAULT_QUEUE_LENGTH);
+     }
+ 
++    // 0 = disabled (track-count queue length only, legacy behavior).
++    // When set, Queue::buildQueue() keeps building forward -- beyond the
++    // track-count minimum above -- until the queue is planned out at least
++    // this many minutes in wall-clock time, so clock wheels and playlists
++    // are resolved well ahead of the moment they actually air.
++    //
++    // Queue::buildQueue() is already called continuously by the live
++    // now-playing sync task (BuildQueueTask), so setting this to 1440
++    // (24 hours) turns on a genuinely maintained rolling linear log:
++    // every cycle just tops the queue back up to the horizon and lets
++    // already-built rows re-time themselves for drift, rather than
++    // needing a separate one-off job. Capped at 2 days as a sanity limit.
++    protected const int DEFAULT_QUEUE_LOOKAHEAD_MINUTES = 0;
++
++    protected const int MAX_QUEUE_LOOKAHEAD_MINUTES = 2880;
++
++    #[OA\Property]
++    public int $autodj_queue_lookahead_minutes = self::DEFAULT_QUEUE_LOOKAHEAD_MINUTES {
++        set(int|string|null $value) {
++            $intVal = Types::int($value, self::DEFAULT_QUEUE_LOOKAHEAD_MINUTES);
++            $this->autodj_queue_lookahead_minutes = max(
++                0,
++                min($intVal, self::MAX_QUEUE_LOOKAHEAD_MINUTES)
++            );
++        }
++    }
++
++    // Opt-in: when enabled, BuildLinearLogTask keeps this station's log built out
++    // to `linear_log_hours` automatically (hourly). Off by default so nothing
++    // changes for stations that haven't asked for a linear log.
++    #[OA\Property]
++    public bool $linear_log_enabled = false {
++        set(bool|null $value) => Types::bool($value);
++    }
++
++    protected const int DEFAULT_LINEAR_LOG_HOURS = 24;
++
++    protected const int MAX_LINEAR_LOG_HOURS = 48;
++
++    #[OA\Property]
++    public int $linear_log_hours = self::DEFAULT_LINEAR_LOG_HOURS {
++        set(int|string|null $value) {
++            $intVal = Types::int($value, self::DEFAULT_LINEAR_LOG_HOURS);
++            $this->linear_log_hours = max(1, min($intVal, self::MAX_LINEAR_LOG_HOURS));
++        }
++    }
++
++    // Liquidsoap-level, wall-clock-driven safety net (see azuracast.liq
++    // apply_top_of_hour_hard_trigger). Independent of whether AzuraCast's
++    // PHP-side AutoDJ successfully queued anything -- a true last resort.
++    #[OA\Property]
++    public bool $top_of_hour_hard_trigger_enabled = false {
++        set(bool|null $value) => Types::bool($value);
++    }
++
++    protected const float DEFAULT_HARD_TRIGGER_SECONDS = 3.0;
++
++    #[OA\Property]
++    public float $top_of_hour_hard_trigger_seconds = self::DEFAULT_HARD_TRIGGER_SECONDS {
++        set(float|int|string|null $value) {
++            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_SECONDS);
++            $this->top_of_hour_hard_trigger_seconds = max(1.0, min($floatVal, 30.0));
++        }
++    }
++
++    protected const float DEFAULT_HARD_TRIGGER_FADE = 3.0;
++
++    #[OA\Property]
++    public float $top_of_hour_hard_trigger_fade = self::DEFAULT_HARD_TRIGGER_FADE {
++        set(float|int|string|null $value) {
++            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_FADE);
++            $this->top_of_hour_hard_trigger_fade = max(0.0, min($floatVal, 10.0));
++        }
++    }
++
++    // Smart ducking (Liquidsoap smooth_add) for the interrupting queue --
++    // legal IDs/promos lower the music bed instead of hard-replacing it.
++    #[OA\Property]
++    public bool $top_of_hour_duck_enabled = false {
++        set(bool|null $value) => Types::bool($value);
++    }
++
++    protected const float DEFAULT_DUCK_ATTENUATION = 0.2;
++
++    #[OA\Property]
++    public float $top_of_hour_duck_attenuation = self::DEFAULT_DUCK_ATTENUATION {
++        set(float|int|string|null $value) {
++            $floatVal = Types::float($value, self::DEFAULT_DUCK_ATTENUATION);
++            $this->top_of_hour_duck_attenuation = max(0.0, min($floatVal, 1.0));
++        }
++    }
++
++    protected const float DEFAULT_DUCK_DELAY = 3.0;
++
++    #[OA\Property]
++    public float $top_of_hour_duck_delay = self::DEFAULT_DUCK_DELAY {
++        set(float|int|string|null $value) {
++            $floatVal = Types::float($value, self::DEFAULT_DUCK_DELAY);
++            $this->top_of_hour_duck_delay = max(0.5, min($floatVal, 15.0));
++        }
++    }
++
+     #[OA\Property]
+     public string $dj_mount_point = '/' {
+         set (string|null $value) => Types::string($value, '/', true);
+diff --git a/backend/src/Entity/StationQueue.php b/backend/src/Entity/StationQueue.php
+index 2958e58..a3807da 100644
+--- a/backend/src/Entity/StationQueue.php
++++ b/backend/src/Entity/StationQueue.php
+@@ -141,6 +141,19 @@ final class StationQueue implements
+     #[ORM\Column(nullable: true)]
+     public ?int $hour_boundary_max_play_seconds = null;
+ 
++    /**
++     * True when this row is the track selected immediately before a due
++     * top-of-hour legal ID and should be faded out early (rather than
++     * simply hard-cut) so the ID starts cleanly at :58/:59. Only ever set
++     * when station-wide top-of-hour ID protection is enabled.
++     */
++    #[ORM\Column]
++    public bool $top_of_hour_pre_id_fade = false;
++
++    /** Seconds before this track's capped end where the early fade-out should begin. */
++    #[ORM\Column(nullable: true)]
++    public ?int $top_of_hour_pre_id_fade_seconds = null;
++
+     /**
+      * Ordered list of Playlist Group names (outermost to innermost) this track was played
+      * through, e.g. ["Simple Group", "Sub Group 1"]. Null if played directly (not via a group).
+diff --git a/backend/src/Radio/AutoDJ/ContentTypeCrossfadeAnnotator.php b/backend/src/Radio/AutoDJ/ContentTypeCrossfadeAnnotator.php
+index 73718c9..ee99f83 100644
+--- a/backend/src/Radio/AutoDJ/ContentTypeCrossfadeAnnotator.php
++++ b/backend/src/Radio/AutoDJ/ContentTypeCrossfadeAnnotator.php
+@@ -57,6 +57,13 @@ final class ContentTypeCrossfadeAnnotator implements EventSubscriberInterface
+             return;
+         }
+ 
++        // HourBoundaryAnnotator::applyTopOfHourPreIdFade (priority 10) already set
++        // a deliberate fade_out for this row so it ends cleanly before a due
++        // top-of-hour ID -- don't let the generic content-type matrix clobber it.
++        if ($queue->top_of_hour_pre_id_fade ?? false) {
++            return;
++        }
++
+         $station = $event->getStation();
+         $fromType = $this->historyRepo->getLastPlayedMediaType($station) ?? 'music';
+         $toType = $media->type ?? 'music';
+diff --git a/backend/src/Radio/AutoDJ/HourBoundaryAnnotator.php b/backend/src/Radio/AutoDJ/HourBoundaryAnnotator.php
+index 383db26..47f25dd 100644
+--- a/backend/src/Radio/AutoDJ/HourBoundaryAnnotator.php
++++ b/backend/src/Radio/AutoDJ/HourBoundaryAnnotator.php
+@@ -20,11 +20,51 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
+         return [
+             AnnotateNextSong::class => [
+                 ['applyHourBoundaryCap', 11],
++                ['applyTopOfHourPreIdFade', 10],
+                 ['applyLegalIdQuickCut', 9],
+             ],
+         ];
+     }
+ 
++    /**
++     * Fades the outgoing track down over its last few seconds instead of a hard
++     * cut, when it's the track selected immediately before a due top-of-hour ID.
++     * Runs before applyLegalIdQuickCut (which governs the ID's own fade), and
++     * only ever touches rows QueueBuilder explicitly flagged -- so it's a no-op
++     * for every station that doesn't have top-of-hour ID protection enabled.
++     */
++    public function applyTopOfHourPreIdFade(AnnotateNextSong $event): void
++    {
++        if (!$event->isAsAutoDj()) {
++            return;
++        }
++
++        $queue = $event->getQueue();
++        if (!$queue instanceof StationQueue || !$queue->top_of_hour_pre_id_fade) {
++            return;
++        }
++
++        $media = $event->getMedia();
++        if (!$media instanceof StationMedia) {
++            return;
++        }
++
++        $existing = $event->getAnnotations();
++        $cueIn = isset($existing['autocue_cue_in']) ? (float)$existing['autocue_cue_in'] : 0.0;
++
++        $cueOut = $queue->duration ?? min($media->length, $cueIn + 1.0);
++        $fadeOutSeconds = (float)($queue->top_of_hour_pre_id_fade_seconds ?? 0);
++
++        // Fade window can't be longer than the (already-capped) track itself.
++        $fadeOutSeconds = max(0.0, min($fadeOutSeconds, $cueOut - $cueIn));
++
++        $event->addAnnotations([
++            'autocue_cue_out' => $cueOut,
++            'autocue_fade_out' => $fadeOutSeconds,
++            'duration' => $cueOut,
++        ]);
++    }
++
+     public function applyHourBoundaryCap(AnnotateNextSong $event): void
+     {
+         if (!$event->isAsAutoDj()) {
+diff --git a/backend/src/Radio/AutoDJ/LinearLogBuilder.php b/backend/src/Radio/AutoDJ/LinearLogBuilder.php
+new file mode 100644
+index 0000000..a768acb
+--- /dev/null
++++ b/backend/src/Radio/AutoDJ/LinearLogBuilder.php
+@@ -0,0 +1,34 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Radio\AutoDJ;
++
++use App\Entity\Station;
++
++/**
++ * Thin wrapper around Queue::buildQueue() that projects a station's log out
++ * to its configured (or an explicitly requested) linear-log horizon, reusing
++ * the exact same selection pipeline as live AutoDJ queue building.
++ */
++final class LinearLogBuilder
++{
++    public function __construct(
++        private readonly Queue $queue,
++    ) {
++    }
++
++    public function build(Station $station, ?int $hoursOverride = null): void
++    {
++        $hours = $hoursOverride ?? $station->backend_config->linear_log_hours;
++        $hours = max(1, $hours);
++        $lookaheadMinutes = $hours * 60;
++
++        // Generous per-run cap so even a station with very short clock-wheel
++        // slots (IDs, sweepers) can reach the full horizon before the track
++        // count limit does.
++        $maxTracks = max(1000, $lookaheadMinutes * 2);
++
++        $this->queue->buildQueue($station, $lookaheadMinutes, $maxTracks);
++    }
++}
+diff --git a/backend/src/Radio/AutoDJ/Queue.php b/backend/src/Radio/AutoDJ/Queue.php
+index c7704c6..2a0a0a6 100644
+--- a/backend/src/Radio/AutoDJ/Queue.php
++++ b/backend/src/Radio/AutoDJ/Queue.php
+@@ -35,8 +35,18 @@ final class Queue
+     ) {
+     }
+ 
+-    public function buildQueue(Station $station): void
+-    {
++    /**
++     * @param int|null $lookaheadMinutesOverride When given, builds forward to at least
++     *        this many minutes regardless of the station's configured
++     *        `autodj_queue_lookahead_minutes`. Used by the linear-log builder to project
++     *        a full day ahead on demand without changing the station's live setting.
++     * @param int|null $maxTracksOverride Safety cap override to match a larger horizon.
++     */
++    public function buildQueue(
++        Station $station,
++        ?int $lookaheadMinutesOverride = null,
++        ?int $maxTracksOverride = null,
++    ): void {
+         // Early-fail if the station is disabled.
+         if (!$station->supportsAutoDjQueue()) {
+             $this->logger->info('Cannot build queue: station does not support AutoDJ queue.');
+@@ -64,6 +74,22 @@ final class Queue
+ 
+         $maxQueueLength = max($station->backend_config->autodj_queue_length, 2);
+ 
++        // Track-count queue length alone (default 3, sometimes set as low as 2)
++        // does not reliably reach far enough into the future for clock wheels,
++        // schedules, or top-of-hour logic to resolve tracks in advance -- how
++        // far ahead in *time* that represents depends entirely on how long the
++        // next few songs happen to be. When configured, this makes the queue
++        // keep building until it reaches a guaranteed minimum time horizon,
++        // independent of track length.
++        $lookaheadMinutes = $lookaheadMinutesOverride ?? $station->backend_config->autodj_queue_lookahead_minutes;
++        $lookaheadHorizon = $lookaheadMinutes > 0
++            ? Time::nowUtc()->modify('+' . $lookaheadMinutes . ' minutes')
++            : null;
++
++        // Hard safety cap so a misconfigured horizon (or a station with very
++        // short tracks) can't spin this into an unbounded loop.
++        $maxLookaheadTracks = $maxTracksOverride ?? 500;
++
+         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
+ 
+         $lastSongId = null;
+@@ -109,8 +135,14 @@ final class Queue
+         // so a selector gets another chance to choose a different track, instead of
+         // silently halting queue-building and leaving the station with dead air.
+         $maxAttemptsPerSlot = 10;
+-
+-        while ($queueLength < $maxQueueLength) {
++        $tracksBuiltThisRun = 0;
++
++        while (
++            $queueLength < $maxQueueLength
++            || ($lookaheadHorizon !== null
++                && $expectedPlayTime < $lookaheadHorizon
++                && $tracksBuiltThisRun < $maxLookaheadTracks)
++        ) {
+             $nextSongs = [];
+             $attempts = 0;
+ 
+@@ -186,6 +218,7 @@ final class Queue
+                 );
+ 
+                 $queueLength++;
++                $tracksBuiltThisRun++;
+             }
+         }
+     }
+diff --git a/backend/src/Radio/AutoDJ/QueueBuilder.php b/backend/src/Radio/AutoDJ/QueueBuilder.php
+index 22e2776..3799f05 100644
+--- a/backend/src/Radio/AutoDJ/QueueBuilder.php
++++ b/backend/src/Radio/AutoDJ/QueueBuilder.php
+@@ -584,6 +584,34 @@ final class QueueBuilder implements EventSubscriberInterface
+             $stationQueueEntry->duration = (float)$maxPlaySeconds;
+         }
+ 
++        // Dedicated early fade-out ahead of a due top-of-hour legal ID. This is
++        // separate from the scheduled-transition cap above, which intentionally
++        // does not touch TOPH (see comment above). applyHourBoundarySelection()
++        // already tries to pick a track that fits before :00 outright; this is
++        // the backstop for when no fitting track exists (e.g. a short playlist
++        // of long-form tracks) -- instead of a silent hard cut, the track is
++        // capped AND explicitly flagged to fade out over the last few seconds,
++        // so the ID at :58/:59 starts cleanly. Only active when top-of-hour ID
++        // protection is enabled and this track lands in the pre-:00 lookahead
++        // window (maxMusicDurationBeforeTopOfHour() returns null otherwise).
++        $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
++            $playlist->station,
++            $expectedPlayTime,
++        );
++
++        if (null !== $topOfHourMaxDuration && $mediaToPlay->getCalculatedLength() > $topOfHourMaxDuration) {
++            $cappedSeconds = (int)floor($topOfHourMaxDuration);
++
++            $fadeOutSeconds = min(
++                $playlist->station->backend_config->getCrossfadeDuration(),
++                (float)$cappedSeconds
++            );
++
++            $stationQueueEntry->top_of_hour_pre_id_fade = true;
++            $stationQueueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
++            $stationQueueEntry->duration = (float)$cappedSeconds;
++        }
++
+         if (!$deferQueuePersistence) {
+             $this->em->persist($stationQueueEntry);
+         }
+diff --git a/backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php b/backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+index 140a282..76cb07a 100644
+--- a/backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
++++ b/backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+@@ -88,30 +88,45 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
+             return;
+         }
+ 
+-        if (!$isInterrupting) {
+-            $this->logger->info('[TOPH DEBUG] Skipping TOPH: waiting for interrupting queue at hour boundary.');
+-            return;
+-        }
+-
+         $emergencyActive = $this->conflictChecker->hasEmergencyScheduleActive($station, $expectedPlayTime);
+         if ($emergencyActive) {
+             $this->logger->info('[TOPH DEBUG] Skipping TOPH: emergency schedule active.');
+             return;
+         }
+ 
+-        $timezone = $station->getTimezoneObject();
+-        $local = $expectedPlayTime->setTimezone($timezone);
+-        $secondsAfterTop = $local->getTimestamp() - $local->setTime((int)$local->format('H'), 0)->getTimestamp();
+-        $tolerance = $this->hourBoundaryPlanner->getComplianceToleranceSeconds($station);
+         $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt($station, $expectedPlayTime);
+-        $isDue = $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime);
+ 
+-        $this->logger->info('[TOPH DEBUG] Interrupt due evaluation.', [
+-            'seconds_after_top' => $secondsAfterTop,
+-            'tolerance_seconds' => $tolerance,
+-            'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+-            'is_due' => $isDue,
+-        ]);
++        // Two distinct triggers, not mutually exclusive with priority:
++        //
++        // 1. Normal advance queuing (NOT interrupting): fires up to
++        //    `finish_buffer + id_max_seconds` seconds before :00, using the
++        //    same lookahead math HourBoundaryPlanner already exposes. This is
++        //    the path that actually gets the ID placed into the ordinary
++        //    AutoDJ queue ahead of time -- previously this method returned
++        //    immediately whenever `$isInterrupting` was false, which meant
++        //    this path never ran and isTopOfHourIdDue() was effectively dead
++        //    code. Compliance depended entirely on trigger #2 below landing
++        //    inside a narrow tolerance window on a once-a-minute cron tick,
++        //    which is why on-time rate was so low.
++        //
++        // 2. Interrupting fallback: a tight window right at/after :00, only
++        //    used as a safety net if #1 didn't already get the ID queued
++        //    (e.g. queue was empty, station just came online).
++        if ($isInterrupting) {
++            $isDue = $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime);
++
++            $this->logger->info('[TOPH DEBUG] Interrupt-fallback due evaluation.', [
++                'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
++                'is_due' => $isDue,
++            ]);
++        } else {
++            $isDue = $this->hourBoundaryPlanner->isTopOfHourIdDue($station, $expectedPlayTime);
++
++            $this->logger->info('[TOPH DEBUG] Advance-queuing due evaluation.', [
++                'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
++                'is_due' => $isDue,
++            ]);
++        }
+ 
+         if (!$isDue) {
+             $this->logger->info('[TOPH DEBUG] Skipping TOPH: ID is not due.');
+diff --git a/backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php b/backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
+index 1b3e2fa..b073c5e 100644
+--- a/backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
++++ b/backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
+@@ -121,6 +121,16 @@ final class ConfigWriter implements EventSubscriberInterface
+             $backendConfig->live_broadcast_text
+         );
+ 
++        $topOfHourHardTriggerEnabled = ($backendConfig->top_of_hour_id_enabled
++            && $backendConfig->top_of_hour_hard_trigger_enabled) ? 'true' : 'false';
++        $topOfHourHardTriggerSeconds = self::toFloat($backendConfig->top_of_hour_hard_trigger_seconds);
++        $topOfHourHardTriggerFade = self::toFloat($backendConfig->top_of_hour_hard_trigger_fade);
++
++        $topOfHourDuckEnabled = ($backendConfig->top_of_hour_id_enabled
++            && $backendConfig->top_of_hour_duck_enabled) ? 'true' : 'false';
++        $topOfHourDuckAttenuation = self::toFloat($backendConfig->top_of_hour_duck_attenuation);
++        $topOfHourDuckDelay = self::toFloat($backendConfig->top_of_hour_duck_delay);
++
+         $fallbackPath = self::toRawString(
+             $this->fallbackFile->getFallbackPathForStation($station)
+         );
+@@ -160,6 +170,14 @@ final class ConfigWriter implements EventSubscriberInterface
+             
+             settings.azuracast.live_broadcast_text := {$liveBroadcastText}
+             
++            settings.azuracast.top_of_hour_hard_trigger_enabled := {$topOfHourHardTriggerEnabled}
++            settings.azuracast.top_of_hour_hard_trigger_seconds := {$topOfHourHardTriggerSeconds}
++            settings.azuracast.top_of_hour_hard_trigger_fade := {$topOfHourHardTriggerFade}
++            
++            settings.azuracast.top_of_hour_duck_enabled := {$topOfHourDuckEnabled}
++            settings.azuracast.top_of_hour_duck_attenuation := {$topOfHourDuckAttenuation}
++            settings.azuracast.top_of_hour_duck_delay := {$topOfHourDuckDelay}
++            
+             # Start HTTP API Server
+             azuracast.start_http_api()
+             
+@@ -500,7 +518,23 @@ final class ConfigWriter implements EventSubscriberInterface
+             radio = fallback(id="requests_fallback", track_sensitive = true, [requests, radio])
+ 
+             interrupting_queue = request.queue(id="{$interruptingQueueName}", timeout=settings.azuracast.request_timeout())
+-            radio = fallback(id="interrupting_fallback", track_sensitive = false, [interrupting_queue, radio])
++
++            # Smart ducking (opt-in): legal IDs/promos lower the music bed under
++            # them via smooth_add instead of hard-replacing it. Falls back to
++            # the previous plain track-insensitive interrupt when disabled.
++            radio = azuracast.duck(id="interrupting_fallback", voiceover=interrupting_queue, radio)
++
++            # Wall-clock-driven top-of-hour safety net (opt-in): guarantees
++            # *something* plays across the hour boundary even if nothing was
++            # ever queued into interrupting_queue above. Reuses the station's
++            # existing dead-air fallback file as the guaranteed-available
++            # safety source -- this is a compliance/dead-air backstop, not a
++            # substitute for AzuraCast correctly selecting the legal ID.
++            top_of_hour_safety_source = single(
++                id="top_of_hour_safety",
++                "annotate:liq_disable_autocue=\"true\":#{settings.azuracast.fallback_path()}"
++            )
++            radio = azuracast.apply_top_of_hour_hard_trigger(top_of_hour_safety_source, radio)
+             LIQ
+         );
+ 
+diff --git a/backend/src/Sync/Task/BuildLinearLogTask.php b/backend/src/Sync/Task/BuildLinearLogTask.php
+new file mode 100644
+index 0000000..c03867c
+--- /dev/null
++++ b/backend/src/Sync/Task/BuildLinearLogTask.php
+@@ -0,0 +1,67 @@
++<?php
++
++declare(strict_types=1);
++
++namespace App\Sync\Task;
++
++use App\Radio\AutoDJ\LinearLogBuilder;
++use Monolog\LogRecord;
++use Throwable;
++
++/**
++ * Hourly top-up for any station with `linear_log_enabled` turned on: keeps its
++ * playout log built out to `linear_log_hours` ahead of real time, on top of
++ * whatever the live AutoDJ short lookahead is already doing. Off by default
++ * per-station -- see StationBackendConfiguration::$linear_log_enabled.
++ */
++final class BuildLinearLogTask extends AbstractTask
++{
++    public function __construct(
++        private readonly LinearLogBuilder $linearLogBuilder,
++    ) {
++    }
++
++    public static function getSchedulePattern(): string
++    {
++        return '7 * * * *';
++    }
++
++    public static function isLongTask(): bool
++    {
++        return true;
++    }
++
++    public function run(bool $force = false): void
++    {
++        foreach ($this->iterateStations() as $station) {
++            if (!$station->backend_config->linear_log_enabled) {
++                continue;
++            }
++
++            if (!$station->supportsAutoDjQueue()) {
++                continue;
++            }
++
++            $this->logger->pushProcessor(
++                function (LogRecord $record) use ($station) {
++                    $record->extra['station'] = [
++                        'id' => $station->id,
++                        'name' => $station->name,
++                    ];
++                    return $record;
++                }
++            );
++
++            try {
++                $this->linearLogBuilder->build($station);
++            } catch (Throwable $e) {
++                $this->logger->error(
++                    'Linear log build failed: ' . $e->getMessage(),
++                    ['exception' => $e]
++                );
++            } finally {
++                $this->logger->popProcessor();
++            }
++        }
++    }
++}
+diff --git a/frontend/components/Admin/Stations/Form/BackendForm.vue b/frontend/components/Admin/Stations/Form/BackendForm.vue
+index 8c6367a..39b1b79 100644
+--- a/frontend/components/Admin/Stations/Form/BackendForm.vue
++++ b/frontend/components/Admin/Stations/Form/BackendForm.vue
+@@ -301,6 +301,35 @@
+                         :description="$gettext('This determines how many songs in advance the AutoDJ will automatically fill the queue.')"
+                     />
+ 
++                    <form-group-field
++                        id="edit_form_backend_autodj_queue_lookahead_minutes"
++                        class="col-md-6"
++                        :field="r$.backend_config.autodj_queue_lookahead_minutes"
++                        input-type="number"
++                        :input-attrs="{ min: '0', max: '180' }"
++                        :label="$gettext('AutoDJ Queue Time Lookahead (Minutes)')"
++                        :description="$gettext('Optional. Keeps the queue built out at least this many minutes ahead in wall-clock time, regardless of the song-count queue length above, so clock wheels, schedules, and top-of-hour IDs are resolved well in advance instead of only a few tracks out. 0 disables this and uses the song-count queue length only.')"
++                    />
++
++                    <form-group-checkbox
++                        id="edit_form_backend_linear_log_enabled"
++                        class="col-md-6"
++                        :field="r$.backend_config.linear_log_enabled"
++                        :label="$gettext('Build Linear Log In Advance')"
++                        :description="$gettext('When enabled, an hourly background task keeps this station\'s playout log built out to the number of hours below, ahead of real time -- similar to a traditional 24-hour advance log.')"
++                    />
++
++                    <form-group-field
++                        v-if="r$.backend_config.linear_log_enabled.$model"
++                        id="edit_form_backend_linear_log_hours"
++                        class="col-md-6"
++                        :field="r$.backend_config.linear_log_hours"
++                        input-type="number"
++                        :input-attrs="{ min: '1', max: '48' }"
++                        :label="$gettext('Linear Log Hours In Advance')"
++                        :description="$gettext('How many hours ahead the automatic linear log should be kept built out to.')"
++                    />
++
+                     <form-group-multi-check
+                         id="edit_form_backend_charset"
+                         class="col-md-6"
+diff --git a/frontend/components/Admin/Stations/Form/form.ts b/frontend/components/Admin/Stations/Form/form.ts
+index 29e641f..d12d952 100644
+--- a/frontend/components/Admin/Stations/Form/form.ts
++++ b/frontend/components/Admin/Stations/Form/form.ts
+@@ -81,6 +81,9 @@ export const useAdminStationsForm = defineStore(
+                 enable_replaygain_metadata: false,
+                 telnet_port: null,
+                 autodj_queue_length: 3,
++                autodj_queue_lookahead_minutes: 0,
++                linear_log_enabled: false,
++                linear_log_hours: 24,
+                 use_manual_autodj: false,
+                 charset: 'UTF-8',
+                 performance_mode: 'disabled',
+@@ -192,6 +195,9 @@ export const useAdminStationsForm = defineStore(
+                         fields.backend_config.enable_replaygain_metadata,
+                         fields.backend_config.telnet_port,
+                         fields.backend_config.autodj_queue_length,
++                        fields.backend_config.autodj_queue_lookahead_minutes,
++                        fields.backend_config.linear_log_enabled,
++                        fields.backend_config.linear_log_hours,
+                         fields.backend_config.use_manual_autodj,
+                         fields.backend_config.charset,
+                         fields.backend_config.performance_mode,
+diff --git a/frontend/components/Stations/TopOfHour.vue b/frontend/components/Stations/TopOfHour.vue
+index f61bd5d..e3337bc 100644
+--- a/frontend/components/Stations/TopOfHour.vue
++++ b/frontend/components/Stations/TopOfHour.vue
+@@ -108,6 +108,140 @@
+                         >
+                     </form-group>
+ 
++                    <hr class="my-4">
++
++                    <h3 class="h6">
++                        {{ $gettext('Hard Clock Trigger') }}
++                    </h3>
++                    <p class="text-secondary small">
++                        {{
++                            $gettext(
++                                'Belt-and-suspenders safety net driven purely by the system clock, independent of the AutoDJ queue. If nothing was queued in time, this forces a fallback ID/announcement across the hour boundary with a smooth fade rather than a hard cut.'
++                            )
++                        }}
++                    </p>
++
++                    <form-group
++                        id="top_of_hour_hard_trigger_enabled"
++                        class="mb-3"
++                    >
++                        <template #label>
++                            {{ $gettext('Enable hard clock trigger') }}
++                        </template>
++
++                        <form-checkbox
++                            id="top_of_hour_hard_trigger_enabled"
++                            v-model="form.top_of_hour_hard_trigger_enabled"
++                        />
++                    </form-group>
++
++                    <template v-if="form.top_of_hour_hard_trigger_enabled">
++                        <form-group
++                            id="top_of_hour_hard_trigger_seconds"
++                            class="mb-3"
++                        >
++                            <template #label>
++                                {{ $gettext('Trigger window (seconds before :00)') }}
++                            </template>
++
++                            <input
++                                id="top_of_hour_hard_trigger_seconds"
++                                v-model.number="form.top_of_hour_hard_trigger_seconds"
++                                type="number"
++                                class="form-control"
++                                min="1"
++                                max="30"
++                                step="0.5"
++                            >
++                        </form-group>
++
++                        <form-group
++                            id="top_of_hour_hard_trigger_fade"
++                            class="mb-3"
++                        >
++                            <template #label>
++                                {{ $gettext('Fade duration (seconds)') }}
++                            </template>
++
++                            <input
++                                id="top_of_hour_hard_trigger_fade"
++                                v-model.number="form.top_of_hour_hard_trigger_fade"
++                                type="number"
++                                class="form-control"
++                                min="0"
++                                max="10"
++                                step="0.5"
++                            >
++                        </form-group>
++                    </template>
++
++                    <hr class="my-4">
++
++                    <h3 class="h6">
++                        {{ $gettext('Smart Ducking') }}
++                    </h3>
++                    <p class="text-secondary small">
++                        {{
++                            $gettext(
++                                'When enabled, legal IDs and promos lower the music bed under them instead of hard-replacing it, then smoothly bring the music back up afterward.'
++                            )
++                        }}
++                    </p>
++
++                    <form-group
++                        id="top_of_hour_duck_enabled"
++                        class="mb-3"
++                    >
++                        <template #label>
++                            {{ $gettext('Enable smart ducking') }}
++                        </template>
++
++                        <form-checkbox
++                            id="top_of_hour_duck_enabled"
++                            v-model="form.top_of_hour_duck_enabled"
++                        />
++                    </form-group>
++
++                    <template v-if="form.top_of_hour_duck_enabled">
++                        <form-group
++                            id="top_of_hour_duck_attenuation"
++                            class="mb-3"
++                        >
++                            <template #label>
++                                {{ $gettext('Music bed level while ducked (0 = silent, 1 = full volume)') }}
++                            </template>
++
++                            <input
++                                id="top_of_hour_duck_attenuation"
++                                v-model.number="form.top_of_hour_duck_attenuation"
++                                type="number"
++                                class="form-control"
++                                min="0"
++                                max="1"
++                                step="0.05"
++                            >
++                        </form-group>
++
++                        <form-group
++                            id="top_of_hour_duck_delay"
++                            class="mb-3"
++                        >
++                            <template #label>
++                                {{ $gettext('Ducking fade time (seconds)') }}
++                            </template>
++
++                            <input
++                                id="top_of_hour_duck_delay"
++                                v-model.number="form.top_of_hour_duck_delay"
++                                type="number"
++                                class="form-control"
++                                min="0.5"
++                                max="15"
++                                step="0.5"
++                            >
++                        </form-group>
++                    </template>
++
+                     <p class="text-secondary mb-3">
+                         {{
+                             $gettext(
+@@ -213,6 +347,12 @@ interface TopOfHourSettings {
+     top_of_hour_compliance_tolerance_seconds: number;
+     top_of_hour_finish_buffer_seconds: number;
+     top_of_hour_id_max_seconds: number;
++    top_of_hour_hard_trigger_enabled: boolean;
++    top_of_hour_hard_trigger_seconds: number;
++    top_of_hour_hard_trigger_fade: number;
++    top_of_hour_duck_enabled: boolean;
++    top_of_hour_duck_attenuation: number;
++    top_of_hour_duck_delay: number;
+     id_media_count?: number;
+     legal_id_media_count: number;
+     compliance?: TopOfHourCompliance;
+@@ -236,6 +376,12 @@ const form = ref({
+     top_of_hour_compliance_tolerance_seconds: 10,
+     top_of_hour_finish_buffer_seconds: 15,
+     top_of_hour_id_max_seconds: 60,
++    top_of_hour_hard_trigger_enabled: false,
++    top_of_hour_hard_trigger_seconds: 3,
++    top_of_hour_hard_trigger_fade: 3,
++    top_of_hour_duck_enabled: false,
++    top_of_hour_duck_attenuation: 0.2,
++    top_of_hour_duck_delay: 3,
+ });
+ 
+ const loadSettings = async () => {
+@@ -249,6 +395,12 @@ const loadSettings = async () => {
+             top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds,
+             top_of_hour_finish_buffer_seconds: data.top_of_hour_finish_buffer_seconds,
+             top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds,
++            top_of_hour_hard_trigger_enabled: data.top_of_hour_hard_trigger_enabled,
++            top_of_hour_hard_trigger_seconds: data.top_of_hour_hard_trigger_seconds,
++            top_of_hour_hard_trigger_fade: data.top_of_hour_hard_trigger_fade,
++            top_of_hour_duck_enabled: data.top_of_hour_duck_enabled,
++            top_of_hour_duck_attenuation: data.top_of_hour_duck_attenuation,
++            top_of_hour_duck_delay: data.top_of_hour_duck_delay,
+         };
+         legalIdMediaCount.value = data.id_media_count ?? data.legal_id_media_count ?? 0;
+         compliance.value = data.compliance ?? null;
+diff --git a/frontend/entities/ApiInterfaces.ts b/frontend/entities/ApiInterfaces.ts
+index ead0d68..e08ba00 100644
+--- a/frontend/entities/ApiInterfaces.ts
++++ b/frontend/entities/ApiInterfaces.ts
+@@ -2253,6 +2253,9 @@ export interface StationBackendConfiguration {
+   record_streams_bitrate?: number;
+   use_manual_autodj?: boolean;
+   autodj_queue_length?: number;
++  autodj_queue_lookahead_minutes?: number;
++  linear_log_enabled?: boolean;
++  linear_log_hours?: number;
+   dj_mount_point?: string;
+   dj_buffer?: number;
+   audio_processing_method?: string;
+diff --git a/tests/Unit/TopOfHourIdSchedulerTest.php b/tests/Unit/TopOfHourIdSchedulerTest.php
+index 020a2ac..b2a30eb 100644
+--- a/tests/Unit/TopOfHourIdSchedulerTest.php
++++ b/tests/Unit/TopOfHourIdSchedulerTest.php
+@@ -26,17 +26,43 @@ final class TopOfHourIdSchedulerTest extends Unit
+         $this->scheduler = $testsModule->container->get(TopOfHourIdScheduler::class);
+     }
+ 
+-    public function testTopOfHourUsesInterruptingQueueOnlyAtHourBoundary(): void
++    public function testTopOfHourAdvanceQueuingFiresWithinBufferWindow(): void
+     {
+         [$station, $media] = $this->persistStationWithId();
+ 
+         try {
+-            $beforeTop = CarbonImmutable::parse('2026-05-26 09:59:59', 'UTC');
+-            $normalEvent = new BuildQueue($station, $beforeTop, $beforeTop);
++            // Well outside the pre-:00 buffer window (finish_buffer=15s + id_max=60s = 75s
++            // by default) -- normal (non-interrupting) advance queuing should not fire yet.
++            $tooEarly = CarbonImmutable::parse('2026-05-26 09:30:00', 'UTC');
++            $tooEarlyEvent = new BuildQueue($station, $tooEarly, $tooEarly);
++            $this->scheduler->buildTopOfHourId($tooEarlyEvent);
++
++            self::assertSame([], $tooEarlyEvent->getNextSongs());
++
++            // Inside the buffer window, normal (non-interrupting) advance queuing is what
++            // actually places the ID into the ordinary AutoDJ queue ahead of time -- this
++            // is the path that makes top-of-hour compliance work at all; relying solely on
++            // the narrow interrupting-queue window below is what caused it to be unreliable.
++            $withinBuffer = CarbonImmutable::parse('2026-05-26 09:59:59', 'UTC');
++            $normalEvent = new BuildQueue($station, $withinBuffer, $withinBuffer);
+             $this->scheduler->buildTopOfHourId($normalEvent);
+ 
+-            self::assertSame([], $normalEvent->getNextSongs());
++            self::assertCount(1, $normalEvent->getNextSongs());
++            $selected = $normalEvent->getNextSongs()[0];
++            self::assertTrue($selected->top_of_hour_legal_id);
++            self::assertSame($media->id, $selected->media?->id);
++        } finally {
++            $this->removeTestEntities($station, $media);
++        }
++    }
+ 
++    public function testTopOfHourInterruptingFallbackFiresAtHourBoundary(): void
++    {
++        [$station, $media] = $this->persistStationWithId();
++
++        try {
++            // Safety-net path: used when advance queuing above didn't already place the ID
++            // (e.g. the queue was empty going into the hour, or the station just started).
+             $atTop = CarbonImmutable::parse('2026-05-26 10:00:05', 'UTC');
+             $interruptingEvent = new BuildQueue($station, $atTop, $atTop, null, true);
+             $this->scheduler->buildTopOfHourId($interruptingEvent);
+diff --git a/util/docker/stations/liquidsoap/azuracast.liq b/util/docker/stations/liquidsoap/azuracast.liq
+index 9e51b67..eea95b4 100644
+--- a/util/docker/stations/liquidsoap/azuracast.liq
++++ b/util/docker/stations/liquidsoap/azuracast.liq
+@@ -109,6 +109,45 @@ let settings.azuracast.apply_amplify = settings.make(
+     true
+ )
+ 
++let settings.azuracast.top_of_hour_hard_trigger_enabled = settings.make(
++    description=
++        "Belt-and-suspenders top-of-hour safety net driven purely by the system "
++        ^ "clock (independent of the AzuraCast AutoDJ queue). Guarantees the "
++        ^ "safety ID plays across the hour boundary even if nothing was queued "
++        ^ "in time.",
++    false
++)
++
++let settings.azuracast.top_of_hour_hard_trigger_seconds = settings.make(
++    description=
++        "Width (in seconds) of the window immediately *before* :00 during "
++        ^ "which the hard clock trigger is armed and will force the safety "
++        ^ "source if reached.",
++    3.0
++)
++
++let settings.azuracast.top_of_hour_hard_trigger_fade = settings.make(
++    description="Fade duration (seconds) used when the hard clock trigger switches sources.",
++    3.0
++)
++
++let settings.azuracast.top_of_hour_duck_enabled = settings.make(
++    description=
++        "When true, top-of-hour legal IDs/promos duck (lower) the music bed "
++        ^ "under them via smooth_add instead of a hard cut/fade transition.",
++    false
++)
++
++let settings.azuracast.top_of_hour_duck_attenuation = settings.make(
++    description="How much to lower the music bed by while ducking (fraction of full volume, e.g. 0.2 = -14dB-ish).",
++    0.2
++)
++
++let settings.azuracast.top_of_hour_duck_delay = settings.make(
++    description="How many seconds smooth_add takes to fade the music bed down/back up around the ducked source.",
++    3.0
++)
++
+ #<-----
+ Variables
+ ----->#
+@@ -740,6 +779,87 @@ def azuracast.apply_amplify(s) =
+     end
+ end
+ 
++#<-----
++Top-of-Hour Hard Clock Trigger
++----->#
++
++# True only during the last `top_of_hour_hard_trigger_seconds` of the hour --
++# i.e. this is a pure wall-clock predicate, computed from `time()`, with no
++# dependency on AzuraCast's AutoDJ queue or API calls. Used as the very last
++# line of defense: even if the PHP-side scheduler failed to queue anything
++# (queue was empty, station just restarted, a bug, etc.), this still forces
++# the safety source across the boundary.
++def azuracast.top_of_hour_hard_trigger_predicate() =
++    t = int_of_float(time())
++    s_in_hour = t mod 3600
++    (3600.0 - float_of_int(s_in_hour)) <= settings.azuracast.top_of_hour_hard_trigger_seconds()
++end
++
++# Wraps `s` (the normal AzuraCast source chain, including the PHP-driven
++# interrupting queue) with a clock-triggered switch to `safety_source`
++# (typically a fallback reading a tagged legal-ID/station-ID file directly
++# off disk). track_sensitive=false so it can cut in mid-track if it has to;
++# each transition does a real audible fade rather than a hard cut, using
++# Liquidsoap's own fade.in/fade.out -- not metadata the AutoDJ layer computed
++# in advance, so this stays correct even if playback has drifted.
++def azuracast.apply_top_of_hour_hard_trigger(safety_source, s) =
++    if settings.azuracast.top_of_hour_hard_trigger_enabled() then
++        fade_secs = settings.azuracast.top_of_hour_hard_trigger_fade()
++
++        # NOTE: switch()'s `transitions` callbacks receive plain sources
++        # (unlike cross()'s transition callback, which receives records with
++        # .source/.metadata -- see live_aware_crossfade_impl above, don't mix
++        # the two patterns up).
++        def transition(old, new) =
++            add(normalize=false, [
++                fade.in(duration=fade_secs, new),
++                fade.out(duration=fade_secs, old)
++            ])
++        end
++
++        switch(
++            id="top_of_hour_hard_trigger",
++            track_sensitive=false,
++            transitions=[transition, transition],
++            [
++                ({azuracast.top_of_hour_hard_trigger_predicate()}, safety_source),
++                ({true}, s)
++            ]
++        )
++    else
++        s
++    end
++end
++
++#<-----
++Smart Ducking (voiceovers/promos/legal IDs over a music bed)
++----->#
++
++# Ducks `music` under `voiceover` using smooth_add: the music bed is
++# automatically lowered by `top_of_hour_duck_attenuation` a moment before
++# `voiceover` starts, held down for its duration, then smoothly swelled back
++# to full volume afterward -- instead of a hard cut or a straight crossfade.
++# `voiceover` should be a request.queue or similar source that is normally
++# silent/empty and only produces audio when something is pushed to it.
++def azuracast.duck(~id="duck", ~voiceover, music) =
++    if settings.azuracast.top_of_hour_duck_enabled() then
++        # Note: not all Liquidsoap versions accept an `id` parameter on
++        # smooth_add, so it's intentionally omitted here (unlike the
++        # fallback() branch below, which does support it).
++        smooth_add(
++            delay=settings.azuracast.top_of_hour_duck_delay(),
++            p=settings.azuracast.top_of_hour_duck_attenuation(),
++            normal=music,
++            special=voiceover
++        )
++    else
++        # Ducking disabled: just play the voiceover in-line, no music bed
++        # attenuation. Falls back to a plain track-insensitive fallback so
++        # voiceover content still preempts music when pushed.
++        fallback(id=id, track_sensitive=false, [voiceover, music])
++    end
++end
++
+ #<-----
+ Debugging
+ ----->#

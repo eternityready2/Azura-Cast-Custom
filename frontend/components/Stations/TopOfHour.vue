@@ -108,6 +108,140 @@
                         >
                     </form-group>
 
+                    <hr class="my-4">
+
+                    <h3 class="h6">
+                        {{ $gettext('Hard Clock Trigger') }}
+                    </h3>
+                    <p class="text-secondary small">
+                        {{
+                            $gettext(
+                                'Belt-and-suspenders safety net driven purely by the system clock, independent of the AutoDJ queue. If nothing was queued in time, this forces a fallback ID/announcement across the hour boundary with a smooth fade rather than a hard cut.'
+                            )
+                        }}
+                    </p>
+
+                    <form-group
+                        id="top_of_hour_hard_trigger_enabled"
+                        class="mb-3"
+                    >
+                        <template #label>
+                            {{ $gettext('Enable hard clock trigger') }}
+                        </template>
+
+                        <form-checkbox
+                            id="top_of_hour_hard_trigger_enabled"
+                            v-model="form.top_of_hour_hard_trigger_enabled"
+                        />
+                    </form-group>
+
+                    <template v-if="form.top_of_hour_hard_trigger_enabled">
+                        <form-group
+                            id="top_of_hour_hard_trigger_seconds"
+                            class="mb-3"
+                        >
+                            <template #label>
+                                {{ $gettext('Trigger window (seconds before :00)') }}
+                            </template>
+
+                            <input
+                                id="top_of_hour_hard_trigger_seconds"
+                                v-model.number="form.top_of_hour_hard_trigger_seconds"
+                                type="number"
+                                class="form-control"
+                                min="1"
+                                max="30"
+                                step="0.5"
+                            >
+                        </form-group>
+
+                        <form-group
+                            id="top_of_hour_hard_trigger_fade"
+                            class="mb-3"
+                        >
+                            <template #label>
+                                {{ $gettext('Fade duration (seconds)') }}
+                            </template>
+
+                            <input
+                                id="top_of_hour_hard_trigger_fade"
+                                v-model.number="form.top_of_hour_hard_trigger_fade"
+                                type="number"
+                                class="form-control"
+                                min="0"
+                                max="10"
+                                step="0.5"
+                            >
+                        </form-group>
+                    </template>
+
+                    <hr class="my-4">
+
+                    <h3 class="h6">
+                        {{ $gettext('Smart Ducking') }}
+                    </h3>
+                    <p class="text-secondary small">
+                        {{
+                            $gettext(
+                                'When enabled, legal IDs and promos lower the music bed under them instead of hard-replacing it, then smoothly bring the music back up afterward.'
+                            )
+                        }}
+                    </p>
+
+                    <form-group
+                        id="top_of_hour_duck_enabled"
+                        class="mb-3"
+                    >
+                        <template #label>
+                            {{ $gettext('Enable smart ducking') }}
+                        </template>
+
+                        <form-checkbox
+                            id="top_of_hour_duck_enabled"
+                            v-model="form.top_of_hour_duck_enabled"
+                        />
+                    </form-group>
+
+                    <template v-if="form.top_of_hour_duck_enabled">
+                        <form-group
+                            id="top_of_hour_duck_attenuation"
+                            class="mb-3"
+                        >
+                            <template #label>
+                                {{ $gettext('Music bed level while ducked (0 = silent, 1 = full volume)') }}
+                            </template>
+
+                            <input
+                                id="top_of_hour_duck_attenuation"
+                                v-model.number="form.top_of_hour_duck_attenuation"
+                                type="number"
+                                class="form-control"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                            >
+                        </form-group>
+
+                        <form-group
+                            id="top_of_hour_duck_delay"
+                            class="mb-3"
+                        >
+                            <template #label>
+                                {{ $gettext('Ducking fade time (seconds)') }}
+                            </template>
+
+                            <input
+                                id="top_of_hour_duck_delay"
+                                v-model.number="form.top_of_hour_duck_delay"
+                                type="number"
+                                class="form-control"
+                                min="0.5"
+                                max="15"
+                                step="0.5"
+                            >
+                        </form-group>
+                    </template>
+
                     <p class="text-secondary mb-3">
                         {{
                             $gettext(
@@ -213,6 +347,12 @@ interface TopOfHourSettings {
     top_of_hour_compliance_tolerance_seconds: number;
     top_of_hour_finish_buffer_seconds: number;
     top_of_hour_id_max_seconds: number;
+    top_of_hour_hard_trigger_enabled: boolean;
+    top_of_hour_hard_trigger_seconds: number;
+    top_of_hour_hard_trigger_fade: number;
+    top_of_hour_duck_enabled: boolean;
+    top_of_hour_duck_attenuation: number;
+    top_of_hour_duck_delay: number;
     id_media_count?: number;
     legal_id_media_count: number;
     compliance?: TopOfHourCompliance;
@@ -236,6 +376,12 @@ const form = ref({
     top_of_hour_compliance_tolerance_seconds: 10,
     top_of_hour_finish_buffer_seconds: 15,
     top_of_hour_id_max_seconds: 60,
+    top_of_hour_hard_trigger_enabled: false,
+    top_of_hour_hard_trigger_seconds: 3,
+    top_of_hour_hard_trigger_fade: 3,
+    top_of_hour_duck_enabled: false,
+    top_of_hour_duck_attenuation: 0.2,
+    top_of_hour_duck_delay: 3,
 });
 
 const loadSettings = async () => {
@@ -249,6 +395,12 @@ const loadSettings = async () => {
             top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds,
             top_of_hour_finish_buffer_seconds: data.top_of_hour_finish_buffer_seconds,
             top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds,
+            top_of_hour_hard_trigger_enabled: data.top_of_hour_hard_trigger_enabled,
+            top_of_hour_hard_trigger_seconds: data.top_of_hour_hard_trigger_seconds,
+            top_of_hour_hard_trigger_fade: data.top_of_hour_hard_trigger_fade,
+            top_of_hour_duck_enabled: data.top_of_hour_duck_enabled,
+            top_of_hour_duck_attenuation: data.top_of_hour_duck_attenuation,
+            top_of_hour_duck_delay: data.top_of_hour_duck_delay,
         };
         legalIdMediaCount.value = data.id_media_count ?? data.legal_id_media_count ?? 0;
         compliance.value = data.compliance ?? null;

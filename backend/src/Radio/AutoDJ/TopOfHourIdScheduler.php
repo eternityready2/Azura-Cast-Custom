@@ -88,30 +88,45 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
-        if (!$isInterrupting) {
-            $this->logger->info('[TOPH DEBUG] Skipping TOPH: waiting for interrupting queue at hour boundary.');
-            return;
-        }
-
         $emergencyActive = $this->conflictChecker->hasEmergencyScheduleActive($station, $expectedPlayTime);
         if ($emergencyActive) {
             $this->logger->info('[TOPH DEBUG] Skipping TOPH: emergency schedule active.');
             return;
         }
 
-        $timezone = $station->getTimezoneObject();
-        $local = $expectedPlayTime->setTimezone($timezone);
-        $secondsAfterTop = $local->getTimestamp() - $local->setTime((int)$local->format('H'), 0)->getTimestamp();
-        $tolerance = $this->hourBoundaryPlanner->getComplianceToleranceSeconds($station);
         $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt($station, $expectedPlayTime);
-        $isDue = $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime);
 
-        $this->logger->info('[TOPH DEBUG] Interrupt due evaluation.', [
-            'seconds_after_top' => $secondsAfterTop,
-            'tolerance_seconds' => $tolerance,
-            'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
-            'is_due' => $isDue,
-        ]);
+        // Two distinct triggers, not mutually exclusive with priority:
+        //
+        // 1. Normal advance queuing (NOT interrupting): fires up to
+        //    `finish_buffer + id_max_seconds` seconds before :00, using the
+        //    same lookahead math HourBoundaryPlanner already exposes. This is
+        //    the path that actually gets the ID placed into the ordinary
+        //    AutoDJ queue ahead of time -- previously this method returned
+        //    immediately whenever `$isInterrupting` was false, which meant
+        //    this path never ran and isTopOfHourIdDue() was effectively dead
+        //    code. Compliance depended entirely on trigger #2 below landing
+        //    inside a narrow tolerance window on a once-a-minute cron tick,
+        //    which is why on-time rate was so low.
+        //
+        // 2. Interrupting fallback: a tight window right at/after :00, only
+        //    used as a safety net if #1 didn't already get the ID queued
+        //    (e.g. queue was empty, station just came online).
+        if ($isInterrupting) {
+            $isDue = $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime);
+
+            $this->logger->info('[TOPH DEBUG] Interrupt-fallback due evaluation.', [
+                'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+                'is_due' => $isDue,
+            ]);
+        } else {
+            $isDue = $this->hourBoundaryPlanner->isTopOfHourIdDue($station, $expectedPlayTime);
+
+            $this->logger->info('[TOPH DEBUG] Advance-queuing due evaluation.', [
+                'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+                'is_due' => $isDue,
+            ]);
+        }
 
         if (!$isDue) {
             $this->logger->info('[TOPH DEBUG] Skipping TOPH: ID is not due.');

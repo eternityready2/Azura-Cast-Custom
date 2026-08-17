@@ -92,6 +92,108 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         set(int|string|null $value) => Types::int($value, self::DEFAULT_QUEUE_LENGTH);
     }
 
+    // 0 = disabled (track-count queue length only, legacy behavior).
+    // When set, Queue::buildQueue() keeps building forward -- beyond the
+    // track-count minimum above -- until the queue is planned out at least
+    // this many minutes in wall-clock time, so clock wheels and playlists
+    // are resolved well ahead of the moment they actually air.
+    //
+    // Queue::buildQueue() is already called continuously by the live
+    // now-playing sync task (BuildQueueTask), so setting this to 1440
+    // (24 hours) turns on a genuinely maintained rolling linear log:
+    // every cycle just tops the queue back up to the horizon and lets
+    // already-built rows re-time themselves for drift, rather than
+    // needing a separate one-off job. Capped at 2 days as a sanity limit.
+    protected const int DEFAULT_QUEUE_LOOKAHEAD_MINUTES = 0;
+
+    protected const int MAX_QUEUE_LOOKAHEAD_MINUTES = 2880;
+
+    #[OA\Property]
+    public int $autodj_queue_lookahead_minutes = self::DEFAULT_QUEUE_LOOKAHEAD_MINUTES {
+        set(int|string|null $value) {
+            $intVal = Types::int($value, self::DEFAULT_QUEUE_LOOKAHEAD_MINUTES);
+            $this->autodj_queue_lookahead_minutes = max(
+                0,
+                min($intVal, self::MAX_QUEUE_LOOKAHEAD_MINUTES)
+            );
+        }
+    }
+
+    // Opt-in: when enabled, BuildLinearLogTask keeps this station's log built out
+    // to `linear_log_hours` automatically (hourly). Off by default so nothing
+    // changes for stations that haven't asked for a linear log.
+    #[OA\Property]
+    public bool $linear_log_enabled = false {
+        set(bool|null $value) => Types::bool($value);
+    }
+
+    protected const int DEFAULT_LINEAR_LOG_HOURS = 24;
+
+    protected const int MAX_LINEAR_LOG_HOURS = 48;
+
+    #[OA\Property]
+    public int $linear_log_hours = self::DEFAULT_LINEAR_LOG_HOURS {
+        set(int|string|null $value) {
+            $intVal = Types::int($value, self::DEFAULT_LINEAR_LOG_HOURS);
+            $this->linear_log_hours = max(1, min($intVal, self::MAX_LINEAR_LOG_HOURS));
+        }
+    }
+
+    // Liquidsoap-level, wall-clock-driven safety net (see azuracast.liq
+    // apply_top_of_hour_hard_trigger). Independent of whether AzuraCast's
+    // PHP-side AutoDJ successfully queued anything -- a true last resort.
+    #[OA\Property]
+    public bool $top_of_hour_hard_trigger_enabled = false {
+        set(bool|null $value) => Types::bool($value);
+    }
+
+    protected const float DEFAULT_HARD_TRIGGER_SECONDS = 3.0;
+
+    #[OA\Property]
+    public float $top_of_hour_hard_trigger_seconds = self::DEFAULT_HARD_TRIGGER_SECONDS {
+        set(float|int|string|null $value) {
+            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_SECONDS);
+            $this->top_of_hour_hard_trigger_seconds = max(1.0, min($floatVal, 30.0));
+        }
+    }
+
+    protected const float DEFAULT_HARD_TRIGGER_FADE = 3.0;
+
+    #[OA\Property]
+    public float $top_of_hour_hard_trigger_fade = self::DEFAULT_HARD_TRIGGER_FADE {
+        set(float|int|string|null $value) {
+            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_FADE);
+            $this->top_of_hour_hard_trigger_fade = max(0.0, min($floatVal, 10.0));
+        }
+    }
+
+    // Smart ducking (Liquidsoap smooth_add) for the interrupting queue --
+    // legal IDs/promos lower the music bed instead of hard-replacing it.
+    #[OA\Property]
+    public bool $top_of_hour_duck_enabled = false {
+        set(bool|null $value) => Types::bool($value);
+    }
+
+    protected const float DEFAULT_DUCK_ATTENUATION = 0.2;
+
+    #[OA\Property]
+    public float $top_of_hour_duck_attenuation = self::DEFAULT_DUCK_ATTENUATION {
+        set(float|int|string|null $value) {
+            $floatVal = Types::float($value, self::DEFAULT_DUCK_ATTENUATION);
+            $this->top_of_hour_duck_attenuation = max(0.0, min($floatVal, 1.0));
+        }
+    }
+
+    protected const float DEFAULT_DUCK_DELAY = 3.0;
+
+    #[OA\Property]
+    public float $top_of_hour_duck_delay = self::DEFAULT_DUCK_DELAY {
+        set(float|int|string|null $value) {
+            $floatVal = Types::float($value, self::DEFAULT_DUCK_DELAY);
+            $this->top_of_hour_duck_delay = max(0.5, min($floatVal, 15.0));
+        }
+    }
+
     #[OA\Property]
     public string $dj_mount_point = '/' {
         set (string|null $value) => Types::string($value, '/', true);

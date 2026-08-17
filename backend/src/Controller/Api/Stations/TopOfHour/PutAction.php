@@ -46,6 +46,12 @@ final class PutAction implements SingleActionInterface
         'top_of_hour_compliance_tolerance_seconds',
         'top_of_hour_finish_buffer_seconds',
         'top_of_hour_id_max_seconds',
+        'top_of_hour_hard_trigger_enabled',
+        'top_of_hour_hard_trigger_seconds',
+        'top_of_hour_hard_trigger_fade',
+        'top_of_hour_duck_enabled',
+        'top_of_hour_duck_attenuation',
+        'top_of_hour_duck_delay',
     ];
 
     public function __construct(

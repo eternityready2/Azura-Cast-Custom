@@ -57,6 +57,13 @@ final class ContentTypeCrossfadeAnnotator implements EventSubscriberInterface
             return;
         }
 
+        // HourBoundaryAnnotator::applyTopOfHourPreIdFade (priority 10) already set
+        // a deliberate fade_out for this row so it ends cleanly before a due
+        // top-of-hour ID -- don't let the generic content-type matrix clobber it.
+        if ($queue->top_of_hour_pre_id_fade ?? false) {
+            return;
+        }
+
         $station = $event->getStation();
         $fromType = $this->historyRepo->getLastPlayedMediaType($station) ?? 'music';
         $toType = $media->type ?? 'music';

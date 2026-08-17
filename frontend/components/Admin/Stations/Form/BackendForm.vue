@@ -301,6 +301,35 @@
                         :description="$gettext('This determines how many songs in advance the AutoDJ will automatically fill the queue.')"
                     />
 
+                    <form-group-field
+                        id="edit_form_backend_autodj_queue_lookahead_minutes"
+                        class="col-md-6"
+                        :field="r$.backend_config.autodj_queue_lookahead_minutes"
+                        input-type="number"
+                        :input-attrs="{ min: '0', max: '180' }"
+                        :label="$gettext('AutoDJ Queue Time Lookahead (Minutes)')"
+                        :description="$gettext('Optional. Keeps the queue built out at least this many minutes ahead in wall-clock time, regardless of the song-count queue length above, so clock wheels, schedules, and top-of-hour IDs are resolved well in advance instead of only a few tracks out. 0 disables this and uses the song-count queue length only.')"
+                    />
+
+                    <form-group-checkbox
+                        id="edit_form_backend_linear_log_enabled"
+                        class="col-md-6"
+                        :field="r$.backend_config.linear_log_enabled"
+                        :label="$gettext('Build Linear Log In Advance')"
+                        :description="$gettext('When enabled, an hourly background task keeps this station\'s playout log built out to the number of hours below, ahead of real time -- similar to a traditional 24-hour advance log.')"
+                    />
+
+                    <form-group-field
+                        v-if="r$.backend_config.linear_log_enabled.$model"
+                        id="edit_form_backend_linear_log_hours"
+                        class="col-md-6"
+                        :field="r$.backend_config.linear_log_hours"
+                        input-type="number"
+                        :input-attrs="{ min: '1', max: '48' }"
+                        :label="$gettext('Linear Log Hours In Advance')"
+                        :description="$gettext('How many hours ahead the automatic linear log should be kept built out to.')"
+                    />
+
                     <form-group-multi-check
                         id="edit_form_backend_charset"
                         class="col-md-6"

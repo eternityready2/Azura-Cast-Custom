@@ -584,6 +584,34 @@ final class QueueBuilder implements EventSubscriberInterface
             $stationQueueEntry->duration = (float)$maxPlaySeconds;
         }
 
+        // Dedicated early fade-out ahead of a due top-of-hour legal ID. This is
+        // separate from the scheduled-transition cap above, which intentionally
+        // does not touch TOPH (see comment above). applyHourBoundarySelection()
+        // already tries to pick a track that fits before :00 outright; this is
+        // the backstop for when no fitting track exists (e.g. a short playlist
+        // of long-form tracks) -- instead of a silent hard cut, the track is
+        // capped AND explicitly flagged to fade out over the last few seconds,
+        // so the ID at :58/:59 starts cleanly. Only active when top-of-hour ID
+        // protection is enabled and this track lands in the pre-:00 lookahead
+        // window (maxMusicDurationBeforeTopOfHour() returns null otherwise).
+        $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
+            $playlist->station,
+            $expectedPlayTime,
+        );
+
+        if (null !== $topOfHourMaxDuration && $mediaToPlay->getCalculatedLength() > $topOfHourMaxDuration) {
+            $cappedSeconds = (int)floor($topOfHourMaxDuration);
+
+            $fadeOutSeconds = min(
+                $playlist->station->backend_config->getCrossfadeDuration(),
+                (float)$cappedSeconds
+            );
+
+            $stationQueueEntry->top_of_hour_pre_id_fade = true;
+            $stationQueueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
+            $stationQueueEntry->duration = (float)$cappedSeconds;
+        }
+
         if (!$deferQueuePersistence) {
             $this->em->persist($stationQueueEntry);
         }

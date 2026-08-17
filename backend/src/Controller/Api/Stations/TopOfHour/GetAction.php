@@ -71,6 +71,12 @@ final class GetAction implements SingleActionInterface
             'top_of_hour_compliance_tolerance_seconds' => $backendConfig->top_of_hour_compliance_tolerance_seconds,
             'top_of_hour_finish_buffer_seconds' => $backendConfig->top_of_hour_finish_buffer_seconds,
             'top_of_hour_id_max_seconds' => $backendConfig->top_of_hour_id_max_seconds,
+            'top_of_hour_hard_trigger_enabled' => $backendConfig->top_of_hour_hard_trigger_enabled,
+            'top_of_hour_hard_trigger_seconds' => $backendConfig->top_of_hour_hard_trigger_seconds,
+            'top_of_hour_hard_trigger_fade' => $backendConfig->top_of_hour_hard_trigger_fade,
+            'top_of_hour_duck_enabled' => $backendConfig->top_of_hour_duck_enabled,
+            'top_of_hour_duck_attenuation' => $backendConfig->top_of_hour_duck_attenuation,
+            'top_of_hour_duck_delay' => $backendConfig->top_of_hour_duck_delay,
             'id_media_count' => $idMediaCount,
             'legal_id_media_count' => $idMediaCount,
             'compliance' => $this->eventRepo->getStationTopOfHourLegalIdComplianceSummary(

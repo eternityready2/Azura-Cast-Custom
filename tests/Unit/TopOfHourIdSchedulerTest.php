@@ -26,17 +26,43 @@ final class TopOfHourIdSchedulerTest extends Unit
         $this->scheduler = $testsModule->container->get(TopOfHourIdScheduler::class);
     }
 
-    public function testTopOfHourUsesInterruptingQueueOnlyAtHourBoundary(): void
+    public function testTopOfHourAdvanceQueuingFiresWithinBufferWindow(): void
     {
         [$station, $media] = $this->persistStationWithId();
 
         try {
-            $beforeTop = CarbonImmutable::parse('2026-05-26 09:59:59', 'UTC');
-            $normalEvent = new BuildQueue($station, $beforeTop, $beforeTop);
+            // Well outside the pre-:00 buffer window (finish_buffer=15s + id_max=60s = 75s
+            // by default) -- normal (non-interrupting) advance queuing should not fire yet.
+            $tooEarly = CarbonImmutable::parse('2026-05-26 09:30:00', 'UTC');
+            $tooEarlyEvent = new BuildQueue($station, $tooEarly, $tooEarly);
+            $this->scheduler->buildTopOfHourId($tooEarlyEvent);
+
+            self::assertSame([], $tooEarlyEvent->getNextSongs());
+
+            // Inside the buffer window, normal (non-interrupting) advance queuing is what
+            // actually places the ID into the ordinary AutoDJ queue ahead of time -- this
+            // is the path that makes top-of-hour compliance work at all; relying solely on
+            // the narrow interrupting-queue window below is what caused it to be unreliable.
+            $withinBuffer = CarbonImmutable::parse('2026-05-26 09:59:59', 'UTC');
+            $normalEvent = new BuildQueue($station, $withinBuffer, $withinBuffer);
             $this->scheduler->buildTopOfHourId($normalEvent);
 
-            self::assertSame([], $normalEvent->getNextSongs());
+            self::assertCount(1, $normalEvent->getNextSongs());
+            $selected = $normalEvent->getNextSongs()[0];
+            self::assertTrue($selected->top_of_hour_legal_id);
+            self::assertSame($media->id, $selected->media?->id);
+        } finally {
+            $this->removeTestEntities($station, $media);
+        }
+    }
 
+    public function testTopOfHourInterruptingFallbackFiresAtHourBoundary(): void
+    {
+        [$station, $media] = $this->persistStationWithId();
+
+        try {
+            // Safety-net path: used when advance queuing above didn't already place the ID
+            // (e.g. the queue was empty going into the hour, or the station just started).
             $atTop = CarbonImmutable::parse('2026-05-26 10:00:05', 'UTC');
             $interruptingEvent = new BuildQueue($station, $atTop, $atTop, null, true);
             $this->scheduler->buildTopOfHourId($interruptingEvent);

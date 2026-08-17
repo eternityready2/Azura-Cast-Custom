@@ -2253,6 +2253,9 @@ export interface StationBackendConfiguration {
   record_streams_bitrate?: number;
   use_manual_autodj?: boolean;
   autodj_queue_length?: number;
+  autodj_queue_lookahead_minutes?: number;
+  linear_log_enabled?: boolean;
+  linear_log_hours?: number;
   dj_mount_point?: string;
   dj_buffer?: number;
   audio_processing_method?: string;

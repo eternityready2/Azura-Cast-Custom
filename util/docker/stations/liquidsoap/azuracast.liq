@@ -109,6 +109,45 @@ let settings.azuracast.apply_amplify = settings.make(
     true
 )
 
+let settings.azuracast.top_of_hour_hard_trigger_enabled = settings.make(
+    description=
+        "Belt-and-suspenders top-of-hour safety net driven purely by the system "
+        ^ "clock (independent of the AzuraCast AutoDJ queue). Guarantees the "
+        ^ "safety ID plays across the hour boundary even if nothing was queued "
+        ^ "in time.",
+    false
+)
+
+let settings.azuracast.top_of_hour_hard_trigger_seconds = settings.make(
+    description=
+        "Width (in seconds) of the window immediately *before* :00 during "
+        ^ "which the hard clock trigger is armed and will force the safety "
+        ^ "source if reached.",
+    3.0
+)
+
+let settings.azuracast.top_of_hour_hard_trigger_fade = settings.make(
+    description="Fade duration (seconds) used when the hard clock trigger switches sources.",
+    3.0
+)
+
+let settings.azuracast.top_of_hour_duck_enabled = settings.make(
+    description=
+        "When true, top-of-hour legal IDs/promos duck (lower) the music bed "
+        ^ "under them via smooth_add instead of a hard cut/fade transition.",
+    false
+)
+
+let settings.azuracast.top_of_hour_duck_attenuation = settings.make(
+    description="How much to lower the music bed by while ducking (fraction of full volume, e.g. 0.2 = -14dB-ish).",
+    0.2
+)
+
+let settings.azuracast.top_of_hour_duck_delay = settings.make(
+    description="How many seconds smooth_add takes to fade the music bed down/back up around the ducked source.",
+    3.0
+)
+
 #<-----
 Variables
 ----->#
@@ -737,6 +776,87 @@ def azuracast.apply_amplify(s) =
         (amplify(1., s) : source)
     else
         s
+    end
+end
+
+#<-----
+Top-of-Hour Hard Clock Trigger
+----->#
+
+# True only during the last `top_of_hour_hard_trigger_seconds` of the hour --
+# i.e. this is a pure wall-clock predicate, computed from `time()`, with no
+# dependency on AzuraCast's AutoDJ queue or API calls. Used as the very last
+# line of defense: even if the PHP-side scheduler failed to queue anything
+# (queue was empty, station just restarted, a bug, etc.), this still forces
+# the safety source across the boundary.
+def azuracast.top_of_hour_hard_trigger_predicate() =
+    t = int_of_float(time())
+    s_in_hour = t mod 3600
+    (3600.0 - float_of_int(s_in_hour)) <= settings.azuracast.top_of_hour_hard_trigger_seconds()
+end
+
+# Wraps `s` (the normal AzuraCast source chain, including the PHP-driven
+# interrupting queue) with a clock-triggered switch to `safety_source`
+# (typically a fallback reading a tagged legal-ID/station-ID file directly
+# off disk). track_sensitive=false so it can cut in mid-track if it has to;
+# each transition does a real audible fade rather than a hard cut, using
+# Liquidsoap's own fade.in/fade.out -- not metadata the AutoDJ layer computed
+# in advance, so this stays correct even if playback has drifted.
+def azuracast.apply_top_of_hour_hard_trigger(safety_source, s) =
+    if settings.azuracast.top_of_hour_hard_trigger_enabled() then
+        fade_secs = settings.azuracast.top_of_hour_hard_trigger_fade()
+
+        # NOTE: switch()'s `transitions` callbacks receive plain sources
+        # (unlike cross()'s transition callback, which receives records with
+        # .source/.metadata -- see live_aware_crossfade_impl above, don't mix
+        # the two patterns up).
+        def transition(old, new) =
+            add(normalize=false, [
+                fade.in(duration=fade_secs, new),
+                fade.out(duration=fade_secs, old)
+            ])
+        end
+
+        switch(
+            id="top_of_hour_hard_trigger",
+            track_sensitive=false,
+            transitions=[transition, transition],
+            [
+                ({azuracast.top_of_hour_hard_trigger_predicate()}, safety_source),
+                ({true}, s)
+            ]
+        )
+    else
+        s
+    end
+end
+
+#<-----
+Smart Ducking (voiceovers/promos/legal IDs over a music bed)
+----->#
+
+# Ducks `music` under `voiceover` using smooth_add: the music bed is
+# automatically lowered by `top_of_hour_duck_attenuation` a moment before
+# `voiceover` starts, held down for its duration, then smoothly swelled back
+# to full volume afterward -- instead of a hard cut or a straight crossfade.
+# `voiceover` should be a request.queue or similar source that is normally
+# silent/empty and only produces audio when something is pushed to it.
+def azuracast.duck(~id="duck", ~voiceover, music) =
+    if settings.azuracast.top_of_hour_duck_enabled() then
+        # Note: not all Liquidsoap versions accept an `id` parameter on
+        # smooth_add, so it's intentionally omitted here (unlike the
+        # fallback() branch below, which does support it).
+        smooth_add(
+            delay=settings.azuracast.top_of_hour_duck_delay(),
+            p=settings.azuracast.top_of_hour_duck_attenuation(),
+            normal=music,
+            special=voiceover
+        )
+    else
+        # Ducking disabled: just play the voiceover in-line, no music bed
+        # attenuation. Falls back to a plain track-insensitive fallback so
+        # voiceover content still preempts music when pushed.
+        fallback(id=id, track_sensitive=false, [voiceover, music])
     end
 end
 

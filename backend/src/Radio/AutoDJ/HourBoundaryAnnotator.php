@@ -20,9 +20,49 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         return [
             AnnotateNextSong::class => [
                 ['applyHourBoundaryCap', 11],
+                ['applyTopOfHourPreIdFade', 10],
                 ['applyLegalIdQuickCut', 9],
             ],
         ];
+    }
+
+    /**
+     * Fades the outgoing track down over its last few seconds instead of a hard
+     * cut, when it's the track selected immediately before a due top-of-hour ID.
+     * Runs before applyLegalIdQuickCut (which governs the ID's own fade), and
+     * only ever touches rows QueueBuilder explicitly flagged -- so it's a no-op
+     * for every station that doesn't have top-of-hour ID protection enabled.
+     */
+    public function applyTopOfHourPreIdFade(AnnotateNextSong $event): void
+    {
+        if (!$event->isAsAutoDj()) {
+            return;
+        }
+
+        $queue = $event->getQueue();
+        if (!$queue instanceof StationQueue || !$queue->top_of_hour_pre_id_fade) {
+            return;
+        }
+
+        $media = $event->getMedia();
+        if (!$media instanceof StationMedia) {
+            return;
+        }
+
+        $existing = $event->getAnnotations();
+        $cueIn = isset($existing['autocue_cue_in']) ? (float)$existing['autocue_cue_in'] : 0.0;
+
+        $cueOut = $queue->duration ?? min($media->length, $cueIn + 1.0);
+        $fadeOutSeconds = (float)($queue->top_of_hour_pre_id_fade_seconds ?? 0);
+
+        // Fade window can't be longer than the (already-capped) track itself.
+        $fadeOutSeconds = max(0.0, min($fadeOutSeconds, $cueOut - $cueIn));
+
+        $event->addAnnotations([
+            'autocue_cue_out' => $cueOut,
+            'autocue_fade_out' => $fadeOutSeconds,
+            'duration' => $cueOut,
+        ]);
     }
 
     public function applyHourBoundaryCap(AnnotateNextSong $event): void

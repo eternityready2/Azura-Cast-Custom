@@ -35,8 +35,18 @@ final class Queue
     ) {
     }
 
-    public function buildQueue(Station $station): void
-    {
+    /**
+     * @param int|null $lookaheadMinutesOverride When given, builds forward to at least
+     *        this many minutes regardless of the station's configured
+     *        `autodj_queue_lookahead_minutes`. Used by the linear-log builder to project
+     *        a full day ahead on demand without changing the station's live setting.
+     * @param int|null $maxTracksOverride Safety cap override to match a larger horizon.
+     */
+    public function buildQueue(
+        Station $station,
+        ?int $lookaheadMinutesOverride = null,
+        ?int $maxTracksOverride = null,
+    ): void {
         // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
             $this->logger->info('Cannot build queue: station does not support AutoDJ queue.');
@@ -63,6 +73,22 @@ final class Queue
         }
 
         $maxQueueLength = max($station->backend_config->autodj_queue_length, 2);
+
+        // Track-count queue length alone (default 3, sometimes set as low as 2)
+        // does not reliably reach far enough into the future for clock wheels,
+        // schedules, or top-of-hour logic to resolve tracks in advance -- how
+        // far ahead in *time* that represents depends entirely on how long the
+        // next few songs happen to be. When configured, this makes the queue
+        // keep building until it reaches a guaranteed minimum time horizon,
+        // independent of track length.
+        $lookaheadMinutes = $lookaheadMinutesOverride ?? $station->backend_config->autodj_queue_lookahead_minutes;
+        $lookaheadHorizon = $lookaheadMinutes > 0
+            ? Time::nowUtc()->modify('+' . $lookaheadMinutes . ' minutes')
+            : null;
+
+        // Hard safety cap so a misconfigured horizon (or a station with very
+        // short tracks) can't spin this into an unbounded loop.
+        $maxLookaheadTracks = $maxTracksOverride ?? 500;
 
         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
 
@@ -109,8 +135,14 @@ final class Queue
         // so a selector gets another chance to choose a different track, instead of
         // silently halting queue-building and leaving the station with dead air.
         $maxAttemptsPerSlot = 10;
+        $tracksBuiltThisRun = 0;
 
-        while ($queueLength < $maxQueueLength) {
+        while (
+            $queueLength < $maxQueueLength
+            || ($lookaheadHorizon !== null
+                && $expectedPlayTime < $lookaheadHorizon
+                && $tracksBuiltThisRun < $maxLookaheadTracks)
+        ) {
             $nextSongs = [];
             $attempts = 0;
 
@@ -186,6 +218,7 @@ final class Queue
                 );
 
                 $queueLength++;
+                $tracksBuiltThisRun++;
             }
         }
     }

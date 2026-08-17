@@ -121,6 +121,16 @@ final class ConfigWriter implements EventSubscriberInterface
             $backendConfig->live_broadcast_text
         );
 
+        $topOfHourHardTriggerEnabled = ($backendConfig->top_of_hour_id_enabled
+            && $backendConfig->top_of_hour_hard_trigger_enabled) ? 'true' : 'false';
+        $topOfHourHardTriggerSeconds = self::toFloat($backendConfig->top_of_hour_hard_trigger_seconds);
+        $topOfHourHardTriggerFade = self::toFloat($backendConfig->top_of_hour_hard_trigger_fade);
+
+        $topOfHourDuckEnabled = ($backendConfig->top_of_hour_id_enabled
+            && $backendConfig->top_of_hour_duck_enabled) ? 'true' : 'false';
+        $topOfHourDuckAttenuation = self::toFloat($backendConfig->top_of_hour_duck_attenuation);
+        $topOfHourDuckDelay = self::toFloat($backendConfig->top_of_hour_duck_delay);
+
         $fallbackPath = self::toRawString(
             $this->fallbackFile->getFallbackPathForStation($station)
         );
@@ -159,6 +169,14 @@ final class ConfigWriter implements EventSubscriberInterface
             settings.azuracast.crossfade_smart_margin := {$crossfadeSmartMargin}
             
             settings.azuracast.live_broadcast_text := {$liveBroadcastText}
+            
+            settings.azuracast.top_of_hour_hard_trigger_enabled := {$topOfHourHardTriggerEnabled}
+            settings.azuracast.top_of_hour_hard_trigger_seconds := {$topOfHourHardTriggerSeconds}
+            settings.azuracast.top_of_hour_hard_trigger_fade := {$topOfHourHardTriggerFade}
+            
+            settings.azuracast.top_of_hour_duck_enabled := {$topOfHourDuckEnabled}
+            settings.azuracast.top_of_hour_duck_attenuation := {$topOfHourDuckAttenuation}
+            settings.azuracast.top_of_hour_duck_delay := {$topOfHourDuckDelay}
             
             # Start HTTP API Server
             azuracast.start_http_api()
@@ -500,7 +518,23 @@ final class ConfigWriter implements EventSubscriberInterface
             radio = fallback(id="requests_fallback", track_sensitive = true, [requests, radio])
 
             interrupting_queue = request.queue(id="{$interruptingQueueName}", timeout=settings.azuracast.request_timeout())
-            radio = fallback(id="interrupting_fallback", track_sensitive = false, [interrupting_queue, radio])
+
+            # Smart ducking (opt-in): legal IDs/promos lower the music bed under
+            # them via smooth_add instead of hard-replacing it. Falls back to
+            # the previous plain track-insensitive interrupt when disabled.
+            radio = azuracast.duck(id="interrupting_fallback", voiceover=interrupting_queue, radio)
+
+            # Wall-clock-driven top-of-hour safety net (opt-in): guarantees
+            # *something* plays across the hour boundary even if nothing was
+            # ever queued into interrupting_queue above. Reuses the station's
+            # existing dead-air fallback file as the guaranteed-available
+            # safety source -- this is a compliance/dead-air backstop, not a
+            # substitute for AzuraCast correctly selecting the legal ID.
+            top_of_hour_safety_source = single(
+                id="top_of_hour_safety",
+                "annotate:liq_disable_autocue=\"true\":#{settings.azuracast.fallback_path()}"
+            )
+            radio = azuracast.apply_top_of_hour_hard_trigger(top_of_hour_safety_source, radio)
             LIQ
         );
 

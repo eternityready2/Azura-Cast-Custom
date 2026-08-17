@@ -142,6 +142,19 @@ final class StationQueue implements
     public ?int $hour_boundary_max_play_seconds = null;
 
     /**
+     * True when this row is the track selected immediately before a due
+     * top-of-hour legal ID and should be faded out early (rather than
+     * simply hard-cut) so the ID starts cleanly at :58/:59. Only ever set
+     * when station-wide top-of-hour ID protection is enabled.
+     */
+    #[ORM\Column]
+    public bool $top_of_hour_pre_id_fade = false;
+
+    /** Seconds before this track's capped end where the early fade-out should begin. */
+    #[ORM\Column(nullable: true)]
+    public ?int $top_of_hour_pre_id_fade_seconds = null;
+
+    /**
      * Ordered list of Playlist Group names (outermost to innermost) this track was played
      * through, e.g. ["Simple Group", "Sub Group 1"]. Null if played directly (not via a group).
      *
