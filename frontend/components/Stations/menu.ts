@@ -269,6 +269,15 @@ export function useStationsMenu() {
             visible: () => userAllowedForStation(StationPermissions.Reports),
             items: [
                 {
+                    key: 'reports_linear_log',
+                    label: $gettext('24-Hour Playout Log'),
+                    url: {
+                        name: 'stations:reports:linear-log',
+                    },
+                    visible: () => userAllowedForStation(StationPermissions.Broadcasting)
+                        && station.value.features.autoDjQueue
+                },
+                {
                     key: 'reports_overview',
                     label: $gettext('Station Statistics'),
                     url: {

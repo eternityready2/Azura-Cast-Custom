@@ -169,20 +169,24 @@ final class ConfigWriter implements EventSubscriberInterface
             settings.azuracast.crossfade_smart_margin := {$crossfadeSmartMargin}
             
             settings.azuracast.live_broadcast_text := {$liveBroadcastText}
-            
-            settings.azuracast.top_of_hour_hard_trigger_enabled := {$topOfHourHardTriggerEnabled}
-            settings.azuracast.top_of_hour_hard_trigger_seconds := {$topOfHourHardTriggerSeconds}
-            settings.azuracast.top_of_hour_hard_trigger_fade := {$topOfHourHardTriggerFade}
-            
-            settings.azuracast.top_of_hour_duck_enabled := {$topOfHourDuckEnabled}
-            settings.azuracast.top_of_hour_duck_attenuation := {$topOfHourDuckAttenuation}
-            settings.azuracast.top_of_hour_duck_delay := {$topOfHourDuckDelay}
-            
-            # Start HTTP API Server
-            azuracast.start_http_api()
-            
             LIQ
         );
+
+        // Only write these new settings when the respective feature is enabled.
+        // Old Docker images don't have these settings declared in azuracast.liq —
+        // a := assignment on an undeclared setting causes Liquidsoap to crash.
+        if ($hardTriggerEnabled || $duckEnabled) {
+            $event->appendLines([
+                "settings.azuracast.top_of_hour_hard_trigger_enabled := {$topOfHourHardTriggerEnabled}",
+                "settings.azuracast.top_of_hour_hard_trigger_seconds := {$topOfHourHardTriggerSeconds}",
+                "settings.azuracast.top_of_hour_hard_trigger_fade := {$topOfHourHardTriggerFade}",
+                "settings.azuracast.top_of_hour_duck_enabled := {$topOfHourDuckEnabled}",
+                "settings.azuracast.top_of_hour_duck_attenuation := {$topOfHourDuckAttenuation}",
+                "settings.azuracast.top_of_hour_duck_delay := {$topOfHourDuckDelay}",
+            ]);
+        }
+
+        $event->appendLines(['azuracast.start_http_api()']);
 
         $perfMode = $backendConfig->getPerformanceModeEnum();
         if ($perfMode !== StationBackendPerformanceModes::Disabled) {
@@ -512,29 +516,49 @@ final class ConfigWriter implements EventSubscriberInterface
         $requestsQueueName = LiquidsoapQueues::Requests->value;
         $interruptingQueueName = LiquidsoapQueues::Interrupting->value;
 
+        // Build the interrupting-queue block conditionally.
+        // IMPORTANT: azuracast.duck() and azuracast.apply_top_of_hour_hard_trigger()
+        // are only available after the Docker image is rebuilt with the new azuracast.liq.
+        // When both features are disabled (the default), we emit the original
+        // fallback() line so the generated config works with the old image too.
+        // Once the image is rebuilt and features are turned on, the new code path
+        // activates automatically.
+        $duckEnabled = $backendConfig->top_of_hour_id_enabled
+            && $backendConfig->top_of_hour_duck_enabled;
+        $hardTriggerEnabled = $backendConfig->top_of_hour_id_enabled
+            && $backendConfig->top_of_hour_hard_trigger_enabled;
+
+        if ($duckEnabled) {
+            $interruptingBlock = <<<LIQ
+            radio = azuracast.duck(id="interrupting_fallback", voiceover=interrupting_queue, radio)
+            LIQ;
+        } else {
+            // Original safe fallback — works on any Docker image version.
+            $interruptingBlock = <<<LIQ
+            radio = fallback(id="interrupting_fallback", track_sensitive = false, [interrupting_queue, radio])
+            LIQ;
+        }
+
+        if ($hardTriggerEnabled) {
+            $hardTriggerBlock = <<<LIQ
+            top_of_hour_safety_source = single(
+                id="top_of_hour_safety",
+                "annotate:liq_disable_autocue=\"true\":#{settings.azuracast.fallback_path()}"
+            )
+            radio = azuracast.apply_top_of_hour_hard_trigger(top_of_hour_safety_source, radio)
+            LIQ;
+        } else {
+            $hardTriggerBlock = '';
+        }
+
         $event->appendBlock(
             <<< LIQ
             requests = request.queue(id="{$requestsQueueName}", timeout=settings.azuracast.request_timeout())
             radio = fallback(id="requests_fallback", track_sensitive = true, [requests, radio])
 
             interrupting_queue = request.queue(id="{$interruptingQueueName}", timeout=settings.azuracast.request_timeout())
-
-            # Smart ducking (opt-in): legal IDs/promos lower the music bed under
-            # them via smooth_add instead of hard-replacing it. Falls back to
-            # the previous plain track-insensitive interrupt when disabled.
-            radio = azuracast.duck(id="interrupting_fallback", voiceover=interrupting_queue, radio)
-
-            # Wall-clock-driven top-of-hour safety net (opt-in): guarantees
-            # *something* plays across the hour boundary even if nothing was
-            # ever queued into interrupting_queue above. Reuses the station's
-            # existing dead-air fallback file as the guaranteed-available
-            # safety source -- this is a compliance/dead-air backstop, not a
-            # substitute for AzuraCast correctly selecting the legal ID.
-            top_of_hour_safety_source = single(
-                id="top_of_hour_safety",
-                "annotate:liq_disable_autocue=\"true\":#{settings.azuracast.fallback_path()}"
-            )
-            radio = azuracast.apply_top_of_hour_hard_trigger(top_of_hour_safety_source, radio)
+            {$interruptingBlock}
+            {$hardTriggerBlock}
             LIQ
         );
 

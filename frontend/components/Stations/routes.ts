@@ -156,6 +156,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:reports:overview',
                 },
                 {
+                    path: 'reports/linear-log',
+                    component: () => import('~/components/Stations/Reports/LinearLog.vue'),
+                    name: 'stations:reports:linear-log',
+                },
+                {
                     path: 'reports/timeline',
                     component: () => import('~/components/Stations/Reports/Timeline.vue'),
                     name: 'stations:reports:timeline'

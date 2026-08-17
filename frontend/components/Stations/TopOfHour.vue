@@ -152,6 +152,7 @@
                                 min="1"
                                 max="30"
                                 step="0.5"
+                                placeholder="5"
                             >
                         </form-group>
 
@@ -171,6 +172,7 @@
                                 min="0"
                                 max="10"
                                 step="0.5"
+                                placeholder="3"
                             >
                         </form-group>
                     </template>
@@ -219,6 +221,7 @@
                                 min="0"
                                 max="1"
                                 step="0.05"
+                                placeholder="0.2"
                             >
                         </form-group>
 
@@ -238,6 +241,7 @@
                                 min="0.5"
                                 max="15"
                                 step="0.5"
+                                placeholder="3"
                             >
                         </form-group>
                     </template>
@@ -389,18 +393,18 @@ const loadSettings = async () => {
     try {
         const {data} = await axios.get<TopOfHourSettings>(apiUrl.value);
         form.value = {
-            top_of_hour_id_enabled: data.top_of_hour_id_enabled,
-            top_of_hour_id_mode: data.top_of_hour_id_mode,
-            top_of_hour_lookahead_minutes: data.top_of_hour_lookahead_minutes,
-            top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds,
-            top_of_hour_finish_buffer_seconds: data.top_of_hour_finish_buffer_seconds,
-            top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds,
-            top_of_hour_hard_trigger_enabled: data.top_of_hour_hard_trigger_enabled,
-            top_of_hour_hard_trigger_seconds: data.top_of_hour_hard_trigger_seconds,
-            top_of_hour_hard_trigger_fade: data.top_of_hour_hard_trigger_fade,
-            top_of_hour_duck_enabled: data.top_of_hour_duck_enabled,
-            top_of_hour_duck_attenuation: data.top_of_hour_duck_attenuation,
-            top_of_hour_duck_delay: data.top_of_hour_duck_delay,
+            top_of_hour_id_enabled: data.top_of_hour_id_enabled ?? false,
+            top_of_hour_id_mode: data.top_of_hour_id_mode ?? 'strict',
+            top_of_hour_lookahead_minutes: data.top_of_hour_lookahead_minutes ?? 10,
+            top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds ?? 10,
+            top_of_hour_finish_buffer_seconds: data.top_of_hour_finish_buffer_seconds ?? 15,
+            top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds ?? 60,
+            top_of_hour_hard_trigger_enabled: data.top_of_hour_hard_trigger_enabled ?? false,
+            top_of_hour_hard_trigger_seconds: data.top_of_hour_hard_trigger_seconds ?? 5,
+            top_of_hour_hard_trigger_fade: data.top_of_hour_hard_trigger_fade ?? 3,
+            top_of_hour_duck_enabled: data.top_of_hour_duck_enabled ?? false,
+            top_of_hour_duck_attenuation: data.top_of_hour_duck_attenuation ?? 0.2,
+            top_of_hour_duck_delay: data.top_of_hour_duck_delay ?? 3,
         };
         legalIdMediaCount.value = data.id_media_count ?? data.legal_id_media_count ?? 0;
         compliance.value = data.compliance ?? null;

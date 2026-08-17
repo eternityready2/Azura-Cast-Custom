@@ -847,7 +847,7 @@ def azuracast.duck(~id="duck", ~voiceover, music) =
         # smooth_add, so it's intentionally omitted here (unlike the
         # fallback() branch below, which does support it).
         smooth_add(
-            duration=settings.azuracast.top_of_hour_duck_delay(),
+            delay=settings.azuracast.top_of_hour_duck_delay(),
             p=settings.azuracast.top_of_hour_duck_attenuation(),
             normal=music,
             special=voiceover

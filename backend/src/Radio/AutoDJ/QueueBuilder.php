@@ -23,6 +23,7 @@ use App\Entity\StationPlaylistGroupMember;
 use App\Entity\StationPlaylistMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
+use App\Radio\AutoDJ\ClockWheel;
 use App\Radio\PlaylistParser;
 use App\Radio\SmartBlock\SmartBlockPlaybackPreparer;
 use App\Service\HolidayOverrideService;
@@ -44,6 +45,7 @@ final class QueueBuilder implements EventSubscriberInterface
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
         private readonly DuplicatePrevention $duplicatePrevention,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
+        private readonly ClockWheel\ClockWheelStretchCalculator $stretchCalculator,
         private readonly CacheInterface $cache,
         private readonly StationPlaylistGroupMemberRepository $groupMemberRepo,
         private readonly StationPlaylistMediaRepository $spmRepo,
@@ -610,6 +612,24 @@ final class QueueBuilder implements EventSubscriberInterface
             $stationQueueEntry->top_of_hour_pre_id_fade = true;
             $stationQueueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
             $stationQueueEntry->duration = (float)$cappedSeconds;
+        } elseif (null !== $topOfHourMaxDuration) {
+            // Track fits before :00 outright -- but it might be slightly short or
+            // slightly long (within ±5%). Try a pitch-preserving stretch to land the
+            // track *exactly* on the boundary instead of leaving a gap. The same
+            // ClockWheelStretchCalculator used by clock-wheel slots ensures we never
+            // exceed the safe ±5% range. This applies to rotation playlists too,
+            // not just clock wheels.
+            $stretchRatio = $this->stretchCalculator->calculate(
+                $mediaToPlay->getCalculatedLength(),
+                (int)round($topOfHourMaxDuration),
+            );
+
+            if (null !== $stretchRatio) {
+                // Reuse the clock_wheel_stretch_ratio column -- Liquidsoap reads
+                // this from liq_stretch_ratio regardless of whether the track came
+                // from a clock wheel or a rotation playlist.
+                $stationQueueEntry->clock_wheel_stretch_ratio = $stretchRatio;
+            }
         }
 
         if (!$deferQueuePersistence) {

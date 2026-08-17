@@ -11,6 +11,7 @@ use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
+use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Utilities\Time;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -31,6 +32,7 @@ final class Queue
         private readonly EventDispatcherInterface $dispatcher,
         private readonly StationQueueRepository $queueRepo,
         private readonly Scheduler $scheduler,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly QueueLogCache $queueLogCache
     ) {
     }
@@ -110,6 +112,46 @@ final class Queue
                 if (!$this->isQueueRowStillValid($queueRow, $expectedPlayTime)) {
                     $this->em->remove($queueRow);
                     continue;
+                }
+
+                // Advance overflow detection: even if this playlist is still
+                // scheduled, the track may now be too long for the time remaining
+                // before a boundary (top-of-hour or another scheduled start).
+                // Drop it here so the build loop below re-picks a fitting
+                // replacement with full boundary awareness. This is what
+                // professional radio software calls "song fitting" — detected
+                // well in advance (as far as the lookahead horizon reaches),
+                // not only in the final seconds before :00.
+                // Only applies to unsent, unplayed rows with a playlist so that
+                // station IDs, requests, and clock-wheel entries are never
+                // silently dropped.
+                if (
+                    $queueRow->playlist !== null
+                    && !$queueRow->sent_to_autodj
+                    && $this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)
+                ) {
+                    $maxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
+                        $station,
+                        $expectedPlayTime,
+                    );
+
+                    if (
+                        $maxDuration !== null
+                        && ($queueRow->duration ?? 0.0) > $maxDuration
+                        && $queueRow->clock_wheel_stretch_ratio === null
+                    ) {
+                        $this->logger->info(
+                            'Queue: dropping pre-queued track that can no longer fit before top-of-hour boundary; will re-pick.',
+                            [
+                                'song_id' => $queueRow->song_id,
+                                'duration' => $queueRow->duration,
+                                'max_duration' => $maxDuration,
+                                'expected_play_time' => $expectedPlayTime->format('H:i:s'),
+                            ]
+                        );
+                        $this->em->remove($queueRow);
+                        continue;
+                    }
                 }
 
                 $queueRow->timestamp_cued = $expectedCueTime;

@@ -165,6 +165,15 @@ final class QueueController extends AbstractStationApiCrudController
         $apiResponse->autodj_custom_uri = $record->autodj_custom_uri;
         $apiResponse->log = $this->queueLogCache->getLog($record);
 
+        // Expose media type so UIs (e.g. the linear log viewer) can filter by
+        // content category (music / talk / id / promo / jingle / podcast / stream).
+        $apiResponse->media_type = match(true) {
+            $record->autodj_custom_uri !== null     => 'stream',
+            $record->top_of_hour_legal_id           => 'id',
+            $record->media !== null                 => $record->media->type ?? 'music',
+            default                                 => 'music',
+        };
+
         $apiResponse->links = [
             'self' => $router->fromHere(
                 $this->resourceRouteName,
