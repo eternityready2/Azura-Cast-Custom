@@ -11,7 +11,6 @@ use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
-use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Utilities\Time;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -32,7 +31,6 @@ final class Queue
         private readonly EventDispatcherInterface $dispatcher,
         private readonly StationQueueRepository $queueRepo,
         private readonly Scheduler $scheduler,
-        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly QueueLogCache $queueLogCache
     ) {
     }
@@ -98,11 +96,19 @@ final class Queue
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
+            // Same duration-floor guard as the build loop below -- applies here too
+            // since this loop re-times already-queued rows on every build cycle and
+            // is just as capable of collapsing timestamps if a row's duration is bad.
+            $effectiveDuration = $queueRow->duration ?? 0.0;
+            if ($effectiveDuration < 5.0) {
+                $effectiveDuration = 5.0;
+            }
+
             if ($queueRow->sent_to_autodj) {
                 $expectedCueTime = $this->addDurationToTime(
                     $station,
                     $queueRow->timestamp_cued,
-                    $queueRow->duration
+                    $effectiveDuration
                 );
 
                 if (0 === $queueLength) {
@@ -114,48 +120,8 @@ final class Queue
                     continue;
                 }
 
-                // Advance overflow detection: even if this playlist is still
-                // scheduled, the track may now be too long for the time remaining
-                // before a boundary (top-of-hour or another scheduled start).
-                // Drop it here so the build loop below re-picks a fitting
-                // replacement with full boundary awareness. This is what
-                // professional radio software calls "song fitting" — detected
-                // well in advance (as far as the lookahead horizon reaches),
-                // not only in the final seconds before :00.
-                // Only applies to unsent, unplayed rows with a playlist so that
-                // station IDs, requests, and clock-wheel entries are never
-                // silently dropped.
-                if (
-                    $queueRow->playlist !== null
-                    && !$queueRow->sent_to_autodj
-                    && $this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)
-                ) {
-                    $maxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
-                        $station,
-                        $expectedPlayTime,
-                    );
-
-                    if (
-                        $maxDuration !== null
-                        && ($queueRow->duration ?? 0.0) > $maxDuration
-                        && $queueRow->clock_wheel_stretch_ratio === null
-                    ) {
-                        $this->logger->info(
-                            'Queue: dropping pre-queued track that can no longer fit before top-of-hour boundary; will re-pick.',
-                            [
-                                'song_id' => $queueRow->song_id,
-                                'duration' => $queueRow->duration,
-                                'max_duration' => $maxDuration,
-                                'expected_play_time' => $expectedPlayTime->format('H:i:s'),
-                            ]
-                        );
-                        $this->em->remove($queueRow);
-                        continue;
-                    }
-                }
-
                 $queueRow->timestamp_cued = $expectedCueTime;
-                $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $queueRow->duration);
+                $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $effectiveDuration);
 
                 // Only append to queue length for uncued songs.
                 $queueLength++;
@@ -164,7 +130,7 @@ final class Queue
             $queueRow->timestamp_played = $expectedPlayTime;
             $this->em->persist($queueRow);
 
-            $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $queueRow->duration);
+            $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $effectiveDuration);
 
             $lastSongId = $queueRow->song_id;
         }
@@ -218,6 +184,28 @@ final class Queue
 
                 $nextSongs = $event->getNextSongs();
 
+                // Hard backstop against the exact same song playing twice in a row.
+                // Playlist-level duplicate prevention settings can still allow this
+                // when the eligible pool briefly narrows (e.g. right after a schedule
+                // change); this catches it unconditionally at the queue-build layer.
+                // Only enforced when a retry is actually possible (more attempts left)
+                // so a station with a single-song playlist doesn't get stuck refusing
+                // to queue anything.
+                if (
+                    !empty($nextSongs)
+                    && $lastSongId !== null
+                    && $attempts < $maxAttemptsPerSlot
+                    && count($nextSongs) === 1
+                    && $nextSongs[0]->song_id === $lastSongId
+                ) {
+                    $this->logger->debug(
+                        'BuildQueue picked the same song as the immediately preceding slot; retrying.',
+                        ['song_id' => $lastSongId, 'attempt' => $attempts]
+                    );
+                    $nextSongs = [];
+                    continue;
+                }
+
                 if (!empty($nextSongs)) {
                     break;
                 }
@@ -238,6 +226,24 @@ final class Queue
             }
 
             foreach ($nextSongs as $queueRow) {
+                // Guard against a corrupt or not-yet-analyzed media duration (0, null,
+                // or an implausibly tiny value) collapsing the play-time progression --
+                // this is what produces queue entries a few seconds apart instead of
+                // minutes apart, and looks like "the same song repeating constantly"
+                // even though duplicate prevention is working correctly.
+                $effectiveDuration = $queueRow->duration ?? 0.0;
+                if ($effectiveDuration < 5.0) {
+                    $this->logger->warning(
+                        'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
+                        [
+                            'song_id' => $queueRow->song_id,
+                            'media_id' => $queueRow->media?->id,
+                            'duration' => $queueRow->duration,
+                        ]
+                    );
+                    $effectiveDuration = 5.0;
+                }
+
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $queueRow->timestamp_played = $expectedPlayTime;
                 $queueRow->updateVisibility();
@@ -251,12 +257,12 @@ final class Queue
                 $expectedCueTime = $this->addDurationToTime(
                     $station,
                     $expectedCueTime,
-                    $queueRow->duration
+                    $effectiveDuration
                 );
                 $expectedPlayTime = $this->addDurationToTime(
                     $station,
                     $expectedPlayTime,
-                    $queueRow->duration
+                    $effectiveDuration
                 );
 
                 $queueLength++;
