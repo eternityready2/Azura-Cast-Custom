@@ -207,8 +207,27 @@ final class HourBoundaryPlanner
         $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
         $buffer = $this->getFinishBufferSeconds($station) + $this->getIdMaxSeconds($station);
 
-        return max(1.0, (float)($secondsUntil - $buffer));
+        $maxDuration = (float)($secondsUntil - $buffer);
+
+        // If there isn't at least a minimally useful amount of room left before the
+        // boundary, don't force a cap at all -- returning null here means "let normal
+        // selection proceed uncapped" rather than clamping to an unplayably tiny value
+        // (previously floored at 1.0 second). A 1-second cap can never be satisfied by
+        // a real track, so it forced every caller into the "shortest non-recent track"
+        // fallback -- during a deep multi-hour build (e.g. the 24-hour linear log,
+        // which crosses many real hour boundaries in a single pass) this repeatedly
+        // picked the same one or two shortest songs in the library, which then failed
+        // DMCA's rolling-window repeat check every time. Below this threshold we're
+        // already inside the finish-buffer/ID-max window anyway, where the mandatory
+        // legal ID itself (not a capped music track) is what's supposed to be queued.
+        if ($maxDuration < self::MIN_USABLE_CAP_SECONDS) {
+            return null;
+        }
+
+        return $maxDuration;
     }
+
+    private const float MIN_USABLE_CAP_SECONDS = 15.0;
 
     /**
      * True when AutoDJ should queue the mandatory legal ID for this build tick.

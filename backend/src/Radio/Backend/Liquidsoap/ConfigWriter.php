@@ -131,6 +131,12 @@ final class ConfigWriter implements EventSubscriberInterface
         $topOfHourDuckAttenuation = self::toFloat($backendConfig->top_of_hour_duck_attenuation);
         $topOfHourDuckDelay = self::toFloat($backendConfig->top_of_hour_duck_delay);
 
+        // PHP booleans used for conditional code generation below.
+        $hardTriggerEnabled = $backendConfig->top_of_hour_id_enabled
+            && $backendConfig->top_of_hour_hard_trigger_enabled;
+        $duckEnabled = $backendConfig->top_of_hour_id_enabled
+            && $backendConfig->top_of_hour_duck_enabled;
+
         $fallbackPath = self::toRawString(
             $this->fallbackFile->getFallbackPathForStation($station)
         );
@@ -523,10 +529,8 @@ final class ConfigWriter implements EventSubscriberInterface
         // fallback() line so the generated config works with the old image too.
         // Once the image is rebuilt and features are turned on, the new code path
         // activates automatically.
-        $duckEnabled = $backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_duck_enabled;
-        $hardTriggerEnabled = $backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_hard_trigger_enabled;
+        // NOTE: $duckEnabled and $hardTriggerEnabled are defined near the top of this
+        // method so they are available for both this block and the earlier settings block.
 
         if ($duckEnabled) {
             $interruptingBlock = <<<LIQ

@@ -845,9 +845,13 @@ def azuracast.duck(~id="duck", ~voiceover, music) =
     if settings.azuracast.top_of_hour_duck_enabled() then
         # Note: not all Liquidsoap versions accept an `id` parameter on
         # smooth_add, so it's intentionally omitted here (unlike the
-        # fallback() branch below, which does support it).
+        # fallback() branch below, which does support it). Also note: this
+        # Liquidsoap version's smooth_add does not accept a `delay` parameter
+        # -- only `p` (attenuation level while ducked), `normal`, and
+        # `special`. The duck_delay setting is currently unused; kept as a
+        # station-facing setting for a future Liquidsoap version that
+        # supports configurable fade timing on smooth_add.
         smooth_add(
-            delay=settings.azuracast.top_of_hour_duck_delay(),
             p=settings.azuracast.top_of_hour_duck_attenuation(),
             normal=music,
             special=voiceover
