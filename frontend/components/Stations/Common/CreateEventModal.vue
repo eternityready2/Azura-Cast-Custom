@@ -25,13 +25,24 @@
                 <option value="smart_block">
                     {{ $gettext('Smart Block') }}
                 </option>
+                <option value="web_stream">
+                    {{ $gettext('Web / Remote Stream') }}
+                </option>
             </select>
         </div>
 
         <!-- Entity selection -->
         <div v-if="!isScopedMode" class="mb-3">
             <label class="form-label fw-semibold">
-                {{ form.source === 'clock_wheel' ? $gettext('Clock Wheel') : (form.source === 'smart_block' ? $gettext('Smart Block') : $gettext('Playlist')) }}
+                {{
+                    form.source === 'clock_wheel'
+                        ? $gettext('Clock Wheel')
+                        : form.source === 'smart_block'
+                            ? $gettext('Smart Block')
+                            : form.source === 'web_stream'
+                                ? $gettext('Web / Remote Stream')
+                                : $gettext('Playlist')
+                }}
             </label>
             <select
                 v-model="form.entity_id"
@@ -454,6 +465,7 @@ interface EntityOption {
     name: string;
     self_url: string;
     is_smart_block?: boolean;
+    source?: string;
 }
 
 interface ClockWheelOption extends EntityOption {
@@ -462,11 +474,15 @@ interface ClockWheelOption extends EntityOption {
 }
 
 const playlists = ref<EntityOption[]>([]);
+const webStreams = ref<EntityOption[]>([]);
 const clockWheels = ref<ClockWheelOption[]>([]);
 
 onMounted(async () => {
-    const [plResp, cwResp] = await Promise.all([
+    const [plResp, webResp, cwResp] = await Promise.all([
         axios.get(getStationApiUrl('/playlists').value),
+        axios.get(getStationApiUrl('/playlists').value, {
+            params: {rowCount: -1, include_remote_url: 1},
+        }),
         axios.get(getStationApiUrl('/clock-wheels').value),
     ]);
 
@@ -475,6 +491,18 @@ onMounted(async () => {
         name: p.name as string,
         self_url: (p.links as Record<string, string>).self,
         is_smart_block: Boolean(p.is_smart_block),
+    }));
+
+    const webRows = Array.isArray(webResp.data)
+        ? webResp.data
+        : ((webResp.data as {rows?: Array<Record<string, unknown>>}).rows ?? []);
+
+    webStreams.value = webRows.map((p) => ({
+        id: p.id as number,
+        name: p.name as string,
+        self_url: (p.links as Record<string, string>).self,
+        is_smart_block: false,
+        source: p.source as string,
     }));
 
     clockWheels.value = (cwResp.data as Array<Record<string, unknown>>).map((cw) => ({
@@ -486,7 +514,7 @@ onMounted(async () => {
 });
 
 const blankForm = () => ({
-    source: 'clock_wheel' as 'playlist' | 'smart_block' | 'clock_wheel',
+    source: 'clock_wheel' as 'playlist' | 'smart_block' | 'clock_wheel' | 'web_stream',
     entity_id: null as number | null,
 });
 
@@ -516,10 +544,18 @@ const durationMinutes = ref(0);
 // Recurring toggle
 const isRecurring = ref(false);
 
+// When loading an existing schedule item, don't treat the programmatic
+// isRecurring assignment like the user just toggled Recurring on/off.
+// Without this guard, the watcher below clears the loaded end_date.
+const isHydratingExistingSchedule = ref(false);
+
 // Checking "Recurring" requires an explicit repeat pattern (defaults to Weekly)
 // rather than silently staying null. Unchecking clears it back to plain,
 // non-recurring behavior (event only plays on its exact Start/End Date).
 watch(isRecurring, (recurring) => {
+    if (isHydratingExistingSchedule.value) {
+        return;
+    }
     if (recurring) {
         if (!scheduleRow.value.recurrence_type) {
             scheduleRow.value.recurrence_type = 'weekly';
@@ -538,7 +574,7 @@ watch(isRecurring, (recurring) => {
         scheduleRow.value.days = [];
         scheduleRow.value.end_date = scheduleRow.value.start_date;
     }
-});
+}, {flush: 'sync'});
 
 // Keep End Date locked to Start Date for one-time (non-recurring) events at all
 // times -- not just at the moment Recurring is unchecked -- so later changing
@@ -618,6 +654,9 @@ const currentEntityOptions = computed(() => {
     if (form.value.source === 'clock_wheel') {
         return clockWheels.value;
     }
+    if (form.value.source === 'web_stream') {
+        return webStreams.value;
+    }
     // 'playlist' shows regular playlists; 'smart_block' shows just the Smart Blocks --
     // two focused pickers over the same underlying /playlists collection.
     return playlists.value.filter(
@@ -625,7 +664,11 @@ const currentEntityOptions = computed(() => {
     );
 });
 
-const isPlaylistSchedule = computed(() => form.value.source === 'playlist' || form.value.source === 'smart_block');
+const isPlaylistSchedule = computed(() =>
+    form.value.source === 'playlist'
+    || form.value.source === 'smart_block'
+    || form.value.source === 'web_stream'
+);
 const isClockWheelSchedule = computed(() => form.value.source === 'clock_wheel');
 
 // Auto-select first entity whenever options change or source changes
@@ -959,6 +1002,7 @@ const clearForm = () => {
     startTimingMode.value = 'flexible';
     clockWheelScheduleMode.value = 'flexible';
     scheduleRow.value = createScheduleItemDefaults();
+    isRecurring.value = false;
     error.value = null;
     editingScheduleId.value = null;
     isScopedMode.value = false;
@@ -983,6 +1027,8 @@ const openForEdit = async (event: EventImpl) => {
 
     if (editUrl?.includes('/clock-wheel/')) {
         form.value.source = 'clock_wheel';
+    } else if (event.extendedProps.source === 'remote_url') {
+        form.value.source = 'web_stream';
     } else {
         form.value.source = 'playlist';
     }
@@ -1024,9 +1070,13 @@ const openForEdit = async (event: EventImpl) => {
             const existing = items.find((row) => Number(row.id) === editingScheduleId.value);
 
             if (existing) {
+                isHydratingExistingSchedule.value = true;
                 scheduleRow.value = apiScheduleItemToRow(existing);
-                syncDurationFromTimes();
                 isRecurring.value = existing.recurrence_type != null && existing.recurrence_type !== '';
+                isHydratingExistingSchedule.value = false;
+
+                syncDurationFromTimes();
+
                 if (form.value.source === 'clock_wheel') {
                     scheduleRow.value.loop_once = false;
                     clockWheelScheduleMode.value = scheduleRow.value.clock_wheel_mode ?? 'flexible';
@@ -1055,7 +1105,10 @@ const openForEdit = async (event: EventImpl) => {
 // Used from the Playlist/Clock Wheel edit modals' own "Schedule" tab, where
 // we already know exactly which item we're scheduling -- no FullCalendar
 // event object involved, so no Source/Entity dropdown needed at all.
-const openScopedForCreate = (source: 'playlist' | 'clock_wheel', entityId: number) => {
+const openScopedForCreate = (
+    source: 'playlist' | 'clock_wheel' | 'web_stream',
+    entityId: number
+) => {
     clearForm();
     isScopedMode.value = true;
     form.value.source = source;
@@ -1064,7 +1117,7 @@ const openScopedForCreate = (source: 'playlist' | 'clock_wheel', entityId: numbe
 };
 
 const openScopedForEdit = async (
-    source: 'playlist' | 'clock_wheel',
+    source: 'playlist' | 'clock_wheel' | 'web_stream',
     entityId: number,
     scheduleId: number,
 ) => {
@@ -1087,9 +1140,13 @@ const openScopedForEdit = async (
         const existing = items.find((row) => Number(row.id) === scheduleId);
 
         if (existing) {
+            isHydratingExistingSchedule.value = true;
             scheduleRow.value = apiScheduleItemToRow(existing);
-            syncDurationFromTimes();
             isRecurring.value = existing.recurrence_type != null && existing.recurrence_type !== '';
+            isHydratingExistingSchedule.value = false;
+
+            syncDurationFromTimes();
+
             if (source === 'clock_wheel') {
                 scheduleRow.value.loop_once = false;
                 clockWheelScheduleMode.value = scheduleRow.value.clock_wheel_mode ?? 'flexible';
