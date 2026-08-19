@@ -205,12 +205,14 @@ const getOrderLabel = (order: string): string => {
 const sourceColor = (ep: Record<string, any>): string => {
     if (ep.is_clock_wheel) return '#f59e0b';
     if (ep.is_smart_block) return '#8b5cf6';
+    if (ep.source === 'remote_url') return '#14b8a6';
     return '#3b82f6';
 };
 
 const sourceLabel = (ep: Record<string, any>): string => {
     if (ep.is_clock_wheel) return $gettext('Clock Wheel');
     if (ep.is_smart_block) return $gettext('Smart Block');
+    if (ep.source === 'remote_url') return $gettext('Web / Remote Stream');
     return $gettext('Playlist');
 };
 
@@ -513,4 +515,3 @@ defineExpose({
     max-width: 28rem;
 }
 </style>
-
