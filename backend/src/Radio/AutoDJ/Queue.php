@@ -142,7 +142,7 @@ final class Queue
         // clearing next songs; when that happens we re-dispatch a fresh BuildQueue event
         // so a selector gets another chance to choose a different track, instead of
         // silently halting queue-building and leaving the station with dead air.
-        $maxAttemptsPerSlot = 10;
+        $maxAttemptsPerSlot = null !== $lookaheadMinutesOverride ? 50 : 10;
         $tracksBuiltThisRun = 0;
 
         while (

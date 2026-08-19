@@ -98,6 +98,13 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         $queue->duration = $cueOut;
     }
 
+    /**
+     * Mirrors HourBoundaryAnnotator::applyLegalIdQuickCut() -- see that method's
+     * docblock for the reasoning. Kept in sync so a legal ID delivered via a
+     * Clock Wheel slot gets the same gentle fade-in as one delivered via the
+     * station-wide top-of-hour path, instead of the wheel path alone still
+     * hard-cutting in.
+     */
     public function applyLegalIdQuickCut(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
@@ -118,8 +125,18 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             return;
         }
 
+        $fadeInSeconds = 0.0;
+        $station = $event->getStation();
+        if ($media instanceof StationMedia) {
+            $fadeInSeconds = min(
+                $station->backend_config->getCrossfadeDuration(),
+                $media->length / 2
+            );
+            $fadeInSeconds = max(0.0, $fadeInSeconds);
+        }
+
         $event->addAnnotations([
-            'autocue_fade_in' => 0.0,
+            'autocue_fade_in' => $fadeInSeconds,
             'autocue_fade_out' => 0.0,
             'autocue_start_next' => null,
         ]);

@@ -58,6 +58,16 @@ final class Scheduler
                 $allScheduleItems[] = $scheduleItem;
             }
         }
+
+        // Include clock wheel schedules -- they are distinct from playlists
+        // but equally represent hard programme boundaries that music must not
+        // run past.
+        foreach ($station->clock_wheels as $clockWheel) {
+            foreach ($clockWheel->schedule_items as $scheduleItem) {
+                $allScheduleItems[] = $scheduleItem;
+            }
+        }
+
         foreach ($allScheduleItems as $scheduleItem) {
             $days = $scheduleItem->days;
 

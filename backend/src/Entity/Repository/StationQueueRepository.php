@@ -244,6 +244,53 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
+     * Timestamps of already-AIRED (is_played = 1) mandatory legal IDs whose
+     * timestamp_played falls within the given window.
+     *
+     * hasTopOfHourIdQueued() in HourBoundaryPlanner only scans the unplayed queue, so
+     * once an hour's ID has actually played it drops out of that scan entirely -- a
+     * later BuildQueue evaluation (e.g. the once-a-minute interrupt-fallback tick
+     * re-firing, or a slot whose expected-play-time still resolves to the same
+     * boundary) can then see "nothing queued for this hour" and queue a second,
+     * duplicate ID. The caller re-applies the same boundary-rollover math used for
+     * unplayed rows (a track played at :58/:59 serves the *next* hour's boundary),
+     * so the window here is intentionally wider than the hour itself -- it must
+     * include the tail of the preceding hour where an on-time ID would actually air.
+     *
+     * @return DateTimeImmutable[]
+     */
+    public function getRecentlyPlayedTopOfHourLegalIds(
+        Station $station,
+        DateTimeImmutable $windowStart,
+        DateTimeImmutable $windowEnd,
+    ): array {
+        $rows = $this->em->createQuery(
+            <<<'DQL'
+                SELECT sq.timestamp_played
+                FROM App\Entity\StationQueue sq
+                LEFT JOIN sq.media sm
+                WHERE sq.station = :station
+                AND sq.is_played = 1
+                AND sq.timestamp_played >= :windowStart
+                AND sq.timestamp_played <= :windowEnd
+                AND (
+                    sq.top_of_hour_legal_id = 1
+                    OR sm.type IN (:idTypes)
+                )
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('windowStart', $windowStart)
+            ->setParameter('windowEnd', $windowEnd)
+            ->setParameter('idTypes', StationMediaTypes::stationIdTypeValues())
+            ->getArrayResult();
+
+        return array_map(
+            static fn (array $row): DateTimeImmutable => $row['timestamp_played'],
+            $rows
+        );
+    }
+
+    /**
      * @return array{
      *     tolerance_seconds: int,
      *     hours_with_legal_id: int,

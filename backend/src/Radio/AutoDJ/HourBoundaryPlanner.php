@@ -276,15 +276,67 @@ final class HourBoundaryPlanner
         $secondsAfterTop = $local->getTimestamp() - $hourStart->getTimestamp();
         $tolerance = $this->getComplianceToleranceSeconds($station);
 
+        // Fire BEFORE the hour, not only after it.
+        //
+        // This is the core timing fix. Every other path that tries to place the
+        // ID (QueueBuilder's cap at selection time, HourBoundaryAnnotator's
+        // safety net at annotation time) computes against a clock that is not
+        // the track's real airtime: selection happens when the queue is built
+        // (up to the AutoDJ time-lookahead ahead of play, so its projection
+        // drifts), and annotation happens roughly one track before the track
+        // actually airs. A song can therefore be selected AND annotated while
+        // both checks honestly see "plenty of room before :00", then actually
+        // start at :58 and run straight through the boundary.
+        //
+        // This task, by contrast, runs once a minute against real wall-clock
+        // time -- it is the only place in the system that knows what time it
+        // actually is right now. So it is the right place to guarantee the ID.
+        // Previously it only looked at [:00:00, :00+tolerance], which meant it
+        // could only ever react AFTER the boundary was already missed, landing
+        // the ID at :00 on top of a song that was still playing (where Smart
+        // Ducking overlays it and the song resumes underneath, instead of the
+        // song ending and the ID taking over cleanly).
+        //
+        // Now it also fires during the finish-buffer window before :00 -- the
+        // same buffer the rest of the system already reserves for the ID -- so
+        // the ID is pushed while there is still room for it to complete before
+        // the hour turns. The post-:00 tolerance window is kept as a last-ditch
+        // catch for the case where even this was missed.
+        $nextTop = CarbonImmutable::instance(
+            $this->getNextTopOfHour($expectedPlayTime, $tz)
+        )->setTimezone($tz);
+        $secondsUntilNextTop = $nextTop->getTimestamp() - $local->getTimestamp();
+        $preWindow = $this->getFinishBufferSeconds($station) + $this->getIdMaxSeconds($station);
+
+        if ($secondsUntilNextTop > 0 && $secondsUntilNextTop <= $preWindow) {
+            // Inside the pre-:00 window: the ID we care about is the one for the
+            // UPCOMING hour boundary, not the one that already passed.
+            return !$this->hasTopOfHourIdQueued($station, $nextTop, $tz);
+        }
+
         if ($secondsAfterTop < 0 || $secondsAfterTop > $tolerance) {
             return false;
         }
 
-        return !$this->queueRepo->hasTopOfHourLegalIdCuedBetween(
-            $station,
-            $hourStart->toDateTimeImmutable(),
-            $hourStart->addSeconds($tolerance)->toDateTimeImmutable(),
-        );
+        // Use the rollover-aware check rather than a naive "was an ID cued
+        // between :00:00 and :00:+tolerance" window.
+        //
+        // A correctly-scheduled ID for the 7:00 boundary AIRS BEFORE 7:00 -- at
+        // :59:00 or so, by design, because the whole point of the finish buffer
+        // is that the ID has completed by the time the hour turns. A window
+        // anchored at [hourStart, hourStart+tolerance] can therefore never see
+        // it: an on-time ID is, by wall clock, in the *previous* hour. The old
+        // check only appeared to work when IDs were drifting late into
+        // :00-:00:10 -- i.e. precisely when they were NOT on time. Once
+        // top-of-hour timing was tightened up so IDs reliably land at :59, this
+        // check began firing a duplicate interrupting ID every single hour,
+        // cutting into whatever song had started after the real one.
+        //
+        // hasTopOfHourIdQueued() resolves each candidate through
+        // resolveTopOfHourExpectedPlayAt(), so a :59 play is correctly
+        // attributed to the boundary it actually serves, and it checks both
+        // already-aired history and the still-unplayed queue.
+        return !$this->hasTopOfHourIdQueued($station, $hourStart, $tz);
     }
 
     /**
@@ -307,6 +359,36 @@ final class HourBoundaryPlanner
         ?DateTimeZone $tz = null,
     ): bool {
         $targetTimestamp = $hourStart->getTimestamp();
+
+        // Check playback history first: if the mandatory ID for this hour has
+        // ALREADY AIRED, it's no longer in the unplayed queue scanned below, so
+        // without this check a later re-evaluation (e.g. the once-a-minute
+        // interrupt-fallback tick, or a queue slot whose expected-play-time still
+        // resolves to this same boundary) would wrongly conclude nothing has been
+        // queued yet and insert a second, duplicate ID for the same hour.
+        //
+        // Window is +/-70 minutes around the boundary: wide enough to catch an
+        // on-time ID that aired up to ~10 minutes early (the lookahead window) in
+        // the *previous* wall-clock hour, without pulling in the adjacent hours'
+        // own IDs. Each candidate is then re-resolved through the exact same
+        // resolveTopOfHourExpectedPlayAt() rollover math used for unplayed rows
+        // below, so a :58/:59 play is correctly attributed to the hour it serves.
+        $historyWindowStart = $hourStart->subMinutes(70)->toDateTimeImmutable();
+        $historyWindowEnd = $hourStart->addMinutes(70)->toDateTimeImmutable();
+
+        foreach (
+            $this->queueRepo->getRecentlyPlayedTopOfHourLegalIds(
+                $station,
+                $historyWindowStart,
+                $historyWindowEnd,
+            ) as $playedAt
+        ) {
+            $servedBoundary = $this->resolveTopOfHourExpectedPlayAt($station, $playedAt);
+
+            if ($servedBoundary->getTimestamp() === $targetTimestamp) {
+                return true;
+            }
+        }
 
         foreach ($this->queueRepo->getUnplayedQueue($station) as $row) {
             $isLegalId = $row->top_of_hour_legal_id;

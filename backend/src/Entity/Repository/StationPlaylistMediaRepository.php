@@ -9,6 +9,7 @@ use App\Entity\Api\StationPlaylistQueue;
 use App\Entity\Enums\PlaylistOrders;
 use App\Entity\Enums\PlaylistSources;
 use App\Entity\Enums\SmartBlockType;
+use App\Entity\Enums\StationMediaTypes;
 use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
@@ -416,7 +417,22 @@ final class StationPlaylistMediaRepository extends Repository
             ->from(StationMedia::class, 'sm')
             ->join('sm.playlists', 'spm')
             ->where('spm.playlist = :playlist')
-            ->setParameter('playlist', $playlist);
+            // Station-ID / legal-ID typed media must ONLY ever be selected by the
+            // dedicated top-of-hour and clock-wheel legal-ID resolvers (which query
+            // StationMedia directly by type), never by ordinary playlist rotation.
+            // Without this, a legal ID accidentally added to a normal rotation
+            // playlist (e.g. "General Mix", "Promos, Ads") can be shuffled in at any
+            // random point in the hour -- which is indistinguishable on-air from the
+            // mandatory top-of-hour ID misfiring, but is actually a completely
+            // separate bug with a completely separate cause.
+            // NULL-safe: some rows may have a literal NULL type in the DB (nullable
+            // column, PHP-side default of 'music' only applies to new entities), and
+            // "NULL NOT IN (...)" evaluates to NULL/false in SQL -- which would
+            // silently exclude ordinary untyped tracks from every playlist. The
+            // explicit "OR sm.type IS NULL" keeps those included.
+            ->andWhere('sm.type NOT IN (:excludedTypes) OR sm.type IS NULL')
+            ->setParameter('playlist', $playlist)
+            ->setParameter('excludedTypes', StationMediaTypes::stationIdTypeValues());
 
         if (PlaylistOrders::Random === $playlist->order) {
             $queuedMediaQuery = $queuedMediaQuery->orderBy('RAND()');
