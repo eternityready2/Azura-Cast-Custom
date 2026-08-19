@@ -408,7 +408,7 @@ function isNextUp(item: QueueItem): boolean {
 function formatTime(ts: number | null): string {
     if (!ts) return '—';
     return new Date(ts * 1000).toLocaleTimeString([], {
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
     });
 }
 
@@ -431,9 +431,7 @@ function secondsToHms(total: number): string {
 const filteredItems = computed(() => {
     const q = searchQuery.value.toLowerCase();
     return allItems.value.filter(item => {
-        // type filter
         if (!activeTypes.value.includes(resolveType(item))) return false;
-        // search filter
         if (q) {
             const haystack = [
                 item.song.title, item.song.artist, item.song.text,
