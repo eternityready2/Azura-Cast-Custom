@@ -216,10 +216,10 @@ const doSchedule = (item: any) => {
 };
 
 const onScheduleListEdit = (entityId: number, scheduleId: number) => {
-    $scheduleModal.value?.openScopedForEdit('playlist', entityId, scheduleId);
+    $scheduleModal.value?.openScopedForEdit('web_stream', entityId, scheduleId);
 };
 
 const onScheduleListAddNew = (entityId: number) => {
-    $scheduleModal.value?.openScopedForCreate('playlist', entityId);
+    $scheduleModal.value?.openScopedForCreate('web_stream', entityId);
 };
 </script>
