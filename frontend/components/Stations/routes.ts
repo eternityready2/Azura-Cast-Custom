@@ -102,6 +102,31 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:playlists:index'
                 },
                 {
+                    path: 'shows',
+                    component: () => import('~/components/Stations/Shows.vue'),
+                    name: 'stations:shows:index'
+                },
+                {
+                    path: 'show/new',
+                    component: () => import('~/components/Stations/ShowEditor.vue'),
+                    name: 'stations:shows:new'
+                },
+                {
+                    path: 'show/:show_id',
+                    component: () => import('~/components/Stations/ShowEditor.vue'),
+                    name: 'stations:shows:edit'
+                },
+                {
+                    path: 'playout-simulator',
+                    component: () => import('~/components/Stations/PlayoutSimulator.vue'),
+                    name: 'stations:playout_simulator'
+                },
+                {
+                    path: 'aircheck',
+                    component: () => import('~/components/Stations/AirCheck.vue'),
+                    name: 'stations:aircheck'
+                },
+                {
                     path: 'smart-blocks',
                     component: () => import('~/components/Stations/SmartBlocks.vue'),
                     name: 'stations:smart-blocks:index'
@@ -174,6 +199,21 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     path: 'reports/soundexchange',
                     component: () => import('~/components/Stations/Reports/SoundExchange.vue'),
                     name: 'stations:reports:soundexchange',
+                },
+                {
+                    path: 'reports/ppca',
+                    component: () => import('~/components/Stations/Reports/PPCA.vue'),
+                    name: 'stations:reports:ppca',
+                },
+                {
+                    path: 'reports/ppl',
+                    component: () => import('~/components/Stations/Reports/PPL.vue'),
+                    name: 'stations:reports:ppl',
+                },
+                {
+                    path: 'reports/cadence',
+                    component: () => import('~/components/Stations/Reports/Cadence.vue'),
+                    name: 'stations:reports:cadence',
                 },
                 {
                     path: 'reports/requests',

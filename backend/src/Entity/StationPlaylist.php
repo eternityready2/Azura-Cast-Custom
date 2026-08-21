@@ -47,6 +47,7 @@ final class StationPlaylist implements
     public const string OPTION_PLAY_SINGLE_TRACK = 'single_track';
     public const string OPTION_MERGE = 'merge';
     public const string OPTION_PRIORITIZE_OVER_REQUESTS = 'prioritize';
+    public const string OPTION_ALLOW_OVERRUN = 'allow_overrun';
 
     #[
         ORM\ManyToOne(inversedBy: 'playlists'),
@@ -108,7 +109,7 @@ final class StationPlaylist implements
     public PlaylistOrders $order;
 
     /**
-     * @deprecated Unused — Smart Shuffle removed; kept for existing DB rows.
+     * @deprecated Unused. Smart Shuffle was removed; retained for existing database rows.
      * NULL uses the default (5).
      */
     #[

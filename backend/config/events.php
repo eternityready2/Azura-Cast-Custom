@@ -89,6 +89,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
                 App\Sync\Task\UpdateStorageLocationSizesTask::class,
                 App\Sync\Task\AiDjCleanupTask::class,
                 App\Sync\Task\BuildLinearLogTask::class,
+                App\Sync\Task\AirCheckTask::class,
             ]);
         }
     );

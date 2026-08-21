@@ -52,6 +52,12 @@
                 @relist="onTriggerRelist"
             />
 
+            <div class="d-flex justify-content-end mb-3">
+                <button type="button" class="btn btn-primary" @click="$downloadFromUrlModal?.open()">
+                    {{ $gettext('Download from URL') }}
+                </button>
+            </div>
+
             <media-toolbar
                 :batch-url="batchUrl"
                 :selected-items="selectedItems"
@@ -226,6 +232,12 @@
         </data-table>
     </section>
 
+    <download-from-url-modal
+        ref="$downloadFromUrlModal"
+        :current-directory="currentDirectory"
+        @relist="onTriggerRelist"
+    />
+
     <new-directory-modal
         ref="$newDirectoryModal"
         :current-directory="currentDirectory"
@@ -262,6 +274,7 @@ import MediaToolbar from "~/components/Stations/Media/MediaToolbar.vue";
 import Breadcrumb from "~/components/Stations/Media/Breadcrumb.vue";
 import FileUpload from "~/components/Stations/Media/FileUpload.vue";
 import NewDirectoryModal from "~/components/Stations/Media/NewDirectoryModal.vue";
+import DownloadFromUrlModal from "~/components/Stations/Media/DownloadFromUrlModal.vue";
 import MoveFilesModal from "~/components/Stations/Media/MoveFilesModal.vue";
 import RenameModal from "~/components/Stations/Media/RenameModal.vue";
 import EditModal from "~/components/Stations/Media/EditModal.vue";
@@ -468,6 +481,7 @@ const onRowSelected = (items: MediaRow[]) => {
     };
 };
 
+const $downloadFromUrlModal = useTemplateRef('$downloadFromUrlModal');
 const $dataTable = useTemplateRef('$dataTable');
 
 const onTriggerNavigate = () => {

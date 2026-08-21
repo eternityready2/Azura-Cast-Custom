@@ -184,6 +184,15 @@ export function useStationsMenu() {
                 && station.value.features.media,
         },
         {
+            key: 'shows',
+            label: $gettext('Shows'),
+            icon: () => IconIcSchedule,
+            url: {
+                name: 'stations:shows:index'
+            },
+            visible: () => userAllowedForStation(StationPermissions.Broadcasting),
+        },
+        {
             key: 'smart-blocks',
             label: $gettext('Smart Blocks'),
             icon: () => IconIcAutoAwesome,
@@ -315,6 +324,27 @@ export function useStationsMenu() {
                     }
                 },
                 {
+                    key: 'reports_ppca',
+                    label: $gettext('PPCA Report'),
+                    url: {
+                        name: 'stations:reports:ppca'
+                    }
+                },
+                {
+                    key: 'reports_ppl',
+                    label: $gettext('PPL Report'),
+                    url: {
+                        name: 'stations:reports:ppl'
+                    }
+                },
+                {
+                    key: 'reports_cadence',
+                    label: $gettext('NPR Cadence Streaming Report'),
+                    url: {
+                        name: 'stations:reports:cadence'
+                    }
+                },
+                {
                     key: 'reports_dmca_compliance',
                     label: $gettext('DMCA Compliance'),
                     url: {
@@ -353,7 +383,7 @@ export function useStationsMenu() {
                         name: 'stations:ai_dj'
                     },
                     visible: () => userAllowedForStation(StationPermissions.Broadcasting)
-                }
+                },
             ]
         },
         {
@@ -443,6 +473,14 @@ export function useStationsMenu() {
                         && station.value.features.autoDjQueue
                 },
                 {
+                    key: 'playout_simulator',
+                    label: $gettext('Playout Simulator'),
+                    url: {
+                        name: 'stations:playout_simulator'
+                    },
+                    visible: () => userAllowedForStation(StationPermissions.Broadcasting)
+                },
+                {
                     key: 'restart',
                     label: $gettext('Restart Broadcasting'),
                     url: {
@@ -451,6 +489,15 @@ export function useStationsMenu() {
                     visible: () => userAllowedForStation(StationPermissions.Broadcasting)
                 }
             ]
+        },
+        {
+            key: 'aircheck',
+            label: $gettext('AirCheck'),
+            icon: () => IconIcGraphicEq,
+            url: {
+                name: 'stations:aircheck'
+            },
+            visible: () => userAllowedForStation(StationPermissions.Broadcasting)
         },
         {
             key: 'logs',

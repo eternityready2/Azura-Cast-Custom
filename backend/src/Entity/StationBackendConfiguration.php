@@ -20,6 +20,29 @@ use OpenApi\Attributes as OA;
 final class StationBackendConfiguration extends AbstractArrayEntity
 {
     #[OA\Property]
+    public bool $aircheck_enabled = false {
+        set (bool|string|null $value) => Types::bool($value);
+    }
+
+    #[OA\Property]
+    public int $aircheck_interval_minutes = 10 {
+        set (int|string|null $value) => $this->aircheck_interval_minutes = max(1, min(60, Types::int($value, 10)));
+    }
+
+    #[OA\Property]
+    public int $aircheck_last_check = 0 {
+        set (int|string|null $value) => Types::int($value, 0);
+    }
+
+    /** @var array<int, array<string, mixed>> */
+    #[OA\Property(type: 'array')]
+    public array $aircheck_interventions = [];
+
+    /** @var array<int, array<string, mixed>> */
+    #[OA\Property(type: 'array')]
+    public array $feature_shows = [];
+
+    #[OA\Property]
     public string $charset = 'UTF-8' {
         set (?string $value) => Types::string($value, 'UTF-8', true);
     }
@@ -92,18 +115,7 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         set(int|string|null $value) => Types::int($value, self::DEFAULT_QUEUE_LENGTH);
     }
 
-    // 0 = disabled (track-count queue length only, legacy behavior).
-    // When set, Queue::buildQueue() keeps building forward -- beyond the
-    // track-count minimum above -- until the queue is planned out at least
-    // this many minutes in wall-clock time, so clock wheels and playlists
-    // are resolved well ahead of the moment they actually air.
-    //
-    // Queue::buildQueue() is already called continuously by the live
-    // now-playing sync task (BuildQueueTask), so setting this to 1440
-    // (24 hours) turns on a genuinely maintained rolling linear log:
-    // every cycle just tops the queue back up to the horizon and lets
-    // already-built rows re-time themselves for drift, rather than
-    // needing a separate one-off job. Capped at 2 days as a sanity limit.
+    // Optional wall-clock queue lookahead. Zero keeps the normal track-count behavior.
     protected const int DEFAULT_QUEUE_LOOKAHEAD_MINUTES = 0;
 
     protected const int MAX_QUEUE_LOOKAHEAD_MINUTES = 2880;
@@ -119,9 +131,7 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         }
     }
 
-    // Opt-in: when enabled, BuildLinearLogTask keeps this station's log built out
-    // to `linear_log_hours` automatically (hourly). Off by default so nothing
-    // changes for stations that haven't asked for a linear log.
+    // Keeps the rolling linear log filled by the scheduled background task.
     #[OA\Property]
     public bool $linear_log_enabled = false {
         set(bool|null $value) => Types::bool($value);
@@ -139,9 +149,7 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         }
     }
 
-    // Liquidsoap-level, wall-clock-driven safety net (see azuracast.liq
-    // apply_top_of_hour_hard_trigger). Independent of whether AzuraCast's
-    // PHP-side AutoDJ successfully queued anything -- a true last resort.
+    // Liquidsoap wall-clock safety trigger for top-of-hour station IDs.
     #[OA\Property]
     public bool $top_of_hour_hard_trigger_enabled = false {
         set(bool|null $value) => Types::bool($value);
@@ -551,7 +559,7 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         set (int|string|null $value) => Types::int($value, 60);
     }
 
-    // ── DMCA Compliance Settings ──────────────────────────────────────────────
+    // DMCA compliance settings.
 
     #[OA\Property(description: 'Enable DMCA compliance enforcement at the queue level.')]
     public bool $dmca_compliance_enabled = false {
@@ -599,7 +607,7 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     }
 
     /**
-     * Transition keys: "from_type:to_type" → {fade_in, fade_out} or null for station default.
+     * Transition keys: "from_type:to_type" map to {fade_in, fade_out}, or null for the station default.
      *
      * @var array<string, array{fade_in: float, fade_out: float}|null>
      */

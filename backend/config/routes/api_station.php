@@ -963,6 +963,67 @@ return static function (RouteCollectorProxy $group) {
                     )->add(new Middleware\StationSupportsFeature(StationFeatures::Media))
                         ->add(new Middleware\Permissions(StationPermissions::Media, true));
 
+                    $group->group(
+                        '/features',
+                        function (RouteCollectorProxy $group) {
+                            $group->get(
+                                '/aircheck',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':getAirCheckAction'
+                            );
+                            $group->put(
+                                '/aircheck',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':saveAirCheckAction'
+                            );
+                            $group->post(
+                                '/aircheck/run',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':runAirCheckAction'
+                            );
+
+                            $group->get(
+                                '/shows',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':listShowsAction'
+                            );
+                            $group->post(
+                                '/shows',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':saveShowAction'
+                            );
+                            $group->delete(
+                                '/shows/{id}',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':deleteShowAction'
+                            );
+
+                            $group->get(
+                                '/playout-simulator',
+                                Controller\Api\Stations\Features\FeatureSuiteController::class . ':simulateAction'
+                            );
+                        }
+                    )->add(new Middleware\Permissions(StationPermissions::Broadcasting, true));
+
+                    $group->post(
+                        '/files/download-from-url',
+                        Controller\Api\Stations\Features\FeatureSuiteController::class . ':downloadFromUrlAction'
+                    )->add(new Middleware\Permissions(StationPermissions::Media, true));
+
+                    $group->get(
+                        '/reports/ppca',
+                        Controller\Api\Stations\Features\FeatureSuiteController::class . ':ppcaReportAction'
+                    )->add(new Middleware\Permissions(StationPermissions::Reports, true));
+
+                    $group->get(
+                        '/reports/ppl',
+                        Controller\Api\Stations\Features\FeatureSuiteController::class . ':pplReportAction'
+                    )->add(new Middleware\Permissions(StationPermissions::Reports, true));
+
+                    $group->get(
+                        '/reports/cadence',
+                        Controller\Api\Stations\Features\FeatureSuiteController::class . ':cadenceReportAction'
+                    )->add(new Middleware\Permissions(StationPermissions::Reports, true));
+
+                    $group->post(
+                        '/reports/linear-log/build',
+                        Controller\Api\Stations\Features\FeatureSuiteController::class . ':buildLinearLogAction'
+                    )->add(new Middleware\Permissions(StationPermissions::Reports, true));
+
                     // Reports
                     $group->get('/history', Controller\Api\Stations\HistoryAction::class)
                         ->setName('api:stations:history')

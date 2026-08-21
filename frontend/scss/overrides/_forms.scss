@@ -114,3 +114,412 @@ input, textarea {
   height: 10px;
   width: auto;
 }
+
+
+/* Eternity Ready scheduling and playlist UI; native AzuraCast colors only. */
+body.page-full {
+  /* Scheduling spacing only. */
+  [id^="edit_form_start_time_"],
+  [id^="edit_form_end_time_"],
+  [id^="edit_form_start_date_"],
+  [id^="edit_form_end_date_"],
+  #edit_form_start_time,
+  #edit_form_end_time,
+  #edit_form_start_date,
+  #edit_form_end_date {
+    scroll-margin-top: 1rem;
+  }
+
+  .modal-body .row.g-3,
+  .tab-pane .row.g-3 {
+    --bs-gutter-x: .85rem;
+    --bs-gutter-y: .8rem;
+  }
+
+  /* Flexible / Strict controls: visual shape only; original radio behavior retained. */
+  .form-group:has(input[id^="edit_form_scheduling_"]) .form-check,
+  .form-group:has(input[id^="edit_form_clock_wheel_scheduling_"]) .form-check {
+    display: inline-flex !important;
+    position: relative;
+    margin: 0 .45rem .35rem 0 !important;
+    padding: 0 !important;
+  }
+
+  .form-group:has(input[id^="edit_form_scheduling_"]) .form-check-input,
+  .form-group:has(input[id^="edit_form_clock_wheel_scheduling_"]) .form-check-input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 1px !important;
+    height: 1px !important;
+    pointer-events: none;
+  }
+
+  .form-group:has(input[id^="edit_form_scheduling_"]) .form-check-label,
+  .form-group:has(input[id^="edit_form_clock_wheel_scheduling_"]) .form-check-label {
+    min-width: 88px;
+    padding: .48rem .8rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .42rem;
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .form-group:has(input[id^="edit_form_scheduling_"]) .form-check-input:checked + .form-check-label,
+  .form-group:has(input[id^="edit_form_clock_wheel_scheduling_"]) .form-check-input:checked + .form-check-label {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary);
+    color: #fff;
+    box-shadow: 0 .2rem .55rem rgba(var(--bs-primary-rgb), .22);
+  }
+
+  /* Compact horizontal weekday selectors. */
+  .form-group:has(input[id^="edit_form_days_"]) {
+    margin-top: .15rem;
+    padding: .55rem .65rem .65rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .45rem;
+    background: var(--bs-tertiary-bg);
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) > div {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center;
+    gap: .42rem !important;
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check {
+    display: inline-flex !important;
+    position: relative;
+    flex: 0 0 auto;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check-input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check-label {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 43px;
+    min-width: 43px;
+    height: 32px;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .38rem;
+    background: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+    font-size: 0 !important;
+    font-weight: 650;
+    letter-spacing: .025em;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .14s ease, background .14s ease, transform .14s ease;
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(1) .form-check-label::before { content: "MON"; }
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(2) .form-check-label::before { content: "TUE"; }
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(3) .form-check-label::before { content: "WED"; }
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(4) .form-check-label::before { content: "THU"; }
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(5) .form-check-label::before { content: "FRI"; }
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(6) .form-check-label::before { content: "SAT"; }
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:nth-child(7) .form-check-label::before { content: "SUN"; }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check-label::before {
+    font-size: .64rem;
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check:hover .form-check-label {
+    transform: translateY(-1px);
+    border-color: var(--bs-primary);
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check-input:checked + .form-check-label {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary);
+    color: #fff;
+    box-shadow: 0 .15rem .45rem rgba(var(--bs-primary-rgb), .22);
+  }
+
+  .form-group:has(input[id^="edit_form_days_"]) .form-check-input:focus + .form-check-label {
+    box-shadow: 0 0 0 .16rem rgba(var(--bs-primary-rgb), .18);
+  }
+
+  /* Playlist Basic Info hierarchy; all original fields remain. */
+  .form-group:has(#form_edit_name),
+  .form-group:has(#form_edit_is_enabled),
+  .form-group:has(#form_edit_description) {
+    padding: .72rem .8rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: var(--bs-tertiary-bg);
+  }
+
+  .form-group:has(#form_edit_is_enabled) .form-check,
+  .form-group:has(#form_edit_avoid_duplicates) .form-check,
+  .form-group:has(#form_edit_include_in_on_demand) .form-check,
+  .form-group:has(#form_edit_include_in_requests) .form-check,
+  .form-group:has(#form_edit_is_jingle) .form-check {
+    min-height: 40px;
+    padding: .55rem .7rem .55rem 2.15rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    background: var(--bs-secondary-bg);
+  }
+
+  .form-group:has(#form_edit_is_enabled) .form-check-input,
+  .form-group:has(#form_edit_avoid_duplicates) .form-check-input,
+  .form-group:has(#form_edit_include_in_on_demand) .form-check-input,
+  .form-group:has(#form_edit_include_in_requests) .form-check-input,
+  .form-group:has(#form_edit_is_jingle) .form-check-input {
+    margin-left: -1.55rem;
+  }
+
+  .form-group:has(input[id^="edit_form_source_"]) > div,
+  .form-group:has(input[id^="edit_form_type_"]) > div,
+  .form-group:has(input[id^="edit_form_order_"]) > div {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .5rem !important;
+  }
+
+  .form-group:has(input[id^="edit_form_source_"]) .form-check,
+  .form-group:has(input[id^="edit_form_type_"]) .form-check,
+  .form-group:has(input[id^="edit_form_order_"]) .form-check {
+    margin: 0 !important;
+    padding: .65rem .7rem .65rem 2rem !important;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    background: var(--bs-secondary-bg);
+    transition: border-color .14s ease, background .14s ease;
+  }
+
+  .form-group:has(input[id^="edit_form_source_"]) .form-check:hover,
+  .form-group:has(input[id^="edit_form_type_"]) .form-check:hover,
+  .form-group:has(input[id^="edit_form_order_"]) .form-check:hover {
+    border-color: var(--bs-primary);
+  }
+
+  .form-group:has(input[id^="edit_form_source_"]) .form-check:has(.form-check-input:checked),
+  .form-group:has(input[id^="edit_form_type_"]) .form-check:has(.form-check-input:checked),
+  .form-group:has(input[id^="edit_form_order_"]) .form-check:has(.form-check-input:checked) {
+    border-color: var(--bs-primary);
+    box-shadow: inset 3px 0 0 var(--bs-primary);
+  }
+
+  section.card:has(#form_edit_avoid_duplicates) {
+    overflow: hidden;
+    border-radius: .65rem;
+  }
+
+  .form-group:has(#form_edit_rotation_goal_days),
+  .form-group:has(#form_edit_aging_threshold_days),
+  .form-group:has(#form_edit_crossfade_profile) {
+    padding: .62rem .7rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    background: var(--bs-tertiary-bg);
+  }
+
+  /* Segmented Flexible / Strict control used by playlist and calendar schedule forms. */
+  .d-flex:has(input[id^="scheduling_flexible"]),
+  .d-flex:has(input[id^="clock_wheel_scheduling_flexible"]) {
+    display: inline-flex !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    padding: 3px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .45rem;
+    background: var(--bs-tertiary-bg);
+  }
+
+  .d-flex:has(input[id^="scheduling_flexible"]) .form-check,
+  .d-flex:has(input[id^="clock_wheel_scheduling_flexible"]) .form-check {
+    position: relative;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .d-flex:has(input[id^="scheduling_flexible"]) .form-check-input,
+  .d-flex:has(input[id^="clock_wheel_scheduling_flexible"]) .form-check-input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 1px !important;
+    height: 1px !important;
+    pointer-events: none;
+  }
+
+  .d-flex:has(input[id^="scheduling_flexible"]) .form-check-label,
+  .d-flex:has(input[id^="clock_wheel_scheduling_flexible"]) .form-check-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 92px;
+    min-height: 34px;
+    padding: .35rem .75rem;
+    border: 0;
+    border-radius: .3rem;
+    background: transparent;
+    color: var(--bs-body-color);
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .d-flex:has(input[id^="scheduling_flexible"]) .form-check-input:checked + .form-check-label,
+  .d-flex:has(input[id^="clock_wheel_scheduling_flexible"]) .form-check-input:checked + .form-check-label {
+    background: var(--bs-primary);
+    color: #fff;
+    box-shadow: 0 .18rem .45rem rgba(var(--bs-primary-rgb), .22);
+  }
+
+  /* Loop Once and Recurring retain original checkbox values, presented as switches. */
+  .form-check:has(input[id^="scheduling_loop_once"]),
+  .form-check:has(#edit_form_is_recurring) {
+    position: relative;
+    min-height: 34px;
+    margin-top: .65rem !important;
+    padding-left: 0 !important;
+  }
+
+  .form-check:has(input[id^="scheduling_loop_once"]) > .form-check-input,
+  .form-check:has(#edit_form_is_recurring) > .form-check-input {
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 1px !important;
+    height: 1px !important;
+    pointer-events: none;
+  }
+
+  .form-check:has(input[id^="scheduling_loop_once"]) > .form-check-label,
+  .form-check:has(#edit_form_is_recurring) > .form-check-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding-left: 3.2rem;
+    color: var(--bs-body-color);
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .form-check:has(input[id^="scheduling_loop_once"]) > .form-check-label::before,
+  .form-check:has(#edit_form_is_recurring) > .form-check-label::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 2.55rem;
+    height: 1.35rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background: var(--bs-secondary-bg);
+    transition: .16s ease;
+  }
+
+  .form-check:has(input[id^="scheduling_loop_once"]) > .form-check-label::after,
+  .form-check:has(#edit_form_is_recurring) > .form-check-label::after {
+    content: "";
+    position: absolute;
+    left: .18rem;
+    width: .98rem;
+    height: .98rem;
+    border-radius: 50%;
+    background: var(--bs-body-color);
+    box-shadow: 0 .1rem .25rem rgba(0,0,0,.24);
+    transition: transform .16s ease, background .16s ease;
+  }
+
+  .form-check:has(input[id^="scheduling_loop_once"]:checked) > .form-check-label::before,
+  .form-check:has(#edit_form_is_recurring:checked) > .form-check-label::before {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary);
+  }
+
+  .form-check:has(input[id^="scheduling_loop_once"]:checked) > .form-check-label::after,
+  .form-check:has(#edit_form_is_recurring:checked) > .form-check-label::after {
+    transform: translateX(1.18rem);
+    background: #fff;
+  }
+
+  /* Recurrence sub-panel layout only. */
+  .modal-body:has(#edit_form_recurrence_type) .row.g-3:has(#edit_form_recurrence_type),
+  .tab-pane .row.g-3:has([id^="edit_form_recurrence_type_"]) {
+    padding: .72rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: var(--bs-tertiary-bg);
+  }
+
+  /* Preserve upstream header/card geometry; no global card-header display override. */
+  .card-header > .row,
+  .card-header > .d-flex,
+  .card-header > [class*="row"],
+  .card-header > [class*="col-"] {
+    /* intentionally empty */
+  }
+
+  .modal-body .form-group:has(input[id^="edit_form_source_"]) .form-check,
+  .modal-body .form-group:has(input[id^="edit_form_type_"]) .form-check,
+  .modal-body .form-group:has(input[id^="edit_form_order_"]) .form-check {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .modal-body .form-group:has(input[id^="edit_form_source_"]) .form-check-label,
+  .modal-body .form-group:has(input[id^="edit_form_type_"]) .form-check-label,
+  .modal-body .form-group:has(input[id^="edit_form_order_"]) .form-check-label {
+    display: block;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  body.page-full {
+    .form-group:has(input[id^="edit_form_source_"]) > div,
+    .form-group:has(input[id^="edit_form_type_"]) > div,
+    .form-group:has(input[id^="edit_form_order_"]) > div {
+      grid-template-columns: 1fr !important;
+    }
+  }
+}
+
+/* Download From URL modal: native AzuraCast colors only. */
+#download_from_url {
+  .btn-primary {
+    border-color: var(--bs-primary) !important;
+    background: var(--bs-primary) !important;
+    background-image: none !important;
+    color: #fff !important;
+    box-shadow: none !important;
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus,
+  .btn-primary:active {
+    border-color: color-mix(in srgb, var(--bs-primary) 82%, #000) !important;
+    background: color-mix(in srgb, var(--bs-primary) 88%, #000) !important;
+    color: #fff !important;
+  }
+
+  .btn-primary:focus-visible {
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .22) !important;
+  }
+
+  .text-primary,
+  .form-label svg,
+  .form-label .icon,
+  .input-group-text svg {
+    color: var(--bs-primary) !important;
+  }
+}
