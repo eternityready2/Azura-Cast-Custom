@@ -25,7 +25,7 @@
                 @mouseleave="scheduleHide()"
             >
                 <div class="card-header d-flex align-items-center gap-2 p-2 bg-body-tertiary border-bottom border-2">
-                    <playlist-source-icon :source="PlaylistSources.Group" />
+                    <playlist-source-icon :source="PlaylistSources.Playlists" />
                     <span class="fw-bold flex-grow-1 text-truncate">
                         {{ $gettext('Played via Playlist Group') }}
                     </span>
@@ -77,12 +77,12 @@ const directName = computed<string | null>(
 const isGrouped = computed<boolean>(() => normalizedChain.value.length > 1);
 
 const badgeIconSource = computed<string | null>(() =>
-    isGrouped.value ? PlaylistSources.Group : (props.source ?? null),
+    isGrouped.value ? PlaylistSources.Playlists : (props.source ?? null),
 );
 
 const chainEntrySource = (index: number): string | null =>
     index < normalizedChain.value.length - 1
-        ? PlaylistSources.Group
+        ? PlaylistSources.Playlists
         : (props.source ?? null);
 
 const ariaLabel = computed<string>(() =>
@@ -91,11 +91,8 @@ const ariaLabel = computed<string>(() =>
         : (directName.value ?? ""),
 );
 
-// Only show the native browser tooltip for non-grouped badges: grouped
-// (chain) playlists already get the richer Teleport overlay on hover, and
-// showing both at once would be redundant/cluttered.
-const titleText = computed<string | null>(() =>
-    isGrouped.value ? null : directName.value,
+const titleText = computed<string | undefined>(() =>
+    isGrouped.value ? undefined : (directName.value ?? undefined),
 );
 
 const overlayVisible = ref<boolean>(false);
