@@ -55,6 +55,7 @@ const add = () => {
         end_date: null,
         days: [],
         loop_once: false,
+        prevent_requests: false,
         strict_start: false,
         recurrence_type: 'weekly',
         recurrence_interval: 1,
