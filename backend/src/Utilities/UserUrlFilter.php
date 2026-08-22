@@ -28,7 +28,13 @@ final class UserUrlFilter
 
         $settings = $this->readSettings();
 
-        if (!$settings->filter_local_user_urls) {
+        // Keep the security filter enabled by default. During a rolling code/database
+        // update, installations that have not yet loaded the new mapped setting are
+        // still protected instead of failing open or throwing on an undefined property.
+        if (
+            property_exists($settings, 'filter_local_user_urls')
+            && !$settings->filter_local_user_urls
+        ) {
             return (string)$uri;
         }
 
