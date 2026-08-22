@@ -7,6 +7,7 @@ namespace App\Radio\AutoDJ;
 use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Api\StationPlaylistQueue;
+use App\Entity\Enums\PlaylistGroupAllowedRequests;
 use App\Entity\Enums\PlaylistOrders;
 use App\Entity\Enums\PlaylistRemoteTypes;
 use App\Entity\Enums\PlaylistSources;
@@ -27,8 +28,10 @@ use App\Radio\AutoDJ\ClockWheel;
 use App\Radio\PlaylistParser;
 use App\Radio\SmartBlock\SmartBlockPlaybackPreparer;
 use App\Service\HolidayOverrideService;
+use App\Utilities\UserUrlFilter;
 use DateTimeImmutable;
 use DateTimeZone;
+use GuzzleHttp\Client;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -54,6 +57,8 @@ final class QueueBuilder implements EventSubscriberInterface
         private readonly SongHistoryRepository $historyRepo,
         private readonly HolidayOverrideService $holidayOverrideService,
         private readonly SmartBlockPlaybackPreparer $smartBlockPlaybackPreparer,
+        private readonly UserUrlFilter $userUrlFilter,
+        private readonly Client $httpClient,
     ) {
     }
 
@@ -90,7 +95,6 @@ final class QueueBuilder implements EventSubscriberInterface
         $activePlaylistsByType = [];
         foreach ($station->playlists as $playlist) {
             /** @var StationPlaylist $playlist */
-            // Official upstream group members are never independently scheduled at the top level.
             if ($playlist->playlist_groups->count() > 0) {
                 continue;
             }
@@ -268,6 +272,14 @@ final class QueueBuilder implements EventSubscriberInterface
             );
         }
 
+        if (PlaylistSources::Requests === $playlist->source) {
+            return $this->playSongFromRequestsPlaylist(
+                $playlist,
+                $expectedPlayTime,
+                $deferQueuePersistence,
+            );
+        }
+
         if (PlaylistSources::RemoteUrl === $playlist->source) {
             return $this->getSongFromRemotePlaylist(
                 $playlist,
@@ -363,10 +375,6 @@ final class QueueBuilder implements EventSubscriberInterface
         return null;
     }
 
-    /**
-     * Upstream-style group selection: one membership advances at a time, supports
-     * nested groups, consecutive plays and full-cycle song playlists.
-     */
     private function playSongFromGroup(
         StationPlaylist $group,
         array $recentSongHistory,
@@ -467,6 +475,46 @@ final class QueueBuilder implements EventSubscriberInterface
         }
 
         return $queue;
+    }
+
+    private function playSongFromRequestsPlaylist(
+        StationPlaylist $playlist,
+        DateTimeImmutable $expectedPlayTime,
+        bool $deferQueuePersistence = false,
+    ): ?StationQueue {
+        if ($this->areRequestsBlockedByAncestors($playlist, $expectedPlayTime)) {
+            return null;
+        }
+
+        $request = $this->requestRepo->getNextPlayableRequest(
+            $playlist->station,
+            $expectedPlayTime
+        );
+
+        if (null === $request) {
+            return null;
+        }
+
+        $this->logger->debug(sprintf(
+            'Queueing next song from request ID %d via Requests playlist "%s".',
+            $request->id,
+            $playlist->name
+        ));
+
+        $stationQueueEntry = StationQueue::fromRequest($request);
+        $stationQueueEntry->playlist = $playlist;
+
+        if (!$deferQueuePersistence) {
+            $this->em->persist($stationQueueEntry);
+        }
+
+        $request->played_at = $expectedPlayTime;
+        $this->em->persist($request);
+
+        $playlist->played_at = $expectedPlayTime;
+        $this->em->persist($playlist);
+
+        return $stationQueueEntry;
     }
 
     private function makeQueueFromApi(
@@ -595,12 +643,17 @@ final class QueueBuilder implements EventSubscriberInterface
         $mediaQueue = $this->cache->get($queueCacheKey);
         if (empty($mediaQueue)) {
             $mediaQueue = [];
-            $playlistRemoteUrl = $playlist->remote_url;
-            if (null !== $playlistRemoteUrl) {
-                $playlistRaw = file_get_contents($playlistRemoteUrl);
-                if (false !== $playlistRaw) {
-                    $mediaQueue = PlaylistParser::getSongs($playlistRaw);
-                }
+
+            $playlistRemoteUrl = $this->userUrlFilter->filterSensitiveUserUrl(
+                $playlist->remote_url,
+                'Playlist Remote URL'
+            );
+
+            $httpResponse = $this->httpClient->get($playlistRemoteUrl);
+            $playlistRaw = $httpResponse->getBody()->getContents();
+
+            if (!empty($playlistRaw)) {
+                $mediaQueue = PlaylistParser::getSongs($playlistRaw);
             }
         }
 
@@ -922,7 +975,11 @@ final class QueueBuilder implements EventSubscriberInterface
             return null;
         }
 
-        if (PlaylistSources::RemoteUrl === $playlist->source || PlaylistSources::Playlists === $playlist->source) {
+        if (in_array(
+            $playlist->source,
+            [PlaylistSources::RemoteUrl, PlaylistSources::Playlists, PlaylistSources::Requests],
+            true
+        )) {
             return null;
         }
 
@@ -948,6 +1005,77 @@ final class QueueBuilder implements EventSubscriberInterface
         };
     }
 
+    private function isRequestBlockedInHierarchy(
+        StationPlaylist $group,
+        ?StationMedia $requestedMedia
+    ): bool {
+        $members = ($group->order === PlaylistOrders::Random)
+            ? $group->playlists->toArray()
+            : array_slice($this->playlistRepo->getPlaylistGroupQueue($group), 0, 1);
+
+        foreach ($members as $member) {
+            if ($member->allowed_requests === PlaylistGroupAllowedRequests::None) {
+                $this->logger->debug(sprintf(
+                    'Playlist group member "%s" blocks requests (allowed_requests=none).',
+                    $member->playlist->name
+                ));
+                return true;
+            }
+
+            if (
+                $member->allowed_requests === PlaylistGroupAllowedRequests::Playlist
+                && $requestedMedia !== null
+                && !$this->spmRepo->isMediaInPlaylist($requestedMedia, $member->playlist)
+            ) {
+                $this->logger->debug(sprintf(
+                    'Request blocked, media not in subtree of member "%s".',
+                    $member->playlist->name
+                ));
+                return true;
+            }
+
+            if ($member->playlist->source === PlaylistSources::Playlists) {
+                if ($this->isRequestBlockedInHierarchy($member->playlist, $requestedMedia)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function areRequestsBlockedByAncestors(
+        StationPlaylist $playlist,
+        DateTimeImmutable $expectedPlayTime
+    ): bool {
+        foreach ($playlist->playlist_groups as $membership) {
+            if ($membership->allowed_requests === PlaylistGroupAllowedRequests::None) {
+                $root = $membership->playlist_group;
+                while (($parentMembership = $root->playlist_groups->first()) !== false) {
+                    /** @var StationPlaylistGroup $parentMembership */
+                    $root = $parentMembership->playlist_group;
+                }
+
+                if (
+                    $root->schedule_items->count() > 0
+                    && $this->scheduler->shouldPlaylistPlayNow($root, $expectedPlayTime)
+                ) {
+                    $this->logger->debug(sprintf(
+                        'Requests blocked for "%s", ancestor group membership has allowed_requests=none.',
+                        $playlist->name
+                    ));
+                    return true;
+                }
+            }
+
+            if ($this->areRequestsBlockedByAncestors($membership->playlist_group, $expectedPlayTime)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function getNextSongFromRequests(BuildQueue $event): void
     {
         if ($event->isInterrupting()) {
@@ -961,12 +1089,52 @@ final class QueueBuilder implements EventSubscriberInterface
         $expectedPlayTime = $event->getExpectedPlayTime();
         $station = $event->getStation();
 
+        if ($station->requests_only_via_playlists) {
+            return;
+        }
+
         foreach ($station->playlists as $playlist) {
-            if (
-                $playlist->backendPrioritizeOverRequests()
-                && $playlist->isPlayable($event->isInterrupting())
-                && $this->scheduler->shouldPlaylistPlayNow($playlist, $expectedPlayTime)
-            ) {
+            if (!$playlist->is_enabled) {
+                continue;
+            }
+
+            foreach ($playlist->schedule_items as $scheduleItem) {
+                if (
+                    $scheduleItem->prevent_requests
+                    && $this->scheduler->shouldSchedulePlayNow(
+                        $scheduleItem,
+                        $station->getTimezoneObject(),
+                        $expectedPlayTime,
+                        excludeSpecialRules: true
+                    )
+                ) {
+                    $this->logger->debug(sprintf(
+                        'Schedule item on playlist "%s" is blocking the global request queue.',
+                        $playlist->name
+                    ));
+                    return;
+                }
+            }
+        }
+
+        foreach ($station->playlists as $playlist) {
+            if (!$playlist->isPlayable($event->isInterrupting())) {
+                continue;
+            }
+
+            if (!$this->scheduler->shouldPlaylistPlayNow($playlist, $expectedPlayTime)) {
+                continue;
+            }
+
+            if (PlaylistSources::Requests === $playlist->source) {
+                $this->logger->debug(sprintf(
+                    'Playlist "%s" is controlling request queue and due now; skipping regular request queue.',
+                    $playlist->name
+                ));
+                return;
+            }
+
+            if ($playlist->backendPrioritizeOverRequests()) {
                 $this->logger->debug(sprintf(
                     'Playlist "%s" is prioritized and due now; skipping request queue.',
                     $playlist->name
@@ -978,6 +1146,25 @@ final class QueueBuilder implements EventSubscriberInterface
         $request = $this->requestRepo->getNextPlayableRequest($station, $expectedPlayTime);
         if (null === $request) {
             return;
+        }
+
+        foreach ($station->playlists as $playlist) {
+            if (
+                !$playlist->is_enabled
+                || $playlist->source !== PlaylistSources::Playlists
+                || $playlist->schedule_items->count() === 0
+                || $playlist->playlist_groups->count() > 0
+            ) {
+                continue;
+            }
+
+            if (!$this->scheduler->shouldPlaylistPlayNow($playlist, $expectedPlayTime)) {
+                continue;
+            }
+
+            if ($this->isRequestBlockedInHierarchy($playlist, $request->track)) {
+                return;
+            }
         }
 
         $this->logger->debug(sprintf('Queueing next song from request ID %d.', $request->id));
