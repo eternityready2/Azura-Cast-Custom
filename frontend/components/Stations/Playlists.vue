@@ -31,11 +31,30 @@
                     :label="$gettext('All Playlists')"
                 >
                     <div class="card-body-flush">
-                        <div class="card-body buttons">
+                        <div class="card-body buttons d-flex justify-content-between align-items-center gap-2 flex-wrap">
                             <add-button
                                 :text="$gettext('Add Playlist')"
                                 @click="doCreate"
                             />
+
+                            <div class="d-flex gap-2">
+                                <a
+                                    class="btn btn-secondary"
+                                    :href="exportPlaylistsConfigUrl"
+                                    target="_blank"
+                                >
+                                    <icon-bi-cloud-download />
+                                    {{ $gettext('Export JSON') }}
+                                </a>
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary"
+                                    @click="doImportPlaylistConfig"
+                                >
+                                    <icon-bi-cloud-upload />
+                                    {{ $gettext('Import JSON') }}
+                                </button>
+                            </div>
                         </div>
 
                         <data-table
@@ -275,6 +294,7 @@
                                     </button>
 
                                     <a
+                                        v-if="item.source !== 'playlists'"
                                         v-for="format in ['pls', 'm3u']"
                                         :key="format"
                                         class="btn btn-sm btn-secondary"
@@ -282,6 +302,14 @@
                                         target="_blank"
                                     >
                                         {{ $gettext('Export %{format}', {format: format.toUpperCase()}) }}
+                                    </a>
+
+                                    <a
+                                        class="btn btn-sm btn-secondary"
+                                        :href="getPlaylistExportConfigUrl(item.id)"
+                                        target="_blank"
+                                    >
+                                        {{ $gettext('Export JSON') }}
                                     </a>
                                 </div>
                             </template>
@@ -303,6 +331,11 @@
     <reorder-modal ref="$reorderModal" />
     <queue-modal ref="$queueModal" />
     <import-modal ref="$importModal" @relist="() => relist()" />
+    <import-playlist-config-modal
+        ref="$importPlaylistConfigModal"
+        :import-url="importPlaylistsConfigUrl"
+        @relist="() => relist()"
+    />
     <clone-modal
         ref="$cloneModal"
         @relist="() => relist()"
@@ -312,37 +345,46 @@
 </template>
 
 <script setup lang="ts">
-import DataTable, {DataTableField} from "~/components/Common/DataTable.vue";
-import EditModal from "~/components/Stations/Playlists/EditModal.vue";
-import ReorderModal from "~/components/Stations/Playlists/ReorderModal.vue";
-import ImportModal from "~/components/Stations/Playlists/ImportModal.vue";
-import QueueModal from "~/components/Stations/Playlists/QueueModal.vue";
-import CloneModal from "~/components/Stations/Playlists/CloneModal.vue";
-import ApplyToModal from "~/components/Stations/Playlists/ApplyToModal.vue";
-import PlaylistGroupingTab from "~/components/Stations/Playlists/PlaylistGroupingTab.vue";
-import PlaylistSourceIcon from "~/components/Stations/Common/PlaylistSourceIcon.vue";
-import {useTranslate} from "~/vendor/gettext";
+import {toRefs} from "@vueuse/core";
 import {ref, useTemplateRef} from "vue";
+import AddButton from "~/components/Common/AddButton.vue";
+import DataTable, {DataTableField} from "~/components/Common/DataTable.vue";
+import Tab from "~/components/Common/Tab.vue";
+import Tabs from "~/components/Common/Tabs.vue";
+import {useNotify} from "~/components/Common/Toasts/useNotify.ts";
+import PlaylistSourceIcon from "~/components/Stations/Common/PlaylistSourceIcon.vue";
+import TimeZone from "~/components/Stations/Common/TimeZone.vue";
+import ApplyToModal from "~/components/Stations/Playlists/ApplyToModal.vue";
+import CloneModal from "~/components/Stations/Playlists/CloneModal.vue";
+import EditModal from "~/components/Stations/Playlists/EditModal.vue";
+import ImportModal from "~/components/Stations/Playlists/ImportModal.vue";
+import ImportPlaylistConfigModal from "~/components/Stations/Playlists/ImportPlaylistConfigModal.vue";
+import PlaylistGroupingTab from "~/components/Stations/Playlists/PlaylistGroupingTab.vue";
+import QueueModal from "~/components/Stations/Playlists/QueueModal.vue";
+import ReorderModal from "~/components/Stations/Playlists/ReorderModal.vue";
+import {QueryKeys, queryKeyWithStation} from "~/entities/Queries.ts";
+import {useApiItemProvider} from "~/functions/dataTable/useApiItemProvider.ts";
+import {useApiRouter} from "~/functions/useApiRouter.ts";
+import useConfirmAndDelete from "~/functions/useConfirmAndDelete";
 import useHasEditModal from "~/functions/useHasEditModal";
 import {useMayNeedRestart} from "~/functions/useMayNeedRestart";
-import {useNotify} from "~/components/Common/Toasts/useNotify.ts";
-import {useAxios} from "~/vendor/axios";
-import useConfirmAndDelete from "~/functions/useConfirmAndDelete";
-import {useLuxon} from "~/vendor/luxon";
-import TimeZone from "~/components/Stations/Common/TimeZone.vue";
-import Tabs from "~/components/Common/Tabs.vue";
-import Tab from "~/components/Common/Tab.vue";
-import AddButton from "~/components/Common/AddButton.vue";
-import {useApiItemProvider} from "~/functions/dataTable/useApiItemProvider.ts";
-import {QueryKeys, queryKeyWithStation} from "~/entities/Queries.ts";
 import {useStationData} from "~/functions/useStationQuery.ts";
-import {toRefs} from "@vueuse/core";
+import {useAxios} from "~/vendor/axios";
+import {useLuxon} from "~/vendor/luxon";
+import {useTranslate} from "~/vendor/gettext";
 import IconBiContract from "~icons/bi/chevron-contract";
 import IconBiExpand from "~icons/bi/chevron-expand";
-import {useApiRouter} from "~/functions/useApiRouter.ts";
+import IconBiCloudDownload from "~icons/bi/cloud-download";
+import IconBiCloudUpload from "~icons/bi/cloud-upload";
 
 const {getStationApiUrl} = useApiRouter();
 const listUrl = getStationApiUrl('/playlists');
+const exportPlaylistsConfigUrl = getStationApiUrl('/playlists/export-config');
+const importPlaylistsConfigUrl = getStationApiUrl('/playlists/import-config');
+const getPlaylistExportConfigUrl = (playlistId: number): string => {
+    return getStationApiUrl(`/playlist/${playlistId}/export-config`).value;
+};
+
 const activeTab = ref<string>('all_playlists');
 const {$gettext} = useTranslate();
 
@@ -387,6 +429,11 @@ const doQueue = (url: string) => {
 const $importModal = useTemplateRef('$importModal');
 const doImport = (url: string) => {
     $importModal.value?.open(url);
+};
+
+const $importPlaylistConfigModal = useTemplateRef('$importPlaylistConfigModal');
+const doImportPlaylistConfig = () => {
+    $importPlaylistConfigModal.value?.open();
 };
 
 const $cloneModal = useTemplateRef('$cloneModal');
