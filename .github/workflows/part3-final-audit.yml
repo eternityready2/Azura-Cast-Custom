@@ -6,6 +6,9 @@ on:
       - part3-upstream-sync
     paths:
       - .github/workflows/part3-final-audit.yml
+  pull_request:
+    branches:
+      - dev
   workflow_dispatch:
 
 permissions:
