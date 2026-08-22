@@ -16,12 +16,12 @@ final class Version20260806020647 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $this->addSql(
-            'CREATE INDEX idx_station_timestamps ON song_history (station_id, timestamp_end, timestamp_start)'
+            'CREATE INDEX IF NOT EXISTS idx_station_timestamps ON song_history (station_id, timestamp_end, timestamp_start)'
         );
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('DROP INDEX idx_station_timestamps ON song_history');
+        $this->addSql('DROP INDEX IF EXISTS idx_station_timestamps ON song_history');
     }
 }
