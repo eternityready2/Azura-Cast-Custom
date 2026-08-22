@@ -213,25 +213,17 @@ final class Station implements Stringable, IdentifiableEntityInterface
     ]
     public ?string $adapter_api_key = null;
 
-    /**
-     * Generate a random new adapter API key.
-     */
     public function generateAdapterApiKey(): void
     {
         $this->adapter_api_key = bin2hex(random_bytes(50));
     }
 
-    /**
-     * Authenticate the supplied adapter API key.
-     */
     public function validateAdapterApiKey(string $apiKey): bool
     {
         return hash_equals($apiKey, $this->adapter_api_key ?? '');
     }
 
-    /**
-     * @return string[] An array of terms to filter from logs and other sensitive displays.
-     */
+    /** @return string[] */
     public function getFilteredPasswords(): array
     {
         $frontendConfig = $this->frontend_config;
@@ -323,6 +315,13 @@ final class Station implements Stringable, IdentifiableEntityInterface
         Serializer\Groups([EntityGroupsInterface::GROUP_GENERAL, EntityGroupsInterface::GROUP_ALL])
     ]
     public ?int $request_threshold = 15;
+
+    #[
+        OA\Property(example: false),
+        ORM\Column,
+        Serializer\Groups([EntityGroupsInterface::GROUP_GENERAL, EntityGroupsInterface::GROUP_ALL])
+    ]
+    public bool $requests_only_via_playlists = false;
 
     #[
         OA\Property(example: 0),
@@ -814,7 +813,6 @@ final class Station implements Stringable, IdentifiableEntityInterface
             $this->radio_base_dir = $this->short_name;
         }
 
-        // Flysystem adapters will automatically create the main directory.
         File::mkdirIfNotExists($this->radio_base_dir);
         File::mkdirIfNotExists($this->getRadioPlaylistsDir());
         File::mkdirIfNotExists($this->getRadioConfigDir());
@@ -916,9 +914,7 @@ final class Station implements Stringable, IdentifiableEntityInterface
         ];
     }
 
-    /**
-     * @return array<string, StorageLocationTypes>
-     */
+    /** @return array<string, StorageLocationTypes> */
     public static function getStorageLocationTypes(): array
     {
         return [
@@ -949,7 +945,6 @@ final class Station implements Stringable, IdentifiableEntityInterface
         $this->has_started = false;
         $this->current_song = null;
 
-        // Clear ports
         $feConfig = $this->frontend_config;
         $feConfig->port = null;
 
@@ -961,7 +956,6 @@ final class Station implements Stringable, IdentifiableEntityInterface
 
         $this->backend_config = $beConfig;
 
-        // Clear collections
         $this->history = new ArrayCollection();
         $this->permissions = new ArrayCollection();
         $this->playlists = new ArrayCollection();
