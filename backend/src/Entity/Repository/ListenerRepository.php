@@ -445,7 +445,11 @@ final class ListenerRepository extends Repository
     {
         $query = $this->em->createQuery(
             <<<'DQL'
-                SELECT l
+                SELECT
+                    l,
+                    IDENTITY(l.mount) AS mount_id,
+                    IDENTITY(l.remote) AS remote_id,
+                    IDENTITY(l.hls_stream) AS hls_stream_id
                 FROM App\Entity\Listener l
                 WHERE l.station = :station
                 AND l.timestamp_end IS NULL
@@ -453,7 +457,14 @@ final class ListenerRepository extends Repository
             DQL
         )->setParameter('station', $station);
 
-        return $query->toIterable([], $query::HYDRATE_ARRAY);
+        foreach ($query->toIterable([], $query::HYDRATE_ARRAY) as $row) {
+            yield [
+                ...$row[0],
+                'mount_id' => $row['mount_id'],
+                'remote_id' => $row['remote_id'],
+                'hls_stream_id' => $row['hls_stream_id'],
+            ];
+        }
     }
 
     /**
@@ -555,7 +566,7 @@ final class ListenerRepository extends Repository
         $csvLoadQuery = sprintf(
             <<<'SQL'
                 LOAD DATA LOCAL INFILE %s IGNORE
-                INTO TABLE %s 
+                INTO TABLE %s
                 FIELDS TERMINATED BY ','
                 OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\n'
