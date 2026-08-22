@@ -20,6 +20,7 @@ export type StationRecord = Omit<
     | 'is_streamer_live'
     | 'branding_config'
 > & {
+    requests_only_via_playlists: boolean,
     frontend_config: Required<StationFrontendConfiguration>,
     backend_config: Omit<
         Required<StationBackendConfiguration>,
