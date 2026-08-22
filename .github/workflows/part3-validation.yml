@@ -23,6 +23,9 @@ jobs:
           coverage: none
       - name: Validate Composer manifest
         run: composer validate --no-check-publish
+      - name: Audit locked Composer dependencies
+        continue-on-error: true
+        run: composer audit --locked --no-interaction
       - name: PHP syntax check
         run: find backend/src backend/config -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
@@ -38,6 +41,9 @@ jobs:
           cache: npm
       - name: Install frontend dependencies
         run: npm ci
+      - name: Baseline production dependency audit
+        continue-on-error: true
+        run: npm audit --omit=dev
       - name: Baseline TypeScript validation
         continue-on-error: true
         run: npm run tsc
@@ -54,6 +60,9 @@ jobs:
           cache: npm
       - name: Install frontend dependencies
         run: npm ci
+      - name: Production dependency audit
+        continue-on-error: true
+        run: npm audit --omit=dev
       - name: TypeScript validation
         continue-on-error: true
         run: npm run tsc
