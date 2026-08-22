@@ -31,8 +31,12 @@ jobs:
 
   composer-refresh:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: part3-upstream-sync
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
@@ -51,6 +55,18 @@ jobs:
           name: part3-composer-lock
           path: composer.lock
           if-no-files-found: error
+      - name: Commit validated Composer lock refresh
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- composer.lock; then
+            echo "Composer lock is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composer.lock
+          git commit -m "Refresh Composer lockfile with compatible security fixes"
+          git push origin HEAD:part3-upstream-sync
 
   frontend-dev-baseline:
     runs-on: ubuntu-latest
@@ -94,8 +110,12 @@ jobs:
 
   npm-refresh:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: part3-upstream-sync
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -115,3 +135,15 @@ jobs:
           name: part3-package-lock
           path: package-lock.json
           if-no-files-found: error
+      - name: Commit validated NPM lock refresh
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "NPM lock is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Refresh NPM lockfile with compatible security fixes"
+          git push origin HEAD:part3-upstream-sync
