@@ -22,12 +22,35 @@ jobs:
           php-version: '8.5'
           coverage: none
       - name: Validate Composer manifest
-        run: composer validate --no-check-publish
+        run: composer validate --no-check-publish --no-check-lock
       - name: Audit locked Composer dependencies
         continue-on-error: true
         run: composer audit --locked --no-interaction
       - name: PHP syntax check
         run: find backend/src backend/config -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  composer-refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+          extensions: curl, ffi, gd, intl, mbstring, redis, xml, maxminddb
+      - name: Refresh Composer lock within current constraints
+        run: composer update --with-all-dependencies --no-interaction --prefer-dist
+      - name: Require clean Composer security audit
+        run: composer audit --locked --no-interaction
+      - name: Verify locked install
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: PHP syntax check
+        run: find backend/src backend/config -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: part3-composer-lock
+          path: composer.lock
+          if-no-files-found: error
 
   frontend-dev-baseline:
     runs-on: ubuntu-latest
@@ -68,3 +91,25 @@ jobs:
         run: npm run tsc
       - name: Frontend build
         run: npm run build
+
+  npm-refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Apply compatible lockfile security fixes
+        run: npm audit fix --package-lock-only
+      - name: Verify clean install
+        run: npm ci
+      - name: Require no high severity production advisories
+        run: npm audit --omit=dev --audit-level=high
+      - name: Verify production build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: part3-package-lock
+          path: package-lock.json
+          if-no-files-found: error
