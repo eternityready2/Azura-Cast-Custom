@@ -6,6 +6,8 @@ namespace App\Controller\Api\Stations\Files;
 
 use App\Controller\SingleActionInterface;
 use App\Entity\Repository\StationMediaRepository;
+use App\Enums\StationPermissions;
+use App\Exception\Http\PermissionDeniedException;
 use App\Flysystem\StationFilesystems;
 use App\Http\Response;
 use App\Http\ServerRequest;
@@ -80,6 +82,10 @@ final readonly class PlayAction implements SingleActionInterface
         $id = $params['id'];
 
         $station = $request->getStation();
+
+        if (!$request->getAcl()->isAllowed(StationPermissions::Media, $station)) {
+            throw PermissionDeniedException::create($request);
+        }
 
         $media = $this->mediaRepo->requireForStation($id, $station);
 
