@@ -6,7 +6,7 @@
         <template v-if="source === PlaylistSources.Songs">
             <icon-ic-library-music />
         </template>
-        <template v-else-if="source === PlaylistSources.Group">
+        <template v-else-if="source === PlaylistSources.Playlists">
             <icon-ic-queue-music />
         </template>
         <template v-else-if="source === PlaylistSources.Requests">
