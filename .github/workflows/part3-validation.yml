@@ -1,0 +1,39 @@
+name: Part 3 Integration Validation
+
+on:
+  push:
+    branches:
+      - part3-upstream-sync
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+      - name: PHP syntax check
+        run: find backend/src backend/config -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: TypeScript validation
+        run: npm run tsc
+      - name: Frontend build
+        run: npm run build
