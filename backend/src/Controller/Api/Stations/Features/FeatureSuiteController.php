@@ -17,6 +17,7 @@ use App\Media\MediaProcessor;
 use App\Radio\Adapters;
 use App\Radio\AutoDJ\LinearLogBuilder;
 use App\Service\GuzzleFactory;
+use App\Utilities\UserUrlFilter;
 use Carbon\CarbonImmutable;
 use GuzzleHttp\RequestOptions;
 use InvalidArgumentException;
@@ -32,6 +33,7 @@ final class FeatureSuiteController
         private readonly GuzzleFactory $guzzleFactory,
         private readonly MediaProcessor $mediaProcessor,
         private readonly LinearLogBuilder $linearLogBuilder,
+        private readonly UserUrlFilter $userUrlFilter,
     ) {
     }
 
@@ -357,10 +359,15 @@ final class FeatureSuiteController
     {
         $station = $request->getStation();
         $data = (array)$request->getParsedBody();
-        $url = trim((string)($data['url'] ?? ''));
-        if (!preg_match('#^https?://#i', $url)) {
+        $rawUrl = trim((string)($data['url'] ?? ''));
+        if (!preg_match('#^https?://#i', $rawUrl)) {
             throw new InvalidArgumentException('Only HTTP and HTTPS URLs are supported.');
         }
+
+        $url = $this->userUrlFilter->filterSensitiveUserUrl(
+            $rawUrl,
+            'Media Download URL',
+        );
 
         $parts = parse_url($url);
         $filename = trim((string)($data['filename'] ?? ''));
@@ -383,7 +390,7 @@ final class FeatureSuiteController
                 RequestOptions::SINK => $tmp,
                 RequestOptions::TIMEOUT => 120,
                 RequestOptions::CONNECT_TIMEOUT => 15,
-                RequestOptions::ALLOW_REDIRECTS => ['max' => 5],
+                RequestOptions::ALLOW_REDIRECTS => false,
                 RequestOptions::HTTP_ERRORS => true,
                 'headers' => ['User-Agent' => 'AzuraCast URL Importer'],
             ]);
