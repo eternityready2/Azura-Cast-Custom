@@ -1,6 +1,6 @@
 import {useLuxon} from "~/vendor/luxon.ts";
 import {useAzuraCast} from "~/vendor/azuracast.ts";
-import {DateTimeMaybeValid} from "luxon";
+import {DateTime} from "luxon";
 import {useStationData} from "~/functions/useStationQuery.ts";
 import {MaybeRefOrGetter, toValue} from "vue";
 import {toRefs} from "@vueuse/core";
@@ -17,34 +17,34 @@ export default function useStationDateTimeFormatter(
         timezone = tz;
     }
 
-    const now = (): DateTimeMaybeValid =>
+    const now = (): DateTime =>
         DateTime.local({zone: toValue(timezone)});
 
-    const timestampToDateTime = (value: number): DateTimeMaybeValid =>
+    const timestampToDateTime = (value: number): DateTime =>
         DateTime.fromSeconds(value, {zone: toValue(timezone)});
 
-    const isoToDateTime = (value: string): DateTimeMaybeValid =>
+    const isoToDateTime = (value: string): DateTime =>
         DateTime.fromISO(value, {zone: toValue(timezone)});
 
     const formatDateTime = (
-        value: DateTimeMaybeValid,
+        value: DateTime,
         format: Intl.DateTimeFormatOptions
     ) => value.toLocaleString(
         {...format, ...timeConfig}
     );
 
     const formatDateTimeAsDateTime = (
-        value: DateTimeMaybeValid,
+        value: DateTime,
         format: Intl.DateTimeFormatOptions | null = null
     ) => formatDateTime(value, format ?? DateTime.DATETIME_MED);
 
     const formatDateTimeAsTime = (
-        value: DateTimeMaybeValid,
+        value: DateTime,
         format: Intl.DateTimeFormatOptions | null = null
     ) => formatDateTime(value, format ?? DateTime.TIME_WITH_SECONDS);
 
     const formatDateTimeAsRelative = (
-        value: DateTimeMaybeValid
+        value: DateTime
     ) => value.toRelative();
 
     const formatTimestampAsDateTime = (
