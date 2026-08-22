@@ -1,5 +1,5 @@
 <template>
-    <tab :label="$gettext('Playout Rules')">
+    <tab :label="$gettext('Advanced Playout')">
         <div class="rules-intro mb-3">
             <strong>{{ $gettext('Playout Engine Settings') }}</strong>
             <span>{{ $gettext('Set scheduling priority, block playback behavior and sponsor guarantees in one place. Basic playlist source, type, order and rotation controls remain on Basic Info.') }}</span>

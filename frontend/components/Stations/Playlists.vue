@@ -37,7 +37,7 @@
                                 @click="doCreate"
                             />
                         </div>
-                        
+
                         <data-table
                             id="station_playlists"
                             paginated
@@ -58,7 +58,7 @@
                                         <template v-if="row.item.source === 'songs'">
                                             {{ $gettext('Song-based') }}
                                         </template>
-                                        <template v-else-if="row.item.source === 'group'">
+                                        <template v-else-if="row.item.source === 'playlists'">
                                             {{ $gettext('Playlist Group') }}
                                         </template>
                                         <template v-else-if="row.item.source === 'requests'">
@@ -110,7 +110,7 @@
                                         {{ $gettext('Disabled') }}
                                     </span>
                                     <span
-                                        v-for="group in row.item.member_of_groups"
+                                        v-for="group in row.item.member_of_groups ?? []"
                                         :key="group.id"
                                         class="badge text-bg-warning"
                                     >
@@ -118,6 +118,7 @@
                                     </span>
                                 </div>
                             </template>
+
                             <template #cell(scheduling)="{ item }">
                                 <template v-if="!item.is_enabled">
                                     {{ $gettext('Disabled') }}
@@ -130,52 +131,39 @@
                                     {{ $gettext('Weight') }}: {{ item.weight }}
                                 </template>
                                 <template v-else-if="item.type === 'once_per_x_songs'">
-                                    {{
-                                        $gettext(
-                                            'Once per %{songs} Songs',
-                                            {songs: item.play_per_songs}
-                                        )
-                                    }}
+                                    {{ $gettext('Once per %{songs} Songs', {songs: item.play_per_songs}) }}
                                 </template>
                                 <template v-else-if="item.type === 'once_per_x_minutes'">
-                                    {{
-                                        $gettext(
-                                            'Once per %{minutes} Minutes',
-                                            {minutes: item.play_per_minutes}
-                                        )
-                                    }}
+                                    {{ $gettext('Once per %{minutes} Minutes', {minutes: item.play_per_minutes}) }}
                                 </template>
                                 <template v-else-if="item.type === 'once_per_hour'">
-                                    {{
-                                        $gettext(
-                                            'Once per Hour (at %{minute})',
-                                            {minute: item.play_per_hour_minute}
-                                        )
-                                    }}
+                                    {{ $gettext('Once per Hour (at %{minute})', {minute: item.play_per_hour_minute}) }}
                                 </template>
                                 <template v-else>
                                     {{ $gettext('Custom') }}
                                 </template>
                             </template>
+
                             <template #cell(num_songs)="row">
                                 <template v-if="row.item.source === 'songs'">
                                     <router-link
                                         :to="{
                                             name: 'stations:files:index',
-                                            params: {
-                                                path: 'playlist:'+row.item.short_name
-                                            }
+                                            params: {path: 'playlist:'+row.item.short_name}
                                         }"
                                     >
                                         {{ row.item.num_songs }}
                                     </router-link>
-
                                     ({{ formatLength(row.item.total_length) }})
+                                </template>
+                                <template v-else-if="row.item.source === 'playlists'">
+                                    {{ row.item.playlists?.length ?? 0 }} {{ $gettext('members') }}
                                 </template>
                                 <template v-else>
                                     &nbsp;
                                 </template>
                             </template>
+
                             <template #cell(actions)="{ item, isActive, toggleDetails }">
                                 <div class="btn-group btn-group-sm">
                                     <button
@@ -192,7 +180,6 @@
                                     >
                                         {{ $gettext('Delete') }}
                                     </button>
-
                                     <button
                                         class="btn btn-sm btn-secondary"
                                         type="button"
@@ -200,16 +187,13 @@
                                     >
                                         <icon-bi-contract v-if="isActive"/>
                                         <icon-bi-expand v-else/>
-
                                         {{ $gettext('More') }}
                                     </button>
                                 </div>
                             </template>
+
                             <template #detail="{ item }">
-                                <div
-                                    class="buttons"
-                                    style="line-height: 2.5;"
-                                >
+                                <div class="buttons" style="line-height: 2.5;">
                                     <button
                                         v-if="item.links.order"
                                         type="button"
@@ -218,22 +202,25 @@
                                     >
                                         {{ $gettext('Reorder') }}
                                     </button>
+
                                     <button
-                                        v-if="item.links.members"
+                                        v-if="item.source === 'playlists'"
                                         type="button"
                                         class="btn btn-sm btn-primary"
-                                        @click="doManageMembers(item.links.members)"
+                                        @click="activeTab = 'playlist_grouping'"
                                     >
-                                        {{ $gettext('Manage Members') }}
+                                        {{ $gettext('Playlist Grouping') }}
                                     </button>
+
                                     <button
                                         type="button"
                                         class="btn btn-sm"
-                                        :class="(item.is_enabled) ? 'btn-warning' : 'btn-success'"
+                                        :class="item.is_enabled ? 'btn-warning' : 'btn-success'"
                                         @click="doModify(item.links.toggle)"
                                     >
-                                        {{ (item.is_enabled) ? $gettext('Disable') : $gettext('Enable') }}
+                                        {{ item.is_enabled ? $gettext('Disable') : $gettext('Enable') }}
                                     </button>
+
                                     <button
                                         v-if="item.links.empty"
                                         type="button"
@@ -242,6 +229,7 @@
                                     >
                                         {{ $gettext('Empty') }}
                                     </button>
+
                                     <button
                                         v-if="item.links.reshuffle"
                                         type="button"
@@ -250,6 +238,7 @@
                                     >
                                         {{ $gettext('Reshuffle') }}
                                     </button>
+
                                     <button
                                         v-if="item.links.import"
                                         type="button"
@@ -258,6 +247,7 @@
                                     >
                                         {{ $gettext('Import from PLS/M3U') }}
                                     </button>
+
                                     <button
                                         v-if="item.links.queue"
                                         type="button"
@@ -266,6 +256,7 @@
                                     >
                                         {{ $gettext('Playback Queue') }}
                                     </button>
+
                                     <button
                                         v-if="item.links.applyto"
                                         type="button"
@@ -274,6 +265,7 @@
                                     >
                                         {{ $gettext('Apply to Folders') }}
                                     </button>
+
                                     <button
                                         type="button"
                                         class="btn btn-sm btn-secondary"
@@ -281,6 +273,7 @@
                                     >
                                         {{ $gettext('Duplicate') }}
                                     </button>
+
                                     <a
                                         v-for="format in ['pls', 'm3u']"
                                         :key="format"
@@ -288,12 +281,7 @@
                                         :href="item.links.export[format]"
                                         target="_blank"
                                     >
-                                        {{
-                                            $gettext(
-                                                'Export %{format}',
-                                                {format: format.toUpperCase()}
-                                            )
-                                        }}
+                                        {{ $gettext('Export %{format}', {format: format.toUpperCase()}) }}
                                     </a>
                                 </div>
                             </template>
@@ -301,6 +289,7 @@
                     </div>
                 </tab>
 
+                <playlist-grouping-tab :list-url="listUrl" />
             </tabs>
         </div>
     </section>
@@ -312,26 +301,14 @@
         @needs-restart="() => mayNeedRestart()"
     />
     <reorder-modal ref="$reorderModal" />
-    <group-members-modal
-        ref="$groupMembersModal"
-        :playlists-url="listUrl"
-        @saved="() => relist()"
-    />
     <queue-modal ref="$queueModal" />
-    <import-modal
-        ref="$importModal"
-        @relist="() => relist()"
-    />
+    <import-modal ref="$importModal" @relist="() => relist()" />
     <clone-modal
         ref="$cloneModal"
         @relist="() => relist()"
         @needs-restart="() => mayNeedRestart()"
     />
-    <apply-to-modal
-        ref="$applyToModal"
-        @relist="() => relist()"
-    />
-
+    <apply-to-modal ref="$applyToModal" @relist="() => relist()" />
 </template>
 
 <script setup lang="ts">
@@ -342,7 +319,7 @@ import ImportModal from "~/components/Stations/Playlists/ImportModal.vue";
 import QueueModal from "~/components/Stations/Playlists/QueueModal.vue";
 import CloneModal from "~/components/Stations/Playlists/CloneModal.vue";
 import ApplyToModal from "~/components/Stations/Playlists/ApplyToModal.vue";
-import GroupMembersModal from "~/components/Stations/Playlists/GroupMembersModal.vue";
+import PlaylistGroupingTab from "~/components/Stations/Playlists/PlaylistGroupingTab.vue";
 import PlaylistSourceIcon from "~/components/Stations/Common/PlaylistSourceIcon.vue";
 import {useTranslate} from "~/vendor/gettext";
 import {ref, useTemplateRef} from "vue";
@@ -356,7 +333,6 @@ import TimeZone from "~/components/Stations/Common/TimeZone.vue";
 import Tabs from "~/components/Common/Tabs.vue";
 import Tab from "~/components/Common/Tab.vue";
 import AddButton from "~/components/Common/AddButton.vue";
-
 import {useApiItemProvider} from "~/functions/dataTable/useApiItemProvider.ts";
 import {QueryKeys, queryKeyWithStation} from "~/entities/Queries.ts";
 import {useStationData} from "~/functions/useStationQuery.ts";
@@ -367,10 +343,7 @@ import {useApiRouter} from "~/functions/useApiRouter.ts";
 
 const {getStationApiUrl} = useApiRouter();
 const listUrl = getStationApiUrl('/playlists');
-
 const activeTab = ref<string>('all_playlists');
-
-
 const {$gettext} = useTranslate();
 
 const fields: DataTableField[] = [
@@ -387,62 +360,46 @@ const listItemProvider = useApiItemProvider(
 );
 
 const {Duration} = useLuxon();
-
 const formatLength = (length: number) => {
     if (0 === length) {
         return $gettext('None');
     }
-
-    const duration = Duration.fromMillis(length * 1000);
-    return duration.rescale().toHuman();
+    return Duration.fromMillis(length * 1000).rescale().toHuman();
 };
 
 const relist = () => {
     void listItemProvider.refresh();
-}
+};
 
 const $editModal = useTemplateRef('$editModal');
 const {doCreate, doEdit} = useHasEditModal($editModal);
 
-
 const $reorderModal = useTemplateRef('$reorderModal');
-
 const doReorder = (url: string) => {
     $reorderModal.value?.open(url);
 };
 
-const $groupMembersModal = useTemplateRef('$groupMembersModal');
-
-const doManageMembers = (url: string) => {
-    void $groupMembersModal.value?.open(url);
-};
-
 const $queueModal = useTemplateRef('$queueModal');
-
 const doQueue = (url: string) => {
     $queueModal.value?.open(url);
 };
 
 const $importModal = useTemplateRef('$importModal');
-
 const doImport = (url: string) => {
     $importModal.value?.open(url);
 };
 
 const $cloneModal = useTemplateRef('$cloneModal');
-
 const doClone = (name: string, url: string) => {
     $cloneModal.value?.open(name, url);
 };
 
 const $applyToModal = useTemplateRef('$applyToModal');
-
 const doApplyTo = (url: string) => {
     $applyToModal.value?.open(url);
-}
+};
 
 const {mayNeedRestart: originalMayNeedRestart} = useMayNeedRestart();
-
 const stationData = useStationData();
 const {useManualAutoDj} = toRefs(stationData);
 
@@ -450,7 +407,6 @@ const mayNeedRestart = () => {
     if (!useManualAutoDj.value) {
         return;
     }
-
     originalMayNeedRestart();
 };
 
@@ -459,9 +415,7 @@ const {axios} = useAxios();
 
 const doModify = async (url: string) => {
     const {data} = await axios.put(url);
-
     mayNeedRestart();
-
     notifySuccess(data.message);
     relist();
 };

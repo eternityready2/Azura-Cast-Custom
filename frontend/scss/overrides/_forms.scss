@@ -257,81 +257,10 @@ body.page-full {
     box-shadow: 0 0 0 .16rem rgba(var(--bs-primary-rgb), .18);
   }
 
-  /* Playlist Basic Info hierarchy; all original fields remain. */
-  .form-group:has(#form_edit_name),
-  .form-group:has(#form_edit_is_enabled),
-  .form-group:has(#form_edit_description) {
-    padding: .72rem .8rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: .55rem;
-    background: var(--bs-tertiary-bg);
-  }
-
-  .form-group:has(#form_edit_is_enabled) .form-check,
-  .form-group:has(#form_edit_avoid_duplicates) .form-check,
-  .form-group:has(#form_edit_include_in_on_demand) .form-check,
-  .form-group:has(#form_edit_include_in_requests) .form-check,
-  .form-group:has(#form_edit_is_jingle) .form-check {
-    min-height: 40px;
-    padding: .55rem .7rem .55rem 2.15rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: .5rem;
-    background: var(--bs-secondary-bg);
-  }
-
-  .form-group:has(#form_edit_is_enabled) .form-check-input,
-  .form-group:has(#form_edit_avoid_duplicates) .form-check-input,
-  .form-group:has(#form_edit_include_in_on_demand) .form-check-input,
-  .form-group:has(#form_edit_include_in_requests) .form-check-input,
-  .form-group:has(#form_edit_is_jingle) .form-check-input {
-    margin-left: -1.55rem;
-  }
-
-  .form-group:has(input[id^="edit_form_source_"]) > div,
-  .form-group:has(input[id^="edit_form_type_"]) > div,
-  .form-group:has(input[id^="edit_form_order_"]) > div {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .5rem !important;
-  }
-
-  .form-group:has(input[id^="edit_form_source_"]) .form-check,
-  .form-group:has(input[id^="edit_form_type_"]) .form-check,
-  .form-group:has(input[id^="edit_form_order_"]) .form-check {
-    margin: 0 !important;
-    padding: .65rem .7rem .65rem 2rem !important;
-    border: 1px solid var(--bs-border-color);
-    border-radius: .5rem;
-    background: var(--bs-secondary-bg);
-    transition: border-color .14s ease, background .14s ease;
-  }
-
-  .form-group:has(input[id^="edit_form_source_"]) .form-check:hover,
-  .form-group:has(input[id^="edit_form_type_"]) .form-check:hover,
-  .form-group:has(input[id^="edit_form_order_"]) .form-check:hover {
-    border-color: var(--bs-primary);
-  }
-
-  .form-group:has(input[id^="edit_form_source_"]) .form-check:has(.form-check-input:checked),
-  .form-group:has(input[id^="edit_form_type_"]) .form-check:has(.form-check-input:checked),
-  .form-group:has(input[id^="edit_form_order_"]) .form-check:has(.form-check-input:checked) {
-    border-color: var(--bs-primary);
-    box-shadow: inset 3px 0 0 var(--bs-primary);
-  }
-
-  section.card:has(#form_edit_avoid_duplicates) {
-    overflow: hidden;
-    border-radius: .65rem;
-  }
-
-  .form-group:has(#form_edit_rotation_goal_days),
-  .form-group:has(#form_edit_aging_threshold_days),
-  .form-group:has(#form_edit_crossfade_profile) {
-    padding: .62rem .7rem;
-    border: 1px solid var(--bs-border-color);
-    border-radius: .5rem;
-    background: var(--bs-tertiary-bg);
-  }
+  /*
+   * Playlist Basic Info intentionally uses native upstream AzuraCast styling.
+   * The previous custom card/grid rules for Basic Info were removed here.
+   */
 
   /* Segmented Flexible / Strict control used by playlist and calendar schedule forms. */
   .d-flex:has(input[id^="scheduling_flexible"]),

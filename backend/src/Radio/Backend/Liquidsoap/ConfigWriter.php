@@ -262,7 +262,7 @@ final class ConfigWriter implements EventSubscriberInterface
                 continue;
             }
 
-            if (PlaylistSources::Group === $playlist->source) {
+            if (PlaylistSources::Playlists === $playlist->source) {
                 continue;
             }
 
@@ -280,7 +280,7 @@ final class ConfigWriter implements EventSubscriberInterface
             // have no static content Liquidsoap can read natively -- which member/request plays
             // next is a runtime decision made by QueueBuilder and pushed to Liquidsoap via the
             // AutoDJ "next song" queue mechanism, not via a native `playlist()` rotation object.
-            if (PlaylistSources::Group === $playlist->source || PlaylistSources::Requests === $playlist->source) {
+            if (PlaylistSources::Playlists === $playlist->source || PlaylistSources::Requests === $playlist->source) {
                 continue;
             }
 
