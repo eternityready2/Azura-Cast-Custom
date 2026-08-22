@@ -122,6 +122,15 @@ final class StationSchedule implements IdentifiableEntityInterface
     ]
     public bool $loop_once = false;
 
+    #[
+        OA\Property(
+            description: "Used to suppress the global request queue while this schedule window is active.",
+            example: false
+        ),
+        ORM\Column(options: ['default' => false])
+    ]
+    public bool $prevent_requests = false;
+
     /**
      * When true, this playlist schedule holds rigidly to its exact start time,
      * cutting the currently playing track if needed rather than waiting for it
