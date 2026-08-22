@@ -41,7 +41,10 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
     {
         return [
             BuildQueue::class => [
-                ['buildTopOfHourId', 2],
+                // Legal IDs are mandatory. Run before request selection (priority 5).
+                // Active clock wheels with their own legal_id slot are detected below
+                // and still retain control for that hour.
+                ['buildTopOfHourId', 6],
             ],
         ];
     }
