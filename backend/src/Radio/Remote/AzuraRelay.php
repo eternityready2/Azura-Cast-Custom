@@ -10,6 +10,7 @@ use App\Container\SettingsAwareTrait;
 use App\Entity\Relay;
 use App\Entity\StationRemote;
 use App\Nginx\CustomUrls;
+use App\Utilities\UserUrlFilter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -25,11 +26,12 @@ final class AzuraRelay extends AbstractRemote
     use SettingsAwareTrait;
 
     public function __construct(
-        private readonly AzuraRelayCache $azuraRelayCache,
         Client $httpClient,
         AdapterFactory $adapterFactory,
+        UserUrlFilter $userUrlFilter,
+        private readonly AzuraRelayCache $azuraRelayCache
     ) {
-        parent::__construct($httpClient, $adapterFactory);
+        parent::__construct($httpClient, $adapterFactory, $userUrlFilter);
     }
 
     public function getNowPlayingAsync(StationRemote $remote, bool $includeClients = false): PromiseInterface
@@ -45,7 +47,6 @@ final class AzuraRelay extends AbstractRemote
 
         if (isset($npRawRelay[$station->id][$remote->mount])) {
             $npRaw = $npRawRelay[$station->id][$remote->mount];
-
             $result = Result::fromArray($npRaw);
 
             if (!empty($result->clients)) {
@@ -54,11 +55,7 @@ final class AzuraRelay extends AbstractRemote
                 }
             }
 
-            $this->logger->debug(
-                'Response for remote relay',
-                ['remote' => $remote->display_name, 'response' => $result]
-            );
-
+            $this->logger->debug('Response for remote relay', ['remote' => $remote->display_name, 'response' => $result]);
             $remote->listeners_total = $result->listeners->total;
             $remote->listeners_unique = $result->listeners->unique ?? 0;
             $this->em->persist($remote);
@@ -71,13 +68,9 @@ final class AzuraRelay extends AbstractRemote
 
     protected function getAdapterType(): AdapterTypes
     {
-        // Not used for this adapter.
         return AdapterTypes::Icecast;
     }
 
-    /**
-     * @inheritDoc
-     */
     public function getPublicUrl(StationRemote $remote): string
     {
         $station = $remote->station;
@@ -88,16 +81,13 @@ final class AzuraRelay extends AbstractRemote
         }
 
         $baseUrl = new Uri(rtrim($relay->base_url, '/'));
-
         $useRadioProxy = $this->readSettings()->use_radio_proxy;
 
         if ($useRadioProxy || 'https' === $baseUrl->getScheme()) {
-            // Web proxy support.
             return (string)$baseUrl
                 ->withPath($baseUrl->getPath() . CustomUrls::getListenUrl($station) . $remote->mount);
         }
 
-        // Remove port number and other decorations.
         return (string)$baseUrl
             ->withPort($station->frontend_config->port)
             ->withPath($remote->mount ?? '');
