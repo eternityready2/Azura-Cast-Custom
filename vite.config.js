@@ -2,10 +2,12 @@ import {defineConfig} from 'vite'
 import vue from '@vitejs/plugin-vue'
 import {glob} from "glob";
 import {resolve} from "path";
-import eslintPlugin from "@nabla/vite-plugin-eslint";
+import biomePlugin from 'vite-plugin-biome';
 import Icons from 'unplugin-icons/vite';
 
 const inputs = {};
+
+const __dirname = import.meta.dirname;
 
 glob.sync('./frontend/js/pages/**/*.js').forEach((path) => {
     // vue/pages/Admin/Index becomes AdminIndex
@@ -31,7 +33,6 @@ console.log(inputs);
 
 const frontendBaseDir = resolve(__dirname, './frontend/');
 
-// https://vitejs.dev/config/
 export default defineConfig({
     root: frontendBaseDir,
     base: '/static/vite_dist',
@@ -40,7 +41,6 @@ export default defineConfig({
             input: inputs,
             output: {
                 chunkFileNames: (assetInfo) => {
-                    // Special handling for translations
                     if (assetInfo.name && assetInfo.name === 'translations') {
                         const translationParts = assetInfo.facadeModuleId
                             .split('/');
@@ -49,7 +49,6 @@ export default defineConfig({
                         return `translations-${translationPath}-[hash:8].js`
                     }
 
-                    // Name chunk after its file if it has one.
                     if (assetInfo.moduleIds.length === 1) {
                         const modulePath = assetInfo.moduleIds.slice().shift();
 
@@ -135,6 +134,9 @@ export default defineConfig({
                 props['aria-hidden'] = 'true';
             },
         }),
-        eslintPlugin(),
+        biomePlugin({
+            mode: 'lint',
+            files: '.',
+        }),
     ],
 })
