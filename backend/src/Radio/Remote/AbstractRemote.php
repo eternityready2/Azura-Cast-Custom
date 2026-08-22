@@ -7,6 +7,7 @@ namespace App\Radio\Remote;
 use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\StationRemote;
+use App\Utilities\UserUrlFilter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\PromiseInterface;
 use NowPlaying\AdapterFactory;
@@ -20,7 +21,8 @@ abstract class AbstractRemote
 
     public function __construct(
         protected Client $httpClient,
-        protected AdapterFactory $adapterFactory
+        protected AdapterFactory $adapterFactory,
+        protected UserUrlFilter $userUrlFilter
     ) {
     }
 
@@ -30,9 +32,14 @@ abstract class AbstractRemote
     ): PromiseInterface {
         $adapterType = $this->getAdapterType();
 
+        $remoteUrl = $this->userUrlFilter->filterSensitiveUserUrl(
+            $remote->url,
+            'Remote Relay URL',
+        );
+
         $npAdapter = $this->adapterFactory->getAdapter(
             $adapterType,
-            $remote->url
+            $remoteUrl
         );
 
         $npAdapter->setAdminPassword($remote->admin_password);
@@ -58,11 +65,6 @@ abstract class AbstractRemote
 
     abstract protected function getAdapterType(): AdapterTypes;
 
-    /**
-     * Return the likely "public" listen URL for the remote.
-     *
-     * @param StationRemote $remote
-     */
     public function getPublicUrl(StationRemote $remote): string
     {
         $customListenUrl = $remote->custom_listen_url;
@@ -72,12 +74,6 @@ abstract class AbstractRemote
             : $this->getRemoteUrl($remote, $remote->mount);
     }
 
-    /**
-     * Format and return a URL for the remote path.
-     *
-     * @param StationRemote $remote
-     * @param string|null $customPath
-     */
     protected function getRemoteUrl(StationRemote $remote, ?string $customPath = null): string
     {
         $uri = $remote->getUrlAsUri();
