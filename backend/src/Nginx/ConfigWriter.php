@@ -53,6 +53,7 @@ final class ConfigWriter implements EventSubscriberInterface
 
             location ~ ^({$listenBaseUrlForRegex}|/radio/{$port})/(.*)\$ {
                 include proxy_params;
+                chunked_transfer_encoding off;
 
                 proxy_intercept_errors    on;
                 proxy_next_upstream       error timeout invalid_header;
@@ -61,7 +62,7 @@ final class ConfigWriter implements EventSubscriberInterface
                 proxy_connect_timeout     60;
 
                 proxy_set_header Host \$host/{$listenBaseUrl};
-                
+
                 set \$args \$args&_ic2=1;
                 proxy_pass http://127.0.0.1:{$port}/\$2?\$args;
             }
@@ -110,6 +111,8 @@ final class ConfigWriter implements EventSubscriberInterface
             $stationId = $station->id;
             $apiKey = $station->adapter_api_key;
 
+            // Explicitly only authenticating the playlist since authenticating every segment
+            // could be quite taxing and segment names are quite hard to guess anyways
             $event->appendBlock(
                 <<<NGINX
                 # Reverse proxy the frontend broadcast.

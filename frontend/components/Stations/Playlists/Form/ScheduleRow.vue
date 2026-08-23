@@ -136,6 +136,23 @@
                             {{ $gettext('Loop Once') }}
                         </label>
                     </div>
+                    <div class="form-check mt-2">
+                        <input
+                            :id="'scheduling_prevent_requests_'+index"
+                            v-model="row.prevent_requests"
+                            class="form-check-input"
+                            type="checkbox"
+                        >
+                        <label
+                            class="form-check-label"
+                            :for="'scheduling_prevent_requests_'+index"
+                        >
+                            {{ $gettext('Block Request Queue While Active') }}
+                        </label>
+                    </div>
+                    <small class="form-text text-muted d-block mt-1">
+                        {{ $gettext('While this scheduled window is active, listener requests will not be played via the automatic request queue.') }}
+                    </small>
                     <small class="form-text text-muted d-block mt-1">
                         {{ $gettext('Independent of Strict/Flexible above') }}
                     </small>
@@ -250,6 +267,7 @@ interface PlaylistScheduleRow {
     end_date: string,
     days: number[],
     loop_once: boolean,
+    prevent_requests: boolean,
     /** Playlist Flexible/Strict scheduling (independent of loop_once). */
     strict_start: boolean,
     recurrence_type: string | null,

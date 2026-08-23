@@ -20,6 +20,7 @@ export type StationRecord = Omit<
     | 'is_streamer_live'
     | 'branding_config'
 > & {
+    requests_only_via_playlists: boolean,
     frontend_config: Required<StationFrontendConfiguration>,
     backend_config: Omit<
         Required<StationBackendConfiguration>,
@@ -120,6 +121,7 @@ export const useAdminStationsForm = defineStore(
             enable_requests: false,
             request_delay: 5,
             request_threshold: 15,
+            requests_only_via_playlists: false,
             enable_streamers: false,
             disconnect_deactivate_streamer: 0,
             media_storage_location: '',
@@ -215,6 +217,7 @@ export const useAdminStationsForm = defineStore(
                         fields.enable_requests,
                         fields.request_delay,
                         fields.request_threshold,
+                        fields.requests_only_via_playlists,
                     ],
                     streamersTab: [
                         fields.enable_streamers,

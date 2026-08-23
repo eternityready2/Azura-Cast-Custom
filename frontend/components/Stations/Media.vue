@@ -269,6 +269,7 @@
 </template>
 
 <script setup lang="ts">
+import {useQueryClient} from "@tanstack/vue-query";
 import DataTable, {DataTableField} from "~/components/Common/DataTable.vue";
 import MediaToolbar from "~/components/Stations/Media/MediaToolbar.vue";
 import Breadcrumb from "~/components/Stations/Media/Breadcrumb.vue";
@@ -462,7 +463,7 @@ const fields = computed<DataTableField<MediaRow>[]>(() => {
     return fields;
 });
 
-const playlists = ref<MediaInitialPlaylist[]>(props.initialPlaylists.slice());
+const playlists = computed(() => props.initialPlaylists);
 const selectedItems = ref<MediaSelectedItems>({
     all: [],
     files: [],
@@ -500,8 +501,11 @@ const onTriggerRelist = () => {
     $quota.value?.update();
 };
 
-const onAddPlaylist = (row: MediaInitialPlaylist) => {
-    playlists.value.push(row);
+const queryClient = useQueryClient();
+const propsQueryKey = queryKeyWithStation([QueryKeys.StationMedia, 'props']);
+
+const onAddPlaylist = () => {
+    void queryClient.invalidateQueries({queryKey: propsQueryKey});
 };
 
 const onFiltered = (newFilter: string) => {

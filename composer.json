@@ -119,7 +119,6 @@
     "codeception/module-asserts": "^3.2",
     "codeception/module-cli": "^2.0.1",
     "codeception/module-doctrine": "^3.2",
-    "codeception/module-doctrine2": "^3.0",
     "codeception/module-phpbrowser": "dev-master",
     "codeception/module-rest": "^3.4.1",
     "filp/whoops": "^2.18.4",
@@ -141,7 +140,6 @@
   "config": {
     "discard-changes": true,
     "preferred-install": "dist",
-    "source-fallback": true,
     "sort-packages": true,
     "allow-plugins": {
       "composer/package-versions-deprecated": true,

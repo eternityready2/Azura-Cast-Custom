@@ -35,7 +35,9 @@ type Form = Required<Pick<
     | 'use_external_album_art_in_apis'
     | 'use_external_album_art_when_processing_media'
     | 'last_fm_api_key'
->>
+>> & {
+    filter_local_user_urls: boolean;
+};
 
 export const useAdminSettingsForm = defineStore(
     'form-admin-settings',
@@ -54,6 +56,7 @@ export const useAdminSettingsForm = defineStore(
             api_access_control: '*',
             enable_liquidsoap_editing: true,
             enable_all_webhooks: true,
+            filter_local_user_urls: true,
             check_for_updates: true,
             acme_email: '',
             acme_domains: '',
@@ -93,7 +96,8 @@ export const useAdminSettingsForm = defineStore(
                         fields.analytics,
                         fields.always_use_ssl,
                         fields.ip_source,
-                        fields.api_access_control
+                        fields.api_access_control,
+                        fields.filter_local_user_urls,
                     ],
                     servicesTab: [
                         fields.check_for_updates,
