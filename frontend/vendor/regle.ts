@@ -11,6 +11,7 @@ import {
     minLength,
     numeric,
     required,
+    sameAs,
     url,
     withMessage
 } from "@regle/rules";
@@ -97,6 +98,14 @@ export const {useRegle: useAppRegle} = defineRegleConfig({
                 email,
                 $gettext('This field must be a valid e-mail address.')
             ),
+            sameAs: withMessage(sameAs, ({$params: [_value, otherName]}) => {
+                return $gettext(
+                    'This field must match the %{otherName} value.',
+                    {
+                        otherName: String(otherName)
+                    }
+                );
+            }),
             url: withMessage(
                 url,
                 $gettext('This field must be a valid URL.')
