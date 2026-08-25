@@ -230,6 +230,23 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         return $row instanceof StationQueue ? $row : null;
     }
 
+    public function deleteUnplayedTopOfHourLegalIdsBefore(
+        Station $station,
+        DateTimeImmutable $before,
+    ): int {
+        return (int)$this->em->createQuery(
+            <<<'DQL'
+                DELETE FROM App\Entity\StationQueue sq
+                WHERE sq.station = :station
+                AND sq.top_of_hour_legal_id = 1
+                AND sq.is_played = 0
+                AND sq.timestamp_played < :before
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('before', $before)
+            ->execute();
+    }
+
     /** @return DateTimeImmutable[] */
     public function getRecentlyPlayedTopOfHourLegalIds(
         Station $station,
