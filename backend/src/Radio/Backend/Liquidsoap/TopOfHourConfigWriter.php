@@ -45,7 +45,10 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             ? ConfigWriter::toRawString(
                 'annotate:azuracast_legal_id="true",liq_disable_autocue="true":media:' . $safetyMedia->path
             )
-            : 'settings.azuracast.fallback_path()';
+            : ConfigWriter::toRawString(
+                'annotate:azuracast_legal_id="true",liq_disable_autocue="true":'
+                . $station->getRadioConfigDir() . '/fallback.mp3'
+            );
 
         $safetyDuration = $safetyMedia?->getCalculatedLength()
             ?? (float)$config->top_of_hour_id_max_seconds;
@@ -61,10 +64,10 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             )
         );
 
-        // The legacy hard-trigger wrapper remains available in the common
-        // Liquidsoap library, but its independent source switch is disabled for
-        // legal IDs. The watchdog below feeds the same dedicated queue used by
-        // the PHP scheduler, so there is only one audio takeover path.
+        // Keep the legacy hard-trigger operator available, but turn off its
+        // independent source switch for the legal ID. The watchdog below feeds
+        // the same dedicated queue as the PHP scheduler so only one source owns
+        // the audio takeover.
         $event->appendBlock(
             <<<LIQ
             settings.azuracast.top_of_hour_hard_trigger_enabled := false
@@ -85,6 +88,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               end
             end
 
+            source.methods(top_of_hour_queue).on_track(synchronous=false, top_of_hour_mark_legal_id)
             source.methods(radio).on_track(synchronous=false, top_of_hour_mark_legal_id)
 
             def top_of_hour_hard_trigger_watch() =
@@ -111,7 +115,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             thread.run.recurrent(
               fast=false,
               delay=1.0,
-              top_of_hour_hard_trigger_watch
+              { top_of_hour_hard_trigger_watch() }
             )
             LIQ
         );
