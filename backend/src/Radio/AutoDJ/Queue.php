@@ -258,17 +258,13 @@ final class Queue
         }
 
         foreach ($nextSongs as $queueRow) {
-            // A planned TOH row remains unplayed until the dedicated Liquidsoap
-            // queue accepts it. This lets the next real-time tick retry safely if
-            // enqueueing fails instead of silently consuming the compliance item.
             if (!$queueRow->top_of_hour_legal_id) {
                 $queueRow->is_played = true;
+                $queueRow->timestamp_cued = $expectedPlayTime;
+                $queueRow->timestamp_played = $expectedPlayTime;
             }
 
-            $queueRow->timestamp_cued = $expectedPlayTime;
-            $queueRow->timestamp_played = $expectedPlayTime;
             $queueRow->updateVisibility();
-
             $this->em->persist($queueRow);
             $this->em->flush();
 
