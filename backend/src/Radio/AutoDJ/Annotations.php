@@ -292,11 +292,21 @@ final class Annotations implements EventSubscriberInterface
         }
 
         $queueRow = $event->getQueue();
-        if ($queueRow instanceof StationQueue) {
-            $queueRow->sent_to_autodj = true;
-            $queueRow->timestamp_cued = Time::nowUtc();
-            $this->em->persist($queueRow);
-            $this->em->flush();
+        if (!$queueRow instanceof StationQueue) {
+            return;
         }
+
+        // TOH rows are handed to a dedicated queue outside the normal AutoDJ
+        // fetch path. Do not mark them sent until that enqueue succeeds; keeping
+        // the planned row untouched preserves the normal-queue barrier and makes
+        // a failed enqueue retryable on the next real-time tick.
+        if ($queueRow->top_of_hour_legal_id) {
+            return;
+        }
+
+        $queueRow->sent_to_autodj = true;
+        $queueRow->timestamp_cued = Time::nowUtc();
+        $this->em->persist($queueRow);
+        $this->em->flush();
     }
 }
