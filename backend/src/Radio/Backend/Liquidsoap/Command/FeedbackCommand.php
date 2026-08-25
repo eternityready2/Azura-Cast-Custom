@@ -101,20 +101,7 @@ final class FeedbackCommand extends AbstractCommand
             $sq = $this->queueRepo->findRecentlyCuedSong($station, $media);
 
             if (!$sq instanceof StationQueue && !empty($payload['azuracast_legal_id'])) {
-                $now = Time::nowUtc()->toDateTimeImmutable();
-                $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
-                    $station,
-                    $now,
-                );
-                $windowStart = $targetTop->modify(
-                    '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
-                );
-
-                $sq = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
-                    $station,
-                    $windowStart,
-                    $targetTop,
-                );
+                $sq = $this->resolveTopOfHourQueueRow($station, $media);
             }
 
             if ($sq instanceof StationQueue) {
@@ -151,5 +138,37 @@ final class FeedbackCommand extends AbstractCommand
         }
 
         return $history;
+    }
+
+    private function resolveTopOfHourQueueRow(
+        Station $station,
+        StationMedia $media,
+    ): StationQueue {
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
+            $station,
+            $now,
+        );
+        $windowStart = $targetTop->modify(
+            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+        );
+
+        $planned = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
+            $station,
+            $windowStart,
+            $targetTop,
+        );
+        if ($planned instanceof StationQueue) {
+            return $planned;
+        }
+
+        $fallback = StationQueue::fromMedia($station, $media);
+        $fallback->top_of_hour_legal_id = true;
+        $fallback->timestamp_cued = $now;
+        $fallback->timestamp_played = $now;
+        $this->em->persist($fallback);
+        $this->em->flush();
+
+        return $fallback;
     }
 }
