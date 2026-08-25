@@ -279,7 +279,7 @@ final class Queue
     }
 
     /**
-     * Stretch ratio is source duration divided by target duration.
+     * Liquidsoap stretch ratio is output duration divided by source duration.
      */
     private function getEffectiveQueueDuration(StationQueue $queueRow): float
     {
@@ -287,7 +287,7 @@ final class Queue
         $stretchRatio = $queueRow->clock_wheel_stretch_ratio;
 
         if ($duration > 0.0 && null !== $stretchRatio && $stretchRatio > 0.0) {
-            $duration /= $stretchRatio;
+            $duration *= $stretchRatio;
         }
 
         if ($duration < 5.0) {
