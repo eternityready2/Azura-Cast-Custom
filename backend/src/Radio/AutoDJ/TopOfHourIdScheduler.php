@@ -19,7 +19,7 @@ use DateTimeImmutable;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Queues the mandatory legal ID during the protected end-of-hour window.
+ * Queues the mandatory legal ID into the real-time top-of-hour queue.
  */
 final class TopOfHourIdScheduler implements EventSubscriberInterface
 {
@@ -48,24 +48,12 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
 
     public function buildTopOfHourId(BuildQueue $event): void
     {
-        $station = $event->getStation();
-        $expectedPlayTime = $event->getExpectedPlayTime();
-        $nextSongs = $event->getNextSongs();
-        $isInterrupting = $event->isInterrupting();
-
-        $this->logger->info('[TOPH DEBUG] BuildQueue received by TopOfHourIdScheduler.', [
-            'station_id' => $station->id,
-            'expected_play_time' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
-            'expected_play_time_local' => $expectedPlayTime
-                ->setTimezone($station->getTimezoneObject())
-                ->format(DateTimeImmutable::ATOM),
-            'existing_next_songs' => count($nextSongs),
-            'interrupting' => $isInterrupting,
-        ]);
-
-        if ($nextSongs !== []) {
+        if (!$event->isInterrupting() || $event->getNextSongs() !== []) {
             return;
         }
+
+        $station = $event->getStation();
+        $expectedPlayTime = $event->getExpectedPlayTime();
 
         if (!$this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
             return;
@@ -85,15 +73,16 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             $station,
             $expectedPlayTime,
         );
+        $isDue = $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime);
 
-        $isDue = $isInterrupting
-            ? $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime)
-            : $this->hourBoundaryPlanner->isTopOfHourIdDue($station, $expectedPlayTime);
-
-        $this->logger->info('[TOPH DEBUG] End-of-hour ID due evaluation.', [
+        $this->logger->info('[TOPH DEBUG] Real-time end-of-hour ID evaluation.', [
+            'station_id' => $station->id,
+            'expected_play_time' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+            'expected_play_time_local' => $expectedPlayTime
+                ->setTimezone($station->getTimezoneObject())
+                ->format(DateTimeImmutable::ATOM),
             'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
             'is_due' => $isDue,
-            'interrupting' => $isInterrupting,
         ]);
 
         if (!$isDue) {
@@ -147,7 +136,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         }
 
         $this->em->flush();
-        $this->logger->info('[TOPH DEBUG] Top-of-hour ID resolved and selected.', [
+        $this->logger->info('[TOPH DEBUG] Top-of-hour ID selected for dedicated queue.', [
             'media_id' => $nextSong->media?->id,
             'song_id' => $nextSong->song_id,
             'duration' => $nextSong->duration,
