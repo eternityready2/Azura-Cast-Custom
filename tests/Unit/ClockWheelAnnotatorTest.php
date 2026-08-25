@@ -71,11 +71,48 @@ final class ClockWheelAnnotatorTest extends Unit
         self::assertSame(45.0, $event->getAnnotations()['autocue_cue_out']);
     }
 
+    public function testStretchThatFitsHardCapDoesNotAlsoCueOut(): void
+    {
+        $event = $this->makeAnnotateEvent(
+            enforceCap: true,
+            asAutoDj: true,
+            maxPlaySeconds: 180,
+            mediaLength: 181.0,
+            stretchRatio: 0.9945,
+        );
+
+        $this->annotator->applyClockWheelStretch($event);
+        $this->annotator->applyClockWheelCap($event);
+
+        self::assertSame(0.9945, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertArrayNotHasKey('autocue_cue_out', $event->getAnnotations());
+        self::assertEqualsWithDelta(180.0, $event->getAnnotations()['duration'], 0.01);
+    }
+
+    public function testStretchIsNeutralizedWhenHardCapIsTighter(): void
+    {
+        $event = $this->makeAnnotateEvent(
+            enforceCap: true,
+            asAutoDj: true,
+            maxPlaySeconds: 30,
+            mediaLength: 90.0,
+            stretchRatio: 1.05,
+        );
+
+        $this->annotator->applyClockWheelStretch($event);
+        $this->annotator->applyClockWheelCap($event);
+
+        self::assertSame(1.0, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertSame(30.0, $event->getAnnotations()['autocue_cue_out']);
+        self::assertNull($event->getQueue()?->clock_wheel_stretch_ratio);
+    }
+
     private function makeAnnotateEvent(
         bool $enforceCap,
         bool $asAutoDj,
         int $maxPlaySeconds = 30,
         float $mediaLength = 90.0,
+        ?float $stretchRatio = null,
     ): AnnotateNextSong {
         $wheel = new StationClockWheel($this->station);
 
@@ -91,6 +128,7 @@ final class ClockWheelAnnotatorTest extends Unit
         $queue->clock_wheel = $wheel;
         $queue->clock_wheel_enforce_cap = $enforceCap;
         $queue->clock_wheel_max_play_seconds = $maxPlaySeconds;
+        $queue->clock_wheel_stretch_ratio = $stretchRatio;
 
         return AnnotateNextSong::fromStationQueue($queue, $asAutoDj);
     }

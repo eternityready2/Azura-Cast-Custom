@@ -6,6 +6,7 @@ namespace App\Radio\AutoDJ;
 
 use App\Cache\AutoCueCache;
 use App\Container\EntityManagerAwareTrait;
+use App\Entity\Enums\StationMediaTypes;
 use App\Entity\Repository\CustomFieldRepository;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
@@ -97,6 +98,16 @@ final class Annotations implements EventSubscriberInterface
         }
 
         $duration = $media->length;
+        $queue = $event->getQueue();
+        $isLegalId = StationMediaTypes::isStationId($media->type)
+            || ($queue?->top_of_hour_legal_id ?? false)
+            || ($queue?->clock_wheel_legal_id_substitute ?? false);
+        $isTopOfHourId = ($queue?->top_of_hour_legal_id ?? false)
+            || ($queue?->clock_wheel_legal_id_substitute ?? false)
+            || (
+                $queue?->clock_wheel !== null
+                && StationMediaTypes::isStationId($media->type)
+            );
 
         $event->addAnnotations([
             'title' => $media->title,
@@ -104,7 +115,9 @@ final class Annotations implements EventSubscriberInterface
             'duration' => $duration,
             'song_id' => $media->song_id,
             'media_id' => $media->id,
-            'sq_id' => $event->getQueue()?->id,
+            'sq_id' => $queue?->id,
+            'azuracast_legal_id' => $isLegalId ? 'true' : null,
+            'azuracast_top_of_hour_id' => $isTopOfHourId ? 'true' : null,
             ...$this->processAutocueAnnotations(
                 $station,
                 $media->extra_metadata->toArray(),
@@ -155,7 +168,6 @@ final class Annotations implements EventSubscriberInterface
             return [];
         }
 
-        // If cue_out is negative, it's relative to the end of the track; recompute to be relative to the start.
         if (
             isset($annotations[Meta::CUE_OUT])
             && $annotations[Meta::CUE_OUT] < 0.0
@@ -173,7 +185,6 @@ final class Annotations implements EventSubscriberInterface
             }
         }
 
-        // cue_out must be less than track duration.
         if (
             isset($annotations[Meta::CUE_OUT])
             && $annotations[Meta::CUE_OUT] > $duration
@@ -181,7 +192,6 @@ final class Annotations implements EventSubscriberInterface
             unset($annotations[Meta::CUE_OUT]);
         }
 
-        // cue_in must be less than track duration.
         if (
             isset($annotations[Meta::CUE_IN])
             && $annotations[Meta::CUE_IN] > $duration
@@ -193,7 +203,6 @@ final class Annotations implements EventSubscriberInterface
             return [];
         }
 
-        // Liquidsoap expects amplify to be in dB.
         if (isset($annotations[Meta::AMPLIFY])) {
             $amplify = trim((string) $annotations[Meta::AMPLIFY]);
             if (!str_ends_with($amplify, 'dB')) {
@@ -202,7 +211,6 @@ final class Annotations implements EventSubscriberInterface
 
             $annotations[Meta::AMPLIFY] = $amplify;
 
-            // If only amplify is specified, return just it to use it in other AutoCue/amplify functions.
             if (1 === count($annotations)) {
                 return [
                     'liq_amplify' => $annotations[Meta::AMPLIFY],
@@ -210,17 +218,14 @@ final class Annotations implements EventSubscriberInterface
             }
         }
 
-        // Ensure default values for all annotations.
         $annotations[Meta::CUE_IN] ??= 0.0;
         $annotations[Meta::CUE_OUT] ??= $duration;
 
-        // cue_out must always be greater than cue_in.
         if ($annotations[Meta::CUE_OUT] < $annotations[Meta::CUE_IN]) {
             $annotations[Meta::CUE_IN] = 0.0;
             $annotations[Meta::CUE_OUT] = $duration;
         }
 
-        // start_next must be between cue_in and cue_out.
         if (isset($annotations[Meta::CROSS_START_NEXT])) {
             $startNext = $annotations[Meta::CROSS_START_NEXT];
             if (
@@ -287,11 +292,21 @@ final class Annotations implements EventSubscriberInterface
         }
 
         $queueRow = $event->getQueue();
-        if ($queueRow instanceof StationQueue) {
-            $queueRow->sent_to_autodj = true;
-            $queueRow->timestamp_cued = Time::nowUtc();
-            $this->em->persist($queueRow);
-            $this->em->flush();
+        if (!$queueRow instanceof StationQueue) {
+            return;
         }
+
+        // TOH rows are handed to a dedicated queue outside the normal AutoDJ
+        // fetch path. Do not mark them sent until that enqueue succeeds; keeping
+        // the planned row untouched preserves the normal-queue barrier and makes
+        // a failed enqueue retryable on the next real-time tick.
+        if ($queueRow->top_of_hour_legal_id) {
+            return;
+        }
+
+        $queueRow->sent_to_autodj = true;
+        $queueRow->timestamp_cued = Time::nowUtc();
+        $this->em->persist($queueRow);
+        $this->em->flush();
     }
 }

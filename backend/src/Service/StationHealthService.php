@@ -9,8 +9,8 @@ use App\Entity\Station;
 use App\Entity\StationMount;
 use App\Entity\Enums\PlaylistSources;
 use App\Radio\AutoDJ\HourBoundaryPlanner;
+use App\Radio\AutoDJ\TopOfHourComplianceService;
 use Carbon\CarbonImmutable;
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use OpenApi\Attributes as OA;
 
@@ -63,9 +63,7 @@ final class StationHealthReport
     #[OA\Property(example: 2)]
     public int $upcoming_holidays = 0;
 
-    /**
-     * @var StationHealthMountSummary[]
-     */
+    /** @var StationHealthMountSummary[] */
     #[OA\Property(type: 'array', items: new OA\Items(type: 'object'))]
     public array $stream_mounts = [];
 
@@ -82,6 +80,7 @@ final class StationHealthService
         private readonly EntityManagerInterface $em,
         private readonly ClockWheelEventRepository $eventRepo,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
+        private readonly TopOfHourComplianceService $topOfHourComplianceService,
     ) {
     }
 
@@ -133,7 +132,7 @@ final class StationHealthService
         $report->clock_wheel_fallbacks_7d = $stationSummary['fallbacks'];
         $report->clock_wheel_deferred_7d = $stationSummary['deferred'];
 
-        $compliance = $this->eventRepo->getStationTopOfHourLegalIdComplianceSummary(
+        $compliance = $this->topOfHourComplianceService->getSummary(
             $station,
             $since,
             $this->hourBoundaryPlanner->getComplianceToleranceSeconds($station),

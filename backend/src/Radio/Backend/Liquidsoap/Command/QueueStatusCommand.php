@@ -21,7 +21,7 @@ final class QueueStatusCommand extends AbstractCommand
     ): array {
         return [
             'ready' => $station->supportsAutoDjQueue()
-                && $this->queueRepo->hasUnplayedQueue($station),
+                && null !== $this->queueRepo->getNextToSendToAutoDj($station),
         ];
     }
 }

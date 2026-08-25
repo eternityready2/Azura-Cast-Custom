@@ -6,15 +6,19 @@ namespace App\Radio\Backend\Liquidsoap\Command;
 
 use App\Cache\NowPlayingCache;
 use App\Container\EntityManagerAwareTrait;
+use App\Entity\Enums\ClockWheelFallbackReason;
 use App\Entity\Repository\SongHistoryRepository;
 use App\Entity\Repository\StationQueueRepository;
-use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
 use App\Entity\Song;
 use App\Entity\SongHistory;
 use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
 use App\Entity\StationQueue;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
+use App\Radio\AutoDJ\HourBoundaryPlanner;
+use App\Utilities\Time;
 use App\Utilities\Types;
 use RuntimeException;
 
@@ -27,6 +31,8 @@ final class FeedbackCommand extends AbstractCommand
         private readonly SongHistoryRepository $historyRepo,
         private readonly NowPlayingCache $nowPlayingCache,
         private readonly ClockWheelLegalIdPlaybackService $legalIdPlaybackService,
+        private readonly ClockWheelEventLogger $eventLogger,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
 
@@ -39,7 +45,6 @@ final class FeedbackCommand extends AbstractCommand
             return false;
         }
 
-        // Process Liquidsoap list.assoc to JSON mapping
         $payload = array_map(
             fn($dataVal) => match (true) {
                 'true' === $dataVal || 'false' === $dataVal => Types::bool(
@@ -53,7 +58,6 @@ final class FeedbackCommand extends AbstractCommand
             $payload
         );
 
-        // Process extra metadata sent by Liquidsoap (if it exists).
         $historyRow = $this->getSongHistory($station, $payload);
         $this->em->persist($historyRow);
 
@@ -82,10 +86,7 @@ final class FeedbackCommand extends AbstractCommand
                 throw new RuntimeException('Song is not different from current song.');
             }
 
-            return new SongHistory(
-                $station,
-                $newSong
-            );
+            return new SongHistory($station, $newSong);
         }
 
         $media = $this->em->find(StationMedia::class, $payload['media_id']);
@@ -99,11 +100,16 @@ final class FeedbackCommand extends AbstractCommand
 
         if (!empty($payload['sq_id'])) {
             $sq = $this->em->find(StationQueue::class, $payload['sq_id']);
+        } elseif (!empty($payload['azuracast_top_of_hour_fallback'])) {
+            // A hard-clock fallback is owned by the TOH coordinator. Resolve it
+            // against the boundary row before considering ordinary same-media
+            // queue entries so an unrelated station-ID play cannot absorb the
+            // fallback feedback.
+            $sq = $this->resolveTopOfHourQueueRow($station, $media);
         } else {
             $sq = $this->queueRepo->findRecentlyCuedSong($station, $media);
 
-            if (null !== $sq) {
-                // If there's an existing record, ensure it has all the proper metadata.
+            if ($sq instanceof StationQueue) {
                 if (null === $sq->media) {
                     $sq->media = $media;
                 }
@@ -120,7 +126,7 @@ final class FeedbackCommand extends AbstractCommand
             }
         }
 
-        if (null !== $sq) {
+        if ($sq instanceof StationQueue) {
             $this->legalIdPlaybackService->recordPlaybackIfLegalId($station, $sq, $media);
             $this->queueRepo->trackPlayed($station, $sq);
             return SongHistory::fromQueue($sq);
@@ -137,5 +143,57 @@ final class FeedbackCommand extends AbstractCommand
         }
 
         return $history;
+    }
+
+    private function resolveTopOfHourQueueRow(
+        Station $station,
+        StationMedia $media,
+    ): StationQueue {
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
+            $station,
+            $now,
+        );
+        $windowStart = $targetTop->modify(
+            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+        );
+
+        $planned = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
+            $station,
+            $windowStart,
+            $targetTop,
+        );
+        if ($planned instanceof StationQueue) {
+            $this->eventLogger->recordTopOfHourFallback(
+                $station,
+                $targetTop,
+                ClockWheelFallbackReason::TopOfHourHardClock,
+            );
+            $this->em->flush();
+
+            return $planned;
+        }
+
+        $fallback = StationQueue::fromMedia($station, $media);
+        $fallback->top_of_hour_legal_id = true;
+        $fallback->timestamp_cued = $now;
+        $fallback->timestamp_played = $now;
+        $this->em->persist($fallback);
+        $this->em->flush();
+
+        $this->eventLogger->recordTopOfHourLegalIdQueued(
+            $station,
+            $media,
+            $targetTop,
+            $fallback,
+        );
+        $this->eventLogger->recordTopOfHourFallback(
+            $station,
+            $targetTop,
+            ClockWheelFallbackReason::TopOfHourHardClock,
+        );
+        $this->em->flush();
+
+        return $fallback;
     }
 }
