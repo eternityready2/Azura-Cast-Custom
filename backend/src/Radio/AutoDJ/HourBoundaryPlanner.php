@@ -228,6 +228,38 @@ final class HourBoundaryPlanner
     }
 
     /**
+     * Returns the end of the reserved legal-ID window when queue planning has
+     * reached it. The normal crossfade is included as a small tolerance because
+     * Queue::addDurationToTime() advances the planning clock by track duration
+     * minus crossfade overlap; without this allowance a track ending exactly at
+     * :58 can leave the projected clock a few seconds before the reservation and
+     * cause another full song to be selected inside the protected window.
+     */
+    public function getTopOfHourPlanningReservationEnd(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): ?DateTimeImmutable {
+        if (!$this->isTopOfHourProtectionEnabled($station)) {
+            return null;
+        }
+
+        $tz = $station->getTimezoneObject();
+        $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
+        if ($secondsUntil <= 0) {
+            return null;
+        }
+
+        $crossfadeAllowance = (int)ceil(max(0.0, $station->backend_config->getCrossfadeDuration()));
+        $reservationLead = $this->getIdWindowLeadSeconds($station) + $crossfadeAllowance;
+
+        if ($secondsUntil > $reservationLead) {
+            return null;
+        }
+
+        return $this->getNextTopOfHour($expectedPlayTime, $tz);
+    }
+
+    /**
      * Returns whether the selected ID can finish before :00 while preserving the
      * configured finish buffer. Unknown durations use the configured maximum.
      */
