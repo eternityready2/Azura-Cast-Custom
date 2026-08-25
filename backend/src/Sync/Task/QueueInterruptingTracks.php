@@ -77,7 +77,7 @@ final class QueueInterruptingTracks extends AbstractTask
         }
 
         $this->expireMissedTopOfHourRows($station);
-        $this->enforceScheduledBoundary($station, $backend);
+        $this->observeScheduledBoundary($station);
 
         $now = Time::nowUtc()->toDateTimeImmutable();
         $hasTopOfHour = $this->hasTopOfHourToDeliver($station, $now);
@@ -233,7 +233,12 @@ final class QueueInterruptingTracks extends AbstractTask
         }
     }
 
-    private function enforceScheduledBoundary(Station $station, Liquidsoap $backend): void
+    /**
+     * Observe approaching scheduled boundaries without ever hard-skipping the
+     * current item. Boundary fitting is handled before playout by Queue and
+     * HourBoundaryAnnotator using selection, bounded stretch and a fade/cue-out.
+     */
+    private function observeScheduledBoundary(Station $station): void
     {
         $now = Time::nowUtc();
 
@@ -241,7 +246,7 @@ final class QueueInterruptingTracks extends AbstractTask
             $secondsToScheduled = $this->scheduler->secondsUntilNextScheduledStart($station, $now);
         } catch (\Throwable $e) {
             $this->logger->error(
-                'Scheduled boundary enforcement: lookup failed, skipping this check for this tick.',
+                'Scheduled boundary observation: lookup failed.',
                 ['exception' => $e->getMessage()]
             );
             return;
@@ -249,17 +254,6 @@ final class QueueInterruptingTracks extends AbstractTask
 
         if (null === $secondsToScheduled || $secondsToScheduled > 90) {
             return;
-        }
-
-        if ($this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
-            $secondsUntilTop = $this->hourBoundaryPlanner->secondsUntilNextTopOfHour(
-                $now->toDateTimeImmutable(),
-                $station->getTimezoneObject(),
-            );
-
-            if (abs($secondsUntilTop - $secondsToScheduled) <= 3) {
-                return;
-            }
         }
 
         $currentSong = $station->current_song;
@@ -273,20 +267,19 @@ final class QueueInterruptingTracks extends AbstractTask
             ->getTimestamp();
         $scheduledBoundaryAt = $now->getTimestamp() + $secondsToScheduled;
 
-        if ($currentSongEndsAt <= $scheduledBoundaryAt + 2) {
+        if ($currentSongEndsAt <= $scheduledBoundaryAt + 60) {
             return;
         }
 
         $this->logger->warning(
-            'Scheduled boundary enforcement: current track would run past a scheduled start; skipping now.',
+            'Scheduled boundary at risk: current item projects beyond the 60-second grace window; no hard skip will be issued.',
             [
                 'current_song' => $currentSong->title,
                 'seconds_to_scheduled' => $secondsToScheduled,
                 'current_song_would_end_at' => $currentSongEndsAt,
                 'scheduled_boundary_at' => $scheduledBoundaryAt,
+                'maximum_grace_seconds' => 60,
             ]
         );
-
-        $backend->skip($station);
     }
 }
