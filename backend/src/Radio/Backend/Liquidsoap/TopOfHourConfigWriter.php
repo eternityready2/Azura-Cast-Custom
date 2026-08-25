@@ -10,7 +10,6 @@ use App\Entity\StationBackendConfiguration;
 use App\Entity\StationMedia;
 use App\Event\Radio\WriteLiquidsoapConfiguration;
 use App\Radio\AutoDJ\HourBoundaryPlanner;
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -93,28 +92,24 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             )
         );
 
-        $timezone = $station->getTimezoneObject();
-        $timezoneOffsetSeconds = $timezone->getOffset(new DateTimeImmutable('now', $timezone));
-        $stationHourOffsetSeconds = (($timezoneOffsetSeconds % 3600) + 3600) % 3600;
-
         $event->appendBlock(
             <<<LIQ
             top_of_hour_last_served_boundary = ref(-1)
             top_of_hour_last_hard_push_boundary = ref(-1)
             top_of_hour_hard_trigger_lead_seconds = {$triggerLeadSeconds}
-            top_of_hour_station_hour_offset_seconds = {$stationHourOffsetSeconds}
             top_of_hour_hard_trigger_request = {$safetyRequest}
 
             def top_of_hour_seconds_in_station_hour(now) =
-              (now + top_of_hour_station_hour_offset_seconds) mod 3600
+              local_now = time.local(now)
+              local_now.min * 60 + local_now.sec
             end
 
             def top_of_hour_mark_legal_id(metadata) =
-              now = int_of_float(time())
+              now = time()
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
 
               if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
-                boundary = now - seconds_in_hour + 3600
+                boundary = int_of_float(now) + (3600 - seconds_in_hour)
                 top_of_hour_last_served_boundary := boundary
                 log("Top of hour: legal ID started for boundary #{boundary}.")
               end
@@ -124,10 +119,10 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             source.methods(radio).on_track(synchronous=false, top_of_hour_mark_legal_id)
 
             def top_of_hour_hard_trigger_watch() =
-              now = int_of_float(time())
+              now = time()
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
               seconds_until_top = 3600 - seconds_in_hour
-              boundary = now - seconds_in_hour + 3600
+              boundary = int_of_float(now) + seconds_until_top
 
               should_push = seconds_in_hour >= 3480 and
                 seconds_until_top <= top_of_hour_hard_trigger_lead_seconds and
