@@ -33,6 +33,7 @@ final class Queue
         private readonly Scheduler $scheduler,
         private readonly QueueLogCache $queueLogCache,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
+        private readonly TopOfHourOwnershipResolver $ownershipResolver,
     ) {
     }
 
@@ -48,16 +49,12 @@ final class Queue
         ?int $lookaheadMinutesOverride = null,
         ?int $maxTracksOverride = null,
     ): void {
-        // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
             $this->logger->info('Cannot build queue: station does not support AutoDJ queue.');
             return;
         }
 
-        // Adjust "expectedCueTime" time from current queue.
         $expectedCueTime = Time::nowUtc();
-
-        // Get expected play time of each item.
         $currentSong = $station->current_song;
         if (null !== $currentSong) {
             $expectedPlayTime = $this->addDurationToTime(
@@ -74,25 +71,14 @@ final class Queue
         }
 
         $maxQueueLength = max($station->backend_config->autodj_queue_length, 2);
-
-        // Track-count queue length alone (default 3, sometimes set as low as 2)
-        // does not reliably reach far enough into the future for clock wheels,
-        // schedules, or top-of-hour logic to resolve tracks in advance -- how
-        // far ahead in *time* that represents depends entirely on how long the
-        // next few songs happen to be. When configured, this makes the queue
-        // keep building until it reaches a guaranteed minimum time horizon,
-        // independent of track length.
-        $lookaheadMinutes = $lookaheadMinutesOverride ?? $station->backend_config->autodj_queue_lookahead_minutes;
+        $lookaheadMinutes = $lookaheadMinutesOverride
+            ?? $station->backend_config->autodj_queue_lookahead_minutes;
         $lookaheadHorizon = $lookaheadMinutes > 0
             ? Time::nowUtc()->modify('+' . $lookaheadMinutes . ' minutes')
             : null;
-
-        // Hard safety cap so a misconfigured horizon (or a station with very
-        // short tracks) can't spin this into an unbounded loop.
         $maxLookaheadTracks = $maxTracksOverride ?? 500;
 
         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
-
         $lastSongId = null;
         $queueLength = 0;
 
@@ -123,8 +109,6 @@ final class Queue
 
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $effectiveDuration);
-
-                // Only append to queue length for uncued songs.
                 $queueLength++;
             }
 
@@ -132,17 +116,11 @@ final class Queue
             $this->em->persist($queueRow);
 
             $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $effectiveDuration);
-
             $lastSongId = $queueRow->song_id;
         }
 
         $this->em->flush();
 
-        // Build the remainder of the queue.
-        // A validator (e.g. DmcaComplianceListener) can reject a selector's pick by
-        // clearing next songs; when that happens we re-dispatch a fresh BuildQueue event
-        // so a selector gets another chance to choose a different track, instead of
-        // silently halting queue-building and leaving the station with dead air.
         $maxAttemptsPerSlot = null !== $lookaheadMinutesOverride ? 50 : 10;
         $tracksBuiltThisRun = 0;
 
@@ -172,7 +150,6 @@ final class Queue
                     ]
                 );
 
-                // Push another test handler specifically for this one queue task.
                 $testHandler = new TestHandler(LogLevel::DEBUG, true);
                 $this->logger->pushHandler($testHandler);
 
@@ -191,13 +168,6 @@ final class Queue
 
                 $nextSongs = $event->getNextSongs();
 
-                // Hard backstop against the exact same song playing twice in a row.
-                // Playlist-level duplicate prevention settings can still allow this
-                // when the eligible pool briefly narrows (e.g. right after a schedule
-                // change); this catches it unconditionally at the queue-build layer.
-                // Only enforced when a retry is actually possible (more attempts left)
-                // so a station with a single-song playlist doesn't get stuck refusing
-                // to queue anything.
                 if (
                     !empty($nextSongs)
                     && $lastSongId !== null
@@ -244,7 +214,6 @@ final class Queue
                 $this->queueLogCache->setLog($queueRow, $testHandler->getRecords());
 
                 $lastSongId = $queueRow->song_id;
-
                 $expectedCueTime = $this->addDurationToTime(
                     $station,
                     $expectedCueTime,
@@ -263,12 +232,10 @@ final class Queue
     }
 
     /**
-     * @param Station $station
      * @return StationQueue[]|null
      */
     public function getInterruptingQueue(Station $station): ?array
     {
-        // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
             $this->logger->notice('Cannot build queue: station does not support AutoDJ queue.');
             return null;
@@ -279,12 +246,9 @@ final class Queue
 
         $this->logger->debug(
             'Fetching interrupting queue.',
-            [
-                'now' => (string)$expectedPlayTime,
-            ]
+            ['now' => (string)$expectedPlayTime]
         );
 
-        // Push another test handler specifically for this one queue task.
         $testHandler = new TestHandler(LogLevel::DEBUG, true);
         $this->logger->pushHandler($testHandler);
 
@@ -331,9 +295,7 @@ final class Queue
     }
 
     /**
-     * Returns the effective on-air duration used by the planning clock. Stretch
-     * ratio is defined as source-duration / target-duration, so dividing by it
-     * yields the duration Liquidsoap will actually produce.
+     * Stretch ratio is source duration divided by target duration.
      */
     private function getEffectiveQueueDuration(StationQueue $queueRow): float
     {
@@ -346,7 +308,7 @@ final class Queue
 
         if ($duration < 5.0) {
             $this->logger->warning(
-                'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
+                'Queue: song has an implausibly short or missing duration; using a floor value.',
                 [
                     'song_id' => $queueRow->song_id,
                     'media_id' => $queueRow->media?->id,
@@ -361,9 +323,9 @@ final class Queue
     }
 
     /**
-     * Keeps the planning clock and linear log out of the interval owned by the
-     * real-time legal-ID queue. No synthetic StationQueue row is created here;
-     * that avoids a second copy of the ID being delivered later by normal AutoDJ.
+     * Keeps normal AutoDJ and the linear log out of the station-wide legal-ID
+     * reservation. A clock wheel with its own mandatory ID retains ownership of
+     * the window and is allowed to plan normally.
      *
      * @return array{0: CarbonImmutable, 1: CarbonImmutable}
      */
@@ -372,6 +334,13 @@ final class Queue
         DateTimeImmutable $expectedCueTime,
         DateTimeImmutable $expectedPlayTime,
     ): array {
+        if ($this->ownershipResolver->clockWheelHandlesLegalId($station, $expectedPlayTime)) {
+            return [
+                CarbonImmutable::instance($expectedCueTime),
+                CarbonImmutable::instance($expectedPlayTime),
+            ];
+        }
+
         $reservationEnd = $this->hourBoundaryPlanner->getTopOfHourPlanningReservationEnd(
             $station,
             $expectedPlayTime,
@@ -426,8 +395,8 @@ final class Queue
             return true;
         }
 
-        return $playlist->is_enabled &&
-            $this->scheduler->isPlaylistScheduledToPlayNow(
+        return $playlist->is_enabled
+            && $this->scheduler->isPlaylistScheduledToPlayNow(
                 $playlist,
                 $expectedPlayTime,
                 true
