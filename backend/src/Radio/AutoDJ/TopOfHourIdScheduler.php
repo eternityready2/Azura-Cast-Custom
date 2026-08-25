@@ -148,6 +148,14 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
+        if ($event->isInterrupting()) {
+            // A real-time fallback has not passed through Queue::buildQueue(), so
+            // give it an explicit planned timestamp. If the Liquidsoap enqueue
+            // fails, the same row can be found and retried on the next tick.
+            $nextSong->timestamp_cued = $expectedPlayTime;
+            $nextSong->timestamp_played = $expectedPlayTime;
+        }
+
         if (!$event->setNextSongs($nextSong)) {
             $this->logger->warning('Top-of-hour ID resolved but BuildQueue rejected it.', [
                 'song_id' => $nextSong->song_id,
