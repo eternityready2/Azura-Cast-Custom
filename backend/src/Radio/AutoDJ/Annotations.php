@@ -102,6 +102,12 @@ final class Annotations implements EventSubscriberInterface
         $isLegalId = StationMediaTypes::isStationId($media->type)
             || ($queue?->top_of_hour_legal_id ?? false)
             || ($queue?->clock_wheel_legal_id_substitute ?? false);
+        $isTopOfHourId = ($queue?->top_of_hour_legal_id ?? false)
+            || ($queue?->clock_wheel_legal_id_substitute ?? false)
+            || (
+                $queue?->clock_wheel !== null
+                && StationMediaTypes::isStationId($media->type)
+            );
 
         $event->addAnnotations([
             'title' => $media->title,
@@ -111,6 +117,7 @@ final class Annotations implements EventSubscriberInterface
             'media_id' => $media->id,
             'sq_id' => $queue?->id,
             'azuracast_legal_id' => $isLegalId ? 'true' : null,
+            'azuracast_top_of_hour_id' => $isTopOfHourId ? 'true' : null,
             ...$this->processAutocueAnnotations(
                 $station,
                 $media->extra_metadata->toArray(),
