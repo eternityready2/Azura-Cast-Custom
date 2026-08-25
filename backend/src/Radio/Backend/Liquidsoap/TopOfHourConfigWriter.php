@@ -73,6 +73,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             'song_id' => $safetyMedia->song_id,
             'media_id' => $safetyMedia->id,
             'azuracast_legal_id' => true,
+            'azuracast_top_of_hour_fallback' => true,
         ]);
         $safetyRequest = ConfigWriter::toRawString(
             'annotate:' . $safetyAnnotations
