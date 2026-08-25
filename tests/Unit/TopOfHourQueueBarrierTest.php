@@ -71,6 +71,27 @@ final class TopOfHourQueueBarrierTest extends Unit
         self::assertSame($after->id, $this->queueRepo->getNextToSendToAutoDj($this->station)?->id);
     }
 
+    public function testMissedLegalIdBarrierCanBePurgedAfterBoundary(): void
+    {
+        $legalId = $this->makeQueueRow('Station - Missed Legal ID', '2026-05-26 09:58:00');
+        $legalId->top_of_hour_legal_id = true;
+        $after = $this->makeQueueRow('Artist - New Hour', '2026-05-26 10:00:05');
+
+        $this->testsModule->em->persist($legalId);
+        $this->testsModule->em->persist($after);
+        $this->testsModule->em->flush();
+
+        self::assertNull($this->queueRepo->getNextToSendToAutoDj($this->station));
+
+        $removed = $this->queueRepo->deleteUnplayedTopOfHourLegalIdsBefore(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC'),
+        );
+
+        self::assertSame(1, $removed);
+        self::assertSame($after->id, $this->queueRepo->getNextToSendToAutoDj($this->station)?->id);
+    }
+
     private function makeQueueRow(string $songText, string $timestamp): StationQueue
     {
         $row = new StationQueue($this->station, Song::createFromText($songText));
