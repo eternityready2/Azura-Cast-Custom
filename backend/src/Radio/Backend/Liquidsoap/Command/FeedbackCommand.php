@@ -6,6 +6,7 @@ namespace App\Radio\Backend\Liquidsoap\Command;
 
 use App\Cache\NowPlayingCache;
 use App\Container\EntityManagerAwareTrait;
+use App\Entity\Enums\ClockWheelFallbackReason;
 use App\Entity\Repository\SongHistoryRepository;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Song;
@@ -14,6 +15,7 @@ use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
 use App\Entity\StationQueue;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
 use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Utilities\Time;
@@ -29,6 +31,7 @@ final class FeedbackCommand extends AbstractCommand
         private readonly SongHistoryRepository $historyRepo,
         private readonly NowPlayingCache $nowPlayingCache,
         private readonly ClockWheelLegalIdPlaybackService $legalIdPlaybackService,
+        private readonly ClockWheelEventLogger $eventLogger,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
@@ -100,7 +103,7 @@ final class FeedbackCommand extends AbstractCommand
         } else {
             $sq = $this->queueRepo->findRecentlyCuedSong($station, $media);
 
-            if (!$sq instanceof StationQueue && !empty($payload['azuracast_legal_id'])) {
+            if (!$sq instanceof StationQueue && !empty($payload['azuracast_top_of_hour_fallback'])) {
                 $sq = $this->resolveTopOfHourQueueRow($station, $media);
             }
 
@@ -159,6 +162,13 @@ final class FeedbackCommand extends AbstractCommand
             $targetTop,
         );
         if ($planned instanceof StationQueue) {
+            $this->eventLogger->recordTopOfHourFallback(
+                $station,
+                $targetTop,
+                ClockWheelFallbackReason::TopOfHourHardClock,
+            );
+            $this->em->flush();
+
             return $planned;
         }
 
@@ -167,6 +177,19 @@ final class FeedbackCommand extends AbstractCommand
         $fallback->timestamp_cued = $now;
         $fallback->timestamp_played = $now;
         $this->em->persist($fallback);
+        $this->em->flush();
+
+        $this->eventLogger->recordTopOfHourLegalIdQueued(
+            $station,
+            $media,
+            $targetTop,
+            $fallback,
+        );
+        $this->eventLogger->recordTopOfHourFallback(
+            $station,
+            $targetTop,
+            ClockWheelFallbackReason::TopOfHourHardClock,
+        );
         $this->em->flush();
 
         return $fallback;
