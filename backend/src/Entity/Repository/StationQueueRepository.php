@@ -29,7 +29,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         $this->em->createQuery(
             <<<'DQL'
                 DELETE FROM App\Entity\StationQueue sq
-                WHERE sq.media = :media 
+                WHERE sq.media = :media
                 AND sq.playlist = :playlist
                 AND sq.is_played = 0
             DQL
@@ -38,9 +38,8 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->execute();
     }
 
-    public function clearForPlaylist(
-        StationPlaylist $playlist
-    ): void {
+    public function clearForPlaylist(StationPlaylist $playlist): void
+    {
         $this->em->createQuery(
             <<<'DQL'
                 DELETE FROM App\Entity\StationQueue sq
@@ -60,10 +59,8 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->getOneOrNullResult();
     }
 
-    public function trackPlayed(
-        Station $station,
-        StationQueue $row
-    ): void {
+    public function trackPlayed(Station $station, StationQueue $row): void
+    {
         $this->em->createQuery(
             <<<'DQL'
             UPDATE App\Entity\StationQueue sq
@@ -80,8 +77,8 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             <<<'DQL'
             UPDATE App\Entity\StationQueue sq
             SET sq.is_played=1, sq.sent_to_autodj=1
-            WHERE sq.station = :station 
-            AND sq.is_played = 0 
+            WHERE sq.station = :station
+            AND sq.is_played = 0
             AND (sq.id = :id OR sq.timestamp_cued < :cued)
         DQL
         )->setParameter('station', $station)
@@ -113,9 +110,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         return in_array($playlist->id, (array)$recentPlayedPlaylists, true);
     }
 
-    /**
-     * @return mixed[]
-     */
+    /** @return mixed[] */
     public function getRecentlyPlayedByTimeRange(
         Station $station,
         DateTimeImmutable $now,
@@ -137,13 +132,6 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->getArrayResult();
     }
 
-    /**
-     * Legal-compliance history (DMCA §114 counting). Unlike getRecentlyPlayedByTimeRange()
-     * -- which intentionally includes not-yet-played queued rows for AutoDJ duplicate
-     * prevention -- this only returns tracks that have ACTUALLY aired, and only music-type
-     * media, so scheduled-but-unplayed picks and non-music items (AI DJ clips, AI News,
-     * station IDs) never inflate a DMCA play count.
-     */
     public function getPlayedMusicHistoryByTimeRange(
         Station $station,
         DateTimeImmutable $now,
@@ -169,8 +157,6 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
-     * Recent plays with media category for clock wheel category separation (PR9).
-     *
      * @return array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null, category_id:int|null}>
      */
     public function getRecentlyPlayedWithCategoryByTimeRange(
@@ -195,10 +181,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->getArrayResult();
     }
 
-    /**
-     * @param Station $station
-     * @return StationQueue[]
-     */
+    /** @return StationQueue[] */
     public function getUnplayedQueue(Station $station): array
     {
         return $this->getUnplayedBaseQuery($station)->getQuery()->execute();
@@ -225,40 +208,29 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         DateTimeImmutable $start,
         DateTimeImmutable $end,
     ): bool {
-        $result = $this->em->createQuery(
-            <<<'DQL'
-                SELECT sq.id
-                FROM App\Entity\StationQueue sq
-                WHERE sq.station = :station
-                AND sq.top_of_hour_legal_id = 1
-                AND sq.timestamp_cued >= :start
-                AND sq.timestamp_cued <= :end
-            DQL
-        )->setParameter('station', $station)
+        return null !== $this->findUnplayedTopOfHourLegalIdBetween($station, $start, $end);
+    }
+
+    public function findUnplayedTopOfHourLegalIdBetween(
+        Station $station,
+        DateTimeImmutable $start,
+        DateTimeImmutable $end,
+    ): ?StationQueue {
+        $row = $this->getUnplayedBaseQuery($station)
+            ->andWhere('sq.top_of_hour_legal_id = 1')
+            ->andWhere('sq.timestamp_played >= :start')
+            ->andWhere('sq.timestamp_played < :end')
             ->setParameter('start', $start)
             ->setParameter('end', $end)
+            ->orderBy('sq.timestamp_played', 'ASC')
+            ->getQuery()
             ->setMaxResults(1)
             ->getOneOrNullResult();
 
-        return null !== $result;
+        return $row instanceof StationQueue ? $row : null;
     }
 
-    /**
-     * Timestamps of already-AIRED (is_played = 1) mandatory legal IDs whose
-     * timestamp_played falls within the given window.
-     *
-     * hasTopOfHourIdQueued() in HourBoundaryPlanner only scans the unplayed queue, so
-     * once an hour's ID has actually played it drops out of that scan entirely -- a
-     * later BuildQueue evaluation (e.g. the once-a-minute interrupt-fallback tick
-     * re-firing, or a slot whose expected-play-time still resolves to the same
-     * boundary) can then see "nothing queued for this hour" and queue a second,
-     * duplicate ID. The caller re-applies the same boundary-rollover math used for
-     * unplayed rows (a track played at :58/:59 serves the *next* hour's boundary),
-     * so the window here is intentionally wider than the hour itself -- it must
-     * include the tail of the preceding hour where an on-time ID would actually air.
-     *
-     * @return DateTimeImmutable[]
-     */
+    /** @return DateTimeImmutable[] */
     public function getRecentlyPlayedTopOfHourLegalIds(
         Station $station,
         DateTimeImmutable $windowStart,
@@ -285,7 +257,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->getArrayResult();
 
         return array_map(
-            static fn (array $row): DateTimeImmutable => $row['timestamp_played'],
+            static fn(array $row): DateTimeImmutable => $row['timestamp_played'],
             $rows
         );
     }
@@ -385,14 +357,25 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->execute();
     }
 
+    /**
+     * Returns the next AutoDJ-deliverable row. A planned top-of-hour legal ID is
+     * a barrier: it must be consumed by the dedicated real-time queue before
+     * normal AutoDJ can prefetch any row scheduled after it.
+     */
     public function getNextToSendToAutoDj(Station $station): ?StationQueue
     {
-        return $this->getBaseQuery($station)
+        $row = $this->getBaseQuery($station)
             ->andWhere('sq.sent_to_autodj = 0')
             ->orderBy('sq.timestamp_cued', 'ASC')
             ->getQuery()
             ->setMaxResults(1)
             ->getOneOrNullResult();
+
+        if (!$row instanceof StationQueue || $row->top_of_hour_legal_id) {
+            return null;
+        }
+
+        return $row;
     }
 
     public function findRecentlyCuedSong(
