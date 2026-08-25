@@ -31,7 +31,8 @@ final class Queue
         private readonly EventDispatcherInterface $dispatcher,
         private readonly StationQueueRepository $queueRepo,
         private readonly Scheduler $scheduler,
-        private readonly QueueLogCache $queueLogCache
+        private readonly QueueLogCache $queueLogCache,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
 
@@ -115,6 +116,12 @@ final class Queue
                     $queueLength = 1;
                 }
             } else {
+                [$expectedCueTime, $expectedPlayTime] = $this->advancePastTopOfHourReservation(
+                    $station,
+                    $expectedCueTime,
+                    $expectedPlayTime,
+                );
+
                 if (!$this->isQueueRowStillValid($queueRow, $expectedPlayTime)) {
                     $this->em->remove($queueRow);
                     continue;
@@ -151,6 +158,12 @@ final class Queue
                 && $expectedPlayTime < $lookaheadHorizon
                 && $tracksBuiltThisRun < $maxLookaheadTracks)
         ) {
+            [$expectedCueTime, $expectedPlayTime] = $this->advancePastTopOfHourReservation(
+                $station,
+                $expectedCueTime,
+                $expectedPlayTime,
+            );
+
             $nextSongs = [];
             $attempts = 0;
 
@@ -337,6 +350,48 @@ final class Queue
         }
 
         return $nextSongs;
+    }
+
+    /**
+     * Keeps the planning clock and linear log out of the interval owned by the
+     * real-time legal-ID queue. No synthetic StationQueue row is created here;
+     * that avoids a second copy of the ID being delivered later by normal AutoDJ.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    private function advancePastTopOfHourReservation(
+        Station $station,
+        DateTimeImmutable $expectedCueTime,
+        DateTimeImmutable $expectedPlayTime,
+    ): array {
+        $reservationEnd = $this->hourBoundaryPlanner->getTopOfHourPlanningReservationEnd(
+            $station,
+            $expectedPlayTime,
+        );
+
+        if (null === $reservationEnd) {
+            return [
+                CarbonImmutable::instance($expectedCueTime),
+                CarbonImmutable::instance($expectedPlayTime),
+            ];
+        }
+
+        $newExpectedPlayTime = CarbonImmutable::instance($reservationEnd);
+        $newExpectedCueTime = CarbonImmutable::instance($expectedCueTime);
+
+        if ($newExpectedCueTime->lessThan($newExpectedPlayTime)) {
+            $newExpectedCueTime = $newExpectedPlayTime;
+        }
+
+        $this->logger->debug(
+            'Queue planning: advancing past reserved top-of-hour ID window.',
+            [
+                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                'to' => $newExpectedPlayTime->format(DateTimeImmutable::ATOM),
+            ]
+        );
+
+        return [$newExpectedCueTime, $newExpectedPlayTime];
     }
 
     private function addDurationToTime(
