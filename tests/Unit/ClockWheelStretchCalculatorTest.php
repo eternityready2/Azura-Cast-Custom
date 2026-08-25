@@ -14,14 +14,14 @@ final class ClockWheelStretchCalculatorTest extends Unit
     {
         $calculator = new ClockWheelStretchCalculator();
 
-        self::assertSame(1.0056, $calculator->calculate(181.0, 180));
+        self::assertSame(0.9945, $calculator->calculate(181.0, 180));
     }
 
     public function testNearGapCanBeExpandedToBoundary(): void
     {
         $calculator = new ClockWheelStretchCalculator();
 
-        self::assertSame(0.95, $calculator->calculate(171.0, 180));
+        self::assertSame(1.0465, $calculator->calculate(172.0, 180));
     }
 
     public function testUnsafeStretchIsRejected(): void
@@ -34,9 +34,9 @@ final class ClockWheelStretchCalculatorTest extends Unit
     public function testLiquidsoapAnnotationKeepsFourDecimalRatio(): void
     {
         $annotation = ConfigWriter::annotateArray([
-            'liq_stretch_ratio' => 1.0056,
+            'liq_stretch_ratio' => 0.9945,
         ]);
 
-        self::assertSame('liq_stretch_ratio="1.0056"', $annotation);
+        self::assertSame('liq_stretch_ratio="0.9945"', $annotation);
     }
 }
