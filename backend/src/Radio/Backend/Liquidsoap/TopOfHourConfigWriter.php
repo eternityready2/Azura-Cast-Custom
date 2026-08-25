@@ -41,17 +41,14 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
         }
 
         $safetyMedia = $this->resolveSafetyMedia($station, $config);
-        $safetyRequest = $safetyMedia instanceof StationMedia
-            ? ConfigWriter::toRawString(
-                'annotate:azuracast_legal_id="true",liq_disable_autocue="true":media:' . $safetyMedia->path
-            )
-            : ConfigWriter::toRawString(
-                'annotate:azuracast_legal_id="true",liq_disable_autocue="true":'
-                . $station->getRadioConfigDir() . '/fallback.mp3'
-            );
+        if (!$safetyMedia instanceof StationMedia) {
+            return;
+        }
 
-        $safetyDuration = $safetyMedia?->getCalculatedLength()
-            ?? (float)$config->top_of_hour_id_max_seconds;
+        $safetyRequest = ConfigWriter::toRawString(
+            'annotate:azuracast_legal_id="true",liq_disable_autocue="true":media:' . $safetyMedia->path
+        );
+        $safetyDuration = $safetyMedia->getCalculatedLength();
         $triggerLeadSeconds = min(
             120,
             max(
