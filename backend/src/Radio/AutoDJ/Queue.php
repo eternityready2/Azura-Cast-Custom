@@ -97,13 +97,7 @@ final class Queue
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
-            // Same duration-floor guard as the build loop below -- applies here too
-            // since this loop re-times already-queued rows on every build cycle and
-            // is just as capable of collapsing timestamps if a row's duration is bad.
-            $effectiveDuration = $queueRow->duration ?? 0.0;
-            if ($effectiveDuration < 5.0) {
-                $effectiveDuration = 5.0;
-            }
+            $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
 
             if ($queueRow->sent_to_autodj) {
                 $expectedCueTime = $this->addDurationToTime(
@@ -239,23 +233,7 @@ final class Queue
             }
 
             foreach ($nextSongs as $queueRow) {
-                // Guard against a corrupt or not-yet-analyzed media duration (0, null,
-                // or an implausibly tiny value) collapsing the play-time progression --
-                // this is what produces queue entries a few seconds apart instead of
-                // minutes apart, and looks like "the same song repeating constantly"
-                // even though duplicate prevention is working correctly.
-                $effectiveDuration = $queueRow->duration ?? 0.0;
-                if ($effectiveDuration < 5.0) {
-                    $this->logger->warning(
-                        'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
-                        [
-                            'song_id' => $queueRow->song_id,
-                            'media_id' => $queueRow->media?->id,
-                            'duration' => $queueRow->duration,
-                        ]
-                    );
-                    $effectiveDuration = 5.0;
-                }
+                $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
 
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $queueRow->timestamp_played = $expectedPlayTime;
@@ -345,11 +323,41 @@ final class Queue
             $expectedPlayTime = $this->addDurationToTime(
                 $station,
                 $expectedPlayTime,
-                $queueRow->duration
+                $this->getEffectiveQueueDuration($queueRow)
             );
         }
 
         return $nextSongs;
+    }
+
+    /**
+     * Returns the effective on-air duration used by the planning clock. Stretch
+     * ratio is defined as source-duration / target-duration, so dividing by it
+     * yields the duration Liquidsoap will actually produce.
+     */
+    private function getEffectiveQueueDuration(StationQueue $queueRow): float
+    {
+        $duration = $queueRow->duration ?? 0.0;
+        $stretchRatio = $queueRow->clock_wheel_stretch_ratio;
+
+        if ($duration > 0.0 && null !== $stretchRatio && $stretchRatio > 0.0) {
+            $duration /= $stretchRatio;
+        }
+
+        if ($duration < 5.0) {
+            $this->logger->warning(
+                'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
+                [
+                    'song_id' => $queueRow->song_id,
+                    'media_id' => $queueRow->media?->id,
+                    'duration' => $queueRow->duration,
+                    'stretch_ratio' => $stretchRatio,
+                ]
+            );
+            return 5.0;
+        }
+
+        return $duration;
     }
 
     /**
