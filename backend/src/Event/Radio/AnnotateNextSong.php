@@ -34,6 +34,7 @@ final class AnnotateNextSong extends Event
         'azuracast_cache_key',
         'azuracast_ai_news',
         'azuracast_legal_id',
+        'azuracast_top_of_hour_fallback',
         'autocue_cue_in',
         'autocue_cue_out',
         'autocue_fade_in',
