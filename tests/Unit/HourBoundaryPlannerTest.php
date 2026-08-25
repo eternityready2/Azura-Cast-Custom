@@ -249,7 +249,7 @@ final class HourBoundaryPlannerTest extends Unit
             $em->open();
         }
 
-        $em->createQuery('DELETE FROM App\\Entity\\StationQueue sq WHERE sq.station = :station')
+        $em->createQuery('DELETE FROM App\Entity\StationQueue sq WHERE sq.station = :station')
             ->setParameter('station', $station)
             ->execute();
 
