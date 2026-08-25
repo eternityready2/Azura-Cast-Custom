@@ -7,11 +7,7 @@ namespace App\Radio\AutoDJ;
 use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Enums\ClockWheelFallbackReason;
-use App\Entity\Enums\ClockWheelSlotTypes;
 use App\Entity\Repository\StationQueueRepository;
-use App\Entity\Repository\StationScheduleRepository;
-use App\Entity\Station;
-use App\Entity\StationSchedule;
 use App\Event\Radio\BuildQueue;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\Schedule\ScheduleConflictChecker;
@@ -30,8 +26,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly HourBoundaryLegalIdResolver $legalIdResolver,
         private readonly StationQueueRepository $queueRepo,
-        private readonly StationScheduleRepository $scheduleRepo,
-        private readonly Scheduler $scheduler,
+        private readonly TopOfHourOwnershipResolver $ownershipResolver,
         private readonly ScheduleConflictChecker $conflictChecker,
         private readonly ClockWheelEventLogger $eventLogger,
     ) {
@@ -59,7 +54,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
-        if ($this->clockWheelHandlesLegalIdThisHour($station, $expectedPlayTime)) {
+        if ($this->ownershipResolver->clockWheelHandlesLegalId($station, $expectedPlayTime)) {
             $this->logger->debug('Top-of-hour ID skipped: active clock wheel owns the legal-ID boundary.');
             return;
         }
@@ -142,45 +137,5 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             'duration' => $nextSong->duration,
             'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
         ]);
-    }
-
-    private function clockWheelHandlesLegalIdThisHour(
-        Station $station,
-        DateTimeImmutable $expectedPlayTime,
-    ): bool {
-        $activeEvent = $this->findActiveClockWheelSchedule($station, $expectedPlayTime);
-        if ($activeEvent?->clock_wheel === null) {
-            return false;
-        }
-
-        $wheel = $activeEvent->clock_wheel;
-        if (!$wheel->is_active) {
-            return false;
-        }
-
-        foreach ($wheel->slots as $slot) {
-            if (ClockWheelSlotTypes::isMandatoryTopOfHourSlot($slot->type, $slot->position_seconds)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function findActiveClockWheelSchedule(Station $station, DateTimeImmutable $now): ?StationSchedule
-    {
-        $tz = $station->getTimezoneObject();
-
-        foreach ($this->scheduleRepo->getAllScheduledItemsForStation($station) as $schedule) {
-            if ($schedule->clock_wheel === null) {
-                continue;
-            }
-
-            if ($this->scheduler->shouldSchedulePlayNow($schedule, $tz, $now)) {
-                return $schedule;
-            }
-        }
-
-        return null;
     }
 }
