@@ -8,6 +8,7 @@ use App\Entity\Enums\ClockWheelSlotTypes;
 use App\Entity\Repository\StationScheduleRepository;
 use App\Entity\Station;
 use App\Entity\StationClockWheel;
+use App\Radio\Schedule\ScheduleConflictChecker;
 use App\Service\HolidayOverrideService;
 use DateTimeImmutable;
 
@@ -20,6 +21,7 @@ final class TopOfHourOwnershipResolver
         private readonly StationScheduleRepository $scheduleRepo,
         private readonly Scheduler $scheduler,
         private readonly HolidayOverrideService $holidayOverrideService,
+        private readonly ScheduleConflictChecker $conflictChecker,
     ) {
     }
 
@@ -27,6 +29,13 @@ final class TopOfHourOwnershipResolver
         Station $station,
         DateTimeImmutable $when,
     ): bool {
+        if (
+            $this->conflictChecker->hasEmergencyScheduleActive($station, $when)
+            || $this->conflictChecker->hasNonClockWheelScheduleActive($station, $when)
+        ) {
+            return false;
+        }
+
         $wheel = $this->findScheduledClockWheel($station, $when)
             ?? $this->holidayOverrideService->getHolidayClockWheel($station, $when);
 
