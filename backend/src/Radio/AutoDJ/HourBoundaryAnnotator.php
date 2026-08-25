@@ -40,11 +40,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         ];
     }
 
-    /**
-     * Backstop for tracks that were selected for their queue slot before the
-     * top-of-hour lookahead window opened. Re-evaluates the boundary against
-     * real time immediately before the request is handed to Liquidsoap.
-     */
     public function applyLiveTopOfHourSafetyNet(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
@@ -99,26 +94,13 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
             }
         } catch (\Throwable $e) {
             $this->logger->error(
-                'TOH safety net: secondsUntilNextScheduledStart() threw, scheduled boundary ignored for this track.',
+                'TOH safety net: scheduled boundary lookup failed.',
                 [
                     'exception' => $e->getMessage(),
                     'media' => $media->title,
                 ]
             );
         }
-
-        $this->logger->debug(
-            'TOH safety net: boundary check.',
-            [
-                'media' => $media->title,
-                'media_length' => $media->length,
-                'toh_max_duration' => $tohMaxDuration,
-                'seconds_to_scheduled' => $secondsToScheduled,
-                'live_max_duration' => $liveMaxDuration,
-                'existing_cap' => $queue->hour_boundary_max_play_seconds,
-                'build_time_flag_set' => $queue->top_of_hour_pre_id_fade || $queue->hour_boundary_enforce_cap,
-            ]
-        );
 
         if (null === $liveMaxDuration) {
             return;
@@ -131,7 +113,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
             && null !== $existingCap
             && (float)$existingCap <= $liveMaxDuration
         ) {
-            $this->logger->debug('TOH safety net: build-time cap already tight enough, not re-capping.');
             return;
         }
 
@@ -141,7 +122,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
 
         $cappedSeconds = (int)floor($liveMaxDuration);
         if ($cappedSeconds < 1) {
-            $this->logger->debug('TOH safety net: less than 1 second of room, not capping.');
             return;
         }
 
@@ -150,7 +130,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
                 'TOH safety net: using bounded stretch instead of cue-out.',
                 [
                     'media' => $media->title,
-                    'media_length' => $mediaLength,
                     'target_seconds' => $cappedSeconds,
                     'stretch_ratio' => $queue->clock_wheel_stretch_ratio,
                 ]
@@ -180,10 +159,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         $queue->hour_boundary_max_play_seconds = $cappedSeconds;
     }
 
-    /**
-     * Fades the outgoing track over its final seconds when QueueBuilder had to
-     * use a cue-out for the top-of-hour boundary.
-     */
     public function applyTopOfHourPreIdFade(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
@@ -240,7 +215,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
                 'Hour boundary: using bounded stretch instead of cue-out.',
                 [
                     'media' => $media->title,
-                    'media_length' => $media->length,
                     'target_seconds' => $maxSeconds,
                     'stretch_ratio' => $queue->clock_wheel_stretch_ratio,
                 ]
@@ -269,9 +243,9 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
     }
 
     /**
-     * Uses Liquidsoap's pitch-preserving stretch operator for a near-fit before
-     * falling back to a destructive cue-out. The queue duration is changed to
-     * the target so later planning reflects the actual stretched airtime.
+     * Uses pitch-preserving stretch for near-fit tracks before cue-out. The
+     * queue keeps source duration and ratio so Queue can derive stretched
+     * airtime exactly once; the request metadata carries the target duration.
      */
     private function applySafeStretch(
         AnnotateNextSong $event,
@@ -290,7 +264,7 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         ]);
 
         $queue->clock_wheel_stretch_ratio = $ratio;
-        $queue->duration = (float)$targetSeconds;
+        $queue->duration = $media->length;
         $queue->hour_boundary_enforce_cap = false;
         $queue->hour_boundary_max_play_seconds = null;
         $queue->top_of_hour_pre_id_fade = false;
@@ -299,9 +273,6 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         return true;
     }
 
-    /**
-     * Gives the legal ID a gentle start while keeping its ending deterministic.
-     */
     public function applyLegalIdQuickCut(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
