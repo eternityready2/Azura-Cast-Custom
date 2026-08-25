@@ -14,7 +14,7 @@
                 <p class="mb-0">
                     {{
                         $gettext(
-                            'Queues a station ID at exactly :00 without interrupting the current song. During the lookahead window, music picks are filtered so long songs do not run past the hour. Tag files as ID on the Music Files page.'
+                            'Protects the end of the outgoing hour for a station ID. The ID is targeted for :58 or :59 and should finish before :00 so the next hour\'s programming can begin on time. Tag files as ID on the Music Files page.'
                         )
                     }}
                 </p>
@@ -77,7 +77,7 @@
                         class="mb-3"
                     >
                         <template #label>
-                            {{ $gettext('Compliance tolerance (seconds late = miss)') }}
+                            {{ $gettext('Compliance window tolerance (seconds)') }}
                         </template>
 
                         <input
@@ -116,7 +116,7 @@
                     <p class="text-secondary small">
                         {{
                             $gettext(
-                                'Belt-and-suspenders safety net driven purely by the system clock, independent of the AutoDJ queue. If nothing was queued in time, this forces a fallback ID/announcement across the hour boundary with a smooth fade rather than a hard cut.'
+                                'Wall-clock safety net for the legal ID. If the normal scheduler has not started an ID in time, the fallback is sent through the same dedicated legal-ID queue at the latest safe point before :00. It does not create a second competing playback path.'
                             )
                         }}
                     </p>
@@ -141,7 +141,7 @@
                             class="mb-3"
                         >
                             <template #label>
-                                {{ $gettext('Trigger window (seconds before :00)') }}
+                                {{ $gettext('Hard clock safety margin (seconds)') }}
                             </template>
 
                             <input
@@ -185,7 +185,7 @@
                     <p class="text-secondary small">
                         {{
                             $gettext(
-                                'When enabled, legal IDs and promos lower the music bed under them instead of hard-replacing it, then smoothly bring the music back up afterward.'
+                                'Keeps Smart Ducking available for interrupting liners, promos and voiceovers that intentionally use a music bed. The legal station ID uses its dedicated replacement queue so the underlying song is retired instead of resuming afterward.'
                             )
                         }}
                     </p>
@@ -257,9 +257,9 @@
 
                     <template v-if="(compliance?.hours_with_legal_id ?? 0) > 0">
                         <h3 class="h6">
-                            {{ $gettext('Top-of-hour ID compliance (last 7 days)') }}
+                            {{ $gettext('End-of-hour ID compliance (last 7 days)') }}
                             <span class="text-muted fw-normal small">
-                                ({{ $gettext('tolerance') }}: {{ compliance?.tolerance_seconds ?? 10 }}s)
+                                ({{ $gettext('window tolerance') }}: {{ compliance?.tolerance_seconds ?? 10 }}s)
                             </span>
                         </h3>
                         <div class="row g-3 mb-3">
@@ -272,7 +272,7 @@
                                         >%</span>
                                     </div>
                                     <div class="small text-muted">
-                                        {{ $gettext('On time') }}
+                                        {{ $gettext('In window') }}
                                     </div>
                                 </div>
                             </div>
@@ -292,7 +292,7 @@
                                         {{ compliance?.late_count ?? 0 }}
                                     </div>
                                     <div class="small text-muted">
-                                        {{ $gettext('Late (> tolerance)') }}
+                                        {{ $gettext('Outside ID window') }}
                                     </div>
                                 </div>
                             </div>
