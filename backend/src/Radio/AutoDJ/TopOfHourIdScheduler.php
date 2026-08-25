@@ -8,6 +8,7 @@ use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Enums\ClockWheelFallbackReason;
 use App\Entity\Repository\StationQueueRepository;
+use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\Schedule\ScheduleConflictChecker;
@@ -15,7 +16,8 @@ use DateTimeImmutable;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Queues the mandatory legal ID into the real-time top-of-hour queue.
+ * Plans one legal-ID queue row per boundary and hands that row to the dedicated
+ * real-time queue when the protected window arrives.
  */
 final class TopOfHourIdScheduler implements EventSubscriberInterface
 {
@@ -43,7 +45,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
 
     public function buildTopOfHourId(BuildQueue $event): void
     {
-        if (!$event->isInterrupting() || $event->getNextSongs() !== []) {
+        if ($event->getNextSongs() !== []) {
             return;
         }
 
@@ -60,7 +62,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         }
 
         if ($this->conflictChecker->hasEmergencyScheduleActive($station, $expectedPlayTime)) {
-            $this->logger->info('[TOPH DEBUG] Skipping TOPH: emergency schedule active.');
+            $this->logger->debug('Top-of-hour ID skipped: emergency schedule active.');
             return;
         }
 
@@ -68,19 +70,45 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             $station,
             $expectedPlayTime,
         );
-        $isDue = $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $expectedPlayTime);
+        $windowStart = $targetTop->modify(
+            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+        );
 
-        $this->logger->info('[TOPH DEBUG] Real-time end-of-hour ID evaluation.', [
-            'station_id' => $station->id,
-            'expected_play_time' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
-            'expected_play_time_local' => $expectedPlayTime
-                ->setTimezone($station->getTimezoneObject())
-                ->format(DateTimeImmutable::ATOM),
-            'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
-            'is_due' => $isDue,
-        ]);
+        if ($event->isInterrupting()) {
+            $planned = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
+                $station,
+                $windowStart,
+                $targetTop,
+            );
 
-        if (!$isDue) {
+            if ($planned instanceof StationQueue) {
+                if (!$this->hourBoundaryPlanner->canLegalIdFinishBeforeTop(
+                    $station,
+                    $expectedPlayTime,
+                    $planned->duration,
+                )) {
+                    $this->logger->warning(
+                        'Top-of-hour ID planned row is too late to finish before the boundary.',
+                        [
+                            'queue_id' => $planned->id,
+                            'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+                        ]
+                    );
+                    return;
+                }
+
+                if ($event->setNextSongs($planned)) {
+                    $this->logger->info('Top-of-hour ID selected from planned queue row.', [
+                        'queue_id' => $planned->id,
+                        'media_id' => $planned->media?->id,
+                        'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+                    ]);
+                }
+                return;
+            }
+        }
+
+        if (!$this->hourBoundaryPlanner->isTopOfHourIdDue($station, $expectedPlayTime)) {
             return;
         }
 
@@ -96,25 +124,23 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             $expectedPlayTime,
         );
 
-        if ($nextSong === null) {
+        if (!$nextSong instanceof StationQueue) {
             $this->eventLogger->recordTopOfHourFallback(
                 $station,
                 $targetTop,
                 ClockWheelFallbackReason::NoMediaCandidates,
             );
             $this->em->flush();
-            $this->logger->warning('[TOPH DEBUG] Top-of-hour ID: could not resolve mandatory legal_id track.');
+            $this->logger->warning('Top-of-hour ID: no mandatory legal-ID media could be resolved.');
             return;
         }
 
-        if (
-            !$this->hourBoundaryPlanner->canLegalIdFinishBeforeTop(
-                $station,
-                $expectedPlayTime,
-                $nextSong->duration,
-            )
-        ) {
-            $this->logger->warning('[TOPH DEBUG] Legal ID skipped because it can no longer finish before :00.', [
+        if (!$this->hourBoundaryPlanner->canLegalIdFinishBeforeTop(
+            $station,
+            $expectedPlayTime,
+            $nextSong->duration,
+        )) {
+            $this->logger->warning('Top-of-hour ID skipped because it can no longer finish before :00.', [
                 'media_id' => $nextSong->media?->id,
                 'duration' => $nextSong->duration,
                 'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
@@ -123,7 +149,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         }
 
         if (!$event->setNextSongs($nextSong)) {
-            $this->logger->warning('[TOPH DEBUG] Legal ID resolved but BuildQueue rejected it.', [
+            $this->logger->warning('Top-of-hour ID resolved but BuildQueue rejected it.', [
                 'song_id' => $nextSong->song_id,
                 'last_song_id' => $event->getLastPlayedSongId(),
             ]);
@@ -131,11 +157,16 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         }
 
         $this->em->flush();
-        $this->logger->info('[TOPH DEBUG] Top-of-hour ID selected for dedicated queue.', [
-            'media_id' => $nextSong->media?->id,
-            'song_id' => $nextSong->song_id,
-            'duration' => $nextSong->duration,
-            'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
-        ]);
+        $this->logger->info(
+            $event->isInterrupting()
+                ? 'Top-of-hour ID created as real-time fallback.'
+                : 'Top-of-hour ID planned in the AutoDJ queue.',
+            [
+                'queue_id' => $nextSong->id,
+                'media_id' => $nextSong->media?->id,
+                'duration' => $nextSong->duration,
+                'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+            ]
+        );
     }
 }
