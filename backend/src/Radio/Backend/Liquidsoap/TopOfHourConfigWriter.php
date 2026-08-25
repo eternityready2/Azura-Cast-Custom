@@ -73,6 +73,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             'song_id' => $safetyMedia->song_id,
             'media_id' => $safetyMedia->id,
             'azuracast_legal_id' => true,
+            'azuracast_top_of_hour_id' => true,
             'azuracast_top_of_hour_fallback' => true,
         ]);
         $safetyRequest = ConfigWriter::toRawString(
@@ -112,7 +113,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               now = int_of_float(time())
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
 
-              if metadata["azuracast_legal_id"] == "true" and seconds_in_hour >= 3480 then
+              if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
                 boundary = now - seconds_in_hour + 3600
                 top_of_hour_last_served_boundary := boundary
                 log("Top of hour: legal ID started for boundary #{boundary}.")
