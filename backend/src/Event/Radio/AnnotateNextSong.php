@@ -44,6 +44,7 @@ final class AnnotateNextSong extends Event
     public const array ALWAYS_STRING_ANNOTATIONS = [
         'title',
         'artist',
+        'liq_stretch_ratio',
     ];
 
     private ?string $songPath = null;
