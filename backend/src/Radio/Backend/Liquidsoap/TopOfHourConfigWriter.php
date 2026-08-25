@@ -9,6 +9,8 @@ use App\Entity\Station;
 use App\Entity\StationBackendConfiguration;
 use App\Entity\StationMedia;
 use App\Event\Radio\WriteLiquidsoapConfiguration;
+use App\Radio\AutoDJ\HourBoundaryPlanner;
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -19,6 +21,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
 
@@ -26,9 +29,27 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
     {
         return [
             WriteLiquidsoapConfiguration::class => [
+                ['disableLegacyHardTrigger', 31],
                 ['writeTopOfHourFallback', 29],
             ],
         ];
+    }
+
+    /**
+     * Disable the legacy independent source switch before ConfigWriter builds it.
+     * The dedicated top-of-hour queue is the only legal-ID takeover path.
+     */
+    public function disableLegacyHardTrigger(WriteLiquidsoapConfiguration $event): void
+    {
+        $config = $event->getBackendConfig();
+
+        if (!$config->top_of_hour_id_enabled || !$config->top_of_hour_hard_trigger_enabled) {
+            return;
+        }
+
+        $event->appendLines([
+            'settings.azuracast.top_of_hour_hard_trigger_enabled := false',
+        ]);
     }
 
     public function writeTopOfHourFallback(WriteLiquidsoapConfiguration $event): void
@@ -45,38 +66,50 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             return;
         }
 
+        $safetyAnnotations = ConfigWriter::annotateArray([
+            'title' => $safetyMedia->title,
+            'artist' => $safetyMedia->artist,
+            'duration' => $safetyMedia->getCalculatedLength(),
+            'song_id' => $safetyMedia->song_id,
+            'media_id' => $safetyMedia->id,
+            'azuracast_legal_id' => true,
+        ]);
         $safetyRequest = ConfigWriter::toRawString(
-            'annotate:azuracast_legal_id="true",liq_disable_autocue="true":media:' . $safetyMedia->path
+            'annotate:' . $safetyAnnotations
+            . ',liq_disable_autocue="true":media:' . ltrim($safetyMedia->path, '/')
         );
+
         $safetyDuration = $safetyMedia->getCalculatedLength();
+        $requiredLeadSeconds = (int)ceil(
+            $safetyDuration + $config->top_of_hour_finish_buffer_seconds
+        );
         $triggerLeadSeconds = min(
-            120,
+            $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station),
             max(
                 1,
-                (int)ceil(
-                    $safetyDuration
-                    + $config->top_of_hour_finish_buffer_seconds
-                    + $config->top_of_hour_hard_trigger_seconds
-                )
+                $requiredLeadSeconds + (int)ceil($config->top_of_hour_hard_trigger_seconds)
             )
         );
 
-        // Keep the legacy hard-trigger operator available, but turn off its
-        // independent source switch for the legal ID. The watchdog below feeds
-        // the same dedicated queue as the PHP scheduler so only one source owns
-        // the audio takeover.
+        $timezone = $station->getTimezoneObject();
+        $timezoneOffsetSeconds = $timezone->getOffset(new DateTimeImmutable('now', $timezone));
+        $stationHourOffsetSeconds = (($timezoneOffsetSeconds % 3600) + 3600) % 3600;
+
         $event->appendBlock(
             <<<LIQ
-            settings.azuracast.top_of_hour_hard_trigger_enabled := false
-
             top_of_hour_last_served_boundary = ref(-1)
             top_of_hour_last_hard_push_boundary = ref(-1)
             top_of_hour_hard_trigger_lead_seconds = {$triggerLeadSeconds}
+            top_of_hour_station_hour_offset_seconds = {$stationHourOffsetSeconds}
             top_of_hour_hard_trigger_request = {$safetyRequest}
+
+            def top_of_hour_seconds_in_station_hour(now) =
+              (now + top_of_hour_station_hour_offset_seconds) mod 3600
+            end
 
             def top_of_hour_mark_legal_id(metadata) =
               now = int_of_float(time())
-              seconds_in_hour = now mod 3600
+              seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
 
               if metadata["azuracast_legal_id"] == "true" and seconds_in_hour >= 3480 then
                 boundary = now - seconds_in_hour + 3600
@@ -90,7 +123,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
 
             def top_of_hour_hard_trigger_watch() =
               now = int_of_float(time())
-              seconds_in_hour = now mod 3600
+              seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
               seconds_until_top = 3600 - seconds_in_hour
               boundary = now - seconds_in_hour + 3600
 
@@ -145,16 +178,10 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             static fn(StationMedia $item): bool => $item->getCalculatedLength() <= $maxSeconds,
         ));
 
-        if ($fitting !== []) {
-            return $fitting[0];
+        if ($fitting === []) {
+            return null;
         }
 
-        usort(
-            $media,
-            static fn(StationMedia $a, StationMedia $b): int =>
-                $a->getCalculatedLength() <=> $b->getCalculatedLength(),
-        );
-
-        return $media[0];
+        return $fitting[0];
     }
 }
