@@ -20,6 +20,7 @@ use App\Radio\AutoDJ\SponsorGuaranteedPlayoutService;
 use App\Radio\Backend\Liquidsoap;
 use App\Radio\Enums\LiquidsoapQueues;
 use App\Utilities\Time;
+use Carbon\CarbonImmutable;
 use Monolog\LogRecord;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
@@ -75,12 +76,12 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
+        $this->expireMissedTopOfHourRows($station);
         $this->enforceScheduledBoundary($station, $backend);
 
-        $hasInterruptingPlaylist = $this->hourBoundaryPlanner->isTopOfHourInterruptDue(
-            $station,
-            Time::nowUtc(),
-        );
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $hasTopOfHour = $this->hasTopOfHourToDeliver($station, $now);
+        $hasInterruptingPlaylist = $hasTopOfHour;
         $tz = $station->getTimezoneObject();
 
         foreach ($station->playlists as $playlist) {
@@ -155,11 +156,47 @@ final class QueueInterruptingTracks extends AbstractTask
         }
     }
 
-    /**
-     * Records a dedicated-queue legal ID immediately. This remains a fallback
-     * for Liquidsoap configurations where metadata feedback through the custom
-     * top-of-hour transition is delayed or absent.
-     */
+    private function hasTopOfHourToDeliver(Station $station, \DateTimeImmutable $now): bool
+    {
+        if (!$this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
+            return false;
+        }
+
+        if (!$this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $now)) {
+            return false;
+        }
+
+        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt($station, $now);
+        $windowStart = $targetTop->modify(
+            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+        );
+
+        if ($this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
+            $station,
+            $windowStart,
+            $targetTop,
+        ) instanceof StationQueue) {
+            return true;
+        }
+
+        return $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $now);
+    }
+
+    private function expireMissedTopOfHourRows(Station $station): void
+    {
+        $hourStart = CarbonImmutable::now($station->getTimezoneObject())
+            ->startOfHour()
+            ->toDateTimeImmutable();
+
+        $expired = $this->queueRepo->deleteUnplayedTopOfHourLegalIdsBefore($station, $hourStart);
+        if ($expired > 0) {
+            $this->logger->warning(
+                'Removed missed top-of-hour planning rows after their boundary passed.',
+                ['count' => $expired]
+            );
+        }
+    }
+
     private function recordTopOfHourPlaybackDirectly(Station $station, StationQueue $sq): void
     {
         $media = $sq->media;
@@ -196,10 +233,6 @@ final class QueueInterruptingTracks extends AbstractTask
         }
     }
 
-    /**
-     * Last-resort real-time backstop for scheduled boundaries other than the
-     * top-of-hour legal-ID boundary.
-     */
     private function enforceScheduledBoundary(Station $station, Liquidsoap $backend): void
     {
         $now = Time::nowUtc();
