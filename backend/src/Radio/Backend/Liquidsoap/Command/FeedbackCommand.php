@@ -8,13 +8,15 @@ use App\Cache\NowPlayingCache;
 use App\Container\EntityManagerAwareTrait;
 use App\Entity\Repository\SongHistoryRepository;
 use App\Entity\Repository\StationQueueRepository;
-use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
 use App\Entity\Song;
 use App\Entity\SongHistory;
 use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
 use App\Entity\StationQueue;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
+use App\Radio\AutoDJ\HourBoundaryPlanner;
+use App\Utilities\Time;
 use App\Utilities\Types;
 use RuntimeException;
 
@@ -27,6 +29,7 @@ final class FeedbackCommand extends AbstractCommand
         private readonly SongHistoryRepository $historyRepo,
         private readonly NowPlayingCache $nowPlayingCache,
         private readonly ClockWheelLegalIdPlaybackService $legalIdPlaybackService,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
 
@@ -39,7 +42,6 @@ final class FeedbackCommand extends AbstractCommand
             return false;
         }
 
-        // Process Liquidsoap list.assoc to JSON mapping
         $payload = array_map(
             fn($dataVal) => match (true) {
                 'true' === $dataVal || 'false' === $dataVal => Types::bool(
@@ -53,7 +55,6 @@ final class FeedbackCommand extends AbstractCommand
             $payload
         );
 
-        // Process extra metadata sent by Liquidsoap (if it exists).
         $historyRow = $this->getSongHistory($station, $payload);
         $this->em->persist($historyRow);
 
@@ -82,10 +83,7 @@ final class FeedbackCommand extends AbstractCommand
                 throw new RuntimeException('Song is not different from current song.');
             }
 
-            return new SongHistory(
-                $station,
-                $newSong
-            );
+            return new SongHistory($station, $newSong);
         }
 
         $media = $this->em->find(StationMedia::class, $payload['media_id']);
@@ -102,8 +100,24 @@ final class FeedbackCommand extends AbstractCommand
         } else {
             $sq = $this->queueRepo->findRecentlyCuedSong($station, $media);
 
-            if (null !== $sq) {
-                // If there's an existing record, ensure it has all the proper metadata.
+            if (!$sq instanceof StationQueue && !empty($payload['azuracast_legal_id'])) {
+                $now = Time::nowUtc()->toDateTimeImmutable();
+                $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
+                    $station,
+                    $now,
+                );
+                $windowStart = $targetTop->modify(
+                    '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+                );
+
+                $sq = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
+                    $station,
+                    $windowStart,
+                    $targetTop,
+                );
+            }
+
+            if ($sq instanceof StationQueue) {
                 if (null === $sq->media) {
                     $sq->media = $media;
                 }
@@ -120,7 +134,7 @@ final class FeedbackCommand extends AbstractCommand
             }
         }
 
-        if (null !== $sq) {
+        if ($sq instanceof StationQueue) {
             $this->legalIdPlaybackService->recordPlaybackIfLegalId($station, $sq, $media);
             $this->queueRepo->trackPlayed($station, $sq);
             return SongHistory::fromQueue($sq);
