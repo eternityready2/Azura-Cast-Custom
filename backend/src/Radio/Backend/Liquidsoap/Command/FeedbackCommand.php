@@ -100,12 +100,14 @@ final class FeedbackCommand extends AbstractCommand
 
         if (!empty($payload['sq_id'])) {
             $sq = $this->em->find(StationQueue::class, $payload['sq_id']);
+        } elseif (!empty($payload['azuracast_top_of_hour_fallback'])) {
+            // A hard-clock fallback is owned by the TOH coordinator. Resolve it
+            // against the boundary row before considering ordinary same-media
+            // queue entries so an unrelated station-ID play cannot absorb the
+            // fallback feedback.
+            $sq = $this->resolveTopOfHourQueueRow($station, $media);
         } else {
             $sq = $this->queueRepo->findRecentlyCuedSong($station, $media);
-
-            if (!$sq instanceof StationQueue && !empty($payload['azuracast_top_of_hour_fallback'])) {
-                $sq = $this->resolveTopOfHourQueueRow($station, $media);
-            }
 
             if ($sq instanceof StationQueue) {
                 if (null === $sq->media) {
