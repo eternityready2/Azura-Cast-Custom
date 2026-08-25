@@ -101,10 +101,8 @@ final class HourBoundaryPlanner
 
     /**
      * Seconds reserved at the end of the outgoing hour for the legal ID.
-     *
-     * The normal window starts at :58. If the configured maximum ID length plus
-     * finish buffer needs more than two minutes, the reservation expands so the
-     * configured ID can still finish before :00.
+     * The window begins at :58 by default and expands when configuration needs
+     * more time for the ID plus finish buffer.
      */
     public function getIdWindowLeadSeconds(Station $station): int
     {
@@ -114,10 +112,6 @@ final class HourBoundaryPlanner
         );
     }
 
-    /**
-     * Planned position within the broadcast hour (0-3599), using expected play
-     * time and already-queued items in the same hour.
-     */
     public function getPlannedSecondsIntoHour(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
@@ -204,8 +198,10 @@ final class HourBoundaryPlanner
             return false;
         }
 
-        $tz = $station->getTimezoneObject();
-        $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
+        $secondsUntil = $this->secondsUntilNextTopOfHour(
+            $expectedPlayTime,
+            $station->getTimezoneObject(),
+        );
         $lookaheadSeconds = $this->getLookaheadMinutes($station) * 60;
 
         return $secondsUntil > 0 && $secondsUntil <= $lookaheadSeconds;
@@ -227,42 +223,6 @@ final class HourBoundaryPlanner
         return $secondsUntil > 0 && $secondsUntil <= $this->getIdWindowLeadSeconds($station);
     }
 
-    /**
-     * Returns the end of the reserved legal-ID window when queue planning has
-     * reached it. The normal crossfade is included as a small tolerance because
-     * Queue::addDurationToTime() advances the planning clock by track duration
-     * minus crossfade overlap; without this allowance a track ending exactly at
-     * :58 can leave the projected clock a few seconds before the reservation and
-     * cause another full song to be selected inside the protected window.
-     */
-    public function getTopOfHourPlanningReservationEnd(
-        Station $station,
-        DateTimeImmutable $expectedPlayTime,
-    ): ?DateTimeImmutable {
-        if (!$this->isTopOfHourProtectionEnabled($station)) {
-            return null;
-        }
-
-        $tz = $station->getTimezoneObject();
-        $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
-        if ($secondsUntil <= 0) {
-            return null;
-        }
-
-        $crossfadeAllowance = (int)ceil(max(0.0, $station->backend_config->getCrossfadeDuration()));
-        $reservationLead = $this->getIdWindowLeadSeconds($station) + $crossfadeAllowance;
-
-        if ($secondsUntil > $reservationLead) {
-            return null;
-        }
-
-        return $this->getNextTopOfHour($expectedPlayTime, $tz);
-    }
-
-    /**
-     * Returns whether the selected ID can finish before :00 while preserving the
-     * configured finish buffer. Unknown durations use the configured maximum.
-     */
     public function canLegalIdFinishBeforeTop(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
@@ -310,10 +270,6 @@ final class HourBoundaryPlanner
         return $maxDuration;
     }
 
-    /**
-     * True while the outgoing hour is inside the preferred legal-ID window and
-     * the boundary has not already been served.
-     */
     public function isTopOfHourIdDue(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
@@ -329,10 +285,6 @@ final class HourBoundaryPlanner
         return !$this->hasTopOfHourIdQueued($station, $target);
     }
 
-    /**
-     * Wall-clock fallback. It is intentionally pre-hour only; once :00 arrives,
-     * the next hour's programming owns the clock.
-     */
     public function isTopOfHourInterruptDue(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
@@ -340,11 +292,6 @@ final class HourBoundaryPlanner
         return $this->isTopOfHourIdDue($station, $expectedPlayTime);
     }
 
-    /**
-     * When station-wide protection is enabled, legacy once-per-hour playlists
-     * pinned to :00 are suppressed because the dedicated legal-ID scheduler owns
-     * that boundary.
-     */
     public function shouldSuppressOncePerHourPlaylist(StationPlaylist $playlist): bool
     {
         if (!$this->isTopOfHourProtectionEnabled($playlist->station)) {
