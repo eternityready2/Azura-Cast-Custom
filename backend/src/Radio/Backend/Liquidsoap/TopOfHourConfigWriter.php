@@ -59,6 +59,9 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
         $station = $event->getStation();
         $config = $event->getBackendConfig();
 
+        // The shared boundary state is also used by the coordinated AI News
+        // handoff, so write it whenever TOH protection is enabled. The actual
+        // wall-clock safety push below still obeys the hard-trigger setting.
         if (!$config->top_of_hour_id_enabled) {
             return;
         }
@@ -84,9 +87,9 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
                 'annotate:' . $safetyAnnotations
                 . ',liq_disable_autocue="true":media:' . ltrim($safetyMedia->path, '/')
             );
-            // Emergency fallback must not race the normal :59 PHP delivery.
-            // The planner finish buffer belongs to scheduling, not the wall-clock safety net.
-            $requiredLeadSeconds = (int)ceil($safetyMedia->getCalculatedLength());
+            $requiredLeadSeconds = (int)ceil(
+                $safetyMedia->getCalculatedLength() + $config->top_of_hour_finish_buffer_seconds
+            );
         } else {
             $safetyRequest = ConfigWriter::toRawString('');
             $requiredLeadSeconds = 1;
@@ -109,7 +112,6 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             top_of_hour_claimed_boundary = ref(-1)
             top_of_hour_claimed_at = ref(-1.)
             top_of_hour_claimed_request_id = ref(-1)
-            top_of_hour_active_boundary = ref(-1)
             top_of_hour_claim_grace_seconds = {$claimGraceSeconds}.
             top_of_hour_hard_trigger_enabled = {$fallbackEnabledLiq}
             top_of_hour_hard_trigger_lead_seconds = {$triggerLeadSeconds}
@@ -197,14 +199,10 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
 
               if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
                 boundary = int_of_float(now) + (3600 - seconds_in_hour)
-                top_of_hour_active_boundary := boundary
-
-                if top_of_hour_last_served_boundary() != boundary then
-                  top_of_hour_claimed_boundary := boundary
-                  top_of_hour_claimed_at := now
-                  top_of_hour_last_served_boundary := boundary
-                  log("Top of hour: legal ID started for boundary #{boundary}.")
-                end
+                top_of_hour_claimed_boundary := boundary
+                top_of_hour_claimed_at := now
+                top_of_hour_last_served_boundary := boundary
+                log("Top of hour: legal ID started for boundary #{boundary}.")
               end
             end
 
