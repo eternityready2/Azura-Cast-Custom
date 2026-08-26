@@ -110,4 +110,4 @@ jobs:
             savonet/liquidsoap:v2.4.5 --check /tmp/toh-news-check.liq
 
       - name: Diff sanity
-        run: git diff --check HEAD^
+        run: git diff --check HEAD^ HEAD
