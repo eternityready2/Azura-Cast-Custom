@@ -269,7 +269,7 @@ final class HourBoundaryPlanner
      * so caused ordinary music to be shortened at :58 even when the next hour
      * had no scheduled content. Runtime TOH ownership still uses the wider window.
      */
-    public function maxMusicDurationBeforeTopOfHour(
+    public function secondsAvailableForMusicBeforeTopOfHour(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
     ): ?float {
@@ -281,13 +281,27 @@ final class HourBoundaryPlanner
             $expectedPlayTime,
             $station->getTimezoneObject(),
         );
-        $maxDuration = (float)($secondsUntil - $this->getMusicProtectionLeadSeconds($station));
 
-        if ($maxDuration < self::MIN_USABLE_CAP_SECONDS) {
+        return max(
+            0.0,
+            (float)($secondsUntil - $this->getMusicProtectionLeadSeconds($station)),
+        );
+    }
+
+    public function maxMusicDurationBeforeTopOfHour(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): ?float {
+        $availableSeconds = $this->secondsAvailableForMusicBeforeTopOfHour(
+            $station,
+            $expectedPlayTime,
+        );
+
+        if (null === $availableSeconds || $availableSeconds < self::MIN_USABLE_CAP_SECONDS) {
             return null;
         }
 
-        return $maxDuration;
+        return $availableSeconds;
     }
 
     public function isTopOfHourIdDue(
