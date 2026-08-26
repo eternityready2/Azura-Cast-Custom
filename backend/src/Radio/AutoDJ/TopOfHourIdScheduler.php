@@ -27,9 +27,6 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
 
     /**
      * Open-hour boundaries wait until :59 before interrupting normal music.
-     * The actual legal-ID duration plus finish buffer is still enforced by
-     * canLegalIdFinishBeforeTop(), while the hard-clock fallback remains the
-     * final safety net a few seconds later.
      */
     private const int OPEN_HOUR_TRIGGER_LEAD_SECONDS = 60;
 
@@ -98,7 +95,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         }
 
         if ($event->isInterrupting()) {
-            $planned = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
+            $planned = $this->queueRepo->findPendingTopOfHourLegalIdBetween(
                 $station,
                 $windowStart,
                 $targetTop,
@@ -121,7 +118,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
                 }
 
                 if ($event->setNextSongs($planned)) {
-                    $this->logger->info('Top-of-hour ID selected from planned queue row.', [
+                    $this->logger->info('Top-of-hour ID selected from pending planned queue row.', [
                         'queue_id' => $planned->id,
                         'media_id' => $planned->media?->id,
                         'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
@@ -180,19 +177,17 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
-        // TOH rows belong exclusively to the dedicated real-time queue. Marking
-        // them reserved here keeps the ordinary nextsong path from treating the
-        // row as a permanent barrier, while the dedicated finder can still see
-        // the unplayed row by its TOH flag.
-        $nextSong->sent_to_autodj = true;
+        // Planning is not delivery. Keep the row unsent until the dedicated
+        // real-time task successfully hands this exact request to Liquidsoap.
+        $nextSong->sent_to_autodj = false;
         $nextSong->timestamp_cued = $expectedPlayTime;
         $nextSong->timestamp_played = $expectedPlayTime;
 
         $this->em->flush();
         $this->logger->info(
             $event->isInterrupting()
-                ? 'Top-of-hour ID created as real-time fallback.'
-                : 'Top-of-hour ID planned in the dedicated TOH queue.',
+                ? 'Top-of-hour ID created for immediate dedicated delivery.'
+                : 'Top-of-hour ID planned for dedicated delivery.',
             [
                 'queue_id' => $nextSong->id,
                 'media_id' => $nextSong->media?->id,
@@ -238,8 +233,6 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return false;
         }
 
-        // Queue planning may carry sub-second/crossfade drift. Treat a start
-        // within two seconds of the boundary as the same protected top-of-hour.
         return abs($secondsUntilScheduled - $secondsUntilTop) <= 2;
     }
 }

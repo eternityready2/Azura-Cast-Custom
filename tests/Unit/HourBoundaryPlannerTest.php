@@ -196,6 +196,68 @@ final class HourBoundaryPlannerTest extends Unit
         ));
     }
 
+    public function testNormalAutoDjPrefetchSkipsPendingTopOfHourRow(): void
+    {
+        $repo = $this->testsModule->container->get(StationQueueRepository::class);
+
+        $legalId = new StationQueue($this->station, Song::createFromText('Station - Legal ID'));
+        $legalId->top_of_hour_legal_id = true;
+        $legalId->sent_to_autodj = false;
+        $legalId->is_played = false;
+        $legalId->timestamp_cued = CarbonImmutable::parse('2026-05-26 09:59:00', 'UTC');
+        $legalId->timestamp_played = CarbonImmutable::parse('2026-05-26 09:59:00', 'UTC');
+
+        $music = new StationQueue($this->station, Song::createFromText('Artist - Next Song'));
+        $music->sent_to_autodj = false;
+        $music->is_played = false;
+        $music->timestamp_cued = CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC');
+        $music->timestamp_played = CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC');
+
+        $this->testsModule->em->persist($legalId);
+        $this->testsModule->em->persist($music);
+        $this->testsModule->em->flush();
+
+        $next = $repo->getNextToSendToAutoDj($this->station);
+
+        self::assertInstanceOf(StationQueue::class, $next);
+        self::assertSame($music->id, $next->id);
+    }
+
+    public function testPendingTopOfHourFinderIgnoresAlreadySentRow(): void
+    {
+        $repo = $this->testsModule->container->get(StationQueueRepository::class);
+        $start = CarbonImmutable::parse('2026-05-26 09:58:00', 'UTC');
+        $end = CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC');
+
+        $legalId = new StationQueue($this->station, Song::createFromText('Station - Legal ID'));
+        $legalId->top_of_hour_legal_id = true;
+        $legalId->sent_to_autodj = true;
+        $legalId->is_played = false;
+        $legalId->timestamp_cued = CarbonImmutable::parse('2026-05-26 09:59:00', 'UTC');
+        $legalId->timestamp_played = CarbonImmutable::parse('2026-05-26 09:59:00', 'UTC');
+        $this->testsModule->em->persist($legalId);
+        $this->testsModule->em->flush();
+
+        self::assertNull($repo->findPendingTopOfHourLegalIdBetween(
+            $this->station,
+            $start,
+            $end,
+        ));
+
+        $legalId->sent_to_autodj = false;
+        $this->testsModule->em->persist($legalId);
+        $this->testsModule->em->flush();
+
+        $pending = $repo->findPendingTopOfHourLegalIdBetween(
+            $this->station,
+            $start,
+            $end,
+        );
+
+        self::assertInstanceOf(StationQueue::class, $pending);
+        self::assertSame($legalId->id, $pending->id);
+    }
+
     public function testShouldSuppressOncePerHourPlaylistAtTopOfHour(): void
     {
         $playlist = new StationPlaylist($this->station);
