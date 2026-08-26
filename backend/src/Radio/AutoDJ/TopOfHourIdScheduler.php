@@ -26,10 +26,12 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
     use EntityManagerAwareTrait;
 
     /**
-     * Empty-hour boundaries should wait until the final part of :59 instead of
-     * interrupting music as soon as the wider :58/:59 planning window opens.
+     * Open-hour boundaries wait until :59 before interrupting normal music.
+     * The actual legal-ID duration plus finish buffer is still enforced by
+     * canLegalIdFinishBeforeTop(), while the hard-clock fallback remains the
+     * final safety net a few seconds later.
      */
-    private const int OPEN_HOUR_TRIGGER_LEAD_SECONDS = 75;
+    private const int OPEN_HOUR_TRIGGER_LEAD_SECONDS = 60;
 
     public function __construct(
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
@@ -90,7 +92,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             && !$this->isOpenHourTriggerWindow($station, $expectedPlayTime)
         ) {
             $this->logger->debug(
-                'Top-of-hour ID deferred: next hour is open and the late :59 trigger window has not arrived.'
+                'Top-of-hour ID deferred: next hour is open and the :59 trigger window has not arrived.'
             );
             return;
         }
