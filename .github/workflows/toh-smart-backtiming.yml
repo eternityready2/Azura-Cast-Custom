@@ -16,8 +16,8 @@ jobs:
         with:
           ref: fix/toh-smart-backtiming
 
-      - name: Apply scheduling integration
-        run: python3 .github/scripts/apply_toh_backtiming.py
+      - name: Apply TOH hold hardening
+        run: python3 .github/scripts/apply_toh_hold_hardening.py
 
       - name: PHP syntax
         run: |
@@ -72,8 +72,6 @@ jobs:
           assert ratio(270, 240) is None
           assert 120 <= 120
           assert 121 > 120
-
-          # Crossing :00 without a served ID still holds normal music for 30s.
           assert 5 <= 30
           assert 31 > 30
           PY
@@ -100,18 +98,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/src/Entity/Repository/StationQueueRepository.php \
-                  backend/src/Radio/AutoDJ/HourBoundaryPlanner.php \
-                  backend/src/Radio/AutoDJ/QueueBuilder.php \
-                  backend/src/Radio/AutoDJ/Scheduler.php \
-                  backend/src/Sync/Task/QueueInterruptingTracks.php \
-                  backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php \
-                  backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php \
-                  tests/Unit/TopOfHourSmartBacktimingTest.php \
-                  tests/Unit/TopOfHourPreBoundaryHoldTest.php \
-                  tests/Unit/StrictStartGraceTest.php
+          git add backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php \
+                  tests/Unit/TopOfHourPreBoundaryHoldTest.php
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Harden TOH handoff and strict schedule catch-up"
+          git commit -m "Harden top-of-hour hold across the boundary"
           git push origin HEAD:fix/toh-smart-backtiming
