@@ -168,6 +168,7 @@ final class QueueInterruptingTracks extends AbstractTask
         $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt($station, $now);
         $boundary = $targetTop->getTimestamp();
         $claimed = false;
+        $acceptedByLiquidsoap = false;
 
         if ($station->backend_config->top_of_hour_hard_trigger_enabled) {
             try {
@@ -216,6 +217,10 @@ final class QueueInterruptingTracks extends AbstractTask
                 throw new RuntimeException('Liquidsoap did not return a request ID for the TOH enqueue.');
             }
 
+            // Once Liquidsoap accepts a request ID, this boundary remains owned
+            // even if the following database flush fails. Releasing at that point
+            // would allow the wall-clock path to queue a second copy.
+            $acceptedByLiquidsoap = true;
             $sq->sent_to_autodj = true;
             $this->em->persist($sq);
             $this->em->flush();
@@ -226,17 +231,18 @@ final class QueueInterruptingTracks extends AbstractTask
                 'boundary' => $boundary,
             ]);
         } catch (\Throwable $e) {
-            if ($claimed) {
+            if ($claimed && !$acceptedByLiquidsoap) {
                 try {
                     $backend->command($station, 'top_of_hour.release ' . $boundary);
                 } catch (\Throwable) {
-                    // The wall-clock fallback will recover after Liquidsoap restarts.
+                    // If Liquidsoap is unavailable, its in-memory claim disappears on restart.
                 }
             }
 
             $this->logger->error('Top-of-hour enqueue failed.', [
                 'queue_id' => $sq->id,
                 'boundary' => $boundary,
+                'accepted_by_liquidsoap' => $acceptedByLiquidsoap,
                 'exception' => $e->getMessage(),
             ]);
         }
