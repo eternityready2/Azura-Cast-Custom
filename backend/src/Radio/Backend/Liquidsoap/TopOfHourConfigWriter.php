@@ -20,6 +20,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
     private const int PHP_CLAIM_GRACE_SECONDS = 5;
+    private const int PRE_BOUNDARY_HOLD_SECONDS = 60;
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -104,6 +105,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
         );
         $fallbackEnabledLiq = $fallbackEnabled ? 'true' : 'false';
         $claimGraceSeconds = self::PHP_CLAIM_GRACE_SECONDS;
+        $holdStartSecond = HourBoundaryPlanner::HOUR_SECONDS - self::PRE_BOUNDARY_HOLD_SECONDS;
 
         $event->appendBlock(
             <<<LIQ
@@ -121,6 +123,44 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               local_now = time.local(now)
               local_now.min * 60 + local_now.sec
             end
+
+            # In the final minute, do not let a freshly-prefetched music track
+            # start if the legal ID for this boundary has not aired yet. This is
+            # track-sensitive: a song already on air keeps playing naturally,
+            # but once it ends the normal source waits for the TOH chain instead
+            # of starting a throwaway track that will be cut a few seconds later.
+            def top_of_hour_hold_new_track() =
+              now = time()
+              seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
+
+              if seconds_in_hour < {$holdStartSecond} then
+                false
+              else
+                boundary = int_of_float(now) + (3600 - seconds_in_hour)
+                top_of_hour_last_served_boundary() != boundary
+              end
+            end
+
+            radio_before_top_of_hour_unheld = radio_before_top_of_hour
+            top_of_hour_preboundary_hold = blank(id="top_of_hour_preboundary_hold")
+            radio_before_top_of_hour = switch(
+              id="top_of_hour_preboundary_hold_switch",
+              track_sensitive=true,
+              [
+                ({ top_of_hour_hold_new_track() }, top_of_hour_preboundary_hold),
+                ({ true }, radio_before_top_of_hour_unheld)
+              ]
+            )
+
+            # Rebuild the outer TOH wrapper around the held normal-program source.
+            # The legal-ID queue remains non-track-sensitive and can take over
+            # immediately whenever it becomes ready.
+            radio = fallback(
+              id="top_of_hour_fallback",
+              track_sensitive=false,
+              transitions=[to_top_of_hour, from_top_of_hour],
+              [top_of_hour_queue, radio_before_top_of_hour]
+            )
 
             def top_of_hour_clear_claim() =
               top_of_hour_claimed_boundary := -1
