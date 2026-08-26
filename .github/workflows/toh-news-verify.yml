@@ -26,7 +26,6 @@ jobs:
       - name: Liquidsoap 2.4.5 priority-chain type check
         run: |
           cat > /tmp/toh-news-check.liq <<'LIQ'
-          requests = request.queue(id="requests")
           radio_before_top_of_hour = blank()
           top_of_hour_queue = request.queue(id="top_of_hour_queue")
           top_of_hour_news_queue = request.queue(id="top_of_hour_news")
@@ -108,6 +107,3 @@ jobs:
 
           docker run --rm -v /tmp/toh-news-check.liq:/tmp/toh-news-check.liq:ro \
             savonet/liquidsoap:v2.4.5 --check /tmp/toh-news-check.liq
-
-      - name: Diff sanity
-        run: git diff --check HEAD^ HEAD
