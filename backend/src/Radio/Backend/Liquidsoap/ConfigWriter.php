@@ -698,16 +698,23 @@ final class ConfigWriter implements EventSubscriberInterface
         );
 
         $scheduleMinutes = [];
+        $coordinateTopNews = ($backendConfig->ai_news_top_of_hour ?? true)
+            && $backendConfig->top_of_hour_id_enabled;
 
-        if ($backendConfig->ai_news_top_of_hour ?? true) {
-            $scheduleMinutes[] = 59;  // Changed from 0 to 59 - play 1 minute before hour
+        if (($backendConfig->ai_news_top_of_hour ?? true) && !$coordinateTopNews) {
+            $scheduleMinutes[] = 59;
         }
 
         if ($backendConfig->ai_news_bottom_of_hour ?? false) {
-            $scheduleMinutes[] = 29;  // Changed from 30 to 29
+            $scheduleMinutes[] = 29;
         }
 
         if ([] === $scheduleMinutes) {
+            if ($coordinateTopNews) {
+                // The dedicated TOH news writer owns minute 59.
+                return;
+            }
+
             $scheduleMinutes[] = 59;
         }
 
