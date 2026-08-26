@@ -12,9 +12,9 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * Chains top-of-hour AI News directly behind the legal ID.
  *
- * The ordinary requests queue remains track-sensitive for listener requests,
- * AI DJ clips and bottom-of-hour news. Top-of-hour news uses its own priority
- * queue so a prefetched music track cannot win the boundary after the legal ID.
+ * Normal listener requests, AI DJ clips and bottom-of-hour news remain on the
+ * ordinary track-sensitive requests queue. Top-of-hour news uses its own source
+ * in the final priority stack so prefetched music cannot win after the legal ID.
  */
 final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
 {
@@ -61,14 +61,18 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
             $station->getTimezoneObject(),
         );
         $failOpenSeconds = self::NEWS_FAIL_OPEN_SECONDS;
-        $staleGateSeconds = max(
-            self::NEWS_FAIL_OPEN_SECONDS,
-            $config->top_of_hour_id_max_seconds + 10,
-        );
 
-        // ConfigWriter::writePlaylistConfiguration has already created
+        // ConfigWriter::writePlaylistConfiguration already created
         // radio_before_top_of_hour, top_of_hour_queue and the TOH transitions.
-        // TopOfHourConfigWriter has already created the shared boundary state.
+        // TopOfHourConfigWriter already created shared once-per-boundary state.
+        //
+        // This final wrapper is intentionally simple and deterministic:
+        // 1. legal ID
+        // 2. top-of-hour AI News
+        // 3. all scheduled/normal program audio
+        //
+        // News is only pushed after the legal ID is observed on air, so it cannot
+        // preempt the ID. Once it is ready, no prefetched music can jump ahead.
         $event->appendBlock(
             <<<LIQ
             top_news_bulletin_request = {$bulletinRequest}
@@ -82,29 +86,15 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
             pending_top_news_boundary = ref(-1)
             queued_top_news_boundary = ref(-1)
 
-            # Explicit playout priority:
-            # legal ID > top-of-hour news > schedules/requests/music.
-            radio_with_priority_top_news = switch(
-              id="top_news_bulletin_fallback",
-              track_sensitive=false,
-              [
-                ({
-                  top_news_bulletin_queue.is_ready() and
-                  top_of_hour_active_boundary() < 0
-                }, top_news_bulletin_queue),
-                ({ true }, radio_before_top_of_hour)
-              ]
-            )
-
             radio = fallback(
               id="top_of_hour_priority_fallback",
               track_sensitive=false,
-              transitions=[to_top_of_hour, from_top_of_hour],
-              [top_of_hour_queue, radio_with_priority_top_news]
+              transitions=[to_top_of_hour, from_top_of_hour, from_top_of_hour],
+              [top_of_hour_queue, top_news_bulletin_queue, radio_before_top_of_hour]
             )
 
-            # Observe the final wrapper too, so a clock-wheel-owned legal ID
-            # participates in the same boundary chain as the station TOH queue.
+            # The final wrapper can also contain a clock-wheel-owned legal ID, so
+            # keep the same synchronous boundary marker on the final radio source.
             source.methods(radio).on_track(
               synchronous=true,
               top_of_hour_mark_legal_id
@@ -127,13 +117,13 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
               end
             end
 
-            def queue_armed_top_news(boundary) =
+            def queue_top_news_for_boundary(boundary, reason) =
               if pending_top_news_boundary() == boundary and
                  queued_top_news_boundary() != boundary then
                 queued_top_news_boundary := boundary
                 pending_top_news_boundary := -1
                 top_news_bulletin_queue.push(request.create(top_news_bulletin_request))
-                log("AI News: prequeued behind legal ID for boundary #{boundary}.")
+                log("AI News: queued after legal ID for boundary #{boundary} (#{reason}).")
               end
             end
 
@@ -142,73 +132,17 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
               pending = pending_top_news_boundary()
 
               if pending > 0 then
-                id_started = top_of_hour_last_served_boundary() == pending
-                fail_open = int_of_float(now) >= pending + {$failOpenSeconds}
-
-                if id_started then
-                  # Resolve the local bulletin while the ID is still on air.
-                  # The active-boundary gate below keeps it from interrupting.
-                  queue_armed_top_news(pending)
-                elsif fail_open then
-                  # If no legal ID can be observed, do not strand the bulletin.
-                  queued_top_news_boundary := pending
-                  pending_top_news_boundary := -1
-                  top_news_bulletin_queue.push(request.create(top_news_bulletin_request))
-                  log("AI News: legal ID not observed; fail-open released boundary #{pending}.")
+                if top_of_hour_last_served_boundary() == pending then
+                  queue_top_news_for_boundary(pending, "legal-id-started")
+                elsif int_of_float(now) >= pending + {$failOpenSeconds} then
+                  # Do not strand the bulletin if a legal ID could not be observed.
+                  # The legal-ID queue is still first priority if it arrives late.
+                  queue_top_news_for_boundary(pending, "fail-open")
                 end
-              end
-
-              # A failed end callback must never strand the news queue forever.
-              # Use the configured maximum ID length as the safety horizon so
-              # this fallback cannot cut a legitimately late legal ID short.
-              queued = queued_top_news_boundary()
-              if queued > 0 and
-                 top_of_hour_active_boundary() == queued and
-                 int_of_float(now) >= queued + {$staleGateSeconds} then
-                top_of_hour_active_boundary := -1
-                log("Top of hour: cleared stale legal-ID active gate for boundary #{queued}.")
               end
 
               1.0
             end
-
-            # Release the news gate at the actual end of the legal ID. Remaining
-            # position is reliable for the local MP3 and keeps the handoff tied to
-            # audio completion instead of an assumed 37/38-second duration.
-            def top_of_hour_id_near_end(position, metadata) =
-              if metadata["azuracast_top_of_hour_id"] == "true" then
-                boundary = top_of_hour_active_boundary()
-
-                if boundary > 0 then
-                  queue_armed_top_news(boundary)
-
-                  thread.run(
-                    delay=0.5,
-                    {
-                      if top_of_hour_active_boundary() == boundary then
-                        top_of_hour_active_boundary := -1
-                        log("Top of hour: legal ID finished for boundary #{boundary}.")
-                      end
-                    }
-                  )
-                end
-              end
-            end
-
-            source.methods(top_of_hour_queue).on_position(
-              synchronous=true,
-              remaining=true,
-              allow_partial=true,
-              position=0.5,
-              top_of_hour_id_near_end
-            )
-            source.methods(radio).on_position(
-              synchronous=true,
-              remaining=true,
-              allow_partial=true,
-              position=0.5,
-              top_of_hour_id_near_end
-            )
 
             cron.add("59 * * * {$cronDays}", {arm_top_news_bulletin()})
 
