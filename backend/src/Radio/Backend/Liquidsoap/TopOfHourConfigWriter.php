@@ -59,12 +59,18 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
         $station = $event->getStation();
         $config = $event->getBackendConfig();
 
-        if (!$config->top_of_hour_id_enabled || !$config->top_of_hour_hard_trigger_enabled) {
+        // The shared boundary state is also used by the coordinated AI News
+        // handoff, so write it whenever TOH protection is enabled. The actual
+        // wall-clock safety push below still obeys the hard-trigger setting.
+        if (!$config->top_of_hour_id_enabled) {
             return;
         }
 
-        $safetyMedia = $this->resolveSafetyMedia($station, $config);
-        $fallbackEnabled = $safetyMedia instanceof StationMedia;
+        $hardTriggerConfigured = $config->top_of_hour_hard_trigger_enabled;
+        $safetyMedia = $hardTriggerConfigured
+            ? $this->resolveSafetyMedia($station, $config)
+            : null;
+        $fallbackEnabled = $hardTriggerConfigured && $safetyMedia instanceof StationMedia;
 
         if ($fallbackEnabled) {
             $safetyAnnotations = ConfigWriter::annotateArray([
