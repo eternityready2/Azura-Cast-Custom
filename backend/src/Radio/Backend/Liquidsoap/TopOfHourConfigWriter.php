@@ -156,7 +156,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             # The legal-ID queue remains non-track-sensitive and can take over
             # immediately whenever it becomes ready.
             radio = fallback(
-              id="top_of_hour_fallback",
+              id="top_of_hour_hold_fallback",
               track_sensitive=false,
               transitions=[to_top_of_hour, from_top_of_hour],
               [top_of_hour_queue, radio_before_top_of_hour]
