@@ -10,67 +10,38 @@ use DateTimeZone;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Coordinates AI News with the station-wide legal-ID playout chain.
+ * Chains top-of-hour AI News directly behind the legal ID.
  *
- * Top-of-hour bulletin order is deterministic:
- * legal ID -> AI News -> schedules/requests/music.
- *
- * Bottom-of-hour bulletins retain the normal track-sensitive requests behavior.
+ * The ordinary requests queue remains track-sensitive for listener requests,
+ * AI DJ clips and bottom-of-hour news. Top-of-hour news uses its own priority
+ * queue so a prefetched music track cannot win the boundary after the legal ID.
  */
 final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
 {
-    private const int TOP_NEWS_FAIL_OPEN_SECONDS = 10;
-
-    /** @var array<int, true> */
-    private array $suppressedByStation = [];
+    private const int NEWS_FAIL_OPEN_SECONDS = 10;
 
     public static function getSubscribedEvents(): array
     {
         return [
             WriteLiquidsoapConfiguration::class => [
-                ['suppressLegacyNewsConfig', 29],
-                ['writeCoordinatedNewsConfig', 27],
+                ['writeTopOfHourNews', 27],
             ],
         ];
     }
 
-    /**
-     * ConfigWriter's legacy block puts top-of-hour news in the generic requests
-     * queue. That queue is track-sensitive, which is why music can win after the
-     * ID. Suppress only that generated block, then restore the entity immediately.
-     */
-    public function suppressLegacyNewsConfig(WriteLiquidsoapConfiguration $event): void
-    {
-        $config = $event->getBackendConfig();
-
-        if (!($config->ai_news_enabled ?? false)) {
-            return;
-        }
-
-        $stationId = $event->getStation()->id;
-        $this->suppressedByStation[$stationId] = true;
-        $config->ai_news_enabled = false;
-    }
-
-    public function writeCoordinatedNewsConfig(WriteLiquidsoapConfiguration $event): void
+    public function writeTopOfHourNews(WriteLiquidsoapConfiguration $event): void
     {
         $station = $event->getStation();
         $config = $event->getBackendConfig();
-        $stationId = $station->id;
 
-        $wasSuppressed = $this->suppressedByStation[$stationId] ?? false;
-        unset($this->suppressedByStation[$stationId]);
-
-        if (!$wasSuppressed) {
+        if (
+            !($config->ai_news_enabled ?? false)
+            || !($config->ai_news_top_of_hour ?? true)
+            || !$config->top_of_hour_id_enabled
+        ) {
             return;
         }
 
-        // Restore the real station setting before lower-priority config writers run.
-        $config->ai_news_enabled = true;
-
-        $bulletinPath = ConfigWriter::toRawString(
-            $station->getRadioTempDir() . '/news_bulletin.mp3'
-        );
         $annotations = ConfigWriter::annotateArray([
             'azuracast_ai_news' => true,
             'title' => 'News Hour',
@@ -84,151 +55,85 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
             'annotate:' . $annotations . ':' . $station->getRadioTempDir() . '/news_bulletin.mp3'
         );
 
-        $topEnabled = (bool)($config->ai_news_top_of_hour ?? true);
-        $bottomEnabled = (bool)($config->ai_news_bottom_of_hour ?? false);
-
-        // Preserve the existing behavior for legacy configurations with neither
-        // checkbox explicitly populated.
-        if (!$topEnabled && !$bottomEnabled) {
-            $topEnabled = true;
-        }
-
         $cronDays = self::buildCronDays($config->ai_news_active_days ?? []);
-        $activeHours = self::buildActiveHoursCheck(
+        $activeHoursCheck = self::buildActiveHoursCheck(
             $config->ai_news_active_hours ?? '',
             $station->getTimezoneObject(),
         );
-
-        $event->appendBlock(
-            <<<LIQ
-            news_bulletin_path = {$bulletinPath}
-            news_bulletin_request = {$bulletinRequest}
-            last_news_bulletin_push = ref(0.)
-            {$activeHours}
-            LIQ
+        $failOpenSeconds = self::NEWS_FAIL_OPEN_SECONDS;
+        $staleGateSeconds = max(
+            self::NEWS_FAIL_OPEN_SECONDS,
+            $config->top_of_hour_id_max_seconds + 10,
         );
 
-        if ($topEnabled) {
-            $this->writeTopOfHourNews(
-                $event,
-                (bool)$config->top_of_hour_id_enabled,
-                $cronDays,
-            );
-        }
-
-        if ($bottomEnabled) {
-            $event->appendBlock(
-                <<<LIQ
-                def queue_bottom_news_bulletin() =
-                  now = time()
-
-                  if now - last_news_bulletin_push() >= 120. then
-                    if is_within_active_hours() then
-                      last_news_bulletin_push := now
-                      requests.push(request.create(news_bulletin_request))
-                      log("AI News: Queued bottom-of-hour bulletin for playback.")
-                    else
-                      log("AI News: Skipped - outside active hours window.")
-                    end
-                  else
-                    log("AI News: skipped duplicate news bulletin within cooldown.")
-                  end
-                end
-
-                cron.add("29 * * * {$cronDays}", {queue_bottom_news_bulletin()})
-                LIQ
-            );
-        }
-    }
-
-    private function writeTopOfHourNews(
-        WriteLiquidsoapConfiguration $event,
-        bool $topOfHourIdEnabled,
-        string $cronDays,
-    ): void {
-        if (!$topOfHourIdEnabled) {
-            // Without legal-ID protection, keep top news on the existing
-            // track-sensitive requests path instead of introducing a hard cut.
-            $event->appendBlock(
-                <<<LIQ
-                def queue_top_news_bulletin() =
-                  now = time()
-
-                  if now - last_news_bulletin_push() >= 120. then
-                    if is_within_active_hours() then
-                      last_news_bulletin_push := now
-                      requests.push(request.create(news_bulletin_request))
-                      log("AI News: Queued top-of-hour bulletin for playback.")
-                    else
-                      log("AI News: Skipped - outside active hours window.")
-                    end
-                  else
-                    log("AI News: skipped duplicate news bulletin within cooldown.")
-                  end
-                end
-
-                cron.add("59 * * * {$cronDays}", {queue_top_news_bulletin()})
-                LIQ
-            );
-            return;
-        }
-
-        $failOpenSeconds = self::TOP_NEWS_FAIL_OPEN_SECONDS;
-
-        // ConfigWriter has already built radio_before_top_of_hour,
-        // top_of_hour_queue and the TOH transition functions. Replace only the
-        // final outer selector with one explicit broadcast-priority stack.
-        //
-        // The news request is not inserted until an ID is actually observed on
-        // air. Once inserted, the legal-ID queue remains first priority, so news
-        // cannot consume or interrupt the ID; it becomes the very next source.
+        // ConfigWriter::writePlaylistConfiguration has already created
+        // radio_before_top_of_hour, top_of_hour_queue and the TOH transitions.
+        // TopOfHourConfigWriter has already created the shared boundary state.
         $event->appendBlock(
             <<<LIQ
-            top_of_hour_news_queue = request.queue(
-              id="top_of_hour_news",
+            top_news_bulletin_request = {$bulletinRequest}
+            {$activeHoursCheck}
+
+            top_news_bulletin_queue = request.queue(
+              id="top_news_bulletin",
               timeout=settings.azuracast.request_timeout()
+            )
+
+            pending_top_news_boundary = ref(-1)
+            queued_top_news_boundary = ref(-1)
+
+            # Explicit playout priority:
+            # legal ID > top-of-hour news > schedules/requests/music.
+            radio_with_priority_top_news = switch(
+              id="top_news_bulletin_fallback",
+              track_sensitive=false,
+              [
+                ({
+                  top_news_bulletin_queue.is_ready() and
+                  top_of_hour_active_boundary() < 0
+                }, top_news_bulletin_queue),
+                ({ true }, radio_before_top_of_hour)
+              ]
             )
 
             radio = fallback(
               id="top_of_hour_priority_fallback",
               track_sensitive=false,
-              transitions=[to_top_of_hour, from_top_of_hour, from_top_of_hour],
-              [top_of_hour_queue, top_of_hour_news_queue, radio_before_top_of_hour]
+              transitions=[to_top_of_hour, from_top_of_hour],
+              [top_of_hour_queue, radio_with_priority_top_news]
             )
 
-            # TopOfHourConfigWriter attached its callbacks before this final wrapper
-            # existed. Keep final-output boundary accounting synchronous as well.
-            source.methods(radio).on_track(synchronous=true, top_of_hour_mark_legal_id)
-
-            pending_top_news_boundary = ref(-1)
-            queued_top_news_boundary = ref(-1)
+            # Observe the final wrapper too, so a clock-wheel-owned legal ID
+            # participates in the same boundary chain as the station TOH queue.
+            source.methods(radio).on_track(
+              synchronous=true,
+              top_of_hour_mark_legal_id
+            )
 
             def arm_top_news_bulletin() =
               now = time()
 
-              if is_within_active_hours() then
+              if is_within_top_news_active_hours() then
                 seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
                 boundary = int_of_float(now) + (3600 - seconds_in_hour)
 
                 if pending_top_news_boundary() != boundary and
-                   queued_top_news_boundary() != boundary and
-                   now - last_news_bulletin_push() >= 120. then
+                   queued_top_news_boundary() != boundary then
                   pending_top_news_boundary := boundary
-                  log("AI News: Armed for top-of-hour boundary #{boundary}.")
+                  log("AI News: armed for top-of-hour boundary #{boundary}.")
                 end
               else
-                log("AI News: Skipped - outside active hours window.")
+                log("AI News: skipped - outside active hours window.")
               end
             end
 
-            def queue_top_news_for_boundary(boundary, reason) =
+            def queue_armed_top_news(boundary) =
               if pending_top_news_boundary() == boundary and
                  queued_top_news_boundary() != boundary then
                 queued_top_news_boundary := boundary
                 pending_top_news_boundary := -1
-                last_news_bulletin_push := time()
-                top_of_hour_news_queue.push(request.create(news_bulletin_request))
-                log("AI News: Queued after legal ID for boundary #{boundary} (#{reason}).")
+                top_news_bulletin_queue.push(request.create(top_news_bulletin_request))
+                log("AI News: prequeued behind legal ID for boundary #{boundary}.")
               end
             end
 
@@ -237,17 +142,73 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
               pending = pending_top_news_boundary()
 
               if pending > 0 then
-                if top_of_hour_last_served_boundary() == pending then
-                  queue_top_news_for_boundary(pending, "legal-id-started")
-                elsif int_of_float(now) >= pending + {$failOpenSeconds} then
-                  # Never lose the bulletin if a legal ID cannot be observed. The
-                  # legal-ID source still has first priority if it arrives late.
-                  queue_top_news_for_boundary(pending, "fail-open")
+                id_started = top_of_hour_last_served_boundary() == pending
+                fail_open = int_of_float(now) >= pending + {$failOpenSeconds}
+
+                if id_started then
+                  # Resolve the local bulletin while the ID is still on air.
+                  # The active-boundary gate below keeps it from interrupting.
+                  queue_armed_top_news(pending)
+                elsif fail_open then
+                  # If no legal ID can be observed, do not strand the bulletin.
+                  queued_top_news_boundary := pending
+                  pending_top_news_boundary := -1
+                  top_news_bulletin_queue.push(request.create(top_news_bulletin_request))
+                  log("AI News: legal ID not observed; fail-open released boundary #{pending}.")
                 end
+              end
+
+              # A failed end callback must never strand the news queue forever.
+              # Use the configured maximum ID length as the safety horizon so
+              # this fallback cannot cut a legitimately late legal ID short.
+              queued = queued_top_news_boundary()
+              if queued > 0 and
+                 top_of_hour_active_boundary() == queued and
+                 int_of_float(now) >= queued + {$staleGateSeconds} then
+                top_of_hour_active_boundary := -1
+                log("Top of hour: cleared stale legal-ID active gate for boundary #{queued}.")
               end
 
               1.0
             end
+
+            # Release the news gate at the actual end of the legal ID. Remaining
+            # position is reliable for the local MP3 and keeps the handoff tied to
+            # audio completion instead of an assumed 37/38-second duration.
+            def top_of_hour_id_near_end(position, metadata) =
+              if metadata["azuracast_top_of_hour_id"] == "true" then
+                boundary = top_of_hour_active_boundary()
+
+                if boundary > 0 then
+                  queue_armed_top_news(boundary)
+
+                  thread.run(
+                    delay=0.5,
+                    {
+                      if top_of_hour_active_boundary() == boundary then
+                        top_of_hour_active_boundary := -1
+                        log("Top of hour: legal ID finished for boundary #{boundary}.")
+                      end
+                    }
+                  )
+                end
+              end
+            end
+
+            source.methods(top_of_hour_queue).on_position(
+              synchronous=true,
+              remaining=true,
+              allow_partial=true,
+              position=0.5,
+              top_of_hour_id_near_end
+            )
+            source.methods(radio).on_position(
+              synchronous=true,
+              remaining=true,
+              allow_partial=true,
+              position=0.5,
+              top_of_hour_id_near_end
+            )
 
             cron.add("59 * * * {$cronDays}", {arm_top_news_bulletin()})
 
@@ -265,23 +226,23 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
         DateTimeZone $timezone,
     ): string {
         if (empty($activeHours)) {
-            return 'def is_within_active_hours() = true end';
+            return 'def is_within_top_news_active_hours() = true end';
         }
 
         if (!preg_match('/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/', $activeHours, $matches)) {
-            return 'def is_within_active_hours() = true end';
+            return 'def is_within_top_news_active_hours() = true end';
         }
 
         $startMinutes = ((int)$matches[1] * 60) + (int)$matches[2];
         $endMinutes = ((int)$matches[3] * 60) + (int)$matches[4];
 
-        $offsetMinutes = (int)($timezone->getOffset(new DateTimeImmutable('now', $timezone)) / 60);
-        $utcStart = ($startMinutes - $offsetMinutes + 1440) % 1440;
-        $utcEnd = ($endMinutes - $offsetMinutes + 1440) % 1440;
+        $tzOffsetMinutes = (int)($timezone->getOffset(new DateTimeImmutable('now', $timezone)) / 60);
+        $utcStart = ($startMinutes - $tzOffsetMinutes + 1440) % 1440;
+        $utcEnd = ($endMinutes - $tzOffsetMinutes + 1440) % 1440;
 
         if ($utcStart <= $utcEnd) {
             return <<<LIQ
-def is_within_active_hours() =
+def is_within_top_news_active_hours() =
   local_time = time()
   hour = int_of_float(local_time / 3600.0) mod 24
   minute = int_of_float(local_time / 60.0) mod 60
@@ -292,7 +253,7 @@ LIQ;
         }
 
         return <<<LIQ
-def is_within_active_hours() =
+def is_within_top_news_active_hours() =
   local_time = time()
   hour = int_of_float(local_time / 3600.0) mod 24
   minute = int_of_float(local_time / 60.0) mod 60
@@ -307,21 +268,21 @@ LIQ;
     {
         $days = array_map(
             static fn(mixed $day): int => (int)$day,
-            $activeDays,
+            $activeDays
         );
         $days = array_values(array_unique(array_filter(
             $days,
-            static fn(int $day): bool => $day >= 1 && $day <= 7,
+            static fn(int $day): bool => $day >= 1 && $day <= 7
         )));
         sort($days);
 
-        if ($days === []) {
+        if ([] === $days) {
             return '*';
         }
 
         return implode(',', array_map(
             static fn(int $day): int => $day % 7,
-            $days,
+            $days
         ));
     }
 }
