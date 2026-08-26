@@ -90,7 +90,7 @@ final class HourBoundaryPlannerTest extends Unit
         self::assertFalse($this->planner->isInLookaheadZone($this->station, $outOfZone));
     }
 
-    public function testLegalIdWindowBeginsAt58(): void
+    public function testLegalIdPlanningWindowBeginsAt58(): void
     {
         $this->enableTopOfHour();
 
@@ -112,27 +112,27 @@ final class HourBoundaryPlannerTest extends Unit
         ));
     }
 
-    public function testMaxMusicDurationStopsAtProtectedIdWindow(): void
+    public function testMaxMusicDurationUsesLateHourReserveInsteadOfFullPlanningWindow(): void
     {
         $this->enableTopOfHour();
 
         $expectedPlayTime = CarbonImmutable::parse('2026-05-26 09:55:00', 'UTC');
         $maxDuration = $this->planner->maxMusicDurationBeforeTopOfHour($this->station, $expectedPlayTime);
 
-        self::assertSame(180.0, $maxDuration);
+        self::assertSame(240.0, $maxDuration);
     }
 
-    public function testMusicCapHandsOffAt58(): void
+    public function testMusicCapHandsOffAt59(): void
     {
         $this->enableTopOfHour();
 
         $expectedPlayTime = CarbonImmutable::parse('2026-05-26 09:57:30', 'UTC');
         $maxDuration = $this->planner->maxMusicDurationBeforeTopOfHour($this->station, $expectedPlayTime);
 
-        self::assertSame(30.0, $maxDuration);
+        self::assertSame(90.0, $maxDuration);
 
         $nextExpectedPlayTime = $expectedPlayTime->addSeconds((int)$maxDuration);
-        self::assertSame('2026-05-26 09:58:00', $nextExpectedPlayTime->format('Y-m-d H:i:s'));
+        self::assertSame('2026-05-26 09:59:00', $nextExpectedPlayTime->format('Y-m-d H:i:s'));
         self::assertTrue($this->planner->isTopOfHourIdDue($this->station, $nextExpectedPlayTime));
     }
 
