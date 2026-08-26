@@ -1,0 +1,83 @@
+name: Verify TOH Pre-Boundary Hold
+
+on:
+  push:
+    branches:
+      - fix/toh-preboundary-hold
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP syntax
+        run: |
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          php -l tests/Unit/TopOfHourPreBoundaryHoldTest.php
+          php -l tests/Unit/TopOfHourNewsPriorityTest.php
+
+      - name: Source contract
+        run: |
+          grep -Fq 'private const int PRE_BOUNDARY_HOLD_SECONDS = 60;' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'def top_of_hour_hold_new_track() =' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'track_sensitive=true,' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq '[top_of_hour_queue, radio_before_top_of_hour]' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+
+      - name: Liquidsoap 2.4.5 hold graph check
+        run: |
+          cat > /tmp/toh-hold-check.liq <<'LIQ'
+          radio_before_top_of_hour = single("blank:duration=5.")
+          top_of_hour_queue = request.queue(id="top_of_hour_queue")
+          top_of_hour_last_served_boundary = ref(-1)
+
+          def to_top_of_hour(old, new) = new end
+          def from_top_of_hour(old, new) = new end
+
+          def top_of_hour_seconds_in_station_hour(now) =
+            local_now = time.local(now)
+            local_now.min * 60 + local_now.sec
+          end
+
+          def top_of_hour_hold_new_track() =
+            now = time()
+            seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
+
+            if seconds_in_hour < 3540 then
+              false
+            else
+              boundary = int_of_float(now) + (3600 - seconds_in_hour)
+              top_of_hour_last_served_boundary() != boundary
+            end
+          end
+
+          radio_before_top_of_hour_unheld = radio_before_top_of_hour
+          top_of_hour_preboundary_hold = blank(id="top_of_hour_preboundary_hold")
+          radio_before_top_of_hour = switch(
+            id="top_of_hour_preboundary_hold_switch",
+            track_sensitive=true,
+            [
+              ({ top_of_hour_hold_new_track() }, top_of_hour_preboundary_hold),
+              ({ true }, radio_before_top_of_hour_unheld)
+            ]
+          )
+
+          radio = fallback(
+            id="top_of_hour_fallback",
+            track_sensitive=false,
+            transitions=[to_top_of_hour, from_top_of_hour],
+            [top_of_hour_queue, radio_before_top_of_hour]
+          )
+
+          output.dummy(radio)
+          LIQ
+
+          docker run --rm -v /tmp/toh-hold-check.liq:/tmp/toh-hold-check.liq:ro \
+            savonet/liquidsoap:v2.4.5 --check /tmp/toh-hold-check.liq
+
+      - name: Diff sanity
+        run: git diff --check
