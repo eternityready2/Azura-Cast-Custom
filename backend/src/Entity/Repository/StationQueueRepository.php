@@ -230,6 +230,26 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         return $row instanceof StationQueue ? $row : null;
     }
 
+    public function findPendingTopOfHourLegalIdBetween(
+        Station $station,
+        DateTimeImmutable $start,
+        DateTimeImmutable $end,
+    ): ?StationQueue {
+        $row = $this->getUnplayedBaseQuery($station)
+            ->andWhere('sq.top_of_hour_legal_id = 1')
+            ->andWhere('sq.sent_to_autodj = 0')
+            ->andWhere('sq.timestamp_played >= :start')
+            ->andWhere('sq.timestamp_played < :end')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->orderBy('sq.timestamp_played', 'ASC')
+            ->getQuery()
+            ->setMaxResults(1)
+            ->getOneOrNullResult();
+
+        return $row instanceof StationQueue ? $row : null;
+    }
+
     public function deleteUnplayedTopOfHourLegalIdsBefore(
         Station $station,
         DateTimeImmutable $before,
@@ -375,24 +395,21 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
-     * Returns the next AutoDJ-deliverable row. A planned top-of-hour legal ID is
-     * a barrier: it must be consumed by the dedicated real-time queue before
-     * normal AutoDJ can prefetch any row scheduled after it.
+     * Returns the next normal AutoDJ-deliverable row. TOH legal IDs are owned by
+     * their dedicated queue and must never block prefetch of the following music.
      */
     public function getNextToSendToAutoDj(Station $station): ?StationQueue
     {
         $row = $this->getBaseQuery($station)
+            ->andWhere('sq.is_played = 0')
             ->andWhere('sq.sent_to_autodj = 0')
+            ->andWhere('sq.top_of_hour_legal_id = 0')
             ->orderBy('sq.timestamp_cued', 'ASC')
             ->getQuery()
             ->setMaxResults(1)
             ->getOneOrNullResult();
 
-        if (!$row instanceof StationQueue || $row->top_of_hour_legal_id) {
-            return null;
-        }
-
-        return $row;
+        return $row instanceof StationQueue ? $row : null;
     }
 
     public function findRecentlyCuedSong(
@@ -418,7 +435,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->setParameter('playlist', $playlist)
             ->getQuery();
 
-        $cuedPlaylistContentCount = $cuedPlaylistContentCountQuery->getSingleScalarResult();
+        $cuedPlaylistContentCount = $cuedPlaylistContentQuery->getSingleScalarResult();
         return $cuedPlaylistContentCount > 0;
     }
 
