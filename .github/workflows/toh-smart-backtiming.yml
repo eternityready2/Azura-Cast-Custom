@@ -16,7 +16,7 @@ jobs:
         with:
           ref: fix/toh-smart-backtiming
 
-      - name: Apply backtiming and strict-start integration
+      - name: Apply scheduling integration
         run: python3 .github/scripts/apply_toh_backtiming.py
 
       - name: PHP syntax
@@ -40,12 +40,15 @@ jobs:
           grep -Fq 'requestCanFitTopOfHourBoundary' backend/src/Radio/AutoDJ/QueueBuilder.php
           grep -Fq 'synchronous=true, fun (m) -> begin' backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
           grep -Fq 'PRE_BOUNDARY_HOLD_SECONDS = 75' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'POST_BOUNDARY_HOLD_SECONDS = 30' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'duration=1.' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'now_seconds - seconds_in_hour' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
           grep -Fq 'STRICT_START_GRACE_SECONDS = 120' backend/src/Radio/AutoDJ/Scheduler.php
           grep -Fq 'hasPlayedPlaylistSince' backend/src/Entity/Repository/StationQueueRepository.php
           grep -Fq 'SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS' backend/src/Sync/Task/QueueInterruptingTracks.php
           grep -Fq '[top_of_hour_queue, top_news_bulletin_queue, radio_before_top_of_hour]' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
 
-      - name: Backtiming math simulation
+      - name: Backtiming and grace simulation
         run: |
           python3 - <<'PY'
           def ratio(length, target):
@@ -67,26 +70,28 @@ jobs:
           assert ranked[0] == 240
           assert ratio(250, 240) == 0.96
           assert ratio(270, 240) is None
+          assert 120 <= 120
+          assert 121 > 120
 
-          grace = 120
-          assert 0 <= 0 <= grace
-          assert 0 <= 61 <= grace
-          assert 0 <= 120 <= grace
-          assert 121 > grace
+          # Crossing :00 without a served ID still holds normal music for 30s.
+          assert 5 <= 30
+          assert 31 > 30
           PY
 
-      - name: Liquidsoap 2.4.5 stretch callback check
+      - name: Liquidsoap 2.4.5 hold and stretch check
         run: |
           printf '%s\n' \
             'radio = single("blank:duration=2.")' \
+            'hold = blank(id="hold", duration=1.)' \
+            'held = switch(id="held", track_sensitive=true, [({false}, hold), ({true}, radio)])' \
             'clock_wheel_stretch_ratio = ref(1.0)' \
-            'source.methods(radio).on_track(synchronous=true, fun (m) -> begin' \
+            'source.methods(held).on_track(synchronous=true, fun (m) -> begin' \
             '  clock_wheel_stretch_ratio := float_of_string(default=1.0, m["liq_stretch_ratio"])' \
             'end)' \
-            'radio = stretch(ratio={clock_wheel_stretch_ratio()}, radio)' \
-            'output.dummy(radio)' > /tmp/stretch-check.liq
-          docker run --rm -v /tmp/stretch-check.liq:/tmp/stretch-check.liq:ro \
-            savonet/liquidsoap:v2.4.5 --check /tmp/stretch-check.liq
+            'held = stretch(ratio={clock_wheel_stretch_ratio()}, held)' \
+            'output.dummy(held)' > /tmp/toh-check.liq
+          docker run --rm -v /tmp/toh-check.liq:/tmp/toh-check.liq:ro \
+            savonet/liquidsoap:v2.4.5 --check /tmp/toh-check.liq
 
       - name: Diff sanity
         run: git diff --check
@@ -103,9 +108,10 @@ jobs:
                   backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php \
                   backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php \
                   tests/Unit/TopOfHourSmartBacktimingTest.php \
+                  tests/Unit/TopOfHourPreBoundaryHoldTest.php \
                   tests/Unit/StrictStartGraceTest.php
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Allow strict schedules to catch up after TOH content"
+          git commit -m "Harden TOH handoff and strict schedule catch-up"
           git push origin HEAD:fix/toh-smart-backtiming
