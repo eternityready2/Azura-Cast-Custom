@@ -8,7 +8,7 @@ use PHPUnit\Framework\TestCase;
 
 final class TopOfHourPreBoundaryHoldTest extends TestCase
 {
-    public function testNormalMusicIsHeldAtTrackBoundaryInMinute59(): void
+    public function testNormalMusicIsHeldAtTrackBoundaryBeforeMinute59(): void
     {
         $source = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php'
@@ -16,7 +16,7 @@ final class TopOfHourPreBoundaryHoldTest extends TestCase
 
         self::assertIsString($source);
         self::assertStringContainsString(
-            'private const int PRE_BOUNDARY_HOLD_SECONDS = 60;',
+            'private const int PRE_BOUNDARY_HOLD_SECONDS = 75;',
             $source,
         );
         self::assertStringContainsString(
