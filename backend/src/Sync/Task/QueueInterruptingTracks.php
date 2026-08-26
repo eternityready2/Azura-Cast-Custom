@@ -221,6 +221,41 @@ final class QueueInterruptingTracks extends AbstractTask
             // even if the following database flush fails. Releasing at that point
             // would allow the wall-clock path to queue a second copy.
             $acceptedByLiquidsoap = true;
+
+            if ($claimed) {
+                try {
+                    $commitResponse = $backend->command(
+                        $station,
+                        'top_of_hour.commit ' . $requestId,
+                    );
+                    $commitStatus = strtolower(trim((string)($commitResponse[0] ?? '')));
+
+                    if ('committed' !== $commitStatus) {
+                        $this->logger->warning(
+                            'Top-of-hour ownership commit returned an unexpected status.',
+                            [
+                                'queue_id' => $sq->id,
+                                'request_id' => $requestId,
+                                'boundary' => $boundary,
+                                'commit_status' => $commitStatus,
+                            ]
+                        );
+                    }
+                } catch (\Throwable $e) {
+                    // The request is already inside Liquidsoap. Keep the claim;
+                    // releasing it here could make the fallback enqueue a duplicate.
+                    $this->logger->warning(
+                        'Top-of-hour request accepted but ownership commit failed; keeping boundary claimed.',
+                        [
+                            'queue_id' => $sq->id,
+                            'request_id' => $requestId,
+                            'boundary' => $boundary,
+                            'exception' => $e->getMessage(),
+                        ]
+                    );
+                }
+            }
+
             $sq->sent_to_autodj = true;
             $this->em->persist($sq);
             $this->em->flush();
