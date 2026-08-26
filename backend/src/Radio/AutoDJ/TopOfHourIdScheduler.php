@@ -8,6 +8,7 @@ use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Enums\ClockWheelFallbackReason;
 use App\Entity\Repository\StationQueueRepository;
+use App\Entity\Station;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
@@ -24,6 +25,12 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
     use LoggerAwareTrait;
     use EntityManagerAwareTrait;
 
+    /**
+     * Empty-hour boundaries should wait until the final part of :59 instead of
+     * interrupting music as soon as the wider :58/:59 planning window opens.
+     */
+    private const int OPEN_HOUR_TRIGGER_LEAD_SECONDS = 75;
+
     public function __construct(
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly HourBoundaryLegalIdResolver $legalIdResolver,
@@ -31,6 +38,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         private readonly TopOfHourOwnershipResolver $ownershipResolver,
         private readonly ScheduleConflictChecker $conflictChecker,
         private readonly ClockWheelEventLogger $eventLogger,
+        private readonly Scheduler $scheduler,
     ) {
     }
 
@@ -74,6 +82,19 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
         );
 
+        $protectedNextHour = $this->hasProtectedStartAtNextTop($station, $expectedPlayTime);
+
+        if (
+            $event->isInterrupting()
+            && !$protectedNextHour
+            && !$this->isOpenHourTriggerWindow($station, $expectedPlayTime)
+        ) {
+            $this->logger->debug(
+                'Top-of-hour ID deferred: next hour is open and the late :59 trigger window has not arrived.'
+            );
+            return;
+        }
+
         if ($event->isInterrupting()) {
             $planned = $this->queueRepo->findUnplayedTopOfHourLegalIdBetween(
                 $station,
@@ -102,6 +123,7 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
                         'queue_id' => $planned->id,
                         'media_id' => $planned->media?->id,
                         'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+                        'protected_next_hour' => $protectedNextHour,
                     ]);
                 }
                 return;
@@ -148,14 +170,6 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
-        if ($event->isInterrupting()) {
-            // A real-time fallback has not passed through Queue::buildQueue(), so
-            // give it an explicit planned timestamp. If the Liquidsoap enqueue
-            // fails, the same row can be found and retried on the next tick.
-            $nextSong->timestamp_cued = $expectedPlayTime;
-            $nextSong->timestamp_played = $expectedPlayTime;
-        }
-
         if (!$event->setNextSongs($nextSong)) {
             $this->logger->warning('Top-of-hour ID resolved but BuildQueue rejected it.', [
                 'song_id' => $nextSong->song_id,
@@ -164,17 +178,66 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
+        // TOH rows belong exclusively to the dedicated real-time queue. Marking
+        // them reserved here keeps the ordinary nextsong path from treating the
+        // row as a permanent barrier, while the dedicated finder can still see
+        // the unplayed row by its TOH flag.
+        $nextSong->sent_to_autodj = true;
+        $nextSong->timestamp_cued = $expectedPlayTime;
+        $nextSong->timestamp_played = $expectedPlayTime;
+
         $this->em->flush();
         $this->logger->info(
             $event->isInterrupting()
                 ? 'Top-of-hour ID created as real-time fallback.'
-                : 'Top-of-hour ID planned in the AutoDJ queue.',
+                : 'Top-of-hour ID planned in the dedicated TOH queue.',
             [
                 'queue_id' => $nextSong->id,
                 'media_id' => $nextSong->media?->id,
                 'duration' => $nextSong->duration,
                 'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
+                'protected_next_hour' => $protectedNextHour,
             ]
         );
+    }
+
+    private function isOpenHourTriggerWindow(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): bool {
+        $secondsUntilTop = $this->hourBoundaryPlanner->secondsUntilNextTopOfHour(
+            $expectedPlayTime,
+            $station->getTimezoneObject(),
+        );
+
+        return $secondsUntilTop > 0
+            && $secondsUntilTop <= self::OPEN_HOUR_TRIGGER_LEAD_SECONDS;
+    }
+
+    private function hasProtectedStartAtNextTop(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): bool {
+        $secondsUntilTop = $this->hourBoundaryPlanner->secondsUntilNextTopOfHour(
+            $expectedPlayTime,
+            $station->getTimezoneObject(),
+        );
+
+        if ($secondsUntilTop <= 0) {
+            return false;
+        }
+
+        $secondsUntilScheduled = $this->scheduler->secondsUntilNextScheduledStart(
+            $station,
+            $expectedPlayTime,
+        );
+
+        if ($secondsUntilScheduled === null) {
+            return false;
+        }
+
+        // Queue planning may carry sub-second/crossfade drift. Treat a start
+        // within two seconds of the boundary as the same protected top-of-hour.
+        return abs($secondsUntilScheduled - $secondsUntilTop) <= 2;
     }
 }

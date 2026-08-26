@@ -28,8 +28,16 @@ final class HourBoundaryPlanner
 
     public const int DEFAULT_ID_MAX_SECONDS = 60;
 
-    /** Preferred legal-ID window begins at :58. */
+    /** Preferred legal-ID planning window begins at :58. */
     public const int DEFAULT_ID_WINDOW_SECONDS = 120;
+
+    /**
+     * Normal music should only reserve the last minute by default. The wider
+     * :58/:59 window remains available to the TOH coordinator for scheduled
+     * boundaries and fallback handling, but ordinary music is no longer forced
+     * to end at :58 when the next hour is otherwise open.
+     */
+    public const int DEFAULT_MUSIC_PROTECTION_SECONDS = 60;
 
     public const int MIN_LOOKAHEAD_MINUTES = 1;
 
@@ -100,15 +108,23 @@ final class HourBoundaryPlanner
     }
 
     /**
-     * Seconds reserved at the end of the outgoing hour for the legal ID.
-     * The window begins at :58 by default and expands when configuration needs
-     * more time for the ID plus finish buffer.
+     * Seconds reserved at the end of the outgoing hour for legal-ID planning.
+     * The planning window begins at :58 by default and expands when configuration
+     * needs more time for the ID plus finish buffer.
      */
     public function getIdWindowLeadSeconds(Station $station): int
     {
         return max(
             self::DEFAULT_ID_WINDOW_SECONDS,
             $this->getIdMaxSeconds($station) + $this->getFinishBufferSeconds($station),
+        );
+    }
+
+    public function getMusicProtectionLeadSeconds(Station $station): int
+    {
+        return max(
+            self::DEFAULT_MUSIC_PROTECTION_SECONDS,
+            $this->getFinishBufferSeconds($station),
         );
     }
 
@@ -246,8 +262,12 @@ final class HourBoundaryPlanner
     }
 
     /**
-     * Maximum music duration before the protected legal-ID window begins.
-     * Returns null outside the lookahead window or once the ID window is open.
+     * Maximum music duration before the late-hour protection reserve begins.
+     * Returns null outside the lookahead window or once the reserve is open.
+     *
+     * The full :58/:59 ID planning window is intentionally not used here: doing
+     * so caused ordinary music to be shortened at :58 even when the next hour
+     * had no scheduled content. Runtime TOH ownership still uses the wider window.
      */
     public function maxMusicDurationBeforeTopOfHour(
         Station $station,
@@ -261,7 +281,7 @@ final class HourBoundaryPlanner
             $expectedPlayTime,
             $station->getTimezoneObject(),
         );
-        $maxDuration = (float)($secondsUntil - $this->getIdWindowLeadSeconds($station));
+        $maxDuration = (float)($secondsUntil - $this->getMusicProtectionLeadSeconds($station));
 
         if ($maxDuration < self::MIN_USABLE_CAP_SECONDS) {
             return null;

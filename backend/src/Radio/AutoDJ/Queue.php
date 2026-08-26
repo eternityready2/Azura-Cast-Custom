@@ -76,11 +76,42 @@ final class Queue
             : null;
         $maxLookaheadTracks = $maxTracksOverride ?? 500;
 
+        // A missed TOH row must never survive into a later hour. Keeping the
+        // planned timestamp stable makes this cleanup deterministic even after
+        // station restarts or repeated linear-log rebuilds.
+        $stationHourStart = CarbonImmutable::now($station->getTimezoneObject())
+            ->startOfHour()
+            ->toDateTimeImmutable();
+        $expiredTopOfHourRows = $this->queueRepo->deleteUnplayedTopOfHourLegalIdsBefore(
+            $station,
+            $stationHourStart,
+        );
+        if ($expiredTopOfHourRows > 0) {
+            $this->logger->warning(
+                'Queue: removed stale top-of-hour legal-ID rows before rebuilding normal music.',
+                ['count' => $expiredTopOfHourRows]
+            );
+        }
+
         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
         $lastSongId = null;
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
+            // TOH legal IDs live on the dedicated real-time queue. They must not
+            // consume time in the ordinary music timeline or be re-timestamped
+            // on every queue rebuild; doing so previously made a missed ID slide
+            // forward minute-by-minute and permanently block AutoDJ.
+            if ($queueRow->top_of_hour_legal_id) {
+                if ($queueRow->timestamp_cued === null || $queueRow->timestamp_played === null) {
+                    $this->logger->warning(
+                        'Queue: planned top-of-hour legal-ID row is missing its fixed planning timestamp.',
+                        ['queue_id' => $queueRow->id]
+                    );
+                }
+                continue;
+            }
+
             $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
 
             if ($queueRow->sent_to_autodj) {
@@ -190,6 +221,18 @@ final class Queue
 
             foreach ($nextSongs as $queueRow) {
                 $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
+
+                // The TOH scheduler stamps its own fixed planning time and owns
+                // delivery through the dedicated queue. Preserve that timestamp
+                // and do not advance the ordinary music clock around it.
+                if ($queueRow->top_of_hour_legal_id) {
+                    $queueRow->updateVisibility();
+                    $this->em->persist($queueRow);
+                    $this->em->flush();
+                    $this->queueLogCache->setLog($queueRow, $testHandler->getRecords());
+                    $tracksBuiltThisRun++;
+                    continue;
+                }
 
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $queueRow->timestamp_played = $expectedPlayTime;

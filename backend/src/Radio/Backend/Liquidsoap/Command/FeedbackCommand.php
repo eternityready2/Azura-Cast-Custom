@@ -94,13 +94,22 @@ final class FeedbackCommand extends AbstractCommand
             throw new RuntimeException('Media ID does not exist for station.');
         }
 
-        if (!$this->historyRepo->isDifferentFromCurrentSong($station, $media)) {
+        $isTopOfHourFallback = !empty($payload['azuracast_top_of_hour_fallback']);
+
+        // The hard-clock fallback can report the same Station ID that was
+        // already promoted to current metadata by the TOH transition. Do not
+        // reject that feedback before reconciling its queue row; doing so left
+        // the legal-ID row permanently unplayed and blocked normal AutoDJ.
+        if (
+            !$isTopOfHourFallback
+            && !$this->historyRepo->isDifferentFromCurrentSong($station, $media)
+        ) {
             throw new RuntimeException('Song is not different from current song.');
         }
 
         if (!empty($payload['sq_id'])) {
             $sq = $this->em->find(StationQueue::class, $payload['sq_id']);
-        } elseif (!empty($payload['azuracast_top_of_hour_fallback'])) {
+        } elseif ($isTopOfHourFallback) {
             // A hard-clock fallback is owned by the TOH coordinator. Resolve it
             // against the boundary row before considering ordinary same-media
             // queue entries so an unrelated station-ID play cannot absorb the
@@ -178,6 +187,7 @@ final class FeedbackCommand extends AbstractCommand
         $fallback->top_of_hour_legal_id = true;
         $fallback->timestamp_cued = $now;
         $fallback->timestamp_played = $now;
+        $fallback->sent_to_autodj = true;
         $this->em->persist($fallback);
         $this->em->flush();
 
