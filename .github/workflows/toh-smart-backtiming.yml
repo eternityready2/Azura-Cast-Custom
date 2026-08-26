@@ -16,18 +16,22 @@ jobs:
         with:
           ref: fix/toh-smart-backtiming
 
-      - name: Apply backtiming integration
+      - name: Apply backtiming and strict-start integration
         run: python3 .github/scripts/apply_toh_backtiming.py
 
       - name: PHP syntax
         run: |
+          php -l backend/src/Entity/Repository/StationQueueRepository.php
           php -l backend/src/Radio/AutoDJ/HourBoundaryPlanner.php
           php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -l backend/src/Radio/AutoDJ/Scheduler.php
+          php -l backend/src/Sync/Task/QueueInterruptingTracks.php
           php -l backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
           php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
           php -l tests/Unit/TopOfHourSmartBacktimingTest.php
           php -l tests/Unit/TopOfHourPreBoundaryHoldTest.php
           php -l tests/Unit/TopOfHourNewsPriorityTest.php
+          php -l tests/Unit/StrictStartGraceTest.php
 
       - name: Source contract checks
         run: |
@@ -36,6 +40,10 @@ jobs:
           grep -Fq 'requestCanFitTopOfHourBoundary' backend/src/Radio/AutoDJ/QueueBuilder.php
           grep -Fq 'synchronous=true, fun (m) -> begin' backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
           grep -Fq 'PRE_BOUNDARY_HOLD_SECONDS = 75' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'STRICT_START_GRACE_SECONDS = 120' backend/src/Radio/AutoDJ/Scheduler.php
+          grep -Fq 'hasPlayedPlaylistSince' backend/src/Entity/Repository/StationQueueRepository.php
+          grep -Fq 'SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS' backend/src/Sync/Task/QueueInterruptingTracks.php
+          grep -Fq '[top_of_hour_queue, top_news_bulletin_queue, radio_before_top_of_hour]' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
 
       - name: Backtiming math simulation
         run: |
@@ -59,6 +67,12 @@ jobs:
           assert ranked[0] == 240
           assert ratio(250, 240) == 0.96
           assert ratio(270, 240) is None
+
+          grace = 120
+          assert 0 <= 0 <= grace
+          assert 0 <= 61 <= grace
+          assert 0 <= 120 <= grace
+          assert 121 > grace
           PY
 
       - name: Liquidsoap 2.4.5 stretch callback check
@@ -77,17 +91,21 @@ jobs:
       - name: Diff sanity
         run: git diff --check
 
-      - name: Commit smart backtiming
+      - name: Commit verified scheduling changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/src/Radio/AutoDJ/HourBoundaryPlanner.php \
+          git add backend/src/Entity/Repository/StationQueueRepository.php \
+                  backend/src/Radio/AutoDJ/HourBoundaryPlanner.php \
                   backend/src/Radio/AutoDJ/QueueBuilder.php \
+                  backend/src/Radio/AutoDJ/Scheduler.php \
+                  backend/src/Sync/Task/QueueInterruptingTracks.php \
                   backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php \
                   backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php \
-                  tests/Unit/TopOfHourSmartBacktimingTest.php
+                  tests/Unit/TopOfHourSmartBacktimingTest.php \
+                  tests/Unit/StrictStartGraceTest.php
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Backtime music into the top-of-hour handoff"
+          git commit -m "Allow strict schedules to catch up after TOH content"
           git push origin HEAD:fix/toh-smart-backtiming
