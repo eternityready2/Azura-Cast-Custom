@@ -435,7 +435,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->setParameter('playlist', $playlist)
             ->getQuery();
 
-        $cuedPlaylistContentCount = $cuedPlaylistContentQuery->getSingleScalarResult();
+        $cuedPlaylistContentCount = $cuedPlaylistContentCountQuery->getSingleScalarResult();
         return $cuedPlaylistContentCount > 0;
     }
 
