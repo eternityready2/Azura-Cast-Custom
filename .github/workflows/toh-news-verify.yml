@@ -1,0 +1,291 @@
+name: Verify TOH News Chain
+
+on:
+  push:
+    branches:
+      - fix/toh-news-chain
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/toh-news-chain
+
+      - name: Apply coordinated TOH patches
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php')
+          text = path.read_text()
+
+          old = '''        if (!$config->top_of_hour_id_enabled || !$config->top_of_hour_hard_trigger_enabled) {
+              return;
+          }
+
+          $safetyMedia = $this->resolveSafetyMedia($station, $config);
+          $fallbackEnabled = $safetyMedia instanceof StationMedia;
+          '''
+          new = '''        if (!$config->top_of_hour_id_enabled) {
+              return;
+          }
+
+          $hardTriggerConfigured = $config->top_of_hour_hard_trigger_enabled;
+          $safetyMedia = $hardTriggerConfigured
+              ? $this->resolveSafetyMedia($station, $config)
+              : null;
+          $fallbackEnabled = $hardTriggerConfigured && $safetyMedia instanceof StationMedia;
+          '''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif '$hardTriggerConfigured = $config->top_of_hour_hard_trigger_enabled;' not in text:
+              raise SystemExit('TopOfHourConfigWriter guard marker not found')
+
+          old = '''            $requiredLeadSeconds = (int)ceil(
+                  $safetyMedia->getCalculatedLength() + $config->top_of_hour_finish_buffer_seconds
+              );'''
+          new = '''            // Emergency fallback must not race the normal :59 PHP delivery.
+              // The planner finish buffer belongs to scheduling, not the wall-clock safety net.
+              $requiredLeadSeconds = (int)ceil($safetyMedia->getCalculatedLength());'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'Emergency fallback must not race the normal :59 PHP delivery.' not in text:
+              raise SystemExit('TopOfHourConfigWriter fallback lead marker not found')
+
+          old = '''            top_of_hour_claimed_request_id = ref(-1)
+              top_of_hour_claim_grace_seconds = {$claimGraceSeconds}.'''
+          new = '''            top_of_hour_claimed_request_id = ref(-1)
+              top_of_hour_active_boundary = ref(-1)
+              top_of_hour_claim_grace_seconds = {$claimGraceSeconds}.'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'top_of_hour_active_boundary = ref(-1)' not in text:
+              raise SystemExit('TopOfHourConfigWriter active boundary marker not found')
+
+          old = '''              if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
+                  boundary = int_of_float(now) + (3600 - seconds_in_hour)
+                  top_of_hour_claimed_boundary := boundary
+                  top_of_hour_claimed_at := now
+                  top_of_hour_last_served_boundary := boundary
+                  log("Top of hour: legal ID started for boundary #{boundary}.")
+                end'''
+          new = '''              if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
+                  boundary = int_of_float(now) + (3600 - seconds_in_hour)
+                  top_of_hour_active_boundary := boundary
+
+                  if top_of_hour_last_served_boundary() != boundary then
+                    top_of_hour_claimed_boundary := boundary
+                    top_of_hour_claimed_at := now
+                    top_of_hour_last_served_boundary := boundary
+                    log("Top of hour: legal ID started for boundary #{boundary}.")
+                  end
+                end'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'top_of_hour_active_boundary := boundary' not in text:
+              raise SystemExit('TopOfHourConfigWriter start callback marker not found')
+
+          path.write_text(text)
+
+          events = Path('backend/config/events.php')
+          text = events.read_text()
+          old = '''            App\\Radio\\Backend\\Liquidsoap\\TopOfHourConfigWriter::class,
+              App\\Radio\\Backend\\Liquidsoap\\PlaylistFileWriter::class,'''
+          new = '''            App\\Radio\\Backend\\Liquidsoap\\TopOfHourConfigWriter::class,
+              App\\Radio\\Backend\\Liquidsoap\\TopOfHourNewsConfigWriter::class,
+              App\\Radio\\Backend\\Liquidsoap\\PlaylistFileWriter::class,'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif 'App\\Radio\\Backend\\Liquidsoap\\TopOfHourNewsConfigWriter::class' not in text:
+              raise SystemExit('events.php subscriber marker not found')
+          events.write_text(text)
+          PY
+
+      - name: PHP syntax
+        run: |
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          php -l backend/config/events.php
+
+      - name: Verify subscriber registration
+        run: grep -Fq 'App\Radio\Backend\Liquidsoap\TopOfHourNewsConfigWriter::class' backend/config/events.php
+
+      - name: Liquidsoap 2.4.5 type check
+        run: |
+          cat > /tmp/toh-news-check.liq <<'LIQ'
+          requests = request.queue(id="requests")
+          radio_before_top_of_hour = blank()
+          top_of_hour_queue = request.queue(id="top_of_hour_queue")
+
+          def to_top_of_hour(old, new) = new end
+          def from_top_of_hour(old, new) = new end
+
+          top_of_hour_last_served_boundary = ref(-1)
+          top_of_hour_last_hard_push_boundary = ref(-1)
+          top_of_hour_claimed_boundary = ref(-1)
+          top_of_hour_claimed_at = ref(-1.)
+          top_of_hour_claimed_request_id = ref(-1)
+          top_of_hour_active_boundary = ref(-1)
+          top_of_hour_claim_grace_seconds = 5.
+          top_of_hour_hard_trigger_enabled = true
+          top_of_hour_hard_trigger_lead_seconds = 41
+          top_of_hour_hard_trigger_request = "annotate:azuracast_top_of_hour_id=true:blank:duration=2."
+
+          def top_of_hour_seconds_in_station_hour(now) =
+            local_now = time.local(now)
+            local_now.min * 60 + local_now.sec
+          end
+
+          def top_of_hour_clear_claim() =
+            top_of_hour_claimed_boundary := -1
+            top_of_hour_claimed_at := -1.
+            top_of_hour_claimed_request_id := -1
+          end
+
+          def top_of_hour_mark_legal_id(metadata) =
+            now = time()
+            seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
+
+            if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
+              boundary = int_of_float(now) + (3600 - seconds_in_hour)
+              top_of_hour_active_boundary := boundary
+
+              if top_of_hour_last_served_boundary() != boundary then
+                top_of_hour_claimed_boundary := boundary
+                top_of_hour_claimed_at := now
+                top_of_hour_last_served_boundary := boundary
+              end
+            end
+          end
+
+          source.methods(top_of_hour_queue).on_track(synchronous=true, top_of_hour_mark_legal_id)
+
+          news_bulletin_request = "annotate:azuracast_ai_news=true:blank:duration=2."
+          last_news_bulletin_push = ref(0.)
+          def is_within_active_hours() = true end
+
+          news_bulletin_queue = request.queue(id="news_bulletin")
+          radio_with_priority_news = switch(
+            id="news_bulletin_fallback",
+            track_sensitive=false,
+            [
+              ({ news_bulletin_queue.is_ready() and top_of_hour_active_boundary() < 0 }, news_bulletin_queue),
+              ({ true }, radio_before_top_of_hour)
+            ]
+          )
+
+          radio = fallback(
+            id="top_of_hour_priority_fallback",
+            track_sensitive=false,
+            transitions=[to_top_of_hour, from_top_of_hour],
+            [top_of_hour_queue, radio_with_priority_news]
+          )
+          source.methods(radio).on_track(synchronous=true, top_of_hour_mark_legal_id)
+
+          pending_top_news_boundary = ref(-1)
+          queued_top_news_boundary = ref(-1)
+
+          def arm_top_news_bulletin() =
+            now = time()
+            if is_within_active_hours() then
+              seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
+              boundary = int_of_float(now) + (3600 - seconds_in_hour)
+              if pending_top_news_boundary() != boundary and
+                 queued_top_news_boundary() != boundary and
+                 now - last_news_bulletin_push() >= 120. then
+                pending_top_news_boundary := boundary
+              end
+            end
+          end
+
+          def queue_armed_top_news(boundary) =
+            if pending_top_news_boundary() == boundary and queued_top_news_boundary() != boundary then
+              now = time()
+              queued_top_news_boundary := boundary
+              pending_top_news_boundary := -1
+              last_news_bulletin_push := now
+              news_bulletin_queue.push(request.create(news_bulletin_request))
+            end
+          end
+
+          def top_news_bulletin_watch() =
+            now = time()
+            pending = pending_top_news_boundary()
+            if pending > 0 then
+              id_started = top_of_hour_last_served_boundary() == pending
+              fail_open = int_of_float(now) >= pending + 10
+              if id_started then
+                queue_armed_top_news(pending)
+              elsif fail_open then
+                queued_top_news_boundary := pending
+                pending_top_news_boundary := -1
+                last_news_bulletin_push := now
+                news_bulletin_queue.push(request.create(news_bulletin_request))
+              end
+            end
+            queued = queued_top_news_boundary()
+            if queued > 0 and top_of_hour_active_boundary() == queued and int_of_float(now) >= queued + 10 then
+              top_of_hour_active_boundary := -1
+            end
+            1.0
+          end
+
+          def top_of_hour_id_near_end(position, metadata) =
+            if metadata["azuracast_top_of_hour_id"] == "true" then
+              boundary = top_of_hour_active_boundary()
+              if boundary > 0 and queued_top_news_boundary() != boundary then
+                queue_armed_top_news(boundary)
+              end
+              thread.run(
+                delay=0.5,
+                {
+                  if top_of_hour_active_boundary() == boundary then
+                    top_of_hour_active_boundary := -1
+                  end
+                }
+              )
+            end
+          end
+
+          source.methods(top_of_hour_queue).on_position(
+            synchronous=true,
+            remaining=true,
+            allow_partial=true,
+            position=0.5,
+            top_of_hour_id_near_end
+          )
+          source.methods(radio).on_position(
+            synchronous=true,
+            remaining=true,
+            allow_partial=true,
+            position=0.5,
+            top_of_hour_id_near_end
+          )
+
+          cron.add("59 * * * *", {arm_top_news_bulletin()})
+          thread.run.recurrent(fast=false, delay=1.0, {top_news_bulletin_watch()})
+          LIQ
+
+          docker run --rm -v /tmp/toh-news-check.liq:/tmp/toh-news-check.liq:ro \
+            savonet/liquidsoap:v2.4.5 --check /tmp/toh-news-check.liq
+
+      - name: Diff sanity
+        run: |
+          git diff --check
+          git diff -- backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php backend/config/events.php
+
+      - name: Commit coordinated source changes
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php backend/config/events.php
+          git commit -m "Coordinate TOH fallback and news priority"
+          git push origin HEAD:fix/toh-news-chain
