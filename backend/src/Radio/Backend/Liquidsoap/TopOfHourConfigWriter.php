@@ -19,6 +19,8 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  */
 final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
+    private const int PHP_CLAIM_GRACE_SECONDS = 5;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
@@ -95,12 +97,16 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             )
         );
         $fallbackEnabledLiq = $fallbackEnabled ? 'true' : 'false';
+        $claimGraceSeconds = self::PHP_CLAIM_GRACE_SECONDS;
 
         $event->appendBlock(
             <<<LIQ
             top_of_hour_last_served_boundary = ref(-1)
             top_of_hour_last_hard_push_boundary = ref(-1)
             top_of_hour_claimed_boundary = ref(-1)
+            top_of_hour_claimed_at = ref(-1.)
+            top_of_hour_claimed_request_id = ref(-1)
+            top_of_hour_claim_grace_seconds = {$claimGraceSeconds}.
             top_of_hour_hard_trigger_enabled = {$fallbackEnabledLiq}
             top_of_hour_hard_trigger_lead_seconds = {$triggerLeadSeconds}
             top_of_hour_hard_trigger_request = {$safetyRequest}
@@ -108,6 +114,12 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             def top_of_hour_seconds_in_station_hour(now) =
               local_now = time.local(now)
               local_now.min * 60 + local_now.sec
+            end
+
+            def top_of_hour_clear_claim() =
+              top_of_hour_claimed_boundary := -1
+              top_of_hour_claimed_at := -1.
+              top_of_hour_claimed_request_id := -1
             end
 
             def top_of_hour_claim(value) =
@@ -122,7 +134,20 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
                 "owned"
               else
                 top_of_hour_claimed_boundary := boundary
+                top_of_hour_claimed_at := time()
+                top_of_hour_claimed_request_id := -1
                 "claimed"
+              end
+            end
+
+            def top_of_hour_commit(value) =
+              request_id = int_of_string(value, default=-1)
+
+              if request_id < 0 or top_of_hour_claimed_boundary() < 0 then
+                "invalid"
+              else
+                top_of_hour_claimed_request_id := request_id
+                "committed"
               end
             end
 
@@ -132,7 +157,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               if top_of_hour_claimed_boundary() == boundary and
                  top_of_hour_last_served_boundary() != boundary and
                  top_of_hour_last_hard_push_boundary() != boundary then
-                top_of_hour_claimed_boundary := -1
+                top_of_hour_clear_claim()
               end
 
               "released"
@@ -144,6 +169,14 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               description="Claim one top-of-hour boundary for PHP delivery.",
               "claim",
               top_of_hour_claim
+            )
+
+            server.register(
+              namespace="top_of_hour",
+              usage="commit <request_id>",
+              description="Commit the Liquidsoap request ID owned by PHP.",
+              "commit",
+              top_of_hour_commit
             )
 
             server.register(
@@ -161,13 +194,14 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
                 boundary = int_of_float(now) + (3600 - seconds_in_hour)
                 top_of_hour_claimed_boundary := boundary
+                top_of_hour_claimed_at := now
                 top_of_hour_last_served_boundary := boundary
                 log("Top of hour: legal ID started for boundary #{boundary}.")
               end
             end
 
-            # This callback is synchronous so the served marker is updated before
-            # the one-second fallback watcher can make another ownership decision.
+            # Synchronous callbacks close the race between track start and the
+            # one-second fallback watcher.
             source.methods(top_of_hour_queue).on_track(synchronous=true, top_of_hour_mark_legal_id)
             source.methods(radio).on_track(synchronous=true, top_of_hour_mark_legal_id)
 
@@ -177,20 +211,39 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               seconds_until_top = 3600 - seconds_in_hour
               boundary = int_of_float(now) + seconds_until_top
               queue_has_pending = list.length(top_of_hour_queue.queue()) > 0
+              queue_ready = top_of_hour_queue.is_ready()
+              claim_for_boundary = top_of_hour_claimed_boundary() == boundary
+              claim_recent = claim_for_boundary and
+                top_of_hour_claimed_at() >= 0. and
+                now - top_of_hour_claimed_at() <= top_of_hour_claim_grace_seconds
+              claim_active = claim_for_boundary and
+                (claim_recent or queue_has_pending or queue_ready)
+
+              # A PHP process can die after claiming but before enqueueing. Do not
+              # let that tiny window suppress the legal ID forever. If Liquidsoap
+              # accepted a request ID but it never became ready, remove it before
+              # the safety request is inserted so two IDs cannot later play.
+              if claim_for_boundary and not claim_active then
+                if top_of_hour_claimed_request_id() >= 0 then
+                  top_of_hour_queue.remove_request_id(top_of_hour_claimed_request_id())
+                end
+                top_of_hour_clear_claim()
+              end
 
               should_push = top_of_hour_hard_trigger_enabled and
                 seconds_in_hour >= 3480 and
                 seconds_until_top <= top_of_hour_hard_trigger_lead_seconds and
                 top_of_hour_last_served_boundary() != boundary and
                 top_of_hour_last_hard_push_boundary() != boundary and
-                top_of_hour_claimed_boundary() != boundary and
+                not claim_active and
                 not queue_has_pending and
-                not top_of_hour_queue.is_ready()
+                not queue_ready
 
               if should_push then
-                # Claim first, then push. A PHP claimant arriving after this point
-                # receives "busy" and cannot enqueue a second ID for this boundary.
+                # Claim first. A PHP claimant arriving after this point receives
+                # "busy" and cannot enqueue a second ID for the same boundary.
                 top_of_hour_claimed_boundary := boundary
+                top_of_hour_claimed_at := now
                 top_of_hour_last_hard_push_boundary := boundary
                 top_of_hour_queue.push(request.create(top_of_hour_hard_trigger_request))
                 log("Top of hour: hard-clock fallback queued for boundary #{boundary}.")
