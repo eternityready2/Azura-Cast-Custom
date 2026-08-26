@@ -26,6 +26,8 @@ final class Scheduler
     use LoggerAwareTrait;
     use EntityManagerAwareTrait;
 
+    public const int STRICT_START_GRACE_SECONDS = 120;
+
     public function __construct(
         private readonly StationPlaylistMediaRepository $spmRepo,
         private readonly StationQueueRepository $queueRepo,
@@ -575,10 +577,9 @@ final class Scheduler
     }
 
     /**
-     * True exactly once, during the single minute a playlist's "Strict" schedule
-     * item is due to start -- used to trigger a hard interrupt via the existing
-     * interrupting-queue mechanism, rather than waiting for the current track
-     * to finish naturally.
+     * True while an unserved Strict schedule occurrence is inside its short
+     * catch-up window. This lets ID/AI News finish first without allowing normal
+     * music to make a scheduled programme several minutes late.
      */
     public function isPlaylistStrictStartDueNow(
         StationPlaylist $playlist,
@@ -586,26 +587,39 @@ final class Scheduler
         ?DateTimeImmutable $now = null
     ): bool {
         $now = CarbonImmutable::instance(Time::nowInTimezone($tz, $now));
-        $nowMinute = $now->hour * 100 + $now->minute;
 
         foreach ($playlist->schedule_items as $schedule) {
             if (!$schedule->strict_start) {
                 continue;
             }
 
-            if ($schedule->start_time !== $nowMinute) {
-                continue;
-            }
+            foreach ([$now, $now->subDay()] as $candidateDay) {
+                $occurrenceStart = CarbonImmutable::instance(
+                    StationSchedule::getDateTime($schedule->start_time, $tz, $candidateDay)
+                );
+                $secondsLate = $now->getTimestamp() - $occurrenceStart->getTimestamp();
 
-            if (!$this->shouldSchedulePlayOnCurrentDate($schedule, $tz, $now)) {
-                continue;
-            }
+                if ($secondsLate < 0 || $secondsLate > self::STRICT_START_GRACE_SECONDS) {
+                    continue;
+                }
 
-            if (!$this->isScheduleScheduledToPlayToday($schedule, $now->dayOfWeekIso)) {
-                continue;
-            }
+                if (!$this->shouldSchedulePlayOnCurrentDate($schedule, $tz, $occurrenceStart)) {
+                    continue;
+                }
 
-            return true;
+                if (!$this->isScheduleScheduledToPlayToday($schedule, $occurrenceStart->dayOfWeekIso)) {
+                    continue;
+                }
+
+                if ($this->queueRepo->hasPlayedPlaylistSince(
+                    $playlist,
+                    $occurrenceStart->toDateTimeImmutable(),
+                )) {
+                    continue;
+                }
+
+                return true;
+            }
         }
 
         return false;
