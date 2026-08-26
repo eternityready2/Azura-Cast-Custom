@@ -123,7 +123,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             end
 
             def top_of_hour_claim(value) =
-              boundary = int_of_string(value, default=-1)
+              boundary = int_of_string(default=-1, value)
 
               if boundary < 0 then
                 "invalid"
@@ -141,7 +141,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             end
 
             def top_of_hour_commit(value) =
-              request_id = int_of_string(value, default=-1)
+              request_id = int_of_string(default=-1, value)
 
               if request_id < 0 or top_of_hour_claimed_boundary() < 0 then
                 "invalid"
@@ -152,7 +152,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             end
 
             def top_of_hour_release(value) =
-              boundary = int_of_string(value, default=-1)
+              boundary = int_of_string(default=-1, value)
 
               if top_of_hour_claimed_boundary() == boundary and
                  top_of_hour_last_served_boundary() != boundary and
