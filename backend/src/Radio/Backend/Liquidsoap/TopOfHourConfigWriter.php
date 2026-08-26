@@ -210,23 +210,21 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
               seconds_until_top = 3600 - seconds_in_hour
               boundary = int_of_float(now) + seconds_until_top
-              queue_has_pending = list.length(top_of_hour_queue.queue()) > 0
+              queue_has_pending = top_of_hour_queue.length() > 0
               queue_ready = top_of_hour_queue.is_ready()
               claim_for_boundary = top_of_hour_claimed_boundary() == boundary
+              claim_committed = claim_for_boundary and
+                top_of_hour_claimed_request_id() >= 0
               claim_recent = claim_for_boundary and
                 top_of_hour_claimed_at() >= 0. and
                 now - top_of_hour_claimed_at() <= top_of_hour_claim_grace_seconds
               claim_active = claim_for_boundary and
-                (claim_recent or queue_has_pending or queue_ready)
+                (claim_committed or claim_recent or queue_has_pending or queue_ready)
 
-              # A PHP process can die after claiming but before enqueueing. Do not
-              # let that tiny window suppress the legal ID forever. If Liquidsoap
-              # accepted a request ID but it never became ready, remove it before
-              # the safety request is inserted so two IDs cannot later play.
+              # Only an uncommitted, empty PHP claim may expire. Once Liquidsoap
+              # accepted and committed a request ID, the fallback cannot become a
+              # second producer for that boundary.
               if claim_for_boundary and not claim_active then
-                if top_of_hour_claimed_request_id() >= 0 then
-                  top_of_hour_queue.remove_request_id(top_of_hour_claimed_request_id())
-                end
                 top_of_hour_clear_claim()
               end
 
