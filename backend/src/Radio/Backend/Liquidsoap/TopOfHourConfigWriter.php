@@ -21,6 +21,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
     private const int PHP_CLAIM_GRACE_SECONDS = 5;
     private const int PRE_BOUNDARY_HOLD_SECONDS = 75;
+    private const int POST_BOUNDARY_HOLD_SECONDS = 30;
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -106,6 +107,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
         $fallbackEnabledLiq = $fallbackEnabled ? 'true' : 'false';
         $claimGraceSeconds = self::PHP_CLAIM_GRACE_SECONDS;
         $holdStartSecond = HourBoundaryPlanner::HOUR_SECONDS - self::PRE_BOUNDARY_HOLD_SECONDS;
+        $postBoundaryHoldSeconds = self::POST_BOUNDARY_HOLD_SECONDS;
 
         $event->appendBlock(
             <<<LIQ
@@ -131,18 +133,27 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             # of starting a throwaway track that will be cut a few seconds later.
             def top_of_hour_hold_new_track() =
               now = time()
+              now_seconds = int_of_float(now)
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
 
-              if seconds_in_hour < {$holdStartSecond} then
-                false
-              else
-                boundary = int_of_float(now) + (3600 - seconds_in_hour)
+              if seconds_in_hour >= {$holdStartSecond} then
+                boundary = now_seconds + (3600 - seconds_in_hour)
                 top_of_hour_last_served_boundary() != boundary
+              elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then
+                # If a song crossed :00, keep the next normal track held briefly
+                # for the just-started hour until its legal ID is observed.
+                boundary = now_seconds - seconds_in_hour
+                top_of_hour_last_served_boundary() != boundary
+              else
+                false
               end
             end
 
             radio_before_top_of_hour_unheld = radio_before_top_of_hour
-            top_of_hour_preboundary_hold = blank(id="top_of_hour_preboundary_hold")
+            top_of_hour_preboundary_hold = blank(
+              id="top_of_hour_preboundary_hold",
+              duration=1.
+            )
             radio_before_top_of_hour = switch(
               id="top_of_hour_preboundary_hold_switch",
               track_sensitive=true,
@@ -235,14 +246,25 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
 
             def top_of_hour_mark_legal_id(metadata) =
               now = time()
+              now_seconds = int_of_float(now)
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
 
-              if metadata["azuracast_top_of_hour_id"] == "true" and seconds_in_hour >= 3480 then
-                boundary = int_of_float(now) + (3600 - seconds_in_hour)
-                top_of_hour_claimed_boundary := boundary
-                top_of_hour_claimed_at := now
-                top_of_hour_last_served_boundary := boundary
-                log("Top of hour: legal ID started for boundary #{boundary}.")
+              if metadata["azuracast_top_of_hour_id"] == "true" then
+                boundary =
+                  if seconds_in_hour >= 3480 then
+                    now_seconds + (3600 - seconds_in_hour)
+                  elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then
+                    now_seconds - seconds_in_hour
+                  else
+                    -1
+                  end
+
+                if boundary >= 0 then
+                  top_of_hour_claimed_boundary := boundary
+                  top_of_hour_claimed_at := now
+                  top_of_hour_last_served_boundary := boundary
+                  log("Top of hour: legal ID started for boundary #{boundary}.")
+                end
               end
             end
 
