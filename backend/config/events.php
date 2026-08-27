@@ -159,7 +159,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Radio\AutoDJ\ClockWheel\ClockWheelAnnotator::class,
             App\Radio\AutoDJ\HourBoundaryAnnotator::class,
             App\Radio\AutoDJ\TopOfHourIdScheduler::class,
-            App\Radio\AutoDJ\AiDjRealtimeQueueListener::class,
             App\Radio\AutoDJ\TopOfHourMusicGuard::class,
             App\Radio\AutoDJ\DmcaComplianceListener::class,
             App\Radio\Backend\Liquidsoap\ConfigWriter::class,
