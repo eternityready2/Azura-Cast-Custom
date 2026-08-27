@@ -59,6 +59,14 @@ final class FeedbackCommand extends AbstractCommand
         );
 
         $historyRow = $this->getSongHistory($station, $payload);
+        if (!$historyRow instanceof SongHistory) {
+            // Liquidsoap can legitimately report the same track through more
+            // than one wrapper (for example the dedicated TOH queue and the
+            // final radio source). Treat duplicate feedback as idempotent
+            // success instead of emitting an error and duplicating history.
+            return true;
+        }
+
         $this->em->persist($historyRow);
 
         $this->historyRepo->changeCurrentSong($station, $historyRow);
@@ -71,7 +79,7 @@ final class FeedbackCommand extends AbstractCommand
     private function getSongHistory(
         Station $station,
         array $payload
-    ): SongHistory {
+    ): ?SongHistory {
         if (empty($payload['media_id'])) {
             if (empty($payload['artist']) && empty($payload['title'])) {
                 throw new RuntimeException('No payload provided.');
@@ -83,7 +91,7 @@ final class FeedbackCommand extends AbstractCommand
             ]);
 
             if (!$this->historyRepo->isDifferentFromCurrentSong($station, $newSong)) {
-                throw new RuntimeException('Song is not different from current song.');
+                return null;
             }
 
             return new SongHistory($station, $newSong);
@@ -96,15 +104,13 @@ final class FeedbackCommand extends AbstractCommand
 
         $isTopOfHourFallback = !empty($payload['azuracast_top_of_hour_fallback']);
         $isTopOfHourId = !empty($payload['azuracast_top_of_hour_id']);
+        $isDifferent = $this->historyRepo->isDifferentFromCurrentSong($station, $media);
 
-        // A TOH transition may promote its metadata before feedback reaches PHP.
-        // Reconcile the exact queue row even when the current metadata is already
-        // the same Station ID; rejecting here previously left TOH state stale.
-        if (
-            !$isTopOfHourId
-            && !$this->historyRepo->isDifferentFromCurrentSong($station, $media)
-        ) {
-            throw new RuntimeException('Song is not different from current song.');
+        // A dedicated TOH track has its own on-track feedback callback in
+        // addition to the normal final-radio metadata callback. If the first
+        // callback already committed this ID, the second one is a no-op.
+        if (empty($payload['sq_id']) && !$isDifferent) {
+            return null;
         }
 
         if (!empty($payload['sq_id'])) {
@@ -129,6 +135,17 @@ final class FeedbackCommand extends AbstractCommand
                 $this->em->persist($sq);
                 $this->em->flush();
             }
+        }
+
+        if ($sq instanceof StationQueue && $sq->is_played) {
+            return null;
+        }
+
+        // A TOH transition can expose the Station ID metadata before the exact
+        // queue-row feedback arrives. An unplayed sq_id is authoritative and is
+        // still reconciled. Ordinary duplicate metadata is simply ignored.
+        if (!$isTopOfHourId && !$isDifferent) {
+            return null;
         }
 
         if ($sq instanceof StationQueue) {

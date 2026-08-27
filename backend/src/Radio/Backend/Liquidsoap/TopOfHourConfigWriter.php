@@ -20,7 +20,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
     private const int PHP_CLAIM_GRACE_SECONDS = 5;
-    private const int PRE_BOUNDARY_HOLD_SECONDS = 75;
+    private const int PRE_BOUNDARY_HOLD_SECONDS = 120;
     private const int POST_BOUNDARY_HOLD_SECONDS = 30;
 
     public function __construct(
@@ -126,11 +126,11 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               local_now.min * 60 + local_now.sec
             end
 
-            # In the final minute, do not let a freshly-prefetched music track
-            # start if the legal ID for this boundary has not aired yet. This is
-            # track-sensitive: a song already on air keeps playing naturally,
-            # but once it ends the normal source waits for the TOH chain instead
-            # of starting a throwaway track that will be cut a few seconds later.
+            # Do not start a fresh normal song during the protected ID window.
+            # The selector now backtimes the final records as a sequence; this
+            # hold is the runtime safety layer that waits quietly if the music
+            # ends a few seconds early rather than starting a song that would
+            # have to be faded out for the legal ID.
             def top_of_hour_hold_new_track() =
               now = time()
               now_seconds = int_of_float(now)
@@ -140,8 +140,8 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
                 boundary = now_seconds + (3600 - seconds_in_hour)
                 top_of_hour_last_served_boundary() != boundary
               elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then
-                # If a song crossed :00, keep the next normal track held briefly
-                # for the just-started hour until its legal ID is observed.
+                # If a song crossed :00 unexpectedly, keep the next normal track
+                # held briefly until the just-started hour's legal ID is observed.
                 boundary = now_seconds - seconds_in_hour
                 top_of_hour_last_served_boundary() != boundary
               else
@@ -164,8 +164,9 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
             )
 
             # Rebuild the outer TOH wrapper around the held normal-program source.
-            # The legal-ID queue remains non-track-sensitive and can take over
-            # immediately whenever it becomes ready.
+            # The legal-ID queue remains non-track-sensitive only as the emergency
+            # last line of defense. Under normal operation the music has already
+            # ended naturally and this transition is from the silent hold.
             radio = fallback(
               id="top_of_hour_hold_fallback",
               track_sensitive=false,
@@ -268,9 +269,34 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               end
             end
 
-            # Synchronous callbacks close the race between track start and the
-            # one-second fallback watcher.
+            # Send playback history from the source that actually starts the ID,
+            # not from the earlier planning/enqueue step. Include the TOH flags so
+            # PHP can reconcile the exact queue row or hard-clock fallback.
+            def top_of_hour_send_feedback(metadata) =
+              j = json()
+              tags = [
+                "song_id", "media_id", "playlist_id", "sq_id", "artist", "title",
+                "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"
+              ]
+
+              for tag = list.iterator(tags) do
+                value = metadata[tag]
+                if value != "" then
+                  j.add(tag, value)
+                end
+              end
+
+              _ = azuracast.api_call(
+                "feedback",
+                json.stringify(compact=true, j)
+              )
+            end
+
+            # Synchronous ownership callback closes the race with the one-second
+            # fallback watcher. Feedback itself stays asynchronous so an HTTP call
+            # can never block the audio clock.
             source.methods(top_of_hour_queue).on_track(synchronous=true, top_of_hour_mark_legal_id)
+            source.methods(top_of_hour_queue).on_track(synchronous=false, top_of_hour_send_feedback)
             source.methods(radio).on_track(synchronous=true, top_of_hour_mark_legal_id)
 
             def top_of_hour_hard_trigger_watch() =
