@@ -20,7 +20,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
     private const int PHP_CLAIM_GRACE_SECONDS = 5;
-    private const int PRE_BOUNDARY_HOLD_SECONDS = 120;
+    private const int PRE_BOUNDARY_HOLD_SECONDS = 75;
     private const int POST_BOUNDARY_HOLD_SECONDS = 30;
 
     public function __construct(
