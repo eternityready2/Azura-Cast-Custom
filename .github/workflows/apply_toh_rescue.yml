@@ -25,7 +25,18 @@ jobs:
           coverage: none
 
       - name: Apply integrated rescue
-        run: python3 .github/scripts/apply_toh_rescue.py
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/apply_toh_rescue.py')
+          source = path.read_text()
+          old = 'updated, count = re.subn(pattern, replacement, content, count=1, flags=re.S)'
+          new = 'updated, count = re.subn(pattern, lambda _: replacement, content, count=1, flags=re.S)'
+          if old not in source:
+              raise SystemExit('regex_once implementation not found')
+          path.write_text(source.replace(old, new, 1))
+          PY
+          python3 .github/scripts/apply_toh_rescue.py
 
       - name: PHP syntax checks
         run: |
