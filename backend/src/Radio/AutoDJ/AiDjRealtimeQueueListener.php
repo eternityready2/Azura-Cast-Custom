@@ -4,44 +4,32 @@ declare(strict_types=1);
 
 namespace App\Radio\AutoDJ;
 
+use App\Entity\Station;
 use App\Event\Radio\BuildQueue;
 use App\Utilities\Time;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
  * Runs AI DJ decisions against real airtime instead of a deep queue projection.
  *
- * The normal AutoDJ queue may be built many minutes (or, for the linear log,
- * many hours) ahead. AI DJ clips are inserted directly into Liquidsoap's live
- * requests queue, so using the projected BuildQueue timestamp can suppress a
- * live break merely because a future projected slot happens to be near :00.
+ * AI DJ clips are live Liquidsoap inserts. They must be decided by the realtime
+ * Now Playing worker, not while a 24-hour linear log or long AutoDJ queue is
+ * being projected. This keeps talk cadence independent from queue depth.
  */
-final class AiDjRealtimeQueueListener implements EventSubscriberInterface
+final class AiDjRealtimeQueueListener
 {
     public function __construct(
         private readonly AiDjQueueListener $delegate,
     ) {
     }
 
-    public static function getSubscribedEvents(): array
+    public function run(Station $station): void
     {
-        return [
-            BuildQueue::class => ['onBuildQueue', 1],
-        ];
-    }
-
-    public function onBuildQueue(BuildQueue $event): void
-    {
-        if ($event->isInterrupting() || $event->getNextSongs() !== []) {
-            return;
-        }
-
         $now = Time::nowUtc()->toDateTimeImmutable();
         $liveEvent = new BuildQueue(
-            $event->getStation(),
+            $station,
             $now,
             $now,
-            $event->getLastPlayedSongId(),
+            null,
             false,
         );
 
