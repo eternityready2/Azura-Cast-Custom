@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -16,32 +17,38 @@ def write(path: str, content: str) -> None:
     target.write_text(content)
 
 
-def replace_once(path: str, old: str, new: str) -> None:
-    content = read(path)
+def git_show(path: str) -> str:
+    return subprocess.check_output(
+        ["git", "show", f"origin/dev:{path}"],
+        cwd=ROOT,
+        text=True,
+    )
+
+
+def replace_once(content: str, old: str, new: str, label: str) -> str:
     count = content.count(old)
     if count != 1:
-        raise RuntimeError(f"{path}: expected one exact match, found {count}")
-    write(path, content.replace(old, new, 1))
+        raise RuntimeError(f"{label}: expected one exact match, found {count}")
+    return content.replace(old, new, 1)
 
 
-def replace_all(path: str, old: str, new: str, expected: int) -> None:
-    content = read(path)
+def replace_all(content: str, old: str, new: str, expected: int, label: str) -> str:
     count = content.count(old)
     if count != expected:
-        raise RuntimeError(f"{path}: expected {expected} exact matches, found {count}")
-    write(path, content.replace(old, new))
+        raise RuntimeError(f"{label}: expected {expected} exact matches, found {count}")
+    return content.replace(old, new)
 
 
-def regex_once(path: str, pattern: str, replacement: str) -> None:
-    content = read(path)
+def regex_once(content: str, pattern: str, replacement: str, label: str) -> str:
     updated, count = re.subn(pattern, replacement, content, count=1, flags=re.S)
     if count != 1:
-        raise RuntimeError(f"{path}: expected one regex match, found {count}")
-    write(path, updated)
+        raise RuntimeError(f"{label}: expected one regex match, found {count}")
+    return updated
 
 
 # ---------------------------------------------------------------------------
-# Professional TOH backtiming: plan a viable sequence, never plan a routine cut.
+# TOH sequence planner: normal music is backtimed as a sequence. A full song is
+# never deliberately started when it cannot finish cleanly before the ID.
 # ---------------------------------------------------------------------------
 write(
     "backend/src/Radio/AutoDJ/TopOfHourSequencePlanner.php",
@@ -54,16 +61,17 @@ namespace App\Radio\AutoDJ;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelStretchCalculator;
 
 /**
- * Ranks the first track of a short end-of-hour music sequence.
+ * Scores the first record in an end-of-hour sequence.
  *
- * Intermediate tracks are left at natural speed. Only the final track may use
- * the station's bounded pitch-preserving stretch so the music lands cleanly on
- * the protected TOH handoff without routine cue-out/fade truncation.
+ * Intermediate records run naturally. Only the final record may use the
+ * existing bounded, pitch-preserving +/-5% stretch/squeeze engine. Routine
+ * cue-out/fade truncation is intentionally not part of this planner.
  */
 final class TopOfHourSequencePlanner
 {
     public const float NATURAL_TOLERANCE_SECONDS = 2.0;
 
+    /** Current record plus at most three following records. */
     private const int MAX_SEQUENCE_TRACKS = 4;
 
     public function __construct(
@@ -73,6 +81,7 @@ final class TopOfHourSequencePlanner
 
     /**
      * @param array<int, array{key:int, length:float, order?:int}> $candidates
+     * @param float[] $futureLengths
      * @return array<int, array{
      *     key:int,
      *     length:float,
@@ -85,6 +94,7 @@ final class TopOfHourSequencePlanner
      */
     public function rankFirstCandidates(
         array $candidates,
+        array $futureLengths,
         float $availableSeconds,
         float $crossfadeSeconds,
     ): array {
@@ -93,6 +103,15 @@ final class TopOfHourSequencePlanner
         }
 
         $normalized = [];
+        $pool = [];
+
+        foreach ($futureLengths as $length) {
+            $length = (float)$length;
+            if ($length > 0.0) {
+                $pool[(int)round($length * 10)] = $length;
+            }
+        }
+
         foreach ($candidates as $index => $candidate) {
             $length = (float)$candidate['length'];
             if ($length <= 0.0) {
@@ -104,12 +123,15 @@ final class TopOfHourSequencePlanner
                 'length' => $length,
                 'order' => (int)($candidate['order'] ?? $index),
             ];
+            $pool[(int)round($length * 10)] = $length;
         }
 
-        if ($normalized === []) {
+        if ($normalized === [] || $pool === []) {
             return [];
         }
 
+        ksort($pool, SORT_NUMERIC);
+        $pool = array_values($pool);
         $memo = [];
         $ranked = [];
 
@@ -118,7 +140,7 @@ final class TopOfHourSequencePlanner
                 $candidate['length'],
                 $availableSeconds,
                 $crossfadeSeconds,
-                $normalized,
+                $pool,
                 $memo,
             );
 
@@ -134,6 +156,21 @@ final class TopOfHourSequencePlanner
 
         usort($ranked, [self::class, 'compareScores']);
         return $ranked;
+    }
+
+    /** @param float[] $futureLengths */
+    public function canStartTrack(
+        float $sourceSeconds,
+        array $futureLengths,
+        float $availableSeconds,
+        float $crossfadeSeconds,
+    ): bool {
+        return $this->rankFirstCandidates(
+            [['key' => 0, 'length' => $sourceSeconds, 'order' => 0]],
+            $futureLengths,
+            $availableSeconds,
+            $crossfadeSeconds,
+        ) !== [];
     }
 
     public function getNaturalAirtime(float $sourceSeconds, float $crossfadeSeconds): float
@@ -164,16 +201,8 @@ final class TopOfHourSequencePlanner
         return $this->stretchCalculator->calculate($sourceSeconds, $targetSourceSeconds);
     }
 
-    public function canFinishAtHandoff(
-        float $sourceSeconds,
-        float $availableSeconds,
-        float $crossfadeSeconds,
-    ): bool {
-        return $this->getFinalFit($sourceSeconds, $availableSeconds, $crossfadeSeconds) !== null;
-    }
-
     /**
-     * @param array{key:int, length:float, order:int}[] $candidates
+     * @param float[] $futureLengths
      * @param array<string, array{gap:float, stretch_penalty:float, tracks:int}|null> $memo
      * @return array{gap:float, stretch_penalty:float, tracks:int, first_ratio:float|null}|null
      */
@@ -181,7 +210,7 @@ final class TopOfHourSequencePlanner
         float $sourceSeconds,
         float $availableSeconds,
         float $crossfadeSeconds,
-        array $candidates,
+        array $futureLengths,
         array &$memo,
     ): ?array {
         $finalFit = $this->getFinalFit($sourceSeconds, $availableSeconds, $crossfadeSeconds);
@@ -202,12 +231,11 @@ final class TopOfHourSequencePlanner
             return null;
         }
 
-        $remaining = $availableSeconds - $naturalAirtime;
         $completion = $this->findBestCompletion(
-            $remaining,
+            $availableSeconds - $naturalAirtime,
             self::MAX_SEQUENCE_TRACKS - 1,
             $crossfadeSeconds,
-            $candidates,
+            $futureLengths,
             $memo,
         );
 
@@ -224,7 +252,7 @@ final class TopOfHourSequencePlanner
     }
 
     /**
-     * @param array{key:int, length:float, order:int}[] $candidates
+     * @param float[] $futureLengths
      * @param array<string, array{gap:float, stretch_penalty:float, tracks:int}|null> $memo
      * @return array{gap:float, stretch_penalty:float, tracks:int}|null
      */
@@ -232,7 +260,7 @@ final class TopOfHourSequencePlanner
         float $remainingSeconds,
         int $tracksLeft,
         float $crossfadeSeconds,
-        array $candidates,
+        array $futureLengths,
         array &$memo,
     ): ?array {
         if ($remainingSeconds <= self::NATURAL_TOLERANCE_SECONDS) {
@@ -254,10 +282,12 @@ final class TopOfHourSequencePlanner
 
         $best = null;
 
-        foreach ($candidates as $candidate) {
-            $sourceSeconds = $candidate['length'];
-            $finalFit = $this->getFinalFit($sourceSeconds, $remainingSeconds, $crossfadeSeconds);
-
+        foreach ($futureLengths as $sourceSeconds) {
+            $finalFit = $this->getFinalFit(
+                $sourceSeconds,
+                $remainingSeconds,
+                $crossfadeSeconds,
+            );
             if ($finalFit !== null) {
                 $score = [
                     'gap' => $finalFit['gap'],
@@ -285,10 +315,9 @@ final class TopOfHourSequencePlanner
                 $remainingSeconds - $naturalAirtime,
                 $tracksLeft - 1,
                 $crossfadeSeconds,
-                $candidates,
+                $futureLengths,
                 $memo,
             );
-
             if ($next === null) {
                 continue;
             }
@@ -307,9 +336,7 @@ final class TopOfHourSequencePlanner
         return $best;
     }
 
-    /**
-     * @return array{gap:float, stretch_penalty:float, ratio:float|null}|null
-     */
+    /** @return array{gap:float, stretch_penalty:float, ratio:float|null}|null */
     private function getFinalFit(
         float $sourceSeconds,
         float $availableSeconds,
@@ -369,28 +396,40 @@ final class TopOfHourSequencePlanner
 '''
 )
 
-queue_builder = "backend/src/Radio/AutoDJ/QueueBuilder.php"
-replace_once(
-    queue_builder,
+
+# QueueBuilder is rebuilt from the known-good post-PR96 dev version, then the
+# failed six-minute/single-track strategy is replaced with full-lookahead
+# sequence planning before any queue/rotation side effects are persisted.
+queue_path = "backend/src/Radio/AutoDJ/QueueBuilder.php"
+queue = git_show(queue_path)
+queue = replace_once(
+    queue,
+    "use App\\Entity\\Enums\\PlaylistTypes;",
+    "use App\\Entity\\Enums\\PlaylistTypes;\nuse App\\Entity\\Enums\\StationMediaTypes;",
+    "QueueBuilder import",
+)
+queue = replace_once(
+    queue,
     "    /** Re-rank normal music by exact boundary fit during the final six minutes. */\n"
     "    private const int TOH_PRECISION_BACKTIME_SECONDS = 360;\n\n"
     "    /** Below this point the Liquidsoap pre-boundary hold owns the handoff. */\n"
     "    private const int TOH_MIN_TIMED_TRACK_SECONDS = 15;",
-    "    /** Do not start another full music item once only a tiny handoff sliver remains. */\n"
-    "    private const int TOH_MIN_TIMED_TRACK_SECONDS = 15;",
+    "    /** Below this point the Liquidsoap pre-boundary hold owns the handoff. */\n"
+    "    private const int TOH_MIN_TIMED_TRACK_SECONDS = 15;\n\n"
+    "    private const int TOH_FUTURE_POOL_CACHE_SECONDS = 300;",
+    "QueueBuilder constants",
 )
-replace_once(
-    queue_builder,
+queue = replace_once(
+    queue,
     "        private readonly HourBoundaryPlanner $hourBoundaryPlanner,\n"
     "        private readonly ClockWheel\\ClockWheelStretchCalculator $stretchCalculator,",
     "        private readonly HourBoundaryPlanner $hourBoundaryPlanner,\n"
+    "        private readonly ClockWheel\\ClockWheelStretchCalculator $stretchCalculator,\n"
     "        private readonly TopOfHourSequencePlanner $topOfHourSequencePlanner,",
+    "QueueBuilder constructor",
 )
 
-regex_once(
-    queue_builder,
-    r"    private function applyHourBoundarySelection\(.*?\n    private function requestCanFitTopOfHourBoundary\(",
-    r'''    private function applyHourBoundarySelection(
+new_boundary_methods = r'''    private function applyHourBoundarySelection(
         StationPlaylist $playlist,
         StationPlaylistQueue $selectedTrack,
         array $recentSongHistory,
@@ -408,7 +447,7 @@ regex_once(
 
         if ($availableSeconds < self::TOH_MIN_TIMED_TRACK_SECONDS) {
             $this->logger->info(
-                'Hour boundary: protected handoff is too close to start another full music track.',
+                'Hour boundary: no full music item will be started inside the protected handoff sliver.',
                 [
                     'playlist_id' => $playlist->id,
                     'available_seconds' => $availableSeconds,
@@ -431,6 +470,13 @@ regex_once(
                 continue;
             }
 
+            if (
+                StationMediaTypes::isStationId($candidate->type)
+                || 'music' !== ($candidate->type ?? 'music')
+            ) {
+                continue;
+            }
+
             $key = count($plannerCandidates);
             $plannerCandidates[] = [
                 'key' => $key,
@@ -442,13 +488,14 @@ regex_once(
 
         $ranked = $this->topOfHourSequencePlanner->rankFirstCandidates(
             $plannerCandidates,
+            $this->getTopOfHourFutureMusicLengths($playlist->station, $expectedPlayTime),
             $availableSeconds,
             $playlist->station->backend_config->getCrossfadeDuration(),
         );
 
         if ($ranked === []) {
             $this->logger->warning(
-                'Hour boundary: no clean music sequence can reach the TOH handoff; refusing a routine cut/fade.',
+                'Hour boundary: no clean music sequence can reach the TOH handoff; routine cut/fade is refused.',
                 [
                     'playlist_id' => $playlist->id,
                     'available_seconds' => $availableSeconds,
@@ -462,7 +509,6 @@ regex_once(
             $ranked,
         );
 
-        $chosen = null;
         if ($playlist->avoid_duplicates) {
             $chosen = $this->duplicatePrevention->preventDuplicates(
                 $ordered,
@@ -475,7 +521,7 @@ regex_once(
 
         if (!$chosen instanceof StationPlaylistQueue) {
             $this->logger->warning(
-                'Hour boundary: all clean backtiming candidates were rejected by duplicate prevention.',
+                'Hour boundary: duplicate prevention rejected every clean backtiming candidate.',
                 ['playlist_id' => $playlist->id]
             );
             return null;
@@ -483,34 +529,26 @@ regex_once(
 
         $chosenPlan = null;
         foreach ($ranked as $row) {
-            if ($queueByKey[$row['key']] === $chosen) {
+            $candidate = $queueByKey[$row['key']];
+            if ($candidate->spm_id === $chosen->spm_id && $candidate->media_id === $chosen->media_id) {
                 $chosenPlan = $row;
                 break;
             }
         }
 
-        $this->logger->info(
-            'Hour boundary: selected a clean backtimed music sequence.',
-            [
-                'playlist_id' => $playlist->id,
-                'target_seconds' => $availableSeconds,
-                'media_id' => $chosen->media_id,
-                'planned_tracks' => $chosenPlan['tracks'] ?? null,
-                'planned_gap_seconds' => $chosenPlan['gap'] ?? null,
-                'stretch_penalty' => $chosenPlan['stretch_penalty'] ?? null,
-            ]
-        );
+        $this->logger->info('Hour boundary: selected clean multi-song backtiming.', [
+            'playlist_id' => $playlist->id,
+            'target_seconds' => $availableSeconds,
+            'media_id' => $chosen->media_id,
+            'planned_tracks' => $chosenPlan['tracks'] ?? null,
+            'planned_gap_seconds' => $chosenPlan['gap'] ?? null,
+            'stretch_penalty' => $chosenPlan['stretch_penalty'] ?? null,
+        ]);
 
         return $chosen;
     }
 
-    private function requestCanFitTopOfHourBoundary(''',
-)
-
-regex_once(
-    queue_builder,
-    r"    private function requestCanFitTopOfHourBoundary\(.*?\n    private function applyTopOfHourTimingToQueueEntry\(",
-    r'''    private function requestCanFitTopOfHourBoundary(
+    private function requestCanFitTopOfHourBoundary(
         Station $station,
         StationMedia $media,
         DateTimeImmutable $expectedPlayTime,
@@ -528,20 +566,15 @@ regex_once(
             return false;
         }
 
-        return $this->topOfHourSequencePlanner->canFinishAtHandoff(
+        return $this->topOfHourSequencePlanner->canStartTrack(
             $media->getCalculatedLength(),
+            $this->getTopOfHourFutureMusicLengths($station, $expectedPlayTime),
             $availableSeconds,
             $station->backend_config->getCrossfadeDuration(),
         );
     }
 
-    private function applyTopOfHourTimingToQueueEntry(''',
-)
-
-regex_once(
-    queue_builder,
-    r"    private function applyTopOfHourTimingToQueueEntry\(.*?\n    private function filterQueueByRotationGoal\(",
-    r'''    private function applyTopOfHourTimingToQueueEntry(
+    private function applyTopOfHourTimingToQueueEntry(
         StationQueue $queueEntry,
         StationMedia $media,
         DateTimeImmutable $expectedPlayTime,
@@ -559,8 +592,8 @@ regex_once(
             return false;
         }
 
-        $mediaLength = $media->getCalculatedLength();
         $crossfadeSeconds = $queueEntry->station->backend_config->getCrossfadeDuration();
+        $mediaLength = $media->getCalculatedLength();
         $stretchRatio = $this->topOfHourSequencePlanner->getStretchRatioToFill(
             $mediaLength,
             $availableSeconds,
@@ -580,6 +613,7 @@ regex_once(
             $mediaLength,
             $crossfadeSeconds,
         );
+
         if ($naturalAirtime <= $availableSeconds + TopOfHourSequencePlanner::NATURAL_TOLERANCE_SECONDS) {
             $queueEntry->hour_boundary_enforce_cap = false;
             $queueEntry->hour_boundary_max_play_seconds = null;
@@ -589,32 +623,109 @@ regex_once(
         }
 
         $this->logger->warning(
-            'Hour boundary: refusing to annotate a normal music track with a routine TOH cut/fade.',
+            'Hour boundary: refusing to turn a normal music track into a routine TOH cut/fade.',
             [
                 'media_id' => $media->id,
                 'media_length' => $mediaLength,
                 'available_seconds' => $availableSeconds,
             ]
         );
+
         return false;
     }
 
-    private function filterQueueByRotationGoal(''',
+    /** @return float[] */
+    private function getTopOfHourFutureMusicLengths(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): array {
+        $localHour = $expectedPlayTime
+            ->setTimezone($station->getTimezoneObject())
+            ->format('YmdH');
+        $cacheKey = 'toh_future_music_pool_v2.' . $station->id . '.' . $localHour;
+        $cached = $this->cache->get($cacheKey);
+
+        if (is_array($cached)) {
+            return array_values(array_filter($cached, 'is_numeric'));
+        }
+
+        $lengths = [];
+
+        foreach ($station->playlists as $candidatePlaylist) {
+            if (!$candidatePlaylist instanceof StationPlaylist) {
+                continue;
+            }
+            if (
+                !$candidatePlaylist->is_enabled
+                || $candidatePlaylist->is_jingle
+                || PlaylistSources::Songs !== $candidatePlaylist->source
+            ) {
+                continue;
+            }
+            if (!$this->scheduler->shouldPlaylistPlayNow($candidatePlaylist, $expectedPlayTime)) {
+                continue;
+            }
+
+            try {
+                $candidateQueue = $this->preparePlaylistQueue(
+                    $candidatePlaylist,
+                    $this->spmRepo->getQueue($candidatePlaylist),
+                    $expectedPlayTime,
+                );
+            } catch (\Throwable $e) {
+                $this->logger->warning('Hour boundary: future music pool lookup failed for playlist.', [
+                    'playlist_id' => $candidatePlaylist->id,
+                    'exception' => $e->getMessage(),
+                ]);
+                continue;
+            }
+
+            foreach ($candidateQueue as $queueItem) {
+                $candidate = $this->em->find(StationMedia::class, $queueItem->media_id);
+                if (!$candidate instanceof StationMedia) {
+                    continue;
+                }
+                if (
+                    StationMediaTypes::isStationId($candidate->type)
+                    || 'music' !== ($candidate->type ?? 'music')
+                ) {
+                    continue;
+                }
+
+                $length = $candidate->getCalculatedLength();
+                if ($length <= 0.0 || $length > 900.0) {
+                    continue;
+                }
+
+                $lengths[(int)round($length * 10)] = $length;
+            }
+        }
+
+        ksort($lengths, SORT_NUMERIC);
+        $result = array_values($lengths);
+        $this->cache->set($cacheKey, $result, self::TOH_FUTURE_POOL_CACHE_SECONDS);
+        return $result;
+    }
+
+'''
+queue = regex_once(
+    queue,
+    r"    private function applyHourBoundarySelection\(.*?\n    private function filterQueueByRotationGoal\(",
+    new_boundary_methods + "    private function filterQueueByRotationGoal(",
+    "QueueBuilder boundary methods",
 )
 
-# A rejected boundary track must not advance the playlist-media rotation.
-replace_once(
-    queue_builder,
+# Do not advance playlist-media rotation until the chosen record survives TOH timing.
+early_spm = (
     "        $spm = $this->em->find(StationPlaylistMedia::class, $validTrack->spm_id);\n"
     "        if ($spm instanceof StationPlaylistMedia) {\n"
     "            $spm->played($expectedPlayTime->getTimestamp());\n"
     "            $this->em->persist($spm);\n"
     "        }\n\n"
-    "        $stationQueueEntry = StationQueue::fromMedia($playlist->station, $mediaToPlay);",
-    "        $stationQueueEntry = StationQueue::fromMedia($playlist->station, $mediaToPlay);",
 )
-replace_once(
-    queue_builder,
+queue = replace_once(queue, early_spm, "", "QueueBuilder early SPM side effect")
+queue = replace_once(
+    queue,
     "        if ($topOfHourOwnsBoundary) {\n"
     "            $this->applyTopOfHourTimingToQueueEntry(\n"
     "                $stationQueueEntry,\n"
@@ -639,11 +750,10 @@ replace_once(
     "            $this->em->persist($spm);\n"
     "        }\n\n"
     "        if (!$deferQueuePersistence) {",
+    "QueueBuilder TOH timing side effect order",
 )
-
-# Both request paths must stop rather than knowingly create a track that needs a cut.
-replace_all(
-    queue_builder,
+queue = replace_all(
+    queue,
     "        $this->applyTopOfHourTimingToQueueEntry(\n"
     "            $stationQueueEntry,\n"
     "            $request->track,\n"
@@ -656,235 +766,166 @@ replace_all(
     "        )) {\n"
     "            return null;\n"
     "        }",
-    expected=2,
+    2,
+    "QueueBuilder request timing",
 )
 
-if "stretchCalculator" in read(queue_builder):
-    raise RuntimeError("QueueBuilder still references the old stretchCalculator dependency")
+if "TOH_PRECISION_BACKTIME_SECONDS" in queue:
+    raise RuntimeError("QueueBuilder still contains the failed six-minute precision window")
+if "$queueEntry->top_of_hour_pre_id_fade = true;" in queue:
+    raise RuntimeError("QueueBuilder still plans routine TOH fade annotations")
+write(queue_path, queue)
+
+# The lower-priority post-selection guard from the first rescue draft is removed:
+# selection must be correct before QueueBuilder persists/advances anything.
+music_guard = ROOT / "backend/src/Radio/AutoDJ/TopOfHourMusicGuard.php"
+if music_guard.exists():
+    music_guard.unlink()
 
 
 # ---------------------------------------------------------------------------
-# AI DJ: decouple live talk breaks from the 24-hour Linear Log builder.
+# AI DJ cadence: live decisions happen once per actually-started on-air item,
+# independent of the 24-hour Linear Log. This preserves talk_frequency as an
+# on-air-item probability instead of rolling it repeatedly every few seconds.
 # ---------------------------------------------------------------------------
 write(
-    "backend/src/Sync/Task/AiDjRealtimeTask.php",
+    "backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php",
     r'''<?php
 
 declare(strict_types=1);
 
-namespace App\Sync\Task;
+namespace App\Radio\AutoDJ;
 
+use App\Entity\Station;
 use App\Event\Radio\BuildQueue;
-use App\Radio\AutoDJ\AiDjQueueListener;
 use App\Utilities\Time;
+use Psr\SimpleCache\CacheInterface;
 
 /**
- * Gives AI DJ a real-time scheduling heartbeat independent of long-range queue planning.
+ * Runs one AI DJ decision per actual on-air item, using real wall-clock time.
  */
-final class AiDjRealtimeTask extends AbstractTask
+final class AiDjRealtimeQueueListener
 {
+    private const int SEEN_ITEM_TTL_SECONDS = 21600;
+
     public function __construct(
-        private readonly AiDjQueueListener $aiDjQueueListener,
+        private readonly AiDjQueueListener $delegate,
+        private readonly CacheInterface $cache,
     ) {
     }
 
-    public static function getSchedulePattern(): string
+    public function run(Station $station): void
     {
-        return self::SCHEDULE_EVERY_MINUTE;
-    }
-
-    public function run(bool $force = false): void
-    {
-        foreach ($this->iterateStations() as $station) {
-            if (!$station->supportsAutoDjQueue()) {
-                continue;
-            }
-
-            $now = Time::nowUtc()->toDateTimeImmutable();
-            $this->aiDjQueueListener->onBuildQueue(
-                new BuildQueue($station, $now, $now)
-            );
+        $current = $station->current_song;
+        if (null === $current || null === $current->timestamp_start) {
+            return;
         }
+
+        $fingerprint = $current->song_id . ':' . $current->timestamp_start->getTimestamp();
+        $cacheKey = 'ai_dj_realtime_item_' . $station->id;
+
+        if ($this->cache->get($cacheKey) === $fingerprint) {
+            return;
+        }
+
+        // Claim this item before generation so parallel Now Playing workers cannot
+        // roll talk_frequency twice for the same song/program/liner.
+        $this->cache->set($cacheKey, $fingerprint, self::SEEN_ITEM_TTL_SECONDS);
+
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $this->delegate->onBuildQueue(
+            new BuildQueue($station, $now, $now, $current->song_id, false)
+        );
     }
 }
 '''
 )
 
-ai_dj = "backend/src/Radio/AutoDJ/AiDjQueueListener.php"
-replace_once(
-    ai_dj,
-    "    private const int COMBO_PROBABILITY_PCT = 50;",
-    "    private const int COMBO_PROBABILITY_PCT = 50;\n\n"
-    "    /** Ignore long-range Linear Log BuildQueue events; AiDjRealtimeTask owns live cadence. */\n"
-    "    private const int REALTIME_EVENT_MAX_LEAD_SECONDS = 30;",
-)
-replace_once(
-    ai_dj,
-    "        if ($event->isInterrupting()) {\n"
-    "            $this->logger->debug('AI DJ: Skipped - event is interrupting.');\n"
-    "            return;\n"
-    "        }\n\n"
-    "        // Skip if another listener (e.g. TopOfHourIdScheduler) already queued a song",
-    "        if ($event->isInterrupting()) {\n"
-    "            $this->logger->debug('AI DJ: Skipped - event is interrupting.');\n"
-    "            return;\n"
-    "        }\n\n"
-    "        $eventLeadSeconds = $event->getExpectedPlayTime()->getTimestamp() - time();\n"
-    "        if ($eventLeadSeconds > self::REALTIME_EVENT_MAX_LEAD_SECONDS) {\n"
-    "            $this->logger->debug('AI DJ: Skipped - long-range queue planning event.', [\n"
-    "                'lead_seconds' => $eventLeadSeconds,\n"
-    "            ]);\n"
-    "            return;\n"
-    "        }\n\n"
-    "        // Skip if another listener (e.g. TopOfHourIdScheduler) already queued a song",
-)
+# Keep the existing rescue change that invokes the realtime wrapper from the
+# Now Playing worker before ordinary queue maintenance.
+build_queue_task = read("backend/src/Sync/NowPlaying/Task/BuildQueueTask.php")
+if "AiDjRealtimeQueueListener" not in build_queue_task:
+    raise RuntimeError("BuildQueueTask is not wired to the realtime AI DJ wrapper")
 
-# Register the real-time heartbeat.
-events = "backend/config/events.php"
-replace_once(
+# Event subscribers are rebuilt from dev, except projected BuildQueue events no
+# longer call AiDjQueueListener. The realtime wrapper above is its sole cadence owner.
+events_path = "backend/config/events.php"
+events = git_show(events_path)
+events = replace_once(
     events,
-    "                App\\Sync\\Task\\QueueInterruptingTracks::class,\n"
-    "                App\\Sync\\Task\\ReactivateStreamerTask::class,",
-    "                App\\Sync\\Task\\QueueInterruptingTracks::class,\n"
-    "                App\\Sync\\Task\\AiDjRealtimeTask::class,\n"
-    "                App\\Sync\\Task\\ReactivateStreamerTask::class,",
+    "            App\\Radio\\AutoDJ\\AiDjQueueListener::class,\n",
+    "",
+    "events AI DJ projected subscriber",
 )
+write(events_path, events)
 
 
 # ---------------------------------------------------------------------------
-# Upcoming queue report: chronological display only; do not change runtime ownership.
+# Upcoming queue report: presentation is chronological. Runtime queue priority
+# remains untouched so dedicated TOH ownership/prefetch behavior is unchanged.
 # ---------------------------------------------------------------------------
-queue_controller = "backend/src/Controller/Api/Stations/QueueController.php"
-replace_once(
+queue_controller_path = "backend/src/Controller/Api/Stations/QueueController.php"
+queue_controller = git_show(queue_controller_path)
+queue_controller = replace_once(
     queue_controller,
     "        $qb = $this->queueRepo->getUnplayedBaseQuery($station);",
-    "        // The runtime repository prioritizes already-sent rows for delivery semantics.\n"
-    "        // The report must instead show one chronological listener-facing timeline.\n"
-    "        $qb = $this->queueRepo->getUnplayedBaseQuery($station)\n"
+    "        $qb = $this->queueRepo->getUnplayedBaseQuery($station);\n\n"
+    "        // Internal delivery ordering prioritizes rows already handed to Liquidsoap.\n"
+    "        // The Upcoming Queue report is listener-facing and must be chronological.\n"
+    "        $qb->resetDQLPart('orderBy')\n"
     "            ->orderBy('sq.timestamp_played', 'ASC')\n"
     "            ->addOrderBy('sq.timestamp_cued', 'ASC')\n"
     "            ->addOrderBy('sq.id', 'ASC');",
+    "QueueController chronological sort",
 )
+write(queue_controller_path, queue_controller)
 
 
 # ---------------------------------------------------------------------------
-# TOH playback history: force actual track-start feedback, then de-duplicate it.
+# Legal ID history: record the actual TOH track start. Do not recreate the old
+# enqueue-time fake history. Generic feedback also carries TOH flags so duplicate
+# callbacks can be made idempotent without changing normal-song semantics.
 # ---------------------------------------------------------------------------
-liq = "util/docker/stations/liquidsoap/azuracast.liq"
-old_feedback = r'''# Send metadata changes back to AzuraCast
-def azuracast.send_feedback(m) =
-    if (m["is_error_file"] != "true") then
-        if (m["title"] != azuracast.last_title() or m["artist"] != azuracast.last_artist()) then
-            azuracast.last_title := m["title"]
-            azuracast.last_artist := m["artist"]
-
-            # Only send some metadata to AzuraCast
-            def fl(k, _) =
-                tags = ["song_id", "media_id", "playlist_id", "sq_id", "artist", "title"]
-                list.mem(k, tags)
-            end
-
-            feedback_meta = list.assoc.filter((fl), metadata.cover.remove(m))
-
-            j = json()
-            for item = list.iterator(feedback_meta) do
-                let (tag, value) = item
-                j.add(tag, value)
-            end
-
-            _ = azuracast.api_call(
-                "feedback",
-                json.stringify(compact=true, j)
-            )
-        end
-    end
-end
-'''
-new_feedback = r'''# Build the exact metadata payload sent back to AzuraCast.
-def azuracast.feedback_payload(m) =
-    def fl(k, _) =
-        tags = [
-            "song_id", "media_id", "playlist_id", "sq_id", "artist", "title",
-            "azuracast_legal_id", "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"
-        ]
-        list.mem(k, tags)
-    end
-
-    feedback_meta = list.assoc.filter((fl), metadata.cover.remove(m))
-    j = json()
-    for item = list.iterator(feedback_meta) do
-        let (tag, value) = item
-        j.add(tag, value)
-    end
-
-    json.stringify(compact=true, j)
-end
-
-# Send metadata changes back to AzuraCast.
-def azuracast.send_feedback(m) =
-    if (m["is_error_file"] != "true") then
-        if (m["title"] != azuracast.last_title() or m["artist"] != azuracast.last_artist()) then
-            azuracast.last_title := m["title"]
-            azuracast.last_artist := m["artist"]
-
-            _ = azuracast.api_call(
-                "feedback",
-                azuracast.feedback_payload(m)
-            )
-        end
-    end
-end
-
-# Dedicated TOH playback uses an explicit track-start callback. It must not be
-# suppressed by title/artist de-duplication because the history row is evidence
-# that the legal ID actually started on air for this boundary.
-def azuracast.send_feedback_force(m) =
-    if (m["is_error_file"] != "true") then
-        azuracast.last_title := m["title"]
-        azuracast.last_artist := m["artist"]
-
-        _ = azuracast.api_call(
-            "feedback",
-            azuracast.feedback_payload(m)
-        )
-    end
-end
-'''
-replace_once(liq, old_feedback, new_feedback)
-
-toh_writer = "backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php"
-replace_once(
-    toh_writer,
-    "            source.methods(top_of_hour_queue).on_track(synchronous=true, top_of_hour_mark_legal_id)\n"
-    "            source.methods(radio).on_track(synchronous=true, top_of_hour_mark_legal_id)",
-    "            source.methods(top_of_hour_queue).on_track(synchronous=true, top_of_hour_mark_legal_id)\n"
-    "            source.methods(top_of_hour_queue).on_track(synchronous=false, azuracast.send_feedback_force)\n"
-    "            source.methods(radio).on_track(synchronous=true, top_of_hour_mark_legal_id)",
+liq_path = "util/docker/stations/liquidsoap/azuracast.liq"
+liq = read(liq_path)
+liq = replace_once(
+    liq,
+    '                tags = ["song_id", "media_id", "playlist_id", "sq_id", "artist", "title"]',
+    '                tags = ["song_id", "media_id", "playlist_id", "sq_id", "artist", "title", '
+    '"azuracast_legal_id", "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"]',
+    "Liquidsoap feedback metadata flags",
 )
+write(liq_path, liq)
 
-feedback = "backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php"
-replace_once(
+feedback_path = "backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php"
+feedback = git_show(feedback_path)
+feedback = replace_once(
     feedback,
     "        $historyRow = $this->getSongHistory($station, $payload);",
     "        if ($this->isDuplicateTopOfHourFeedback($station, $payload)) {\n"
     "            return true;\n"
     "        }\n\n"
     "        $historyRow = $this->getSongHistory($station, $payload);",
+    "FeedbackCommand idempotent TOH precheck",
 )
-replace_once(
-    feedback,
-    "    private function resolveTopOfHourQueueRow(\n",
-    r'''    private function isDuplicateTopOfHourFeedback(Station $station, array $payload): bool
+feedback_helper = r'''    private function isDuplicateTopOfHourFeedback(Station $station, array $payload): bool
     {
-        if (empty($payload['azuracast_top_of_hour_id'])) {
-            return false;
-        }
+        $isTopOfHour = !empty($payload['azuracast_top_of_hour_id'])
+            || !empty($payload['azuracast_top_of_hour_fallback']);
 
         if (!empty($payload['sq_id'])) {
             $queueRow = $this->em->find(StationQueue::class, $payload['sq_id']);
-            if ($queueRow instanceof StationQueue && $queueRow->is_played) {
+            if (
+                $queueRow instanceof StationQueue
+                && $queueRow->is_played
+                && ($queueRow->top_of_hour_legal_id || $isTopOfHour)
+            ) {
                 return true;
             }
+        }
+
+        if (!$isTopOfHour) {
+            return false;
         }
 
         $now = Time::nowUtc()->toDateTimeImmutable();
@@ -915,59 +956,149 @@ replace_once(
         return $count > 0;
     }
 
-    private function resolveTopOfHourQueueRow(
-''',
+'''
+feedback = replace_once(
+    feedback,
+    "    private function resolveTopOfHourQueueRow(\n",
+    feedback_helper + "    private function resolveTopOfHourQueueRow(\n",
+    "FeedbackCommand TOH duplicate helper",
 )
+write(feedback_path, feedback)
 
-
-# ---------------------------------------------------------------------------
-# PR #96 hardening: no false strict-start success and no unconditional :00 silence.
-# ---------------------------------------------------------------------------
-repository = "backend/src/Entity/Repository/StationQueueRepository.php"
-replace_once(
-    repository,
-    "            ->andWhere('sq.is_played = 1')\n"
-    "            ->andWhere('sq.timestamp_played >= :since')",
-    "            ->andWhere('sq.is_played = 1')\n"
-    "            ->andWhere('sq.sent_to_autodj = 1')\n"
-    "            ->andWhere('sq.timestamp_played >= :since')",
+# Preserve the first rescue's actual-playback callback, then harden the post-:00
+# hold so a missed ID fails open instead of producing 30 seconds of silence.
+toh_writer_path = "backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php"
+toh_writer = read(toh_writer_path)
+if "def top_of_hour_send_feedback(metadata) =" not in toh_writer:
+    raise RuntimeError("TopOfHourConfigWriter lost actual-track-start history feedback")
+toh_writer = replace_once(
+    toh_writer,
+    '                "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"',
+    '                "azuracast_legal_id", "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"',
+    "TOH dedicated feedback tags",
 )
-
-interrupt_task = "backend/src/Sync/Task/QueueInterruptingTracks.php"
-replace_once(
-    interrupt_task,
-    "            $response = $backend->enqueue($station, $queueName, $track);\n"
-    "            $this->logger->debug('AutoDJ request response', ['response' => $response]);",
-    "            $response = $backend->enqueue($station, $queueName, $track);\n"
-    "            $this->logger->debug('AutoDJ request response', ['response' => $response]);\n\n"
-    "            // Queue::getInterruptingQueue marks a row selected before delivery.\n"
-    "            // sent_to_autodj is the durable success bit used by strict-start catch-up.\n"
-    "            $sq->sent_to_autodj = true;\n"
-    "            $this->em->persist($sq);\n"
-    "            $this->em->flush();",
-)
-
-replace_once(
+toh_writer = replace_once(
     toh_writer,
     "              elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then\n"
-    "                # If a song crossed :00, keep the next normal track held briefly\n"
-    "                # for the just-started hour until its legal ID is observed.\n"
+    "                # If a song crossed :00 unexpectedly, keep the next normal track\n"
+    "                # held briefly until the just-started hour's legal ID is observed.\n"
     "                boundary = now_seconds - seconds_in_hour\n"
     "                top_of_hour_last_served_boundary() != boundary",
     "              elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then\n"
-    "                # After :00, hold only when an ID is actually pending/claimed.\n"
-    "                # A missed enqueue must fail open to programming, not 30s of silence.\n"
+    "                # After :00, hold only while this boundary actually has an ID\n"
+    "                # claimed or waiting. A missed enqueue fails open to programming.\n"
     "                boundary = now_seconds - seconds_in_hour\n"
     "                boundary_has_delivery =\n"
     "                  top_of_hour_claimed_boundary() == boundary or\n"
     "                  top_of_hour_queue.length() > 0 or\n"
     "                  top_of_hour_queue.is_ready()\n"
     "                boundary_has_delivery and top_of_hour_last_served_boundary() != boundary",
+    "TOH post-boundary fail-open hold",
 )
+write(toh_writer_path, toh_writer)
 
 
 # ---------------------------------------------------------------------------
-# Regression tests.
+# PR #96 strict-start review hardening: queue construction is not delivery.
+# A failed/busy interrupting enqueue must remain retryable during the grace window.
+# ---------------------------------------------------------------------------
+repo_path = "backend/src/Entity/Repository/StationQueueRepository.php"
+repo = git_show(repo_path)
+repo = replace_once(
+    repo,
+    "            ->andWhere('sq.is_played = 1')\n"
+    "            ->andWhere('sq.timestamp_played >= :since')",
+    "            ->andWhere('sq.is_played = 1')\n"
+    "            ->andWhere('sq.sent_to_autodj = 1')\n"
+    "            ->andWhere('sq.timestamp_played >= :since')",
+    "strict-start successful-delivery guard",
+)
+write(repo_path, repo)
+
+interrupt_path = "backend/src/Sync/Task/QueueInterruptingTracks.php"
+interrupt = git_show(interrupt_path)
+interrupt = replace_once(
+    interrupt,
+    "            if (!$isEmpty) {\n"
+    "                $this->logger->info('Skipping enqueue; target queue is not empty.', [\n"
+    "                    'queue' => $queueName->value,\n"
+    "                ]);\n"
+    "                continue;\n"
+    "            }",
+    "            if (!$isEmpty) {\n"
+    "                $this->logger->info('Skipping enqueue; target queue is not empty.', [\n"
+    "                    'queue' => $queueName->value,\n"
+    "                ]);\n\n"
+    "                if (LiquidsoapQueues::Interrupting === $queueName) {\n"
+    "                    $this->discardUndeliveredInterruptingRow($sq);\n"
+    "                }\n"
+    "                continue;\n"
+    "            }",
+    "interrupting busy queue cleanup",
+)
+interrupt = replace_once(
+    interrupt,
+    "            $this->logger->debug('Submitting request to AutoDJ.', [\n"
+    "                'track' => $track,\n"
+    "                'queue' => $queueName->value,\n"
+    "            ]);\n"
+    "            $response = $backend->enqueue($station, $queueName, $track);\n"
+    "            $this->logger->debug('AutoDJ request response', ['response' => $response]);",
+    "            // Annotation marks normal rows as sent before the external enqueue.\n"
+    "            // Reset that optimistic bit first; only a successful Liquidsoap\n"
+    "            // enqueue may satisfy strict-start one-shot protection.\n"
+    "            $sq->sent_to_autodj = false;\n"
+    "            $this->em->persist($sq);\n"
+    "            $this->em->flush();\n\n"
+    "            try {\n"
+    "                $this->logger->debug('Submitting request to AutoDJ.', [\n"
+    "                    'track' => $track,\n"
+    "                    'queue' => $queueName->value,\n"
+    "                ]);\n"
+    "                $response = $backend->enqueue($station, $queueName, $track);\n"
+    "                $this->logger->debug('AutoDJ request response', ['response' => $response]);\n\n"
+    "                $sq->sent_to_autodj = true;\n"
+    "                $this->em->persist($sq);\n"
+    "                $this->em->flush();\n"
+    "            } catch (\\Throwable $e) {\n"
+    "                $this->logger->error('Interrupting enqueue failed; row remains retryable.', [\n"
+    "                    'queue_id' => $sq->id,\n"
+    "                    'exception' => $e->getMessage(),\n"
+    "                ]);\n"
+    "                $this->discardUndeliveredInterruptingRow($sq);\n"
+    "            }",
+    "interrupting successful delivery bit",
+)
+interrupt = replace_once(
+    interrupt,
+    "    private function enqueueTopOfHour(\n",
+    r'''    private function discardUndeliveredInterruptingRow(StationQueue $sq): void
+    {
+        try {
+            $this->em->remove($sq);
+            $this->em->flush();
+        } catch (\Throwable $e) {
+            // The durable success bit was cleared before delivery. Even if cleanup
+            // itself fails, strict-start catch-up will not treat this row as served.
+            $sq->sent_to_autodj = false;
+            $this->em->persist($sq);
+            $this->em->flush();
+            $this->logger->warning('Could not remove undelivered interrupting row.', [
+                'queue_id' => $sq->id,
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function enqueueTopOfHour(
+''',
+    "interrupting discard helper",
+)
+write(interrupt_path, interrupt)
+
+
+# ---------------------------------------------------------------------------
+# Regression/source-contract tests.
 # ---------------------------------------------------------------------------
 write(
     "tests/Unit/TopOfHourSmartBacktimingTest.php",
@@ -981,7 +1112,7 @@ use PHPUnit\Framework\TestCase;
 
 final class TopOfHourSmartBacktimingTest extends TestCase
 {
-    public function testQueueBuilderPlansASequenceAndRefusesRoutineTohFade(): void
+    public function testQueueBuilderUsesFullLookaheadSequencePlanningAndNoRoutineFade(): void
     {
         $source = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/QueueBuilder.php'
@@ -990,26 +1121,21 @@ final class TopOfHourSmartBacktimingTest extends TestCase
 
         self::assertStringContainsString('TopOfHourSequencePlanner $topOfHourSequencePlanner', $source);
         self::assertStringContainsString('rankFirstCandidates(', $source);
-        self::assertStringContainsString(
-            'no clean music sequence can reach the TOH handoff; refusing a routine cut/fade.',
-            $source,
-        );
-
-        $timingStart = strpos($source, 'private function applyTopOfHourTimingToQueueEntry');
-        self::assertNotFalse($timingStart);
-        $timingBlock = substr($source, $timingStart, 4200);
-        self::assertStringNotContainsString('$queueEntry->top_of_hour_pre_id_fade = true;', $timingBlock);
-        self::assertStringNotContainsString('$queueEntry->hour_boundary_enforce_cap = true;', $timingBlock);
+        self::assertStringContainsString('getTopOfHourFutureMusicLengths(', $source);
+        self::assertStringNotContainsString('TOH_PRECISION_BACKTIME_SECONDS', $source);
+        self::assertStringNotContainsString('$queueEntry->top_of_hour_pre_id_fade = true;', $source);
+        self::assertStringContainsString('routine cut/fade is refused', $source);
     }
 
-    public function testRequestsCannotCreateAnOrphanedEndOfHourOverrun(): void
+    public function testRequestsDoNotCreateAnUnfillableLateHourOverrun(): void
     {
         $source = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/QueueBuilder.php'
         );
         self::assertIsString($source);
 
-        self::assertStringContainsString('canFinishAtHandoff(', $source);
+        self::assertStringContainsString('private function requestCanFitTopOfHourBoundary(', $source);
+        self::assertStringContainsString('canStartTrack(', $source);
         self::assertStringContainsString(
             'Listener request deferred because it cannot fit the approaching top-of-hour boundary.',
             $source,
@@ -1020,7 +1146,7 @@ final class TopOfHourSmartBacktimingTest extends TestCase
         );
     }
 
-    public function testStretchMetadataHandoffIsSynchronous(): void
+    public function testStretchMetadataHandoffRemainsSynchronous(): void
     {
         $source = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php'
@@ -1056,28 +1182,21 @@ final class TopOfHourSequencePlannerTest extends TestCase
         $this->planner = new TopOfHourSequencePlanner(new ClockWheelStretchCalculator());
     }
 
-    public function testOrphanFiftySevenSecondGapIsNotThePreferredPlan(): void
+    public function testLongTrackThatStrandsFiftySevenSecondsIsRejected(): void
     {
         $ranked = $this->planner->rankFirstCandidates(
             [
                 ['key' => 1, 'length' => 333.0, 'order' => 0],
                 ['key' => 2, 'length' => 205.0, 'order' => 1],
-                ['key' => 3, 'length' => 185.0, 'order' => 2],
             ],
+            [185.0, 205.0, 333.0],
             390.0,
             2.0,
         );
 
         self::assertNotEmpty($ranked);
         self::assertSame(2, $ranked[0]['key']);
-        self::assertGreaterThanOrEqual(2, $ranked[0]['tracks']);
-        self::assertNotSame(1, $ranked[0]['key']);
-    }
-
-    public function testFinalStretchAccountsForCrossfadeOverlap(): void
-    {
-        $ratio = $this->planner->getStretchRatioToFill(180.0, 187.0, 2.0);
-        self::assertSame(1.05, $ratio);
+        self::assertNotContains(1, array_column($ranked, 'key'));
     }
 
     public function testImpossibleFiftySevenSecondSlotStartsNoFullSong(): void
@@ -1087,18 +1206,24 @@ final class TopOfHourSequencePlannerTest extends TestCase
                 ['key' => 1, 'length' => 180.0],
                 ['key' => 2, 'length' => 240.0],
             ],
+            [180.0, 240.0],
             57.0,
             2.0,
         );
 
         self::assertSame([], $ranked);
     }
+
+    public function testFinalStretchAccountsForCrossfadeOverlap(): void
+    {
+        self::assertSame(1.05, $this->planner->getStretchRatioToFill(180.0, 187.0, 2.0));
+    }
 }
 '''
 )
 
 write(
-    "tests/Unit/AiDjRealtimeTaskTest.php",
+    "tests/Unit/AiDjRealtimeQueueListenerTest.php",
     r'''<?php
 
 declare(strict_types=1);
@@ -1107,28 +1232,26 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
-final class AiDjRealtimeTaskTest extends TestCase
+final class AiDjRealtimeQueueListenerTest extends TestCase
 {
-    public function testAiDjUsesRealtimeHeartbeatInsteadOfLinearLogProjection(): void
+    public function testAiDjRunsFromActualOnAirItemsNotProjectedLinearLog(): void
     {
-        $listener = file_get_contents(
-            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/AiDjQueueListener.php'
+        $wrapper = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php'
         );
         $task = file_get_contents(
-            dirname(__DIR__, 2) . '/backend/src/Sync/Task/AiDjRealtimeTask.php'
+            dirname(__DIR__, 2) . '/backend/src/Sync/NowPlaying/Task/BuildQueueTask.php'
         );
-        $events = file_get_contents(
-            dirname(__DIR__, 2) . '/backend/config/events.php'
-        );
+        $events = file_get_contents(dirname(__DIR__, 2) . '/backend/config/events.php');
 
-        self::assertIsString($listener);
+        self::assertIsString($wrapper);
         self::assertIsString($task);
         self::assertIsString($events);
-        self::assertStringContainsString('REALTIME_EVENT_MAX_LEAD_SECONDS = 30', $listener);
-        self::assertStringContainsString('long-range queue planning event', $listener);
-        self::assertStringContainsString('return self::SCHEDULE_EVERY_MINUTE;', $task);
-        self::assertStringContainsString('new BuildQueue($station, $now, $now)', $task);
-        self::assertStringContainsString('App\\Sync\\Task\\AiDjRealtimeTask::class', $events);
+        self::assertStringContainsString("'ai_dj_realtime_item_'", $wrapper);
+        self::assertStringContainsString('$current->timestamp_start->getTimestamp()', $wrapper);
+        self::assertStringContainsString('new BuildQueue($station, $now, $now, $current->song_id, false)', $wrapper);
+        self::assertStringContainsString('$this->aiDjRealtimeQueueListener->run($station);', $task);
+        self::assertStringNotContainsString('App\\Radio\\AutoDJ\\AiDjQueueListener::class,', $events);
     }
 }
 '''
@@ -1146,29 +1269,29 @@ use PHPUnit\Framework\TestCase;
 
 final class TopOfHourFeedbackTest extends TestCase
 {
-    public function testDedicatedTohTrackStartForcesHistoryFeedbackExactlyOnce(): void
+    public function testActualTohTrackStartCreatesIdempotentHistoryFeedback(): void
     {
-        $liq = file_get_contents(
-            dirname(__DIR__, 2) . '/util/docker/stations/liquidsoap/azuracast.liq'
-        );
         $writer = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php'
         );
         $feedback = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php'
         );
+        $liq = file_get_contents(
+            dirname(__DIR__, 2) . '/util/docker/stations/liquidsoap/azuracast.liq'
+        );
 
-        self::assertIsString($liq);
         self::assertIsString($writer);
         self::assertIsString($feedback);
-        self::assertStringContainsString('def azuracast.send_feedback_force(m) =', $liq);
-        self::assertStringContainsString('"azuracast_top_of_hour_id"', $liq);
+        self::assertIsString($liq);
+        self::assertStringContainsString('def top_of_hour_send_feedback(metadata) =', $writer);
         self::assertStringContainsString(
-            'source.methods(top_of_hour_queue).on_track(synchronous=false, azuracast.send_feedback_force)',
+            'source.methods(top_of_hour_queue).on_track(synchronous=false, top_of_hour_send_feedback)',
             $writer,
         );
         self::assertStringContainsString('isDuplicateTopOfHourFeedback(', $feedback);
         self::assertStringContainsString('sq.top_of_hour_legal_id = 1', $feedback);
+        self::assertStringContainsString('"azuracast_top_of_hour_id"', $liq);
     }
 }
 '''
@@ -1186,13 +1309,14 @@ use PHPUnit\Framework\TestCase;
 
 final class QueueTimelineOrderTest extends TestCase
 {
-    public function testUpcomingQueueReportOverridesRuntimePriorityWithChronologicalOrder(): void
+    public function testUpcomingQueueOverridesRuntimePriorityWithChronologicalDisplayOrder(): void
     {
         $source = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Controller/Api/Stations/QueueController.php'
         );
         self::assertIsString($source);
 
+        self::assertStringContainsString("->resetDQLPart('orderBy')", $source);
         self::assertStringContainsString("->orderBy('sq.timestamp_played', 'ASC')", $source);
         self::assertStringContainsString("->addOrderBy('sq.timestamp_cued', 'ASC')", $source);
         self::assertStringContainsString("->addOrderBy('sq.id', 'ASC')", $source);
@@ -1201,9 +1325,11 @@ final class QueueTimelineOrderTest extends TestCase
 '''
 )
 
-# Strengthen the existing hold and strict-start source contracts.
-replace_once(
-    "tests/Unit/TopOfHourPreBoundaryHoldTest.php",
+# Strengthen two existing PR96 tests instead of adding overlapping replacements.
+hold_test_path = "tests/Unit/TopOfHourPreBoundaryHoldTest.php"
+hold_test = git_show(hold_test_path)
+hold_test = replace_once(
+    hold_test,
     "        self::assertStringContainsString('seconds_in_hour <= {$postBoundaryHoldSeconds}', $source);\n"
     "        self::assertStringContainsString('track_sensitive=true,', $source);",
     "        self::assertStringContainsString('seconds_in_hour <= {$postBoundaryHoldSeconds}', $source);\n"
@@ -1211,17 +1337,23 @@ replace_once(
     "        self::assertStringContainsString('top_of_hour_queue.length() > 0', $source);\n"
     "        self::assertStringContainsString('top_of_hour_queue.is_ready()', $source);\n"
     "        self::assertStringContainsString('track_sensitive=true,', $source);",
+    "TOH hold regression test",
 )
-replace_once(
-    "tests/Unit/StrictStartGraceTest.php",
+write(hold_test_path, hold_test)
+
+strict_test_path = "tests/Unit/StrictStartGraceTest.php"
+strict_test = git_show(strict_test_path)
+strict_test = replace_once(
+    strict_test,
     "        self::assertStringContainsString('sq.is_played = 1', $repository);\n"
     "        self::assertStringContainsString('sq.timestamp_played >= :since', $repository);",
     "        self::assertStringContainsString('sq.is_played = 1', $repository);\n"
     "        self::assertStringContainsString('sq.sent_to_autodj = 1', $repository);\n"
     "        self::assertStringContainsString('sq.timestamp_played >= :since', $repository);",
+    "strict-start repository regression test",
 )
-replace_once(
-    "tests/Unit/StrictStartGraceTest.php",
+strict_test = replace_once(
+    strict_test,
     "        self::assertStringContainsString(\n"
     "            'SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS',\n"
     "            $task,\n"
@@ -1230,10 +1362,14 @@ replace_once(
     "            'SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS',\n"
     "            $task,\n"
     "        );\n"
-    "        self::assertStringContainsString('$sq->sent_to_autodj = true;', $task);",
+    "        self::assertStringContainsString('$sq->sent_to_autodj = false;', $task);\n"
+    "        self::assertStringContainsString('$sq->sent_to_autodj = true;', $task);\n"
+    "        self::assertStringContainsString('discardUndeliveredInterruptingRow', $task);",
+    "strict-start delivery regression test",
 )
+write(strict_test_path, strict_test)
 
-# Remove temporary patch machinery from the resulting production commit.
+# The final production commit must not contain temporary patch/workflow machinery.
 for temporary in [
     ROOT / ".github/scripts/apply_toh_rescue.py",
     ROOT / ".github/workflows/apply_toh_rescue.yml",
