@@ -246,6 +246,27 @@
                         </form-group>
                     </template>
 
+                    <hr class="my-4">
+
+                    <h3 class="h6">
+                        {{ $gettext('Test Station ID') }}
+                    </h3>
+                    <p class="text-secondary small mb-3">
+                        {{
+                            $gettext(
+                                'Immediately plays a Station ID through the dedicated top-of-hour queue for testing. This does not change the station clock or satisfy the next real top-of-hour boundary.'
+                            )
+                        }}
+                    </p>
+                    <button
+                        type="button"
+                        class="btn btn-warning mb-3"
+                        :disabled="isLoading || isSaving || isTesting || legalIdMediaCount < 1"
+                        @click="runTestNow"
+                    >
+                        {{ isTesting ? $gettext('Queuing Test...') : $gettext('Play Station ID Now') }}
+                    </button>
+
                     <p class="text-secondary mb-3">
                         {{
                             $gettext(
@@ -315,7 +336,7 @@
                 <button
                     type="submit"
                     class="btn btn-primary"
-                    :disabled="isLoading || isSaving"
+                    :disabled="isLoading || isSaving || isTesting"
                 >
                     {{ $gettext('Save Changes') }}
                 </button>
@@ -370,6 +391,7 @@ const apiUrl = getStationApiUrl('/top-of-hour');
 
 const isLoading = ref(true);
 const isSaving = ref(false);
+const isTesting = ref(false);
 const legalIdMediaCount = ref(0);
 const compliance = ref<TopOfHourCompliance | null>(null);
 
@@ -423,6 +445,18 @@ const saveChanges = async () => {
         notifyError();
     } finally {
         isSaving.value = false;
+    }
+};
+
+const runTestNow = async () => {
+    isTesting.value = true;
+    try {
+        await axios.put(apiUrl.value, {test_now: true});
+        notifySuccess();
+    } catch {
+        notifyError();
+    } finally {
+        isTesting.value = false;
     }
 };
 
