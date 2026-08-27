@@ -1,0 +1,78 @@
+name: Apply TOH Rescue
+
+on:
+  push:
+    branches:
+      - fix/toh-smart-backtiming-rescue
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out rescue branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/toh-smart-backtiming-rescue
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Apply rescue changes
+        run: python3 .github/scripts/apply_toh_rescue.py
+
+      - name: PHP syntax checks
+        run: |
+          php -l backend/src/Radio/AutoDJ/TopOfHourSequencePlanner.php
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
+          php -l backend/src/Sync/Task/AiDjRealtimeTask.php
+          php -l backend/src/Controller/Api/Stations/QueueController.php
+          php -l backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          php -l backend/src/Entity/Repository/StationQueueRepository.php
+          php -l backend/src/Sync/Task/QueueInterruptingTracks.php
+          php -l backend/config/events.php
+          php -l tests/Unit/TopOfHourSmartBacktimingTest.php
+          php -l tests/Unit/TopOfHourSequencePlannerTest.php
+          php -l tests/Unit/AiDjRealtimeTaskTest.php
+          php -l tests/Unit/TopOfHourFeedbackTest.php
+          php -l tests/Unit/QueueTimelineOrderTest.php
+          php -l tests/Unit/TopOfHourPreBoundaryHoldTest.php
+          php -l tests/Unit/StrictStartGraceTest.php
+
+      - name: Planner regression smoke test
+        run: |
+          php -r '
+          require "backend/src/Radio/AutoDJ/ClockWheel/ClockWheelStretchCalculator.php";
+          require "backend/src/Radio/AutoDJ/TopOfHourSequencePlanner.php";
+          $p = new App\Radio\AutoDJ\TopOfHourSequencePlanner(new App\Radio\AutoDJ\ClockWheel\ClockWheelStretchCalculator());
+          $r = $p->rankFirstCandidates([
+            ["key" => 1, "length" => 333.0, "order" => 0],
+            ["key" => 2, "length" => 205.0, "order" => 1],
+            ["key" => 3, "length" => 185.0, "order" => 2],
+          ], 390.0, 2.0);
+          if (!$r || $r[0]["key"] !== 2) { fwrite(STDERR, "orphan-gap regression failed\n"); exit(1); }
+          $impossible = $p->rankFirstCandidates([
+            ["key" => 1, "length" => 180.0],
+            ["key" => 2, "length" => 240.0],
+          ], 57.0, 2.0);
+          if ($impossible !== []) { fwrite(STDERR, "impossible-slot regression failed\n"); exit(1); }
+          '
+
+      - name: Diff validation
+        run: git diff --check
+
+      - name: Commit rescue implementation
+        run: |
+          git config user.name "Eternity Ready, LLC."
+          git config user.email "73216191+eternityready2@users.noreply.github.com"
+          git add -A
+          git commit -m "Harden TOH backtiming, history, queue order, and AI DJ"
+          git push origin HEAD:fix/toh-smart-backtiming-rescue
