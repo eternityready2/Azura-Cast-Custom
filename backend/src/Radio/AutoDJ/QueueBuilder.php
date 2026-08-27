@@ -43,6 +43,12 @@ final class QueueBuilder implements EventSubscriberInterface
     use LoggerAwareTrait;
     use EntityManagerAwareTrait;
 
+    /** Re-rank normal music by exact boundary fit during the final six minutes. */
+    private const int TOH_PRECISION_BACKTIME_SECONDS = 360;
+
+    /** Below this point the Liquidsoap pre-boundary hold owns the handoff. */
+    private const int TOH_MIN_TIMED_TRACK_SECONDS = 15;
+
     public function __construct(
         private readonly Scheduler $scheduler,
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
@@ -501,8 +507,28 @@ final class QueueBuilder implements EventSubscriberInterface
             $playlist->name
         ));
 
+        if (!$this->requestCanFitTopOfHourBoundary(
+            $playlist->station,
+            $request->track,
+            $expectedPlayTime,
+        )) {
+            $this->logger->info(
+                'Request playlist item deferred because it cannot fit the approaching top-of-hour boundary.',
+                [
+                    'request_id' => $request->id,
+                    'media_id' => $request->track->id,
+                ]
+            );
+            return null;
+        }
+
         $stationQueueEntry = StationQueue::fromRequest($request);
         $stationQueueEntry->playlist = $playlist;
+        $this->applyTopOfHourTimingToQueueEntry(
+            $stationQueueEntry,
+            $request->track,
+            $expectedPlayTime,
+        );
 
         if (!$deferQueuePersistence) {
             $this->em->persist($stationQueueEntry);
@@ -563,31 +589,22 @@ final class QueueBuilder implements EventSubscriberInterface
             $stationQueueEntry->duration = (float)$maxPlaySeconds;
         }
 
-        $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
+        $topOfHourMaxDuration = $this->hourBoundaryPlanner->secondsAvailableForMusicBeforeTopOfHour(
             $playlist->station,
             $expectedPlayTime,
         );
 
-        if (null !== $topOfHourMaxDuration && $mediaToPlay->getCalculatedLength() > $topOfHourMaxDuration) {
-            $cappedSeconds = (int)floor($topOfHourMaxDuration);
+        // Scheduled programming remains the tighter hard boundary when it arrives
+        // before the station-wide TOH music handoff.
+        $topOfHourOwnsBoundary = null !== $topOfHourMaxDuration
+            && ($maxDuration === null || $topOfHourMaxDuration <= $maxDuration);
 
-            $fadeOutSeconds = min(
-                $playlist->station->backend_config->getCrossfadeDuration(),
-                (float)$cappedSeconds
+        if ($topOfHourOwnsBoundary) {
+            $this->applyTopOfHourTimingToQueueEntry(
+                $stationQueueEntry,
+                $mediaToPlay,
+                $expectedPlayTime,
             );
-
-            $stationQueueEntry->top_of_hour_pre_id_fade = true;
-            $stationQueueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
-            $stationQueueEntry->duration = (float)$cappedSeconds;
-        } elseif (null !== $topOfHourMaxDuration) {
-            $stretchRatio = $this->stretchCalculator->calculate(
-                $mediaToPlay->getCalculatedLength(),
-                (int)round($topOfHourMaxDuration),
-            );
-
-            if (null !== $stretchRatio) {
-                $stationQueueEntry->clock_wheel_stretch_ratio = $stretchRatio;
-            }
         }
 
         if (!$deferQueuePersistence) {
@@ -673,22 +690,47 @@ final class QueueBuilder implements EventSubscriberInterface
         DateTimeImmutable $expectedPlayTime,
         bool $allowDuplicates,
     ): ?StationPlaylistQueue {
-        $maxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
+        $availableSeconds = $this->hourBoundaryPlanner->secondsAvailableForMusicBeforeTopOfHour(
             $playlist->station,
             $expectedPlayTime,
         );
 
-        if (null === $maxDuration) {
+        if (null === $availableSeconds) {
             return $selectedTrack;
         }
 
-        $media = $this->em->find(StationMedia::class, $selectedTrack->media_id);
-        if ($media instanceof StationMedia && $media->getCalculatedLength() <= $maxDuration) {
+        // Once the usable music window is effectively gone, keep the already
+        // prefetched row intact for after the TOH chain. Liquidsoap's boundary
+        // hold prevents it from starting before the ID; do not manufacture a
+        // 5-10 second cue-out track just to fill the remaining sliver.
+        if ($availableSeconds < self::TOH_MIN_TIMED_TRACK_SECONDS) {
             return $selectedTrack;
         }
 
-        $mediaQueue = $this->spmRepo->getQueue($playlist);
-        $fitting = [];
+        $targetSeconds = (int)round($availableSeconds);
+        $selectedMedia = $this->em->find(StationMedia::class, $selectedTrack->media_id);
+        $precisionBacktime = $availableSeconds <= self::TOH_PRECISION_BACKTIME_SECONDS;
+
+        if (!$precisionBacktime && $selectedMedia instanceof StationMedia) {
+            $selectedLength = $selectedMedia->getCalculatedLength();
+            if (
+                $selectedLength <= $availableSeconds
+                || null !== $this->stretchCalculator->calculate($selectedLength, $targetSeconds)
+            ) {
+                return $selectedTrack;
+            }
+        }
+
+        // Reuse the same playability and rotation-goal filters used by normal
+        // playlist selection. The older TOH fallback scanned the raw queue and
+        // could choose a track that normal AutoDJ would have rejected.
+        $mediaQueue = $this->preparePlaylistQueue(
+            $playlist,
+            $this->spmRepo->getQueue($playlist),
+            $expectedPlayTime,
+        );
+        $candidates = [];
+        $byLength = [];
 
         foreach ($mediaQueue as $queueItem) {
             $candidate = $this->em->find(StationMedia::class, $queueItem->media_id);
@@ -696,79 +738,182 @@ final class QueueBuilder implements EventSubscriberInterface
                 continue;
             }
 
-            if ($candidate->getCalculatedLength() <= $maxDuration) {
-                $fitting[] = $queueItem;
+            $length = $candidate->getCalculatedLength();
+            $ratio = $this->stretchCalculator->calculate($length, $targetSeconds);
+            $byLength[] = [$queueItem, $length];
+
+            if ($length <= $availableSeconds || null !== $ratio) {
+                $candidates[] = [
+                    'queue' => $queueItem,
+                    'length' => $length,
+                    'ratio' => $ratio,
+                ];
             }
         }
 
-        if ($fitting !== []) {
+        if ($candidates !== []) {
             usort(
-                $fitting,
-                function (StationPlaylistQueue $a, StationPlaylistQueue $b) use ($maxDuration): int {
-                    $mediaA = $this->em->find(StationMedia::class, $a->media_id);
-                    $mediaB = $this->em->find(StationMedia::class, $b->media_id);
-                    $lenA = $mediaA instanceof StationMedia ? $mediaA->getCalculatedLength() : 0.0;
-                    $lenB = $mediaB instanceof StationMedia ? $mediaB->getCalculatedLength() : 0.0;
-                    return $lenB <=> $lenA;
+                $candidates,
+                static function (array $a, array $b) use ($availableSeconds): int {
+                    $aExact = null !== $a['ratio'];
+                    $bExact = null !== $b['ratio'];
+
+                    if ($aExact !== $bExact) {
+                        return $aExact ? -1 : 1;
+                    }
+
+                    if ($aExact) {
+                        $aStretch = abs(1.0 - (float)$a['ratio']);
+                        $bStretch = abs(1.0 - (float)$b['ratio']);
+                        $stretchOrder = $aStretch <=> $bStretch;
+                        if (0 !== $stretchOrder) {
+                            return $stretchOrder;
+                        }
+                    }
+
+                    $aGap = max(0.0, $availableSeconds - (float)$a['length']);
+                    $bGap = max(0.0, $availableSeconds - (float)$b['length']);
+                    return $aGap <=> $bGap;
                 }
+            );
+
+            $ordered = array_map(
+                static fn(array $row): StationPlaylistQueue => $row['queue'],
+                $candidates,
             );
 
             if ($playlist->avoid_duplicates) {
                 $duplicateSafe = $this->duplicatePrevention->preventDuplicates(
-                    $fitting,
+                    $ordered,
                     $recentSongHistory,
-                    $allowDuplicates
+                    $allowDuplicates,
                 );
                 if (null !== $duplicateSafe) {
+                    $this->logger->info('Hour boundary: precision-backtimed a duplicate-safe music track.', [
+                        'playlist_id' => $playlist->id,
+                        'target_seconds' => $availableSeconds,
+                        'media_id' => $duplicateSafe->media_id,
+                    ]);
                     return $duplicateSafe;
                 }
+            } else {
+                $chosen = $ordered[0];
+                $this->logger->info('Hour boundary: precision-backtimed music to the TOH handoff.', [
+                    'playlist_id' => $playlist->id,
+                    'target_seconds' => $availableSeconds,
+                    'media_id' => $chosen->media_id,
+                ]);
+                return $chosen;
             }
-
-            return $fitting[0];
         }
 
-        if (!$media instanceof StationMedia) {
+        if (!$selectedMedia instanceof StationMedia) {
             return $selectedTrack;
         }
 
-        $this->logger->warning(
-            'Hour boundary: NO track fits before top of hour (check finish buffer / ID max seconds vs shortest track length). Falling back to shortest non-recent track.',
-            [
-                'playlist_id' => $playlist->id,
-                'max_duration_seconds' => $maxDuration,
-            ]
-        );
-
-        $byLength = [];
-        foreach ($mediaQueue as $queueItem) {
-            $candidate = $this->em->find(StationMedia::class, $queueItem->media_id);
-            if (!$candidate instanceof StationMedia) {
-                continue;
-            }
-            $byLength[] = [$queueItem, $candidate->getCalculatedLength()];
-        }
+        // No candidate can naturally fit or reach the boundary inside the safe
+        // +/-5% stretch window. Pick the shortest duplicate-safe option; the
+        // annotation layer may then use cue-out/fade as the final safety net.
         usort($byLength, static fn(array $a, array $b): int => $a[1] <=> $b[1]);
 
         if ($byLength !== []) {
             $shortestFew = array_map(
                 static fn(array $row): StationPlaylistQueue => $row[0],
-                array_slice($byLength, 0, 5)
+                array_slice($byLength, 0, 5),
             );
             $nonRepeat = $this->duplicatePrevention->preventDuplicates(
                 $shortestFew,
                 $recentSongHistory,
-                false
+                false,
             );
             if (null !== $nonRepeat) {
                 return $nonRepeat;
             }
 
-            if ($byLength[0][1] < $media->getCalculatedLength()) {
+            if ($byLength[0][1] < $selectedMedia->getCalculatedLength()) {
                 return $byLength[0][0];
             }
         }
 
+        $this->logger->warning(
+            'Hour boundary: no natural or stretchable fit exists; retaining selected track for safety fallback.',
+            [
+                'playlist_id' => $playlist->id,
+                'target_seconds' => $availableSeconds,
+            ]
+        );
+
         return $selectedTrack;
+    }
+
+    private function requestCanFitTopOfHourBoundary(
+        Station $station,
+        StationMedia $media,
+        DateTimeImmutable $expectedPlayTime,
+    ): bool {
+        $availableSeconds = $this->hourBoundaryPlanner->secondsAvailableForMusicBeforeTopOfHour(
+            $station,
+            $expectedPlayTime,
+        );
+
+        if (null === $availableSeconds || $availableSeconds < self::TOH_MIN_TIMED_TRACK_SECONDS) {
+            return true;
+        }
+
+        $length = $media->getCalculatedLength();
+        return $length <= $availableSeconds
+            || null !== $this->stretchCalculator->calculate(
+                $length,
+                (int)round($availableSeconds),
+            );
+    }
+
+    private function applyTopOfHourTimingToQueueEntry(
+        StationQueue $queueEntry,
+        StationMedia $media,
+        DateTimeImmutable $expectedPlayTime,
+    ): void {
+        $availableSeconds = $this->hourBoundaryPlanner->secondsAvailableForMusicBeforeTopOfHour(
+            $queueEntry->station,
+            $expectedPlayTime,
+        );
+
+        if (null === $availableSeconds || $availableSeconds < self::TOH_MIN_TIMED_TRACK_SECONDS) {
+            return;
+        }
+
+        $targetSeconds = (int)round($availableSeconds);
+        $mediaLength = $media->getCalculatedLength();
+
+        // Prefer the already-existing pitch-preserving +/-5% stretch/squeeze
+        // engine before ever shortening a record with cue_out/fade.
+        $stretchRatio = $this->stretchCalculator->calculate($mediaLength, $targetSeconds);
+        if (null !== $stretchRatio) {
+            $queueEntry->clock_wheel_stretch_ratio = $stretchRatio;
+            $queueEntry->top_of_hour_pre_id_fade = false;
+            $queueEntry->top_of_hour_pre_id_fade_seconds = null;
+            return;
+        }
+
+        if ($mediaLength <= $availableSeconds) {
+            return;
+        }
+
+        $cappedSeconds = (int)floor($availableSeconds);
+        if ($cappedSeconds < 1) {
+            return;
+        }
+
+        $fadeOutSeconds = min(
+            $queueEntry->station->backend_config->getCrossfadeDuration(),
+            (float)$cappedSeconds,
+        );
+
+        $queueEntry->hour_boundary_enforce_cap = true;
+        $queueEntry->hour_boundary_max_play_seconds = $cappedSeconds;
+        $queueEntry->top_of_hour_pre_id_fade = true;
+        $queueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
+        $queueEntry->duration = (float)$cappedSeconds;
     }
 
     private function filterQueueByRotationGoal(StationPlaylist $playlist, array $mediaQueue): array
@@ -1167,9 +1312,29 @@ final class QueueBuilder implements EventSubscriberInterface
             }
         }
 
+        if (!$this->requestCanFitTopOfHourBoundary(
+            $station,
+            $request->track,
+            $expectedPlayTime,
+        )) {
+            $this->logger->info(
+                'Listener request deferred because it cannot fit the approaching top-of-hour boundary.',
+                [
+                    'request_id' => $request->id,
+                    'media_id' => $request->track->id,
+                ]
+            );
+            return;
+        }
+
         $this->logger->debug(sprintf('Queueing next song from request ID %d.', $request->id));
 
         $stationQueueEntry = StationQueue::fromRequest($request);
+        $this->applyTopOfHourTimingToQueueEntry(
+            $stationQueueEntry,
+            $request->track,
+            $expectedPlayTime,
+        );
         $this->em->persist($stationQueueEntry);
 
         $request->played_at = $expectedPlayTime;

@@ -262,14 +262,16 @@ final class HourBoundaryPlanner
     }
 
     /**
-     * Maximum music duration before the late-hour protection reserve begins.
-     * Returns null outside the lookahead window or once the reserve is open.
+     * Real music time remaining before the late-hour TOH handoff begins.
+     * Returns null outside the configured lookahead and zero once the reserve
+     * is open. Queue selection uses this full value for precision backtiming;
+     * the legacy cap helper below still suppresses unusably short cue-out caps.
      *
      * The full :58/:59 ID planning window is intentionally not used here: doing
      * so caused ordinary music to be shortened at :58 even when the next hour
      * had no scheduled content. Runtime TOH ownership still uses the wider window.
      */
-    public function maxMusicDurationBeforeTopOfHour(
+    public function secondsAvailableForMusicBeforeTopOfHour(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
     ): ?float {
@@ -281,13 +283,27 @@ final class HourBoundaryPlanner
             $expectedPlayTime,
             $station->getTimezoneObject(),
         );
-        $maxDuration = (float)($secondsUntil - $this->getMusicProtectionLeadSeconds($station));
 
-        if ($maxDuration < self::MIN_USABLE_CAP_SECONDS) {
+        return max(
+            0.0,
+            (float)($secondsUntil - $this->getMusicProtectionLeadSeconds($station)),
+        );
+    }
+
+    public function maxMusicDurationBeforeTopOfHour(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): ?float {
+        $availableSeconds = $this->secondsAvailableForMusicBeforeTopOfHour(
+            $station,
+            $expectedPlayTime,
+        );
+
+        if (null === $availableSeconds || $availableSeconds < self::MIN_USABLE_CAP_SECONDS) {
             return null;
         }
 
-        return $maxDuration;
+        return $availableSeconds;
     }
 
     public function isTopOfHourIdDue(

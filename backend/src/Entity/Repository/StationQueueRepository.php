@@ -425,6 +425,24 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->getOneOrNullResult();
     }
 
+    public function hasPlayedPlaylistSince(
+        StationPlaylist $playlist,
+        DateTimeImmutable $since,
+    ): bool {
+        $row = $this->getBaseQuery($playlist->station)
+            ->select('sq.id')
+            ->andWhere('sq.playlist = :playlist')
+            ->andWhere('sq.is_played = 1')
+            ->andWhere('sq.timestamp_played >= :since')
+            ->setParameter('playlist', $playlist)
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->setMaxResults(1)
+            ->getOneOrNullResult();
+
+        return null !== $row;
+    }
+
     public function hasCuedPlaylistMedia(StationPlaylist $playlist): bool
     {
         $station = $playlist->station;

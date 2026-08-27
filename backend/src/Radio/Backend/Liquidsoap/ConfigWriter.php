@@ -874,7 +874,7 @@ LIQ;
             # Clock Wheel stretch/squeeze: pitch-preserving time-stretch, ratio computed
             # in PHP (safe +/-5%), passed through the 'liq_stretch_ratio' request annotation.
             clock_wheel_stretch_ratio = ref(1.0)
-            source.methods(radio).on_track(synchronous=false, fun (m) -> begin
+            source.methods(radio).on_track(synchronous=true, fun (m) -> begin
               clock_wheel_stretch_ratio := float_of_string(default=1.0, m["liq_stretch_ratio"])
             end)
             radio = stretch(ratio={clock_wheel_stretch_ratio()}, radio)

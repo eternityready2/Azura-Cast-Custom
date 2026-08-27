@@ -23,6 +23,8 @@ use RuntimeException;
 
 final class QueueInterruptingTracks extends AbstractTask
 {
+    private const int SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS;
+
     public function __construct(
         private readonly Queue $queue,
         private readonly Adapters $adapters,
@@ -341,7 +343,10 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        if (null === $secondsToScheduled || $secondsToScheduled > 90) {
+        if (
+            null === $secondsToScheduled
+            || $secondsToScheduled > self::SCHEDULED_START_GRACE_SECONDS
+        ) {
             return;
         }
 
@@ -356,18 +361,18 @@ final class QueueInterruptingTracks extends AbstractTask
             ->getTimestamp();
         $scheduledBoundaryAt = $now->getTimestamp() + $secondsToScheduled;
 
-        if ($currentSongEndsAt <= $scheduledBoundaryAt + 60) {
+        if ($currentSongEndsAt <= $scheduledBoundaryAt + self::SCHEDULED_START_GRACE_SECONDS) {
             return;
         }
 
         $this->logger->warning(
-            'Scheduled boundary at risk: current item projects beyond the 60-second grace window; no hard skip will be issued.',
+            'Scheduled boundary at risk: current item projects beyond the strict-start catch-up window; no hard skip will be issued.',
             [
                 'current_song' => $currentSong->title,
                 'seconds_to_scheduled' => $secondsToScheduled,
                 'current_song_would_end_at' => $currentSongEndsAt,
                 'scheduled_boundary_at' => $scheduledBoundaryAt,
-                'maximum_grace_seconds' => 60,
+                'maximum_grace_seconds' => self::SCHEDULED_START_GRACE_SECONDS,
             ]
         );
     }
