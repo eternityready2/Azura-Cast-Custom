@@ -7,13 +7,22 @@ namespace App\Controller\Api\Stations\TopOfHour;
 use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Entity\Api\Status;
+use App\Entity\Enums\StationMediaTypes;
+use App\Entity\Station;
+use App\Entity\StationMedia;
+use App\Event\Radio\AnnotateNextSong;
 use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
+use App\Radio\Adapters;
 use App\Radio\AutoDJ\HourBoundaryPlanner;
+use App\Radio\Backend\Liquidsoap;
+use App\Radio\Enums\LiquidsoapQueues;
 use OpenApi\Attributes as OA;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
+use RuntimeException;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -56,6 +65,8 @@ final class PutAction implements SingleActionInterface
 
     public function __construct(
         private readonly ValidatorInterface $validator,
+        private readonly Adapters $adapters,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
@@ -65,8 +76,12 @@ final class PutAction implements SingleActionInterface
         array $params
     ): ResponseInterface {
         $body = (array) $request->getParsedBody();
-
         $station = $this->em->refetch($request->getStation());
+
+        if (!empty($body['test_now'])) {
+            return $this->playTestIdNow($station, $response);
+        }
+
         $backendConfig = $station->backend_config;
 
         foreach (self::VALID_FIELDS as $field) {
@@ -82,6 +97,61 @@ final class PutAction implements SingleActionInterface
         $this->em->flush();
 
         return $response->withJson(Status::updated());
+    }
+
+    private function playTestIdNow(Station $station, Response $response): ResponseInterface
+    {
+        if (!$station->supportsAutoDjQueue()) {
+            throw new RuntimeException('This station does not support the AutoDJ queue.');
+        }
+
+        $backend = $this->adapters->getBackendAdapter($station);
+        if (!$backend instanceof Liquidsoap) {
+            throw new RuntimeException('Immediate station ID testing requires Liquidsoap AutoDJ.');
+        }
+
+        if (!$backend->isQueueEmpty($station, LiquidsoapQueues::TopOfHour)) {
+            throw new RuntimeException('The top-of-hour queue is already active. Try the test again after it clears.');
+        }
+
+        $media = $this->em->createQuery(
+            <<<'DQL'
+                SELECT m FROM App\Entity\StationMedia m
+                WHERE m.storage_location = :storageLocation
+                AND m.type IN (:types)
+                ORDER BY m.id ASC
+            DQL
+        )->setParameters([
+            'storageLocation' => $station->media_storage_location,
+            'types' => StationMediaTypes::stationIdTypeValues(),
+        ])->setMaxResults(1)->getOneOrNullResult();
+
+        if (!$media instanceof StationMedia) {
+            throw new RuntimeException('No Station ID media is available to test.');
+        }
+
+        $event = AnnotateNextSong::fromStationMedia($station, $media, true);
+        $this->eventDispatcher->dispatch($event);
+        $track = $event->buildAnnotations();
+
+        $enqueueResponse = $backend->enqueue(
+            $station,
+            LiquidsoapQueues::TopOfHour,
+            $track,
+        );
+        $requestId = trim((string)($enqueueResponse[0] ?? ''));
+
+        if ($requestId === '' || !ctype_digit($requestId)) {
+            throw new RuntimeException('Liquidsoap did not accept the Station ID test request.');
+        }
+
+        return $response->withJson([
+            'success' => true,
+            'message' => 'Station ID test queued for immediate playback.',
+            'request_id' => (int)$requestId,
+            'media_id' => $media->id,
+            'title' => $media->title,
+        ]);
     }
 
     private function validateRanges(object $backendConfig): void
