@@ -41,22 +41,8 @@ jobs:
           from pathlib import Path
           path = Path('backend/src/Radio/AutoDJ/QueueBuilder.php')
           source = path.read_text()
-          old = '''        if (!$this->applyTopOfHourTimingToQueueEntry(
-            $stationQueueEntry,
-            $request->track,
-            $expectedPlayTime,
-        )) {
-            return null;
-        }
-        $this->em->persist($stationQueueEntry);'''
-          new = '''        if (!$this->applyTopOfHourTimingToQueueEntry(
-            $stationQueueEntry,
-            $request->track,
-            $expectedPlayTime,
-        )) {
-            return;
-        }
-        $this->em->persist($stationQueueEntry);'''
+          old = "        )) {\n            return null;\n        }\n        $this->em->persist($stationQueueEntry);"
+          new = "        )) {\n            return;\n        }\n        $this->em->persist($stationQueueEntry);"
           if old not in source:
               raise SystemExit('request listener return block not found')
           path.write_text(source.replace(old, new, 1))
