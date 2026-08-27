@@ -7,32 +7,42 @@ namespace App\Radio\AutoDJ;
 use App\Entity\Station;
 use App\Event\Radio\BuildQueue;
 use App\Utilities\Time;
+use Psr\SimpleCache\CacheInterface;
 
 /**
- * Runs AI DJ decisions against real airtime instead of a deep queue projection.
- *
- * AI DJ clips are live Liquidsoap inserts. They must be decided by the realtime
- * Now Playing worker, not while a 24-hour linear log or long AutoDJ queue is
- * being projected. This keeps talk cadence independent from queue depth.
+ * Runs one AI DJ decision per actual on-air item, using real wall-clock time.
  */
 final class AiDjRealtimeQueueListener
 {
+    private const int SEEN_ITEM_TTL_SECONDS = 21600;
+
     public function __construct(
         private readonly AiDjQueueListener $delegate,
+        private readonly CacheInterface $cache,
     ) {
     }
 
     public function run(Station $station): void
     {
-        $now = Time::nowUtc()->toDateTimeImmutable();
-        $liveEvent = new BuildQueue(
-            $station,
-            $now,
-            $now,
-            null,
-            false,
-        );
+        $current = $station->current_song;
+        if (null === $current || null === $current->timestamp_start) {
+            return;
+        }
 
-        $this->delegate->onBuildQueue($liveEvent);
+        $fingerprint = $current->song_id . ':' . $current->timestamp_start->getTimestamp();
+        $cacheKey = 'ai_dj_realtime_item_' . $station->id;
+
+        if ($this->cache->get($cacheKey) === $fingerprint) {
+            return;
+        }
+
+        // Claim this item before generation so parallel Now Playing workers cannot
+        // roll talk_frequency twice for the same song/program/liner.
+        $this->cache->set($cacheKey, $fingerprint, self::SEEN_ITEM_TTL_SECONDS);
+
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $this->delegate->onBuildQueue(
+            new BuildQueue($station, $now, $now, $current->song_id, false)
+        );
     }
 }

@@ -58,15 +58,11 @@ final class FeedbackCommand extends AbstractCommand
             $payload
         );
 
-        $historyRow = $this->getSongHistory($station, $payload);
-        if (!$historyRow instanceof SongHistory) {
-            // Liquidsoap can legitimately report the same track through more
-            // than one wrapper (for example the dedicated TOH queue and the
-            // final radio source). Treat duplicate feedback as idempotent
-            // success instead of emitting an error and duplicating history.
+        if ($this->isDuplicateTopOfHourFeedback($station, $payload)) {
             return true;
         }
 
+        $historyRow = $this->getSongHistory($station, $payload);
         $this->em->persist($historyRow);
 
         $this->historyRepo->changeCurrentSong($station, $historyRow);
@@ -79,7 +75,7 @@ final class FeedbackCommand extends AbstractCommand
     private function getSongHistory(
         Station $station,
         array $payload
-    ): ?SongHistory {
+    ): SongHistory {
         if (empty($payload['media_id'])) {
             if (empty($payload['artist']) && empty($payload['title'])) {
                 throw new RuntimeException('No payload provided.');
@@ -91,7 +87,7 @@ final class FeedbackCommand extends AbstractCommand
             ]);
 
             if (!$this->historyRepo->isDifferentFromCurrentSong($station, $newSong)) {
-                return null;
+                throw new RuntimeException('Song is not different from current song.');
             }
 
             return new SongHistory($station, $newSong);
@@ -104,13 +100,15 @@ final class FeedbackCommand extends AbstractCommand
 
         $isTopOfHourFallback = !empty($payload['azuracast_top_of_hour_fallback']);
         $isTopOfHourId = !empty($payload['azuracast_top_of_hour_id']);
-        $isDifferent = $this->historyRepo->isDifferentFromCurrentSong($station, $media);
 
-        // A dedicated TOH track has its own on-track feedback callback in
-        // addition to the normal final-radio metadata callback. If the first
-        // callback already committed this ID, the second one is a no-op.
-        if (empty($payload['sq_id']) && !$isDifferent) {
-            return null;
+        // A TOH transition may promote its metadata before feedback reaches PHP.
+        // Reconcile the exact queue row even when the current metadata is already
+        // the same Station ID; rejecting here previously left TOH state stale.
+        if (
+            !$isTopOfHourId
+            && !$this->historyRepo->isDifferentFromCurrentSong($station, $media)
+        ) {
+            throw new RuntimeException('Song is not different from current song.');
         }
 
         if (!empty($payload['sq_id'])) {
@@ -137,17 +135,6 @@ final class FeedbackCommand extends AbstractCommand
             }
         }
 
-        if ($sq instanceof StationQueue && $sq->is_played) {
-            return null;
-        }
-
-        // A TOH transition can expose the Station ID metadata before the exact
-        // queue-row feedback arrives. An unplayed sq_id is authoritative and is
-        // still reconciled. Ordinary duplicate metadata is simply ignored.
-        if (!$isTopOfHourId && !$isDifferent) {
-            return null;
-        }
-
         if ($sq instanceof StationQueue) {
             $this->legalIdPlaybackService->recordPlaybackIfLegalId($station, $sq, $media);
             $this->queueRepo->trackPlayed($station, $sq);
@@ -165,6 +152,54 @@ final class FeedbackCommand extends AbstractCommand
         }
 
         return $history;
+    }
+
+    private function isDuplicateTopOfHourFeedback(Station $station, array $payload): bool
+    {
+        $isTopOfHour = !empty($payload['azuracast_top_of_hour_id'])
+            || !empty($payload['azuracast_top_of_hour_fallback']);
+
+        if (!empty($payload['sq_id'])) {
+            $queueRow = $this->em->find(StationQueue::class, $payload['sq_id']);
+            if (
+                $queueRow instanceof StationQueue
+                && $queueRow->is_played
+                && ($queueRow->top_of_hour_legal_id || $isTopOfHour)
+            ) {
+                return true;
+            }
+        }
+
+        if (!$isTopOfHour) {
+            return false;
+        }
+
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
+            $station,
+            $now,
+        );
+        $windowStart = $targetTop->modify(
+            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+        );
+        $windowEnd = $targetTop->modify('+30 seconds');
+
+        $count = (int)$this->em->createQuery(
+            <<<'DQL'
+                SELECT COUNT(sq.id)
+                FROM App\Entity\StationQueue sq
+                WHERE sq.station = :station
+                AND sq.top_of_hour_legal_id = 1
+                AND sq.is_played = 1
+                AND sq.timestamp_played >= :windowStart
+                AND sq.timestamp_played <= :windowEnd
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('windowStart', $windowStart)
+            ->setParameter('windowEnd', $windowEnd)
+            ->getSingleScalarResult();
+
+        return $count > 0;
     }
 
     private function resolveTopOfHourQueueRow(

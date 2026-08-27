@@ -121,10 +121,8 @@ final class QueueController extends AbstractStationApiCrudController
         $station = $request->getStation();
         $qb = $this->queueRepo->getUnplayedBaseQuery($station);
 
-        // Internal delivery order intentionally prioritizes rows already handed
-        // to Liquidsoap. The public Upcoming Queue is a broadcast timeline, so it
-        // must be ordered by the projected play time instead. Without this reset,
-        // a pending 10:59 legal ID can appear below 11:01/11:06 music rows.
+        // Internal delivery ordering prioritizes rows already handed to Liquidsoap.
+        // The Upcoming Queue report is listener-facing and must be chronological.
         $qb->resetDQLPart('orderBy')
             ->orderBy('sq.timestamp_played', 'ASC')
             ->addOrderBy('sq.timestamp_cued', 'ASC')

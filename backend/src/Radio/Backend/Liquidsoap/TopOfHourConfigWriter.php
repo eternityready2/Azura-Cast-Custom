@@ -140,10 +140,14 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
                 boundary = now_seconds + (3600 - seconds_in_hour)
                 top_of_hour_last_served_boundary() != boundary
               elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then
-                # If a song crossed :00 unexpectedly, keep the next normal track
-                # held briefly until the just-started hour's legal ID is observed.
+                # After :00, hold only while this boundary actually has an ID
+                # claimed or waiting. A missed enqueue fails open to programming.
                 boundary = now_seconds - seconds_in_hour
-                top_of_hour_last_served_boundary() != boundary
+                boundary_has_delivery =
+                  top_of_hour_claimed_boundary() == boundary or
+                  top_of_hour_queue.length() > 0 or
+                  top_of_hour_queue.is_ready()
+                boundary_has_delivery and top_of_hour_last_served_boundary() != boundary
               else
                 false
               end
@@ -276,7 +280,7 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               j = json()
               tags = [
                 "song_id", "media_id", "playlist_id", "sq_id", "artist", "title",
-                "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"
+                "azuracast_legal_id", "azuracast_top_of_hour_id", "azuracast_top_of_hour_fallback"
               ]
 
               for tag = list.iterator(tags) do
