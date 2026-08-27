@@ -49,5 +49,9 @@ final class StrictStartGraceTest extends TestCase
         self::assertStringContainsString('$sq->sent_to_autodj = false;', $task);
         self::assertStringContainsString('$sq->sent_to_autodj = true;', $task);
         self::assertStringContainsString('discardUndeliveredInterruptingRow', $task);
+        self::assertStringContainsString(
+            'Liquidsoap did not return a request ID for the interrupting enqueue.',
+            $task,
+        );
     }
 }
