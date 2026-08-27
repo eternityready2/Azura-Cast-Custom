@@ -20,6 +20,9 @@ final class TopOfHourPreBoundaryHoldTest extends TestCase
         self::assertStringContainsString('def top_of_hour_hold_new_track() =', $source);
         self::assertStringContainsString('duration=1.', $source);
         self::assertStringContainsString('seconds_in_hour <= {$postBoundaryHoldSeconds}', $source);
+        self::assertStringContainsString('boundary_has_delivery =', $source);
+        self::assertStringContainsString('top_of_hour_queue.length() > 0', $source);
+        self::assertStringContainsString('top_of_hour_queue.is_ready()', $source);
         self::assertStringContainsString('track_sensitive=true,', $source);
     }
 

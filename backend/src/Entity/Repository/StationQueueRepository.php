@@ -433,6 +433,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
             ->select('sq.id')
             ->andWhere('sq.playlist = :playlist')
             ->andWhere('sq.is_played = 1')
+            ->andWhere('sq.sent_to_autodj = 1')
             ->andWhere('sq.timestamp_played >= :since')
             ->setParameter('playlist', $playlist)
             ->setParameter('since', $since)

@@ -23,6 +23,7 @@ final class StrictStartGraceTest extends TestCase
         self::assertStringContainsString('foreach ([$now, $now->subDay()] as $candidateDay)', $scheduler);
         self::assertStringContainsString('hasPlayedPlaylistSince(', $scheduler);
         self::assertStringContainsString('sq.is_played = 1', $repository);
+        self::assertStringContainsString('sq.sent_to_autodj = 1', $repository);
         self::assertStringContainsString('sq.timestamp_played >= :since', $repository);
     }
 
@@ -43,6 +44,13 @@ final class StrictStartGraceTest extends TestCase
         );
         self::assertStringContainsString(
             'SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS',
+            $task,
+        );
+        self::assertStringContainsString('$sq->sent_to_autodj = false;', $task);
+        self::assertStringContainsString('$sq->sent_to_autodj = true;', $task);
+        self::assertStringContainsString('discardUndeliveredInterruptingRow', $task);
+        self::assertStringContainsString(
+            'Liquidsoap did not return a request ID for the interrupting enqueue.',
             $task,
         );
     }

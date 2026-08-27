@@ -121,6 +121,13 @@ final class QueueController extends AbstractStationApiCrudController
         $station = $request->getStation();
         $qb = $this->queueRepo->getUnplayedBaseQuery($station);
 
+        // Internal delivery ordering prioritizes rows already handed to Liquidsoap.
+        // The Upcoming Queue report is listener-facing and must be chronological.
+        $qb->resetDQLPart('orderBy')
+            ->orderBy('sq.timestamp_played', 'ASC')
+            ->addOrderBy('sq.timestamp_cued', 'ASC')
+            ->addOrderBy('sq.id', 'ASC');
+
         $searchPhrase = Types::stringOrNull($request->getQueryParam('searchPhrase'), true);
         if (null !== $searchPhrase) {
             $qb->andWhere('(sm.title LIKE :query OR sm.artist LIKE :query OR sm.text LIKE :query)')
@@ -199,4 +206,3 @@ final class QueueController extends AbstractStationApiCrudController
         return $response->withJson(Status::deleted());
     }
 }
-

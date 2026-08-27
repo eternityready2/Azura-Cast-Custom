@@ -58,6 +58,10 @@ final class FeedbackCommand extends AbstractCommand
             $payload
         );
 
+        if ($this->isDuplicateTopOfHourFeedback($station, $payload)) {
+            return true;
+        }
+
         $historyRow = $this->getSongHistory($station, $payload);
         $this->em->persist($historyRow);
 
@@ -148,6 +152,54 @@ final class FeedbackCommand extends AbstractCommand
         }
 
         return $history;
+    }
+
+    private function isDuplicateTopOfHourFeedback(Station $station, array $payload): bool
+    {
+        $isTopOfHour = !empty($payload['azuracast_top_of_hour_id'])
+            || !empty($payload['azuracast_top_of_hour_fallback']);
+
+        if (!empty($payload['sq_id'])) {
+            $queueRow = $this->em->find(StationQueue::class, $payload['sq_id']);
+            if (
+                $queueRow instanceof StationQueue
+                && $queueRow->is_played
+                && ($queueRow->top_of_hour_legal_id || $isTopOfHour)
+            ) {
+                return true;
+            }
+        }
+
+        if (!$isTopOfHour) {
+            return false;
+        }
+
+        $now = Time::nowUtc()->toDateTimeImmutable();
+        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
+            $station,
+            $now,
+        );
+        $windowStart = $targetTop->modify(
+            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
+        );
+        $windowEnd = $targetTop->modify('+30 seconds');
+
+        $count = (int)$this->em->createQuery(
+            <<<'DQL'
+                SELECT COUNT(sq.id)
+                FROM App\Entity\StationQueue sq
+                WHERE sq.station = :station
+                AND sq.top_of_hour_legal_id = 1
+                AND sq.is_played = 1
+                AND sq.timestamp_played >= :windowStart
+                AND sq.timestamp_played <= :windowEnd
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('windowStart', $windowStart)
+            ->setParameter('windowEnd', $windowEnd)
+            ->getSingleScalarResult();
+
+        return $count > 0;
     }
 
     private function resolveTopOfHourQueueRow(

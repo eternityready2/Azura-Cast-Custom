@@ -136,6 +136,10 @@ final class QueueInterruptingTracks extends AbstractTask
                 $this->logger->info('Skipping enqueue; target queue is not empty.', [
                     'queue' => $queueName->value,
                 ]);
+
+                if (LiquidsoapQueues::Interrupting === $queueName) {
+                    $this->discardUndeliveredInterruptingRow($sq);
+                }
                 continue;
             }
 
@@ -144,12 +148,56 @@ final class QueueInterruptingTracks extends AbstractTask
                 continue;
             }
 
-            $this->logger->debug('Submitting request to AutoDJ.', [
-                'track' => $track,
-                'queue' => $queueName->value,
+            // Annotation marks normal rows as sent before the external enqueue.
+            // Reset that optimistic bit first; only a successful Liquidsoap
+            // enqueue may satisfy strict-start one-shot protection.
+            $sq->sent_to_autodj = false;
+            $this->em->persist($sq);
+            $this->em->flush();
+
+            try {
+                $this->logger->debug('Submitting request to AutoDJ.', [
+                    'track' => $track,
+                    'queue' => $queueName->value,
+                ]);
+                $response = $backend->enqueue($station, $queueName, $track);
+                $this->logger->debug('AutoDJ request response', ['response' => $response]);
+
+                $requestId = trim((string)($response[0] ?? ''));
+                if ($requestId === '' || !ctype_digit($requestId)) {
+                    throw new RuntimeException(
+                        'Liquidsoap did not return a request ID for the interrupting enqueue.'
+                    );
+                }
+
+                $sq->sent_to_autodj = true;
+                $this->em->persist($sq);
+                $this->em->flush();
+            } catch (\Throwable $e) {
+                $this->logger->error('Interrupting enqueue failed; row remains retryable.', [
+                    'queue_id' => $sq->id,
+                    'exception' => $e->getMessage(),
+                ]);
+                $this->discardUndeliveredInterruptingRow($sq);
+            }
+        }
+    }
+
+    private function discardUndeliveredInterruptingRow(StationQueue $sq): void
+    {
+        try {
+            $this->em->remove($sq);
+            $this->em->flush();
+        } catch (\Throwable $e) {
+            // The durable success bit was cleared before delivery. Even if cleanup
+            // itself fails, strict-start catch-up will not treat this row as served.
+            $sq->sent_to_autodj = false;
+            $this->em->persist($sq);
+            $this->em->flush();
+            $this->logger->warning('Could not remove undelivered interrupting row.', [
+                'queue_id' => $sq->id,
+                'exception' => $e->getMessage(),
             ]);
-            $response = $backend->enqueue($station, $queueName, $track);
-            $this->logger->debug('AutoDJ request response', ['response' => $response]);
         }
     }
 
