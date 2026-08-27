@@ -1,37 +1,105 @@
-name: Build Custom AzuraCast
+name: Validate Final Integrated Rescue
+
 on:
-  workflow_dispatch:
   push:
-    branches: [ main, dev ]
-    tags: [ 'v*' ]
+    branches:
+      - fix/toh-smart-backtiming-rescue
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create Version File
+        with:
+          ref: fix/toh-smart-backtiming-rescue
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: PHP syntax
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "${{ github.ref_name }}" > .version
-          else
-            echo "$(git rev-parse --short HEAD)" > .version
-          fi
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and Push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/eternityready2/azuracast_custom:${{ github.ref_name == 'main' && 'latest' || 'rolling' }}
-            ${{ github.ref_name == 'main' && 'ghcr.io/eternityready2/azuracast_custom:stable' || '' }}
+          php -l backend/src/Radio/AutoDJ/TopOfHourSequencePlanner.php
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          php -l backend/src/Sync/NowPlaying/Task/BuildQueueTask.php
+          php -l backend/src/Controller/Api/Stations/QueueController.php
+          php -l backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          php -l backend/src/Entity/Repository/StationQueueRepository.php
+          php -l backend/src/Sync/Task/QueueInterruptingTracks.php
+          php -l tests/Unit/AiDjRealtimeQueueListenerTest.php
+          php -l tests/Unit/QueueTimelineOrderTest.php
+          php -l tests/Unit/StrictStartGraceTest.php
+          php -l tests/Unit/TopOfHourFeedbackTest.php
+          php -l tests/Unit/TopOfHourPreBoundaryHoldTest.php
+          php -l tests/Unit/TopOfHourSequencePlannerTest.php
+          php -l tests/Unit/TopOfHourSmartBacktimingTest.php
+
+      - name: Sequence planner regressions
+        run: |
+          php -r '
+          require "backend/src/Radio/AutoDJ/ClockWheel/ClockWheelStretchCalculator.php";
+          require "backend/src/Radio/AutoDJ/TopOfHourSequencePlanner.php";
+          $p = new App\Radio\AutoDJ\TopOfHourSequencePlanner(new App\Radio\AutoDJ\ClockWheel\ClockWheelStretchCalculator());
+          $r = $p->rankFirstCandidates([
+            ["key" => 1, "length" => 333.0, "order" => 0],
+            ["key" => 2, "length" => 205.0, "order" => 1],
+          ], [185.0, 205.0, 333.0], 390.0, 2.0);
+          if (!$r || $r[0]["key"] !== 2) { fwrite(STDERR, "stranded-gap regression failed\n"); exit(1); }
+          foreach ($r as $row) { if ($row["key"] === 1) { fwrite(STDERR, "bad long-track plan survived\n"); exit(1); } }
+          if ($p->rankFirstCandidates([
+            ["key" => 1, "length" => 180.0],
+            ["key" => 2, "length" => 240.0],
+          ], [180.0, 240.0], 57.0, 2.0) !== []) { fwrite(STDERR, "impossible-slot regression failed\n"); exit(1); }
+          if ($p->getStretchRatioToFill(180.0, 187.0, 2.0) !== 1.05) { fwrite(STDERR, "stretch regression failed\n"); exit(1); }
+          '
+
+      - name: Final source contracts
+        run: |
+          grep -Fq 'PRE_BOUNDARY_HOLD_SECONDS = 75' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'POST_BOUNDARY_HOLD_SECONDS = 30' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'boundary_has_delivery =' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'def top_of_hour_send_feedback(metadata) =' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'getTopOfHourFutureMusicLengths(' backend/src/Radio/AutoDJ/QueueBuilder.php
+          ! grep -Fq 'TOH_PRECISION_BACKTIME_SECONDS' backend/src/Radio/AutoDJ/QueueBuilder.php
+          ! grep -Fq '$queueEntry->top_of_hour_pre_id_fade = true;' backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq "'ai_dj_realtime_item_'" backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          ! grep -Fq 'App\Radio\AutoDJ\AiDjQueueListener::class,' backend/config/events.php
+          grep -Fq "resetDQLPart('orderBy')" backend/src/Controller/Api/Stations/QueueController.php
+          grep -Fq 'sq.sent_to_autodj = 1' backend/src/Entity/Repository/StationQueueRepository.php
+          grep -Fq 'Liquidsoap did not return a request ID for the interrupting enqueue.' backend/src/Sync/Task/QueueInterruptingTracks.php
+          grep -Fq '$sq->sent_to_autodj = false;' backend/src/Sync/Task/QueueInterruptingTracks.php
+          grep -Fq '$sq->sent_to_autodj = true;' backend/src/Sync/Task/QueueInterruptingTracks.php
+
+      - name: Liquidsoap 2.4.5 hold syntax
+        run: |
+          cat >/tmp/toh-final-check.liq <<'LIQ'
+          top_of_hour_claimed_boundary = ref(-1)
+          top_of_hour_last_served_boundary = ref(-1)
+          top_of_hour_queue = request.queue(id="top_of_hour_queue")
+          post_boundary_hold_seconds = 30
+          def hold(now_seconds, seconds_in_hour) =
+            if seconds_in_hour <= post_boundary_hold_seconds then
+              boundary = now_seconds - seconds_in_hour
+              boundary_has_delivery =
+                top_of_hour_claimed_boundary() == boundary or
+                top_of_hour_queue.length() > 0 or
+                top_of_hour_queue.is_ready()
+              boundary_has_delivery and top_of_hour_last_served_boundary() != boundary
+            else
+              false
+            end
+          end
+          ignore(hold)
+          output.dummy(blank(duration=1.))
+          LIQ
+          docker run --rm -v /tmp/toh-final-check.liq:/tmp/toh-final-check.liq:ro savonet/liquidsoap:v2.4.5 --check /tmp/toh-final-check.liq
+
+      - name: Diff sanity
+        run: git diff --check origin/dev...HEAD
