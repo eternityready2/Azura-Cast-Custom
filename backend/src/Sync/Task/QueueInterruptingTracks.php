@@ -163,6 +163,13 @@ final class QueueInterruptingTracks extends AbstractTask
                 $response = $backend->enqueue($station, $queueName, $track);
                 $this->logger->debug('AutoDJ request response', ['response' => $response]);
 
+                $requestId = trim((string)($response[0] ?? ''));
+                if ($requestId === '' || !ctype_digit($requestId)) {
+                    throw new RuntimeException(
+                        'Liquidsoap did not return a request ID for the interrupting enqueue.'
+                    );
+                }
+
                 $sq->sent_to_autodj = true;
                 $this->em->persist($sq);
                 $this->em->flush();
