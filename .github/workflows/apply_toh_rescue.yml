@@ -46,6 +46,9 @@ jobs:
           if old not in source:
               raise SystemExit('request listener return block not found')
           path.write_text(source.replace(old, new, 1))
+
+          path = Path('backend/src/Controller/Api/Stations/QueueController.php')
+          path.write_text(path.read_text().rstrip() + '\n')
           PY
 
       - name: PHP syntax checks
