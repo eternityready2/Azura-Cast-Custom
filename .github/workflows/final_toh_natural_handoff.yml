@@ -1,0 +1,481 @@
+name: Final TOH Natural Handoff
+
+on:
+  push:
+    branches:
+      - fix/toh-natural-handoff-final
+
+permissions:
+  contents: write
+
+jobs:
+  repair-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/toh-natural-handoff-final
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-reqs
+
+      - name: Apply final TOH continuity repair
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          # 1) Stage open-hour legal IDs across the full configured ID window.
+          path = 'backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php'
+          replace_once(
+              path,
+              '''    /**
+     * Open-hour boundaries wait until :59 before interrupting normal music.
+     */
+    private const int OPEN_HOUR_TRIGGER_LEAD_SECONDS = 60;
+
+''',
+              ''
+          )
+          replace_once(
+              path,
+              '''        return $secondsUntilTop > 0
+            && $secondsUntilTop <= self::OPEN_HOUR_TRIGGER_LEAD_SECONDS;
+''',
+              '''        return $secondsUntilTop > 0
+            && $secondsUntilTop <= $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station);
+'''
+          )
+          replace_once(
+              path,
+              '''                'Top-of-hour ID deferred: next hour is open and the :59 trigger window has not arrived.'
+''',
+              '''                'Top-of-hour ID deferred: next hour is open and the natural-handoff window has not arrived.'
+'''
+          )
+
+          # 2) Remove the blank hold. A pre-staged ID wins only at a natural track boundary.
+          path = 'backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php'
+          replace_once(
+              path,
+              '    private const int PRE_BOUNDARY_HOLD_SECONDS = 75;\n',
+              ''
+          )
+          replace_once(
+              path,
+              '        $holdStartSecond = HourBoundaryPlanner::HOUR_SECONDS - self::PRE_BOUNDARY_HOLD_SECONDS;\n',
+              ''
+          )
+          old_hold = '''            # Do not start a fresh normal song during the protected ID window.
+            # The selector now backtimes the final records as a sequence; this
+            # hold is the runtime safety layer that waits quietly if the music
+            # ends a few seconds early rather than starting a song that would
+            # have to be faded out for the legal ID.
+            def top_of_hour_hold_new_track() =
+              now = time()
+              now_seconds = int_of_float(now)
+              seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
+
+              if seconds_in_hour >= {$holdStartSecond} then
+                boundary = now_seconds + (3600 - seconds_in_hour)
+                top_of_hour_last_served_boundary() != boundary
+              elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then
+                # After :00, hold only while this boundary actually has an ID
+                # claimed or waiting. A missed enqueue fails open to programming.
+                boundary = now_seconds - seconds_in_hour
+                boundary_has_delivery =
+                  top_of_hour_claimed_boundary() == boundary or
+                  top_of_hour_queue.length() > 0 or
+                  top_of_hour_queue.is_ready()
+                boundary_has_delivery and top_of_hour_last_served_boundary() != boundary
+              else
+                false
+              end
+            end
+
+            radio_before_top_of_hour_unheld = radio_before_top_of_hour
+            top_of_hour_preboundary_hold = blank(
+              id="top_of_hour_preboundary_hold",
+              duration=1.
+            )
+            radio_before_top_of_hour = switch(
+              id="top_of_hour_preboundary_hold_switch",
+              track_sensitive=true,
+              [
+                ({ top_of_hour_hold_new_track() }, top_of_hour_preboundary_hold),
+                ({ true }, radio_before_top_of_hour_unheld)
+              ]
+            )
+
+            # Rebuild the outer TOH wrapper around the held normal-program source.
+            # The legal-ID queue remains non-track-sensitive only as the emergency
+            # last line of defense. Under normal operation the music has already
+            # ended naturally and this transition is from the silent hold.
+            radio = fallback(
+              id="top_of_hour_hold_fallback",
+              track_sensitive=false,
+              transitions=[to_top_of_hour, from_top_of_hour],
+              [top_of_hour_queue, radio_before_top_of_hour]
+            )
+'''
+          new_handoff = '''            # The legal ID is staged before it is needed, but readiness must never
+            # cut an in-progress song. The source changes only on a natural track
+            # boundary. If the ID is ready it wins that clean break; if it is not,
+            # normal programming keeps flowing instead of switching to blank audio.
+            radio = fallback(
+              id="top_of_hour_natural_handoff",
+              track_sensitive=true,
+              [top_of_hour_queue, radio_before_top_of_hour]
+            )
+'''
+          replace_once(path, old_hold, new_handoff)
+
+          # 3) Keep the final ID -> AI News -> programming wrapper track-sensitive,
+          # and arm news when the ID can first air naturally in minute 58.
+          path = 'backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php'
+          replace_once(
+              path,
+              '''            radio = fallback(
+              id="top_of_hour_priority_fallback",
+              track_sensitive=false,
+              transitions=[to_top_of_hour, from_top_of_hour, from_top_of_hour],
+              [top_of_hour_queue, top_news_bulletin_queue, radio_before_top_of_hour]
+            )
+''',
+              '''            radio = fallback(
+              id="top_of_hour_priority_natural_handoff",
+              track_sensitive=true,
+              [top_of_hour_queue, top_news_bulletin_queue, radio_before_top_of_hour]
+            )
+'''
+          )
+          replace_once(
+              path,
+              '            cron.add("59 * * * {$cronDays}", {arm_top_news_bulletin()})\n',
+              '            cron.add("58 * * * {$cronDays}", {arm_top_news_bulletin()})\n'
+          )
+
+          # 4) A protected TOH gap is a planning boundary, not the end of the live
+          # queue. Prebuild post-ID audio for both the live queue and Linear Log.
+          path = 'backend/src/Radio/AutoDJ/Queue.php'
+          replace_once(
+              path,
+              '''                if (
+                    null !== $lookaheadMinutesOverride
+                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
+                ) {
+''',
+              '''                if ($this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)) {
+'''
+          )
+          replace_once(
+              path,
+              '''                        $this->logger->info(
+                            'Linear Log: crossing protected top-of-hour window and continuing projection.',
+                            [
+                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
+                            ]
+                        );
+''',
+              '''                        $queueMode = null !== $lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ';
+                        $this->logger->info(
+                            $queueMode . ': reserving the protected TOH handoff and prebuilding post-ID audio.',
+                            [
+                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
+                            ]
+                        );
+'''
+          )
+
+          # 5) Outside the final ID window, a failed exact sequence search must not
+          # starve the station. Keep continuity and keep trying on later slots.
+          path = 'backend/src/Radio/AutoDJ/QueueBuilder.php'
+          replace_once(
+              path,
+              '''        if ($ranked === []) {
+            $this->logger->warning(
+                'Hour boundary: no clean music sequence can reach the TOH handoff; routine cut/fade is refused.',
+                [
+                    'playlist_id' => $playlist->id,
+                    'available_seconds' => $availableSeconds,
+                ]
+            );
+            return null;
+        }
+''',
+              '''        if ($ranked === []) {
+            if (!$this->hourBoundaryPlanner->isInTopOfHourIdWindow($playlist->station, $expectedPlayTime)) {
+                $this->logger->info(
+                    'Hour boundary: no exact sequence yet; preserving music continuity before the ID window.',
+                    [
+                        'playlist_id' => $playlist->id,
+                        'available_seconds' => $availableSeconds,
+                    ]
+                );
+                return $selectedTrack;
+            }
+
+            $this->logger->warning(
+                'Hour boundary: no clean music sequence can reach the TOH handoff; reserving the natural ID break.',
+                [
+                    'playlist_id' => $playlist->id,
+                    'available_seconds' => $availableSeconds,
+                ]
+            );
+            return null;
+        }
+'''
+          )
+          replace_once(
+              path,
+              '''        $this->logger->warning(
+            'Hour boundary: refusing to turn a normal music track into a routine TOH cut/fade.',
+            [
+                'media_id' => $media->id,
+                'media_length' => $mediaLength,
+                'available_seconds' => $availableSeconds,
+            ]
+        );
+
+        return false;
+''',
+              '''        if (!$this->hourBoundaryPlanner->isInTopOfHourIdWindow($queueEntry->station, $expectedPlayTime)) {
+            $this->logger->info(
+                'Hour boundary: exact landing unavailable; keeping continuous music before the final ID window.',
+                [
+                    'media_id' => $media->id,
+                    'media_length' => $mediaLength,
+                    'available_seconds' => $availableSeconds,
+                ]
+            );
+            return true;
+        }
+
+        $this->logger->warning(
+            'Hour boundary: refusing to turn a normal music track into a routine TOH cut/fade.',
+            [
+                'media_id' => $media->id,
+                'media_length' => $mediaLength,
+                'available_seconds' => $availableSeconds,
+            ]
+        );
+
+        return false;
+'''
+          )
+
+          # Replace the old blank-hold contract with the actual acceptance contract.
+          old_test = Path('tests/Unit/TopOfHourPreBoundaryHoldTest.php')
+          if not old_test.exists():
+              raise SystemExit('missing TopOfHourPreBoundaryHoldTest.php')
+          old_test.unlink()
+          Path('tests/Unit/TopOfHourNaturalHandoffTest.php').write_text(r'''<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+final class TopOfHourNaturalHandoffTest extends TestCase
+{
+    public function testLegalIdWaitsForNaturalTrackBoundaryWithoutBlankHold(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php'
+        );
+
+        self::assertIsString($source);
+        self::assertStringContainsString('id="top_of_hour_natural_handoff"', $source);
+        self::assertStringContainsString('track_sensitive=true,', $source);
+        self::assertStringContainsString('[top_of_hour_queue, radio_before_top_of_hour]', $source);
+        self::assertStringNotContainsString('PRE_BOUNDARY_HOLD_SECONDS', $source);
+        self::assertStringNotContainsString('top_of_hour_preboundary_hold', $source);
+        self::assertStringNotContainsString('top_of_hour_hold_new_track', $source);
+        self::assertStringNotContainsString('transitions=[to_top_of_hour, from_top_of_hour]', $source);
+    }
+
+    public function testLegalIdStillMarksTheCorrectBoundaryForHistoryAndOwnership(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php'
+        );
+
+        self::assertIsString($source);
+        self::assertStringContainsString('seconds_in_hour >= 3480', $source);
+        self::assertStringContainsString('seconds_in_hour <= {$postBoundaryHoldSeconds}', $source);
+        self::assertStringContainsString('top_of_hour_last_served_boundary := boundary', $source);
+        self::assertStringContainsString('top_of_hour_send_feedback', $source);
+    }
+}
+''')
+
+          # Extend the news-priority contract for the earlier natural handoff.
+          path = Path('tests/Unit/TopOfHourNewsPriorityTest.php')
+          text = path.read_text()
+          needle = '''        self::assertStringContainsString(
+            'top_news_bulletin_queue.push(request.create(top_news_bulletin_request))',
+            $source,
+        );
+'''
+          replacement = needle + '''        self::assertStringContainsString('track_sensitive=true,', $source);
+        self::assertStringContainsString(
+            'cron.add("58 * * * {$cronDays}", {arm_top_news_bulletin()})',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'transitions=[to_top_of_hour, from_top_of_hour, from_top_of_hour]',
+            $source,
+        );
+'''
+          if text.count(needle) != 1:
+              raise SystemExit('TopOfHourNewsPriorityTest: expected assertion anchor once')
+          path.write_text(text.replace(needle, replacement, 1))
+
+          # Guard open-hour staging and both live/linear post-ID prefetch.
+          Path('tests/Unit/TopOfHourContinuityIntegrationTest.php').write_text(r'''<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+final class TopOfHourContinuityIntegrationTest extends TestCase
+{
+    public function testOpenHourIdUsesFullConfiguredPlanningWindow(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php'
+        );
+
+        self::assertIsString($source);
+        self::assertStringContainsString(
+            '$this->hourBoundaryPlanner->getIdWindowLeadSeconds($station)',
+            $source,
+        );
+        self::assertStringNotContainsString('OPEN_HOUR_TRIGGER_LEAD_SECONDS = 60', $source);
+    }
+
+    public function testLiveQueuePrebuildsAudioAcrossProtectedIdWindow(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/Queue.php'
+        );
+
+        self::assertIsString($source);
+        self::assertStringContainsString(
+            'if ($this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime))',
+            $source,
+        );
+        self::assertStringContainsString(
+            "'AutoDJ'",
+            $source,
+        );
+        self::assertStringContainsString(
+            'prebuilding post-ID audio.',
+            $source,
+        );
+        self::assertStringNotContainsString(
+            'null !== $lookaheadMinutesOverride\n                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow',
+            $source,
+        );
+    }
+
+    public function testNoExactEarlySequenceFallsBackToContinuityNotFadeOrSilence(): void
+    {
+        $source = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/QueueBuilder.php'
+        );
+
+        self::assertIsString($source);
+        self::assertStringContainsString(
+            'preserving music continuity before the ID window.',
+            $source,
+        );
+        self::assertStringContainsString(
+            'keeping continuous music before the final ID window.',
+            $source,
+        );
+        self::assertStringContainsString(
+            'refusing to turn a normal music track into a routine TOH cut/fade.',
+            $source,
+        );
+    }
+}
+''')
+
+          # Update the Linear Log regression to the shared boundary-crossing path.
+          path = Path('tests/Unit/LinearLogBoundaryContinuityTest.php')
+          text = path.read_text()
+          text = text.replace(
+              "        self::assertStringContainsString('null !== $lookaheadMinutesOverride', $queue);\n",
+              "        self::assertStringContainsString(\"null !== $lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ'\", $queue);\n"
+          )
+          text = text.replace(
+              "            'Linear Log: crossing protected top-of-hour window and continuing projection.',\n",
+              "            'prebuilding post-ID audio.',\n"
+          )
+          path.write_text(text)
+          PY
+
+      - name: Syntax and focused regression tests
+        shell: bash
+        run: |
+          php -l backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          php -l backend/src/Radio/AutoDJ/Queue.php
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          php -l tests/Unit/TopOfHourNaturalHandoffTest.php
+          php -l tests/Unit/TopOfHourContinuityIntegrationTest.php
+          php -l tests/Unit/TopOfHourNewsPriorityTest.php
+          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
+          vendor/bin/phpunit \
+            tests/Unit/TopOfHourNaturalHandoffTest.php \
+            tests/Unit/TopOfHourContinuityIntegrationTest.php \
+            tests/Unit/TopOfHourNewsPriorityTest.php \
+            tests/Unit/LinearLogBoundaryContinuityTest.php \
+            tests/Unit/TopOfHourSequencePlannerTest.php \
+            tests/Unit/TopOfHourSmartBacktimingTest.php \
+            tests/Unit/TopOfHourFeedbackTest.php \
+            tests/Unit/AiDjRealtimeQueueListenerTest.php
+          git diff --check
+
+      - name: Source-contract safety checks
+        shell: bash
+        run: |
+          ! grep -q 'top_of_hour_preboundary_hold' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          ! grep -q 'PRE_BOUNDARY_HOLD_SECONDS' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -q 'id="top_of_hour_natural_handoff"' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -q 'id="top_of_hour_priority_natural_handoff"' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -q 'cron.add("58 \* \* \*' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -q 'getIdWindowLeadSeconds($station)' backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          grep -q 'prebuilding post-ID audio' backend/src/Radio/AutoDJ/Queue.php
+          grep -q 'routine TOH cut/fade' backend/src/Radio/AutoDJ/QueueBuilder.php
+
+      - name: Commit validated repair and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/final_toh_natural_handoff.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Make TOH handoff continuous at natural track boundaries'
+          git push origin HEAD:fix/toh-natural-handoff-final
