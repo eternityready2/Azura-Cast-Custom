@@ -20,7 +20,6 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 final class TopOfHourConfigWriter implements EventSubscriberInterface
 {
     private const int PHP_CLAIM_GRACE_SECONDS = 5;
-    private const int PRE_BOUNDARY_HOLD_SECONDS = 75;
     private const int POST_BOUNDARY_HOLD_SECONDS = 30;
 
     public function __construct(
@@ -106,8 +105,11 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
         );
         $fallbackEnabledLiq = $fallbackEnabled ? 'true' : 'false';
         $claimGraceSeconds = self::PHP_CLAIM_GRACE_SECONDS;
-        $holdStartSecond = HourBoundaryPlanner::HOUR_SECONDS - self::PRE_BOUNDARY_HOLD_SECONDS;
         $postBoundaryHoldSeconds = self::POST_BOUNDARY_HOLD_SECONDS;
+        $forceTakeoverAfterSeconds = min(
+            self::POST_BOUNDARY_HOLD_SECONDS,
+            $this->hourBoundaryPlanner->getComplianceToleranceSeconds($station),
+        );
 
         $event->appendBlock(
             <<<LIQ
@@ -126,56 +128,45 @@ final class TopOfHourConfigWriter implements EventSubscriberInterface
               local_now.min * 60 + local_now.sec
             end
 
-            # Do not start a fresh normal song during the protected ID window.
-            # The selector now backtimes the final records as a sequence; this
-            # hold is the runtime safety layer that waits quietly if the music
-            # ends a few seconds early rather than starting a song that would
-            # have to be faded out for the legal ID.
-            def top_of_hour_hold_new_track() =
+            # The ID is staged ahead of time but never interrupts a healthy song.
+            # At the next natural track boundary the dedicated ID queue wins over
+            # prefetched normal audio. Normal programming therefore stays audible
+            # right up to the ID and is already ready when the ID finishes.
+            top_of_hour_natural_radio = fallback(
+              id="top_of_hour_natural_handoff",
+              track_sensitive=true,
+              [top_of_hour_queue, radio_before_top_of_hour]
+            )
+
+            # A hard cut is reserved for the genuine compliance emergency only:
+            # the boundary has passed, the legal ID is actually queued/claimed,
+            # and the configured compliance tolerance has expired. This is not
+            # used for ordinary backtiming or normal TOH transitions.
+            def top_of_hour_force_takeover() =
               now = time()
               now_seconds = int_of_float(now)
               seconds_in_hour = top_of_hour_seconds_in_station_hour(now)
 
-              if seconds_in_hour >= {$holdStartSecond} then
-                boundary = now_seconds + (3600 - seconds_in_hour)
-                top_of_hour_last_served_boundary() != boundary
-              elsif seconds_in_hour <= {$postBoundaryHoldSeconds} then
-                # After :00, hold only while this boundary actually has an ID
-                # claimed or waiting. A missed enqueue fails open to programming.
+              if seconds_in_hour >= {$forceTakeoverAfterSeconds} and
+                 seconds_in_hour <= {$postBoundaryHoldSeconds} then
                 boundary = now_seconds - seconds_in_hour
                 boundary_has_delivery =
-                  top_of_hour_claimed_boundary() == boundary or
-                  top_of_hour_queue.length() > 0 or
-                  top_of_hour_queue.is_ready()
+                  top_of_hour_claimed_boundary() == boundary and
+                  (top_of_hour_queue.length() > 0 or top_of_hour_queue.is_ready())
+
                 boundary_has_delivery and top_of_hour_last_served_boundary() != boundary
               else
                 false
               end
             end
 
-            radio_before_top_of_hour_unheld = radio_before_top_of_hour
-            top_of_hour_preboundary_hold = blank(
-              id="top_of_hour_preboundary_hold",
-              duration=1.
-            )
-            radio_before_top_of_hour = switch(
-              id="top_of_hour_preboundary_hold_switch",
-              track_sensitive=true,
-              [
-                ({ top_of_hour_hold_new_track() }, top_of_hour_preboundary_hold),
-                ({ true }, radio_before_top_of_hour_unheld)
-              ]
-            )
-
-            # Rebuild the outer TOH wrapper around the held normal-program source.
-            # The legal-ID queue remains non-track-sensitive only as the emergency
-            # last line of defense. Under normal operation the music has already
-            # ended naturally and this transition is from the silent hold.
-            radio = fallback(
-              id="top_of_hour_hold_fallback",
+            radio = switch(
+              id="top_of_hour_emergency_takeover",
               track_sensitive=false,
-              transitions=[to_top_of_hour, from_top_of_hour],
-              [top_of_hour_queue, radio_before_top_of_hour]
+              [
+                ({ top_of_hour_force_takeover() }, top_of_hour_queue),
+                ({ true }, top_of_hour_natural_radio)
+              ]
             )
 
             def top_of_hour_clear_claim() =
