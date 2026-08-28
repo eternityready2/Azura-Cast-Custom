@@ -1,0 +1,56 @@
+name: QueueBuilder Station Namespace Hotfix
+
+on:
+  push:
+    branches:
+      - fix/toh-smart-backtiming-rescue
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/toh-smart-backtiming-rescue
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Fix Station namespace
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('backend/src/Radio/AutoDJ/QueueBuilder.php')
+          s = p.read_text()
+          needle = 'use App\\Entity\\Song;\nuse App\\Entity\\StationMedia;'
+          replacement = 'use App\\Entity\\Song;\nuse App\\Entity\\Station;\nuse App\\Entity\\StationMedia;'
+          if s.count(needle) != 1:
+              raise SystemExit(f'Expected Station import insertion point once, found {s.count(needle)}')
+          s = s.replace(needle, replacement, 1)
+          p.write_text(s)
+          PY
+
+      - name: Validate namespace and queue builder
+        run: |
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq 'use App\Entity\Station;' backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq 'private function getTopOfHourFutureMusicLengths(' backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq 'Station $station,' backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -r '$s=file_get_contents("backend/src/Radio/AutoDJ/QueueBuilder.php"); if (strpos($s,"use App\\Entity\\Station;")===false) exit(1);'
+          git diff --check
+
+      - name: Commit hotfix and remove temporary workflow
+        run: |
+          rm .github/workflows/hotfix_queuebuilder_namespace.yml
+          git config user.name "Eternity Ready, LLC."
+          git config user.email "73216191+eternityready2@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Fix QueueBuilder Station namespace"
+          git push origin HEAD:fix/toh-smart-backtiming-rescue
