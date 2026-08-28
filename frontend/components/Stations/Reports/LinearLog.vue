@@ -10,8 +10,6 @@
                     <div class="input-group input-group-sm hours-select">
                         <span class="input-group-text">{{ $gettext('Show next') }}</span>
                         <select v-model.number="hoursAhead" class="form-select" @change="refresh">
-                            <option :value="6">{{ $gettext('6 hours') }}</option>
-                            <option :value="12">{{ $gettext('12 hours') }}</option>
                             <option :value="24">{{ $gettext('24 hours') }}</option>
                             <option :value="48">{{ $gettext('48 hours') }}</option>
                         </select>
