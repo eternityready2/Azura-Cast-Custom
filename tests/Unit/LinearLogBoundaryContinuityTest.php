@@ -27,7 +27,11 @@ final class LinearLogBoundaryContinuityTest extends TestCase
             $queue,
         );
         self::assertStringContainsString(
-            'Linear Log: crossing protected top-of-hour window and continuing projection.',
+            "null !== \$lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ'",
+            $queue,
+        );
+        self::assertStringContainsString(
+            'reserving the protected TOH handoff and prebuilding post-ID audio.',
             $queue,
         );
         self::assertStringContainsString('$expectedPlayTime = $resumeAt;', $queue);
