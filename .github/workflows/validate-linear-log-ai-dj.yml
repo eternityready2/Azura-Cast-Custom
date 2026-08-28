@@ -17,7 +17,8 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
+          extensions: maxminddb
           coverage: none
 
       - name: Install Composer dependencies
@@ -36,5 +37,7 @@ jobs:
       - name: Run focused behavioral test
         run: vendor/bin/phpunit tests/PureUnit/LinearLogProjectionTest.php
 
-      - name: Check patch whitespace
-        run: git diff --check HEAD^
+      - name: Check PR patch whitespace
+        run: |
+          git fetch origin dev --depth=1
+          git diff --check origin/dev...HEAD
