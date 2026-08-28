@@ -212,10 +212,7 @@ final class Queue
             }
 
             if (empty($nextSongs)) {
-                if (
-                    null !== $lookaheadMinutesOverride
-                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
-                ) {
+                if ($this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)) {
                     $resumeAt = CarbonImmutable::instance(
                         $this->hourBoundaryPlanner->getNextTopOfHour(
                             $expectedPlayTime,
@@ -224,8 +221,9 @@ final class Queue
                     );
 
                     if ($resumeAt > $expectedPlayTime) {
+                        $queueMode = null !== $lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ';
                         $this->logger->info(
-                            'Linear Log: crossing protected top-of-hour window and continuing projection.',
+                            $queueMode . ': reserving the protected TOH handoff and prebuilding post-ID audio.',
                             [
                                 'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
                                 'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),

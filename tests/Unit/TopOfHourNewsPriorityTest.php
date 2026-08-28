@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class TopOfHourNewsPriorityTest extends TestCase
 {
-    public function testTopOfHourNewsUsesDedicatedPriorityQueue(): void
+    public function testTopOfHourNewsUsesDedicatedNaturalBoundaryPriorityQueue(): void
     {
         $source = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php'
@@ -27,6 +27,13 @@ final class TopOfHourNewsPriorityTest extends TestCase
         );
         self::assertStringContainsString(
             'top_news_bulletin_queue.push(request.create(top_news_bulletin_request))',
+            $source,
+        );
+        self::assertStringContainsString('id="top_of_hour_priority_natural_handoff"', $source);
+        self::assertStringContainsString('track_sensitive=true,', $source);
+        self::assertStringContainsString('id="top_of_hour_priority_emergency_takeover"', $source);
+        self::assertStringContainsString(
+            'cron.add("58 * * * {$cronDays}", {arm_top_news_bulletin()})',
             $source,
         );
     }
