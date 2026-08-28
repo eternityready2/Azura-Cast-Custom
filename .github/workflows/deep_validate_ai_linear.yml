@@ -24,6 +24,9 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-reqs
 
+      - name: Prepare AzuraCast static-analysis path
+        run: sudo mkdir -p /var/azuracast/www/plugins
+
       - name: Run focused tests and static checks
         shell: bash
         run: |
