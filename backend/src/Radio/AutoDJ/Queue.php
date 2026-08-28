@@ -217,6 +217,25 @@ final class Queue
             }
 
             if (empty($nextSongs)) {
+                if (
+                    null !== $lookaheadMinutesOverride
+                    && null !== $lookaheadHorizon
+                    && $expectedPlayTime < $lookaheadHorizon
+                ) {
+                    $this->logger->warning(
+                        'Linear Log projection could not resolve this queue position; advancing one minute and continuing.',
+                        [
+                            'attempts' => $attempts,
+                            'expected_play_time' => (string)$expectedPlayTime,
+                            'lookahead_horizon' => (string)$lookaheadHorizon,
+                        ]
+                    );
+
+                    $expectedCueTime = $expectedCueTime->addMinute();
+                    $expectedPlayTime = $expectedPlayTime->addMinute();
+                    continue;
+                }
+
                 $this->logger->warning(
                     'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
                     ['attempts' => $attempts]
