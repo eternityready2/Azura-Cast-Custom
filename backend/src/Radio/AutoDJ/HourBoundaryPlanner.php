@@ -28,17 +28,6 @@ final class HourBoundaryPlanner
 
     public const int DEFAULT_ID_MAX_SECONDS = 60;
 
-    /** Preferred legal-ID planning window begins at :58. */
-    public const int DEFAULT_ID_WINDOW_SECONDS = 120;
-
-    /**
-     * Normal music should only reserve the last minute by default. The wider
-     * :58/:59 window remains available to the TOH coordinator for scheduled
-     * boundaries and fallback handling, but ordinary music is no longer forced
-     * to end at :58 when the next hour is otherwise open.
-     */
-    public const int DEFAULT_MUSIC_PROTECTION_SECONDS = 60;
-
     public const int MIN_LOOKAHEAD_MINUTES = 1;
 
     public const int MAX_LOOKAHEAD_MINUTES = 30;
@@ -54,8 +43,6 @@ final class HourBoundaryPlanner
     public const int MIN_ID_MAX_SECONDS = 15;
 
     public const int MAX_ID_MAX_SECONDS = 120;
-
-    private const float MIN_USABLE_CAP_SECONDS = 15.0;
 
     public function __construct(
         private readonly StationQueueRepository $queueRepo,
@@ -108,26 +95,9 @@ final class HourBoundaryPlanner
     }
 
     /**
-     * Seconds reserved at the end of the outgoing hour for legal-ID planning.
-     * The planning window begins at :58 by default and expands when configuration
-     * needs more time for the ID plus finish buffer.
+     * Planned position within the broadcast hour (0–3599), using expected play time
+     * and already-queued items in the same hour.
      */
-    public function getIdWindowLeadSeconds(Station $station): int
-    {
-        return max(
-            self::DEFAULT_ID_WINDOW_SECONDS,
-            $this->getIdMaxSeconds($station) + $this->getFinishBufferSeconds($station),
-        );
-    }
-
-    public function getMusicProtectionLeadSeconds(Station $station): int
-    {
-        return max(
-            self::DEFAULT_MUSIC_PROTECTION_SECONDS,
-            $this->getFinishBufferSeconds($station),
-        );
-    }
-
     public function getPlannedSecondsIntoHour(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
@@ -164,7 +134,7 @@ final class HourBoundaryPlanner
     }
 
     /**
-     * Hour boundary served by a legal ID at the supplied time.
+     * Expected wall-clock time for the next mandatory top-of-hour legal ID.
      */
     public function resolveTopOfHourExpectedPlayAt(
         Station $station,
@@ -214,64 +184,18 @@ final class HourBoundaryPlanner
             return false;
         }
 
-        $secondsUntil = $this->secondsUntilNextTopOfHour(
-            $expectedPlayTime,
-            $station->getTimezoneObject(),
-        );
+        $tz = $station->getTimezoneObject();
+        $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
         $lookaheadSeconds = $this->getLookaheadMinutes($station) * 60;
 
         return $secondsUntil > 0 && $secondsUntil <= $lookaheadSeconds;
     }
 
-    public function isInTopOfHourIdWindow(
-        Station $station,
-        DateTimeImmutable $expectedPlayTime,
-    ): bool {
-        if (!$this->isTopOfHourProtectionEnabled($station)) {
-            return false;
-        }
-
-        $secondsUntil = $this->secondsUntilNextTopOfHour(
-            $expectedPlayTime,
-            $station->getTimezoneObject(),
-        );
-
-        return $secondsUntil > 0 && $secondsUntil <= $this->getIdWindowLeadSeconds($station);
-    }
-
-    public function canLegalIdFinishBeforeTop(
-        Station $station,
-        DateTimeImmutable $expectedPlayTime,
-        ?float $durationSeconds,
-    ): bool {
-        if (!$this->isInTopOfHourIdWindow($station, $expectedPlayTime)) {
-            return false;
-        }
-
-        $duration = ($durationSeconds !== null && $durationSeconds > 0)
-            ? $durationSeconds
-            : (float)$this->getIdMaxSeconds($station);
-
-        $secondsUntil = $this->secondsUntilNextTopOfHour(
-            $expectedPlayTime,
-            $station->getTimezoneObject(),
-        );
-        $requiredSeconds = (int)ceil($duration) + $this->getFinishBufferSeconds($station);
-
-        return $secondsUntil >= $requiredSeconds;
-    }
-
     /**
-     * Real music time remaining before the late-hour TOH handoff begins.
-     * Returns null outside the configured lookahead and zero once the reserve
-     * is open. Queue selection uses this full value for precision backtiming;
-     * the legacy cap helper below still suppresses unusably short cue-out caps.
-     *
-     * The full :58/:59 ID planning window is intentionally not used here: doing
-     * so caused ordinary music to be shortened at :58 even when the next hour
-     * had no scheduled content. Runtime TOH ownership still uses the wider window.
+     * Max music duration (seconds) so playback finishes before `:00` with finish buffer + ID headroom.
+     * Returns null when protection is off or outside the lookahead window.
      */
-    public function secondsAvailableForMusicBeforeTopOfHour(
+    public function maxMusicDurationBeforeTopOfHour(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
     ): ?float {
@@ -279,55 +203,146 @@ final class HourBoundaryPlanner
             return null;
         }
 
-        $secondsUntil = $this->secondsUntilNextTopOfHour(
-            $expectedPlayTime,
-            $station->getTimezoneObject(),
-        );
+        $tz = $station->getTimezoneObject();
+        $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
+        $buffer = $this->getFinishBufferSeconds($station) + $this->getIdMaxSeconds($station);
 
-        return max(
-            0.0,
-            (float)($secondsUntil - $this->getMusicProtectionLeadSeconds($station)),
-        );
-    }
+        $maxDuration = (float)($secondsUntil - $buffer);
 
-    public function maxMusicDurationBeforeTopOfHour(
-        Station $station,
-        DateTimeImmutable $expectedPlayTime,
-    ): ?float {
-        $availableSeconds = $this->secondsAvailableForMusicBeforeTopOfHour(
-            $station,
-            $expectedPlayTime,
-        );
-
-        if (null === $availableSeconds || $availableSeconds < self::MIN_USABLE_CAP_SECONDS) {
+        // If there isn't at least a minimally useful amount of room left before the
+        // boundary, don't force a cap at all -- returning null here means "let normal
+        // selection proceed uncapped" rather than clamping to an unplayably tiny value
+        // (previously floored at 1.0 second). A 1-second cap can never be satisfied by
+        // a real track, so it forced every caller into the "shortest non-recent track"
+        // fallback -- during a deep multi-hour build (e.g. the 24-hour linear log,
+        // which crosses many real hour boundaries in a single pass) this repeatedly
+        // picked the same one or two shortest songs in the library, which then failed
+        // DMCA's rolling-window repeat check every time. Below this threshold we're
+        // already inside the finish-buffer/ID-max window anyway, where the mandatory
+        // legal ID itself (not a capped music track) is what's supposed to be queued.
+        if ($maxDuration < self::MIN_USABLE_CAP_SECONDS) {
             return null;
         }
 
-        return $availableSeconds;
+        return $maxDuration;
     }
 
+    private const float MIN_USABLE_CAP_SECONDS = 15.0;
+
+    /**
+     * True when AutoDJ should queue the mandatory legal ID for this build tick.
+     */
     public function isTopOfHourIdDue(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
     ): bool {
-        if (!$this->isInTopOfHourIdWindow($station, $expectedPlayTime)) {
+        if (!$this->isTopOfHourProtectionEnabled($station)) {
             return false;
         }
 
-        $target = CarbonImmutable::instance(
-            $this->resolveTopOfHourExpectedPlayAt($station, $expectedPlayTime),
-        )->setTimezone($station->getTimezoneObject());
+        $tz = $station->getTimezoneObject();
+        $local = CarbonImmutable::instance($expectedPlayTime)->setTimezone($tz);
+        $targetHourStart = $this->resolveTopOfHourExpectedPlayAt($station, $expectedPlayTime);
+        $targetLocal = CarbonImmutable::instance($targetHourStart)->setTimezone($tz);
 
-        return !$this->hasTopOfHourIdQueued($station, $target);
+        $secondsUntil = $this->secondsUntilNextTopOfHour($expectedPlayTime, $tz);
+        $buffer = $this->getFinishBufferSeconds($station) + $this->getIdMaxSeconds($station);
+
+        // Trigger ID when expected play time falls in the buffer window before
+        // the hour boundary. This prevents dead air between music ending and
+        // the old :00-only trigger. E.g. with buffer=120s, ID fires at :58.
+        if ($secondsUntil > $buffer || $secondsUntil > self::HOUR_SECONDS / 2) {
+            return false;
+        }
+
+        return !$this->hasTopOfHourIdQueued($station, $targetLocal, $tz);
     }
 
+    /**
+     * True only just after an hour boundary, when the interrupting Liquidsoap queue
+     * may preempt normal playback for the mandatory legal ID.
+     */
     public function isTopOfHourInterruptDue(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
     ): bool {
-        return $this->isTopOfHourIdDue($station, $expectedPlayTime);
+        if (!$this->isTopOfHourProtectionEnabled($station)) {
+            return false;
+        }
+
+        $tz = $station->getTimezoneObject();
+        $local = CarbonImmutable::instance($expectedPlayTime)->setTimezone($tz);
+        $hourStart = $local->startOf('hour');
+        $secondsAfterTop = $local->getTimestamp() - $hourStart->getTimestamp();
+        $tolerance = $this->getComplianceToleranceSeconds($station);
+
+        // Fire BEFORE the hour, not only after it.
+        //
+        // This is the core timing fix. Every other path that tries to place the
+        // ID (QueueBuilder's cap at selection time, HourBoundaryAnnotator's
+        // safety net at annotation time) computes against a clock that is not
+        // the track's real airtime: selection happens when the queue is built
+        // (up to the AutoDJ time-lookahead ahead of play, so its projection
+        // drifts), and annotation happens roughly one track before the track
+        // actually airs. A song can therefore be selected AND annotated while
+        // both checks honestly see "plenty of room before :00", then actually
+        // start at :58 and run straight through the boundary.
+        //
+        // This task, by contrast, runs once a minute against real wall-clock
+        // time -- it is the only place in the system that knows what time it
+        // actually is right now. So it is the right place to guarantee the ID.
+        // Previously it only looked at [:00:00, :00+tolerance], which meant it
+        // could only ever react AFTER the boundary was already missed, landing
+        // the ID at :00 on top of a song that was still playing (where Smart
+        // Ducking overlays it and the song resumes underneath, instead of the
+        // song ending and the ID taking over cleanly).
+        //
+        // Now it also fires during the finish-buffer window before :00 -- the
+        // same buffer the rest of the system already reserves for the ID -- so
+        // the ID is pushed while there is still room for it to complete before
+        // the hour turns. The post-:00 tolerance window is kept as a last-ditch
+        // catch for the case where even this was missed.
+        $nextTop = CarbonImmutable::instance(
+            $this->getNextTopOfHour($expectedPlayTime, $tz)
+        )->setTimezone($tz);
+        $secondsUntilNextTop = $nextTop->getTimestamp() - $local->getTimestamp();
+        $preWindow = $this->getFinishBufferSeconds($station) + $this->getIdMaxSeconds($station);
+
+        if ($secondsUntilNextTop > 0 && $secondsUntilNextTop <= $preWindow) {
+            // Inside the pre-:00 window: the ID we care about is the one for the
+            // UPCOMING hour boundary, not the one that already passed.
+            return !$this->hasTopOfHourIdQueued($station, $nextTop, $tz);
+        }
+
+        if ($secondsAfterTop < 0 || $secondsAfterTop > $tolerance) {
+            return false;
+        }
+
+        // Use the rollover-aware check rather than a naive "was an ID cued
+        // between :00:00 and :00:+tolerance" window.
+        //
+        // A correctly-scheduled ID for the 7:00 boundary AIRS BEFORE 7:00 -- at
+        // :59:00 or so, by design, because the whole point of the finish buffer
+        // is that the ID has completed by the time the hour turns. A window
+        // anchored at [hourStart, hourStart+tolerance] can therefore never see
+        // it: an on-time ID is, by wall clock, in the *previous* hour. The old
+        // check only appeared to work when IDs were drifting late into
+        // :00-:00:10 -- i.e. precisely when they were NOT on time. Once
+        // top-of-hour timing was tightened up so IDs reliably land at :59, this
+        // check began firing a duplicate interrupting ID every single hour,
+        // cutting into whatever song had started after the real one.
+        //
+        // hasTopOfHourIdQueued() resolves each candidate through
+        // resolveTopOfHourExpectedPlayAt(), so a :59 play is correctly
+        // attributed to the boundary it actually serves, and it checks both
+        // already-aired history and the still-unplayed queue.
+        return !$this->hasTopOfHourIdQueued($station, $hourStart, $tz);
     }
 
+    /**
+     * When station-wide top-of-hour protection is on, legacy once-per-hour playlists
+     * pinned to minute :00 are suppressed — {@see TopOfHourIdScheduler} queues legal_id instead.
+     */
     public function shouldSuppressOncePerHourPlaylist(StationPlaylist $playlist): bool
     {
         if (!$this->isTopOfHourProtectionEnabled($playlist->station)) {
@@ -343,9 +358,21 @@ final class HourBoundaryPlanner
         CarbonImmutable $hourStart,
         ?DateTimeZone $tz = null,
     ): bool {
-        $tz ??= $station->getTimezoneObject();
         $targetTimestamp = $hourStart->getTimestamp();
 
+        // Check playback history first: if the mandatory ID for this hour has
+        // ALREADY AIRED, it's no longer in the unplayed queue scanned below, so
+        // without this check a later re-evaluation (e.g. the once-a-minute
+        // interrupt-fallback tick, or a queue slot whose expected-play-time still
+        // resolves to this same boundary) would wrongly conclude nothing has been
+        // queued yet and insert a second, duplicate ID for the same hour.
+        //
+        // Window is +/-70 minutes around the boundary: wide enough to catch an
+        // on-time ID that aired up to ~10 minutes early (the lookahead window) in
+        // the *previous* wall-clock hour, without pulling in the adjacent hours'
+        // own IDs. Each candidate is then re-resolved through the exact same
+        // resolveTopOfHourExpectedPlayAt() rollover math used for unplayed rows
+        // below, so a :58/:59 play is correctly attributed to the hour it serves.
         $historyWindowStart = $hourStart->subMinutes(70)->toDateTimeImmutable();
         $historyWindowEnd = $hourStart->addMinutes(70)->toDateTimeImmutable();
 
@@ -371,10 +398,16 @@ final class HourBoundaryPlanner
                 $isLegalId = $media !== null && StationMediaTypes::isStationId($media->type);
             }
 
-            if (!$isLegalId || $row->timestamp_cued === null) {
+            if (!$isLegalId) {
                 continue;
             }
 
+            // timestamp_played is null while a row is unplayed, so it cannot be
+            // used to locate an already-queued ID. Derive the boundary this ID
+            // serves from its cue time instead: a top-of-hour ID is cued to air
+            // within ~a minute of the :00 it protects. Reusing
+            // resolveTopOfHourExpectedPlayAt() keeps this in lockstep with the
+            // boundary the scheduler is currently targeting.
             $servedBoundary = $this->resolveTopOfHourExpectedPlayAt($station, $row->timestamp_cued);
 
             if ($servedBoundary->getTimestamp() === $targetTimestamp) {

@@ -94,33 +94,33 @@ final class AiDjQueueListener implements EventSubscriberInterface
         ];
     }
 
-    public function onBuildQueue(BuildQueue $event): bool
+    public function onBuildQueue(BuildQueue $event): void
     {
         $station = $event->getStation();
 
         if ($event->isInterrupting()) {
             $this->logger->debug('AI DJ: Skipped - event is interrupting.');
-            return true;
+            return;
         }
 
         // Skip if another listener (e.g. TopOfHourIdScheduler) already queued a song
         if (!empty($event->getNextSongs())) {
             $this->logger->debug('AI DJ: Skipped - another listener already queued songs.');
-            return true;
+            return;
         }
 
         $backend = $this->adapters->getBackendAdapter($station);
 
         if (!($backend instanceof Liquidsoap)) {
             $this->logger->debug('AI DJ: Skipped - backend is not Liquidsoap.');
-            return true;
+            return;
         }
 
         $queueEmpty = $backend->isQueueEmpty($station, LiquidsoapQueues::Requests);
 
         if (!$queueEmpty) {
             $this->logger->debug('AI DJ: Skipped - Liquidsoap requests queue is not empty.');
-            return false;
+            return;
         }
 
         // Cooldown: minimum gap between DJ talk breaks so she does not talk on
@@ -129,7 +129,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
         $lastGenTime = $this->cache->get($cooldownKey);
         if ($lastGenTime && (time() - $lastGenTime) < 180) {
             $this->logger->debug('AI DJ: Skipped - cooldown active.', ['elapsed' => time() - $lastGenTime]);
-            return false;
+            return;
         }
 
         // One DJ break at a time. A DJ clip is queued AHEAD of airtime, so a
@@ -139,7 +139,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
         // If a DJ clip is already waiting to air, do not queue another.
         if ($this->hasUpcomingDjClip($station)) {
             $this->logger->debug('AI DJ: Skipped - a DJ clip is already queued ahead.');
-            return false;
+            return;
         }
 
         $expectedPlayTime = $event->getExpectedPlayTime();
@@ -149,7 +149,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
         // so DJ clips never compete with legal IDs or news at the top of hour.
         if ($this->hourBoundaryPlanner->isInLookaheadZone($station, $expectedPlayTime)) {
             $this->logger->debug('AI DJ: Skipped - in top-of-hour lookahead zone.');
-            return true;
+            return;
         }
 
         // Also skip the first 3 minutes after the hour to let legal IDs and news finish.
@@ -157,7 +157,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
         $minute = (int) $now->format('i');
         if ($minute <= 3) {
             $this->logger->debug('AI DJ: Skipped - post-hour buffer (minute ' . $minute . ').');
-            return true;
+            return;
         }
 
         // Quiet window: keep the AI DJ off the air before the top of the hour so it never
@@ -181,13 +181,13 @@ final class AiDjQueueListener implements EventSubscriberInterface
             $this->logger->debug('AI DJ: Skipped - DJ winding down before top of hour.', [
                 'now_min' => $minute, 'queue_min' => $playMinute, 'song_end_sec' => $endSecOfHour,
             ]);
-            return true;
+            return;
         }
 
         // Coordinate with AI Newscaster: avoid minutes around news bulletin times.
         if ($this->isNearNewsBulletin($station, $minute)) {
             $this->logger->debug('AI DJ: Skipped - near AI Newscaster bulletin time.');
-            return true;
+            return;
         }
         $dj = $this->scheduler->findActiveDj($station->id, $expectedPlayTime);
 
@@ -216,7 +216,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
             if (!$djNow instanceof AiDj || $djNow->getId() !== $currentDjId) {
                 $this->cache->set($cacheKey, $previousDjId, 3600);
                 $this->trackCurrentSong($station);
-                return false;
+                return;
             }
 
             // Welcome once per shift. The 'ai_dj_last_active' key (3600s TTL) is only
@@ -234,7 +234,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 $this->pushIntroShiftClip($dj, $station, $backend);
                 $this->cache->set($cooldownKey, time(), 300);
                 $this->trackCurrentSong($station);
-                return true;
+                return;
             }
             // Same DJ, already welcomed this shift -> do NOT repeat; fall through to
             // normal post-song / liner handling below.
@@ -242,7 +242,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
 
         if (null === $dj) {
             $this->logger->debug('AI DJ: No active DJ for this time slot.');
-            return true;
+            return;
         }
 
         $this->logger->info('AI DJ: Active DJ found.', ['dj_name' => $dj->getName()]);
@@ -253,7 +253,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
             $this->logger->debug('AI DJ: Skipped by talk frequency.', ['frequency' => $frequency]);
             // Still track current song for post-song use even when skipping
             $this->trackCurrentSong($station);
-            return true;
+            return;
         }
 
         // Name the current song only when the clip will air right after it. The clip
@@ -307,7 +307,6 @@ final class AiDjQueueListener implements EventSubscriberInterface
         }
 
         $this->trackCurrentSong($station);
-        return true;
     }
 
     private function trackCurrentSong(Station $station): void

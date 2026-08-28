@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Sync\Task;
 
+use App\Entity\Repository\SongHistoryRepository;
 use App\Entity\Repository\StationQueueRepository;
+use App\Entity\SongHistory;
 use App\Entity\Station;
+use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\AnnotateNextSong;
 use App\Radio\Adapters;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
 use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Radio\AutoDJ\Queue;
 use App\Radio\AutoDJ\Scheduler;
@@ -16,15 +20,11 @@ use App\Radio\AutoDJ\SponsorGuaranteedPlayoutService;
 use App\Radio\Backend\Liquidsoap;
 use App\Radio\Enums\LiquidsoapQueues;
 use App\Utilities\Time;
-use Carbon\CarbonImmutable;
 use Monolog\LogRecord;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use RuntimeException;
 
 final class QueueInterruptingTracks extends AbstractTask
 {
-    private const int SCHEDULED_START_GRACE_SECONDS = Scheduler::STRICT_START_GRACE_SECONDS;
-
     public function __construct(
         private readonly Queue $queue,
         private readonly Adapters $adapters,
@@ -32,7 +32,9 @@ final class QueueInterruptingTracks extends AbstractTask
         private readonly Scheduler $scheduler,
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
+        private readonly SongHistoryRepository $historyRepo,
         private readonly StationQueueRepository $queueRepo,
+        private readonly ClockWheelLegalIdPlaybackService $legalIdPlaybackService,
     ) {
     }
 
@@ -41,6 +43,11 @@ final class QueueInterruptingTracks extends AbstractTask
         return self::SCHEDULE_EVERY_MINUTE;
     }
 
+    /**
+     * Manually process any requests for stations that use "Manual AutoDJ" mode.
+     *
+     * @param bool $force
+     */
     public function run(bool $force = false): void
     {
         foreach ($this->iterateStations() as $station) {
@@ -68,19 +75,49 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
+        // This feature only works on Liquidsoap.
         $backend = $this->adapters->getBackendAdapter($station);
-        if (!$backend instanceof Liquidsoap) {
+
+        if (!($backend instanceof Liquidsoap)) {
             return;
         }
 
-        $this->expireMissedTopOfHourRows($station);
-        $this->observeScheduledBoundary($station);
+        // Real-time last-resort backstop for scheduled playlist/clock-wheel/
+        // smart-block starts (e.g. a talk show at 5:01pm, a midnight program
+        // change). Runs BEFORE the interrupting-queue logic below and is
+        // deliberately independent of it.
+        //
+        // Every other mechanism that tries to keep a track from running past a
+        // scheduled boundary -- QueueBuilder's cap at build time,
+        // HourBoundaryAnnotator's safety net at annotation time -- depends on
+        // knowing the boundary is close *before* the track starts playing. Both
+        // are computed against Liquidsoap's own internal prefetch timing for
+        // when it requests the next track, which this codebase does not
+        // control and cannot fully predict (it's compiled into the base
+        // Liquidsoap image, not this application). If that prefetch happens
+        // further ahead than expected, a track can be selected and annotated
+        // while the boundary genuinely was far away, then actually air right
+        // up against it with nothing left to re-check.
+        //
+        // This check is different in kind, not just another attempt at the
+        // same idea: it runs once a minute against real wall-clock time and
+        // the station's actual `current_song` (what is ACTUALLY playing right
+        // now, not a projection), so it cannot be fooled by prefetch timing.
+        // If the currently playing track would still be running after the
+        // next scheduled start, it calls the station's existing skip()
+        // mechanism (the same one behind the admin "Skip Song" button) to
+        // retire it early. The whole AutoDJ chain is wrapped in
+        // azuracast.apply_crossfade() after this point in config generation,
+        // so the skip still gets the station's normal crossfade treatment
+        // rather than being a bare cut.
+        $this->enforceScheduledBoundary($station, $backend);
 
-        $now = Time::nowUtc()->toDateTimeImmutable();
-        $hasTopOfHour = $this->hasTopOfHourToDeliver($station, $now);
-        $hasInterruptingPlaylist = $hasTopOfHour;
+        // TOPH is an interrupting source even when the station has no interrupting playlists.
+        $hasInterruptingPlaylist = $this->hourBoundaryPlanner->isTopOfHourInterruptDue(
+            $station,
+            Time::nowUtc(),
+        );
         $tz = $station->getTimezoneObject();
-
         foreach ($station->playlists as $playlist) {
             if (
                 $playlist->isPlayable(true)
@@ -99,14 +136,21 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        if (!$backend->isQueueEmpty($station, LiquidsoapQueues::TopOfHour)) {
-            $this->logger->debug(
-                'Top-of-hour queue is active; deferring interrupting queue work for this tick.'
-            );
+        // Check that the target queues are empty first.
+        //
+        // These are checked independently: the top-of-hour ID has its own queue
+        // (see the routing note below), so a promo or liner still sitting in the
+        // interrupting queue must not block the mandatory legal ID from being
+        // pushed, and vice versa.
+        $interruptingEmpty = $backend->isQueueEmpty($station, LiquidsoapQueues::Interrupting);
+        $topOfHourEmpty = $backend->isQueueEmpty($station, LiquidsoapQueues::TopOfHour);
+
+        if (!$interruptingEmpty && !$topOfHourEmpty) {
+            $this->logger->info('Interrupting queue: Queues are not empty!');
             return;
         }
 
-        $interruptingEmpty = $backend->isQueueEmpty($station, LiquidsoapQueues::Interrupting);
+        // Build a queue of interrupting songs to queue up.
         $songsToPlay = $this->queue->getInterruptingQueue($station);
 
         if (empty($songsToPlay)) {
@@ -118,266 +162,132 @@ final class QueueInterruptingTracks extends AbstractTask
             $this->eventDispatcher->dispatch($event);
 
             $track = $event->buildAnnotations();
-            $queueName = $sq->top_of_hour_legal_id
+
+            $queueName = ($sq->top_of_hour_legal_id ?? false)
                 ? LiquidsoapQueues::TopOfHour
                 : LiquidsoapQueues::Interrupting;
 
-            $isEmpty = match ($queueName) {
-                LiquidsoapQueues::TopOfHour => $backend->isQueueEmpty(
-                    $station,
-                    LiquidsoapQueues::TopOfHour
-                ),
-                LiquidsoapQueues::Interrupting => $interruptingEmpty
-                    && $backend->isQueueEmpty($station, LiquidsoapQueues::Interrupting),
-                default => false,
-            };
+            $isEmpty = (LiquidsoapQueues::TopOfHour === $queueName)
+                ? $topOfHourEmpty
+                : $interruptingEmpty;
 
             if (!$isEmpty) {
+                // Queue is not empty -- something is already playing or
+                // queued for this output. For the legal ID specifically, that
+                // almost certainly means the ID we pushed on a *previous* tick
+                // is still playing. Record it in song history right now if it
+                // hasn't been recorded yet (isDifferentFromCurrentSong will
+                // return false once it's already the current song, so this is
+                // idempotent and safe to call every tick while it plays).
+                if (LiquidsoapQueues::TopOfHour === $queueName) {
+                    $this->recordTopOfHourPlaybackDirectly($station, $sq);
+                }
+
                 $this->logger->info('Skipping enqueue; target queue is not empty.', [
                     'queue' => $queueName->value,
                 ]);
-
-                if (LiquidsoapQueues::Interrupting === $queueName) {
-                    $this->discardUndeliveredInterruptingRow($sq);
-                }
                 continue;
             }
+
+            $this->logger->debug('Submitting request to AutoDJ.', [
+                'track' => $track,
+                'queue' => $queueName->value,
+            ]);
+            $response = $backend->enqueue($station, $queueName, $track);
+            $this->logger->debug('AutoDJ request response', ['response' => $response]);
 
             if (LiquidsoapQueues::TopOfHour === $queueName) {
-                $this->enqueueTopOfHour($backend, $station, $sq, $track);
-                continue;
-            }
-
-            // Annotation marks normal rows as sent before the external enqueue.
-            // Reset that optimistic bit first; only a successful Liquidsoap
-            // enqueue may satisfy strict-start one-shot protection.
-            $sq->sent_to_autodj = false;
-            $this->em->persist($sq);
-            $this->em->flush();
-
-            try {
-                $this->logger->debug('Submitting request to AutoDJ.', [
-                    'track' => $track,
-                    'queue' => $queueName->value,
-                ]);
-                $response = $backend->enqueue($station, $queueName, $track);
-                $this->logger->debug('AutoDJ request response', ['response' => $response]);
-
-                $requestId = trim((string)($response[0] ?? ''));
-                if ($requestId === '' || !ctype_digit($requestId)) {
-                    throw new RuntimeException(
-                        'Liquidsoap did not return a request ID for the interrupting enqueue.'
-                    );
-                }
-
-                $sq->sent_to_autodj = true;
-                $this->em->persist($sq);
-                $this->em->flush();
-            } catch (\Throwable $e) {
-                $this->logger->error('Interrupting enqueue failed; row remains retryable.', [
-                    'queue_id' => $sq->id,
-                    'exception' => $e->getMessage(),
-                ]);
-                $this->discardUndeliveredInterruptingRow($sq);
+                $this->recordTopOfHourPlaybackDirectly($station, $sq);
             }
         }
     }
 
-    private function discardUndeliveredInterruptingRow(StationQueue $sq): void
+    /**
+     * Records the legal ID's play directly, rather than waiting for
+     * Liquidsoap's own metadata feedback loop (send_feedback -> the /feedback
+     * API -> FeedbackCommand) to report it back.
+     *
+     * Overnight evidence (the station's own playback timeline) showed the ID
+     * logging correctly and instantly whenever it landed through the normal
+     * advance-queue path -- which plays through AzuraCast's stock crossfade
+     * operator (`cross()`, purpose-built with guaranteed metadata handling).
+     * But an ID pushed through this task's dedicated top_of_hour_requests
+     * queue -- which uses a plain `fallback()` with a custom `transitions=`
+     * callback, not `cross()` -- was audibly playing (confirmed: the outgoing
+     * song faded correctly and did not resume) while being completely absent
+     * from song history. `fallback()`'s transition callback mechanism is not
+     * the same purpose-built operator AzuraCast's own crossfade relies on, and
+     * isn't documented to guarantee the same metadata-forwarding behaviour
+     * through a custom `add()`-mixed output.
+     *
+     * Rather than patch that Liquidsoap-side metadata forwarding blind --
+     * this codebase can inspect the generated config but cannot run it, and
+     * guessing at exact operator semantics is exactly the kind of unverified
+     * change that has already caused real problems on this station -- this
+     * records the play directly, in PHP, using the identical repository calls
+     * FeedbackCommand itself would make. We already have complete certainty
+     * about what was just pushed; there's no need to depend on Liquidsoap
+     * correctly reporting it back for this one mandatory, compliance-relevant
+     * action.
+     *
+     * Self-consistently duplicate-safe: if Liquidsoap's own feedback loop
+     * *does* still successfully report this same play afterwards,
+     * FeedbackCommand's own isDifferentFromCurrentSong() check will see that
+     * current_song already matches (since this method just set it) and skip,
+     * exactly as it already does for any other repeated feedback call.
+     */
+    private function recordTopOfHourPlaybackDirectly(Station $station, StationQueue $sq): void
     {
-        try {
-            $this->em->remove($sq);
-            $this->em->flush();
-        } catch (\Throwable $e) {
-            // The durable success bit was cleared before delivery. Even if cleanup
-            // itself fails, strict-start catch-up will not treat this row as served.
-            $sq->sent_to_autodj = false;
-            $this->em->persist($sq);
-            $this->em->flush();
-            $this->logger->warning('Could not remove undelivered interrupting row.', [
-                'queue_id' => $sq->id,
-                'exception' => $e->getMessage(),
-            ]);
+        // Force-initialize the media proxy. Doctrine lazy proxies pass
+        // instanceof checks but return null/empty on property access until
+        // initialized. Calling ->getId() or any scalar triggers initialization.
+        $media = $sq->media;
+        if ($media !== null) {
+            try {
+                // Accessing any property initializes the proxy if it isn't already.
+                $_ = $media->id;
+            } catch (\Throwable) {
+                $media = null;
+            }
         }
-    }
 
-    private function enqueueTopOfHour(
-        Liquidsoap $backend,
-        Station $station,
-        StationQueue $sq,
-        string $track,
-    ): void {
-        if ($sq->sent_to_autodj) {
-            $this->logger->debug('Top-of-hour row already sent; refusing duplicate enqueue.', [
-                'queue_id' => $sq->id,
-            ]);
+        if (!$media instanceof StationMedia) {
+            $this->logger->warning(
+                'Top-of-hour ID pushed with no associated media; cannot record history directly.'
+            );
             return;
         }
 
-        $now = Time::nowUtc()->toDateTimeImmutable();
-        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt($station, $now);
-        $boundary = $targetTop->getTimestamp();
-        $claimed = false;
-        $acceptedByLiquidsoap = false;
-
-        if ($station->backend_config->top_of_hour_hard_trigger_enabled) {
-            try {
-                $claimResponse = $backend->command(
-                    $station,
-                    'top_of_hour.claim ' . $boundary,
-                );
-                $claimStatus = strtolower(trim((string)($claimResponse[0] ?? '')));
-
-                if ('claimed' !== $claimStatus) {
-                    $this->logger->info(
-                        'Top-of-hour boundary already owned; PHP enqueue skipped.',
-                        [
-                            'queue_id' => $sq->id,
-                            'boundary' => $boundary,
-                            'claim_status' => $claimStatus,
-                        ]
-                    );
-                    return;
-                }
-
-                $claimed = true;
-            } catch (\Throwable $e) {
-                $this->logger->error(
-                    'Top-of-hour ownership claim failed; dedicated enqueue skipped so the wall-clock fallback remains sole owner.',
-                    [
-                        'queue_id' => $sq->id,
-                        'boundary' => $boundary,
-                        'exception' => $e->getMessage(),
-                    ]
-                );
-                return;
-            }
-        }
-
         try {
-            $this->logger->debug('Submitting top-of-hour request to AutoDJ.', [
-                'track' => $track,
-                'queue_id' => $sq->id,
-                'boundary' => $boundary,
-            ]);
-            $response = $backend->enqueue($station, LiquidsoapQueues::TopOfHour, $track);
-            $requestId = trim((string)($response[0] ?? ''));
+            $historyRow = SongHistory::fromQueue($sq);
+            $this->historyRepo->changeCurrentSong($station, $historyRow);
+            $this->queueRepo->trackPlayed($station, $sq);
+            $this->legalIdPlaybackService->recordPlaybackIfLegalId($station, $sq, $media);
 
-            if ($requestId === '' || !ctype_digit($requestId)) {
-                throw new RuntimeException('Liquidsoap did not return a request ID for the TOH enqueue.');
-            }
-
-            // Once Liquidsoap accepts a request ID, this boundary remains owned
-            // even if the following database flush fails. Releasing at that point
-            // would allow the wall-clock path to queue a second copy.
-            $acceptedByLiquidsoap = true;
-
-            if ($claimed) {
-                try {
-                    $commitResponse = $backend->command(
-                        $station,
-                        'top_of_hour.commit ' . $requestId,
-                    );
-                    $commitStatus = strtolower(trim((string)($commitResponse[0] ?? '')));
-
-                    if ('committed' !== $commitStatus) {
-                        $this->logger->warning(
-                            'Top-of-hour ownership commit returned an unexpected status.',
-                            [
-                                'queue_id' => $sq->id,
-                                'request_id' => $requestId,
-                                'boundary' => $boundary,
-                                'commit_status' => $commitStatus,
-                            ]
-                        );
-                    }
-                } catch (\Throwable $e) {
-                    // The request is already inside Liquidsoap. Keep the claim;
-                    // releasing it here could make the fallback enqueue a duplicate.
-                    $this->logger->warning(
-                        'Top-of-hour request accepted but ownership commit failed; keeping boundary claimed.',
-                        [
-                            'queue_id' => $sq->id,
-                            'request_id' => $requestId,
-                            'boundary' => $boundary,
-                            'exception' => $e->getMessage(),
-                        ]
-                    );
-                }
-            }
-
-            $sq->sent_to_autodj = true;
-            $this->em->persist($sq);
-            $this->em->flush();
-
-            $this->logger->info('Top-of-hour request handed to Liquidsoap.', [
-                'queue_id' => $sq->id,
-                'request_id' => $requestId,
-                'boundary' => $boundary,
-            ]);
+            $this->logger->info(
+                'Top-of-hour ID recorded directly to song history.',
+                ['media' => $media->title]
+            );
         } catch (\Throwable $e) {
-            if ($claimed && !$acceptedByLiquidsoap) {
-                try {
-                    $backend->command($station, 'top_of_hour.release ' . $boundary);
-                } catch (\Throwable) {
-                    // If Liquidsoap is unavailable, its in-memory claim disappears on restart.
-                }
-            }
-
-            $this->logger->error('Top-of-hour enqueue failed.', [
-                'queue_id' => $sq->id,
-                'boundary' => $boundary,
-                'accepted_by_liquidsoap' => $acceptedByLiquidsoap,
-                'exception' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    private function hasTopOfHourToDeliver(Station $station, \DateTimeImmutable $now): bool
-    {
-        if (!$this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
-            return false;
-        }
-
-        if (!$this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $now)) {
-            return false;
-        }
-
-        $targetTop = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt($station, $now);
-        $windowStart = $targetTop->modify(
-            '-' . $this->hourBoundaryPlanner->getIdWindowLeadSeconds($station) . ' seconds'
-        );
-
-        if ($this->queueRepo->findPendingTopOfHourLegalIdBetween(
-            $station,
-            $windowStart,
-            $targetTop,
-        ) instanceof StationQueue) {
-            return true;
-        }
-
-        return $this->hourBoundaryPlanner->isTopOfHourInterruptDue($station, $now);
-    }
-
-    private function expireMissedTopOfHourRows(Station $station): void
-    {
-        $hourStart = CarbonImmutable::now($station->getTimezoneObject())
-            ->startOfHour()
-            ->toDateTimeImmutable();
-
-        $expired = $this->queueRepo->deleteUnplayedTopOfHourLegalIdsBefore($station, $hourStart);
-        if ($expired > 0) {
-            $this->logger->warning(
-                'Removed missed top-of-hour planning rows after their boundary passed.',
-                ['count' => $expired]
+            // Never let a history-recording failure break actual playback --
+            // the ID has already been sent to Liquidsoap and will air
+            // regardless of whether this bookkeeping succeeds.
+            $this->logger->error(
+                'Failed to directly record top-of-hour ID playback.',
+                ['exception' => $e->getMessage()]
             );
         }
     }
 
     /**
-     * Observe approaching scheduled boundaries without hard-skipping the current item.
+     * Last-resort, real-wall-clock-time backstop -- see the call site in
+     * queueForStation() for the full reasoning. Only acts inside a short
+     * window right before a scheduled boundary, and only when the currently
+     * playing track would genuinely still be running once that boundary
+     * hits; this is not a substitute for the normal, smoother build-time and
+     * annotation-time capping, which still handles the common case.
      */
-    private function observeScheduledBoundary(Station $station): void
+    private function enforceScheduledBoundary(Station $station, Liquidsoap $backend): void
     {
         $now = Time::nowUtc();
 
@@ -385,17 +295,44 @@ final class QueueInterruptingTracks extends AbstractTask
             $secondsToScheduled = $this->scheduler->secondsUntilNextScheduledStart($station, $now);
         } catch (\Throwable $e) {
             $this->logger->error(
-                'Scheduled boundary observation: lookup failed.',
+                'Scheduled boundary enforcement: lookup failed, skipping this check for this tick.',
                 ['exception' => $e->getMessage()]
             );
             return;
         }
 
-        if (
-            null === $secondsToScheduled
-            || $secondsToScheduled > self::SCHEDULED_START_GRACE_SECONDS
-        ) {
+        if (null === $secondsToScheduled) {
             return;
+        }
+
+        // Only act inside a short pre-boundary window. Wide enough to
+        // guarantee at least one once-a-minute tick lands inside it
+        // regardless of exact cron alignment, narrow enough that this never
+        // fires as an early/aggressive cutoff far ahead of the actual
+        // boundary.
+        if ($secondsToScheduled > 90) {
+            return;
+        }
+
+        // Don't compete with the top-of-hour ID mechanism.
+        //
+        // secondsUntilNextScheduledStart() doesn't know about the once-per-hour
+        // suppression rule (shouldSuppressOncePerHourPlaylist) -- it can report
+        // an upcoming boundary that is actually the same :00 turnover TOPH
+        // already owns. TOPH's own path uses a proper fade-under transition
+        // (see ConfigWriter's top_of_hour_queue block); a bare skip() here at
+        // the same moment would fight with that instead of deferring to it. If
+        // this boundary is within a couple seconds of the top-of-hour mark,
+        // leave it to TOPH entirely.
+        if ($this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
+            $secondsUntilTop = $this->hourBoundaryPlanner->secondsUntilNextTopOfHour(
+                $now->toDateTimeImmutable(),
+                $station->getTimezoneObject(),
+            );
+
+            if (abs($secondsUntilTop - $secondsToScheduled) <= 3) {
+                return;
+            }
         }
 
         $currentSong = $station->current_song;
@@ -404,24 +341,31 @@ final class QueueInterruptingTracks extends AbstractTask
         }
 
         $currentSongDuration = $currentSong->duration ?? 0.0;
+
+        // timestamp_start is a DateTimeImmutable, not a raw integer -- modify()
+        // rather than arithmetic on the object itself.
         $currentSongEndsAt = $currentSong->timestamp_start
             ->modify('+' . (int)round($currentSongDuration) . ' seconds')
             ->getTimestamp();
         $scheduledBoundaryAt = $now->getTimestamp() + $secondsToScheduled;
 
-        if ($currentSongEndsAt <= $scheduledBoundaryAt + self::SCHEDULED_START_GRACE_SECONDS) {
+        // Small grace margin: if the current track was already going to end
+        // within a couple seconds of the boundary anyway, there's nothing to
+        // fix here and skipping would be needless.
+        if ($currentSongEndsAt <= $scheduledBoundaryAt + 2) {
             return;
         }
 
         $this->logger->warning(
-            'Scheduled boundary at risk: current item projects beyond the strict-start catch-up window; no hard skip will be issued.',
+            'Scheduled boundary enforcement: current track would run past a scheduled start; skipping now.',
             [
                 'current_song' => $currentSong->title,
                 'seconds_to_scheduled' => $secondsToScheduled,
                 'current_song_would_end_at' => $currentSongEndsAt,
                 'scheduled_boundary_at' => $scheduledBoundaryAt,
-                'maximum_grace_seconds' => self::SCHEDULED_START_GRACE_SECONDS,
             ]
         );
+
+        $backend->skip($station);
     }
 }

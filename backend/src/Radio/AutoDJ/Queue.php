@@ -31,7 +31,6 @@ final class Queue
         private readonly EventDispatcherInterface $dispatcher,
         private readonly StationQueueRepository $queueRepo,
         private readonly Scheduler $scheduler,
-        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly QueueLogCache $queueLogCache
     ) {
     }
@@ -48,12 +47,16 @@ final class Queue
         ?int $lookaheadMinutesOverride = null,
         ?int $maxTracksOverride = null,
     ): void {
+        // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
             $this->logger->info('Cannot build queue: station does not support AutoDJ queue.');
             return;
         }
 
+        // Adjust "expectedCueTime" time from current queue.
         $expectedCueTime = Time::nowUtc();
+
+        // Get expected play time of each item.
         $currentSong = $station->current_song;
         if (null !== $currentSong) {
             $expectedPlayTime = $this->addDurationToTime(
@@ -70,50 +73,36 @@ final class Queue
         }
 
         $maxQueueLength = max($station->backend_config->autodj_queue_length, 2);
-        $lookaheadMinutes = $lookaheadMinutesOverride
-            ?? $station->backend_config->autodj_queue_lookahead_minutes;
+
+        // Track-count queue length alone (default 3, sometimes set as low as 2)
+        // does not reliably reach far enough into the future for clock wheels,
+        // schedules, or top-of-hour logic to resolve tracks in advance -- how
+        // far ahead in *time* that represents depends entirely on how long the
+        // next few songs happen to be. When configured, this makes the queue
+        // keep building until it reaches a guaranteed minimum time horizon,
+        // independent of track length.
+        $lookaheadMinutes = $lookaheadMinutesOverride ?? $station->backend_config->autodj_queue_lookahead_minutes;
         $lookaheadHorizon = $lookaheadMinutes > 0
             ? Time::nowUtc()->modify('+' . $lookaheadMinutes . ' minutes')
             : null;
+
+        // Hard safety cap so a misconfigured horizon (or a station with very
+        // short tracks) can't spin this into an unbounded loop.
         $maxLookaheadTracks = $maxTracksOverride ?? 500;
 
-        // A missed TOH row must never survive into a later hour. Keeping the
-        // planned timestamp stable makes this cleanup deterministic even after
-        // station restarts or repeated linear-log rebuilds.
-        $stationHourStart = CarbonImmutable::now($station->getTimezoneObject())
-            ->startOfHour()
-            ->toDateTimeImmutable();
-        $expiredTopOfHourRows = $this->queueRepo->deleteUnplayedTopOfHourLegalIdsBefore(
-            $station,
-            $stationHourStart,
-        );
-        if ($expiredTopOfHourRows > 0) {
-            $this->logger->warning(
-                'Queue: removed stale top-of-hour legal-ID rows before rebuilding normal music.',
-                ['count' => $expiredTopOfHourRows]
-            );
-        }
-
         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
+
         $lastSongId = null;
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
-            // TOH legal IDs live on the dedicated real-time queue. They must not
-            // consume time in the ordinary music timeline or be re-timestamped
-            // on every queue rebuild; doing so previously made a missed ID slide
-            // forward minute-by-minute and permanently block AutoDJ.
-            if ($queueRow->top_of_hour_legal_id) {
-                if ($queueRow->timestamp_cued === null || $queueRow->timestamp_played === null) {
-                    $this->logger->warning(
-                        'Queue: planned top-of-hour legal-ID row is missing its fixed planning timestamp.',
-                        ['queue_id' => $queueRow->id]
-                    );
-                }
-                continue;
+            // Same duration-floor guard as the build loop below -- applies here too
+            // since this loop re-times already-queued rows on every build cycle and
+            // is just as capable of collapsing timestamps if a row's duration is bad.
+            $effectiveDuration = $queueRow->duration ?? 0.0;
+            if ($effectiveDuration < 5.0) {
+                $effectiveDuration = 5.0;
             }
-
-            $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
 
             if ($queueRow->sent_to_autodj) {
                 $expectedCueTime = $this->addDurationToTime(
@@ -133,6 +122,8 @@ final class Queue
 
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $effectiveDuration);
+
+                // Only append to queue length for uncued songs.
                 $queueLength++;
             }
 
@@ -140,11 +131,17 @@ final class Queue
             $this->em->persist($queueRow);
 
             $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $effectiveDuration);
+
             $lastSongId = $queueRow->song_id;
         }
 
         $this->em->flush();
 
+        // Build the remainder of the queue.
+        // A validator (e.g. DmcaComplianceListener) can reject a selector's pick by
+        // clearing next songs; when that happens we re-dispatch a fresh BuildQueue event
+        // so a selector gets another chance to choose a different track, instead of
+        // silently halting queue-building and leaving the station with dead air.
         $maxAttemptsPerSlot = null !== $lookaheadMinutesOverride ? 50 : 10;
         $tracksBuiltThisRun = 0;
 
@@ -168,6 +165,7 @@ final class Queue
                     ]
                 );
 
+                // Push another test handler specifically for this one queue task.
                 $testHandler = new TestHandler(LogLevel::DEBUG, true);
                 $this->logger->pushHandler($testHandler);
 
@@ -186,6 +184,13 @@ final class Queue
 
                 $nextSongs = $event->getNextSongs();
 
+                // Hard backstop against the exact same song playing twice in a row.
+                // Playlist-level duplicate prevention settings can still allow this
+                // when the eligible pool briefly narrows (e.g. right after a schedule
+                // change); this catches it unconditionally at the queue-build layer.
+                // Only enforced when a retry is actually possible (more attempts left)
+                // so a station with a single-song playlist doesn't get stuck refusing
+                // to queue anything.
                 if (
                     !empty($nextSongs)
                     && $lastSongId !== null
@@ -212,30 +217,6 @@ final class Queue
             }
 
             if (empty($nextSongs)) {
-                if ($this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)) {
-                    $resumeAt = CarbonImmutable::instance(
-                        $this->hourBoundaryPlanner->getNextTopOfHour(
-                            $expectedPlayTime,
-                            $station->getTimezoneObject(),
-                        )
-                    );
-
-                    if ($resumeAt > $expectedPlayTime) {
-                        $queueMode = null !== $lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ';
-                        $this->logger->info(
-                            $queueMode . ': reserving the protected TOH handoff and prebuilding post-ID audio.',
-                            [
-                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
-                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
-                            ]
-                        );
-                        $expectedPlayTime = $resumeAt;
-                        $expectedCueTime = $resumeAt;
-                        $this->em->flush();
-                        continue;
-                    }
-                }
-
                 $this->logger->warning(
                     'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
                     ['attempts' => $attempts]
@@ -245,18 +226,22 @@ final class Queue
             }
 
             foreach ($nextSongs as $queueRow) {
-                $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
-
-                // The TOH scheduler stamps its own fixed planning time and owns
-                // delivery through the dedicated queue. Preserve that timestamp
-                // and do not advance the ordinary music clock around it.
-                if ($queueRow->top_of_hour_legal_id) {
-                    $queueRow->updateVisibility();
-                    $this->em->persist($queueRow);
-                    $this->em->flush();
-                    $this->queueLogCache->setLog($queueRow, $testHandler->getRecords());
-                    $tracksBuiltThisRun++;
-                    continue;
+                // Guard against a corrupt or not-yet-analyzed media duration (0, null,
+                // or an implausibly tiny value) collapsing the play-time progression --
+                // this is what produces queue entries a few seconds apart instead of
+                // minutes apart, and looks like "the same song repeating constantly"
+                // even though duplicate prevention is working correctly.
+                $effectiveDuration = $queueRow->duration ?? 0.0;
+                if ($effectiveDuration < 5.0) {
+                    $this->logger->warning(
+                        'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
+                        [
+                            'song_id' => $queueRow->song_id,
+                            'media_id' => $queueRow->media?->id,
+                            'duration' => $queueRow->duration,
+                        ]
+                    );
+                    $effectiveDuration = 5.0;
                 }
 
                 $queueRow->timestamp_cued = $expectedCueTime;
@@ -268,6 +253,7 @@ final class Queue
                 $this->queueLogCache->setLog($queueRow, $testHandler->getRecords());
 
                 $lastSongId = $queueRow->song_id;
+
                 $expectedCueTime = $this->addDurationToTime(
                     $station,
                     $expectedCueTime,
@@ -285,9 +271,13 @@ final class Queue
         }
     }
 
-    /** @return StationQueue[]|null */
+    /**
+     * @param Station $station
+     * @return StationQueue[]|null
+     */
     public function getInterruptingQueue(Station $station): ?array
     {
+        // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
             $this->logger->notice('Cannot build queue: station does not support AutoDJ queue.');
             return null;
@@ -298,9 +288,12 @@ final class Queue
 
         $this->logger->debug(
             'Fetching interrupting queue.',
-            ['now' => (string)$expectedPlayTime]
+            [
+                'now' => (string)$expectedPlayTime,
+            ]
         );
 
+        // Push another test handler specifically for this one queue task.
         $testHandler = new TestHandler(LogLevel::DEBUG, true);
         $this->logger->pushHandler($testHandler);
 
@@ -326,13 +319,11 @@ final class Queue
         }
 
         foreach ($nextSongs as $queueRow) {
-            if (!$queueRow->top_of_hour_legal_id) {
-                $queueRow->is_played = true;
-                $queueRow->timestamp_cued = $expectedPlayTime;
-                $queueRow->timestamp_played = $expectedPlayTime;
-            }
-
+            $queueRow->is_played = true;
+            $queueRow->timestamp_cued = $expectedPlayTime;
+            $queueRow->timestamp_played = $expectedPlayTime;
             $queueRow->updateVisibility();
+
             $this->em->persist($queueRow);
             $this->em->flush();
 
@@ -341,39 +332,11 @@ final class Queue
             $expectedPlayTime = $this->addDurationToTime(
                 $station,
                 $expectedPlayTime,
-                $this->getEffectiveQueueDuration($queueRow)
+                $queueRow->duration
             );
         }
 
         return $nextSongs;
-    }
-
-    /**
-     * Liquidsoap stretch ratio is output duration divided by source duration.
-     */
-    private function getEffectiveQueueDuration(StationQueue $queueRow): float
-    {
-        $duration = $queueRow->duration ?? 0.0;
-        $stretchRatio = $queueRow->clock_wheel_stretch_ratio;
-
-        if ($duration > 0.0 && null !== $stretchRatio && $stretchRatio > 0.0) {
-            $duration *= $stretchRatio;
-        }
-
-        if ($duration < 5.0) {
-            $this->logger->warning(
-                'Queue: song has an implausibly short or missing duration; using a floor value.',
-                [
-                    'song_id' => $queueRow->song_id,
-                    'media_id' => $queueRow->media?->id,
-                    'duration' => $queueRow->duration,
-                    'stretch_ratio' => $stretchRatio,
-                ]
-            );
-            return 5.0;
-        }
-
-        return $duration;
     }
 
     private function addDurationToTime(
@@ -400,8 +363,8 @@ final class Queue
             return true;
         }
 
-        return $playlist->is_enabled
-            && $this->scheduler->isPlaylistScheduledToPlayNow(
+        return $playlist->is_enabled &&
+            $this->scheduler->isPlaylistScheduledToPlayNow(
                 $playlist,
                 $expectedPlayTime,
                 true

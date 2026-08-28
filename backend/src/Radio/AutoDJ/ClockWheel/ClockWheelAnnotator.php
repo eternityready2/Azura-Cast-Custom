@@ -78,26 +78,6 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             return;
         }
 
-        $stretchRatio = $queue->clock_wheel_stretch_ratio;
-        if (null !== $stretchRatio && $stretchRatio > 0.0) {
-            $stretchedDuration = $media->length * $stretchRatio;
-
-            if ($stretchedDuration <= (float)$maxSeconds + 0.05) {
-                $event->addAnnotations([
-                    'duration' => $stretchedDuration,
-                ]);
-                return;
-            }
-
-            // The planner may have calculated stretch against a wider slot window
-            // than this hard cap. Neutralize it before applying cue-out so the two
-            // mechanisms cannot compound and shorten/lengthen the track twice.
-            $queue->clock_wheel_stretch_ratio = null;
-            $event->addAnnotations([
-                'liq_stretch_ratio' => 1.0,
-            ]);
-        }
-
         $cueIn = 0.0;
         $existing = $event->getAnnotations();
         if (isset($existing['autocue_cue_in'])) {
@@ -118,6 +98,13 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         $queue->duration = $cueOut;
     }
 
+    /**
+     * Mirrors HourBoundaryAnnotator::applyLegalIdQuickCut() -- see that method's
+     * docblock for the reasoning. Kept in sync so a legal ID delivered via a
+     * Clock Wheel slot gets the same gentle fade-in as one delivered via the
+     * station-wide top-of-hour path, instead of the wheel path alone still
+     * hard-cutting in.
+     */
     public function applyLegalIdQuickCut(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
@@ -130,8 +117,8 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         $media = $event->getMedia();
-        $isLegalId = $queue->top_of_hour_legal_id
-            || $queue->clock_wheel_legal_id_substitute
+        $isLegalId = ($queue->top_of_hour_legal_id ?? false)
+            || ($queue->clock_wheel_legal_id_substitute ?? false)
             || ($media instanceof StationMedia && StationMediaTypes::isStationId($media->type));
 
         if (!$isLegalId) {

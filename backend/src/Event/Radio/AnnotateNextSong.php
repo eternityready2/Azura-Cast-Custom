@@ -29,13 +29,9 @@ final class AnnotateNextSong extends Event
         'request_id',
         'sq_id',
         'liq_amplify',
-        'liq_stretch_ratio',
         'azuracast_autocue',
         'azuracast_cache_key',
         'azuracast_ai_news',
-        'azuracast_legal_id',
-        'azuracast_top_of_hour_id',
-        'azuracast_top_of_hour_fallback',
         'autocue_cue_in',
         'autocue_cue_out',
         'autocue_fade_in',
@@ -46,7 +42,6 @@ final class AnnotateNextSong extends Event
     public const array ALWAYS_STRING_ANNOTATIONS = [
         'title',
         'artist',
-        'liq_stretch_ratio',
     ];
 
     private ?string $songPath = null;

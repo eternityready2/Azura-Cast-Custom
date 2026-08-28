@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ\ClockWheel;
 
 /**
- * Computes a safe Liquidsoap stretch ratio to close small timing gaps.
+ * Computes a safe, pitch-preserving stretch ratio to close small gaps before
+ * a mandatory anchor (e.g. top-of-hour legal ID). Only ever used for SMALL
+ * gaps -- never a substitute for correct slot spacing or track selection.
  */
 final class ClockWheelStretchCalculator
 {
-    private const float MIN_STRETCH_RATIO = 0.95;
-    private const float MAX_STRETCH_RATIO = 1.05;
+    private const float MIN_STRETCH_RATIO = 0.95; // up to 5% faster
+    private const float MAX_STRETCH_RATIO = 1.05; // up to 5% slower
 
     /**
-     * Liquidsoap's stretch ratio is output duration divided by source duration:
-     * values below 1 accelerate playback and values above 1 slow it down.
+     * @return float|null Ratio to pass to Liquidsoap's stretch(), or null if
+     *                     outside the safe range (caller should fall back to
+     *                     the existing cue-out cap instead).
      */
     public function calculate(float $trackLengthSeconds, int $availableSeconds): ?float
     {
@@ -22,7 +25,7 @@ final class ClockWheelStretchCalculator
             return null;
         }
 
-        $ratio = $availableSeconds / $trackLengthSeconds;
+        $ratio = $trackLengthSeconds / $availableSeconds;
 
         if ($ratio < self::MIN_STRETCH_RATIO || $ratio > self::MAX_STRETCH_RATIO) {
             return null;
