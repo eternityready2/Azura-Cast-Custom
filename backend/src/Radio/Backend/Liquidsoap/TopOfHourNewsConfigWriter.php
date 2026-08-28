@@ -66,13 +66,13 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
         // radio_before_top_of_hour, top_of_hour_queue and the TOH transitions.
         // TopOfHourConfigWriter already created shared once-per-boundary state.
         //
-        // This final wrapper is intentionally simple and deterministic:
+        // Final priority is deterministic but track-boundary safe:
         // 1. legal ID
         // 2. top-of-hour AI News
         // 3. all scheduled/normal program audio
         //
-        // News is only pushed after the legal ID is observed on air, so it cannot
-        // preempt the ID. Once it is ready, no prefetched music can jump ahead.
+        // The legal ID is staged before the natural break. Once it starts, news
+        // is queued behind it so the next source transition is also gapless.
         $event->appendBlock(
             <<<LIQ
             top_news_bulletin_request = {$bulletinRequest}
@@ -86,11 +86,22 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
             pending_top_news_boundary = ref(-1)
             queued_top_news_boundary = ref(-1)
 
-            radio = fallback(
-              id="top_of_hour_priority_fallback",
-              track_sensitive=false,
-              transitions=[to_top_of_hour, from_top_of_hour, from_top_of_hour],
+            top_of_hour_priority_natural_radio = fallback(
+              id="top_of_hour_priority_natural_handoff",
+              track_sensitive=true,
               [top_of_hour_queue, top_news_bulletin_queue, radio_before_top_of_hour]
+            )
+
+            # Preserve the emergency compliance takeover from the TOH writer.
+            # Normal ID/news/program transitions remain track-sensitive and do
+            # not fade or cut an in-progress song.
+            radio = switch(
+              id="top_of_hour_priority_emergency_takeover",
+              track_sensitive=false,
+              [
+                ({ top_of_hour_force_takeover() }, top_of_hour_queue),
+                ({ true }, top_of_hour_priority_natural_radio)
+              ]
             )
 
             # The final wrapper can also contain a clock-wheel-owned legal ID, so
@@ -144,7 +155,9 @@ final class TopOfHourNewsConfigWriter implements EventSubscriberInterface
               1.0
             end
 
-            cron.add("59 * * * {$cronDays}", {arm_top_news_bulletin()})
+            # The legal ID may now take a clean natural break during minute 58,
+            # so arm the bulletin before that earliest normal handoff.
+            cron.add("58 * * * {$cronDays}", {arm_top_news_bulletin()})
 
             thread.run.recurrent(
               fast=false,
