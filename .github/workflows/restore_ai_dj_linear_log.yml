@@ -15,194 +15,55 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/restore-ai-dj-linear-log
-
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
           coverage: none
-
-      - name: Apply focused repair
+      - name: Patch production code
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
 
-          # 1) AI DJ: keep the realtime path, but only consume an on-air item after
-          # the delegate made a terminal decision. Temporary queue/cooldown blocks retry.
-          path = Path('backend/src/Radio/AutoDJ/AiDjQueueListener.php')
-          text = path.read_text()
-          start = text.index('    public function onBuildQueue(BuildQueue $event): void')
-          end = text.index('    private function trackCurrentSong', start)
-          method = text[start:end]
-          method = method.replace(
-              '    public function onBuildQueue(BuildQueue $event): void',
-              '    public function onBuildQueue(BuildQueue $event): bool',
-              1,
-          )
-          method = method.replace('return;', 'return true;')
-
-          transient_blocks = [
-              (
-                  "        if (!$queueEmpty) {\n"
-                  "            $this->logger->debug('AI DJ: Skipped - Liquidsoap requests queue is not empty.');\n"
-                  "            return true;\n"
-                  "        }",
-                  "        if (!$queueEmpty) {\n"
-                  "            $this->logger->debug('AI DJ: Skipped - Liquidsoap requests queue is not empty.');\n"
-                  "            return false;\n"
-                  "        }",
-              ),
-              (
-                  "        if ($lastGenTime && (time() - $lastGenTime) < 180) {\n"
-                  "            $this->logger->debug('AI DJ: Skipped - cooldown active.', ['elapsed' => time() - $lastGenTime]);\n"
-                  "            return true;\n"
-                  "        }",
-                  "        if ($lastGenTime && (time() - $lastGenTime) < 180) {\n"
-                  "            $this->logger->debug('AI DJ: Skipped - cooldown active.', ['elapsed' => time() - $lastGenTime]);\n"
-                  "            return false;\n"
-                  "        }",
-              ),
-              (
-                  "        if ($this->hasUpcomingDjClip($station)) {\n"
-                  "            $this->logger->debug('AI DJ: Skipped - a DJ clip is already queued ahead.');\n"
-                  "            return true;\n"
-                  "        }",
-                  "        if ($this->hasUpcomingDjClip($station)) {\n"
-                  "            $this->logger->debug('AI DJ: Skipped - a DJ clip is already queued ahead.');\n"
-                  "            return false;\n"
-                  "        }",
-              ),
-              (
-                  "                $this->cache->set($cacheKey, $previousDjId, 3600);\n"
-                  "                $this->trackCurrentSong($station);\n"
-                  "                return true;",
-                  "                $this->cache->set($cacheKey, $previousDjId, 3600);\n"
-                  "                $this->trackCurrentSong($station);\n"
-                  "                return false;",
-              ),
+          p = Path('backend/src/Radio/AutoDJ/AiDjQueueListener.php')
+          s = p.read_text()
+          a = s.index('    public function onBuildQueue(BuildQueue $event): void')
+          b = s.index('    private function trackCurrentSong', a)
+          m = s[a:b]
+          m = m.replace('    public function onBuildQueue(BuildQueue $event): void', '    public function onBuildQueue(BuildQueue $event): bool', 1)
+          m = m.replace('return;', 'return true;')
+          pairs = [
+              ("AI DJ: Skipped - Liquidsoap requests queue is not empty.');\n            return true;", "AI DJ: Skipped - Liquidsoap requests queue is not empty.');\n            return false;"),
+              ("AI DJ: Skipped - cooldown active.', ['elapsed' => time() - $lastGenTime]);\n            return true;", "AI DJ: Skipped - cooldown active.', ['elapsed' => time() - $lastGenTime]);\n            return false;"),
+              ("AI DJ: Skipped - a DJ clip is already queued ahead.');\n            return true;", "AI DJ: Skipped - a DJ clip is already queued ahead.');\n            return false;"),
+              ("$this->cache->set($cacheKey, $previousDjId, 3600);\n                $this->trackCurrentSong($station);\n                return true;", "$this->cache->set($cacheKey, $previousDjId, 3600);\n                $this->trackCurrentSong($station);\n                return false;"),
           ]
-          for old, new in transient_blocks:
-              if old not in method:
-                  raise SystemExit('Expected AI DJ block not found: ' + old.splitlines()[0])
-              method = method.replace(old, new, 1)
-
+          for old, new in pairs:
+              if old not in m:
+                  raise SystemExit('AI DJ target not found: ' + old.splitlines()[0])
+              m = m.replace(old, new, 1)
           tail = "        $this->trackCurrentSong($station);\n    }\n\n"
-          if tail not in method:
-              raise SystemExit('AI DJ method tail not found')
-          method = method.replace(
-              tail,
-              "        $this->trackCurrentSong($station);\n        return true;\n    }\n\n",
-              1,
-          )
-          if 'return;' in method:
-              raise SystemExit('Bare return remains in bool AI DJ method')
-          text = text[:start] + method + text[end:]
-          path.write_text(text)
+          if tail not in m:
+              raise SystemExit('AI DJ tail not found')
+          m = m.replace(tail, "        $this->trackCurrentSong($station);\n        return true;\n    }\n\n", 1)
+          if 'return;' in m:
+              raise SystemExit('Bare return remains in AI DJ method')
+          p.write_text(s[:a] + m + s[b:])
 
-          realtime = '''<?php
-
-          declare(strict_types=1);
-
-          namespace App\\Radio\\AutoDJ;
-
-          use App\\Container\\LoggerAwareTrait;
-          use App\\Entity\\Station;
-          use App\\Event\\Radio\\BuildQueue;
-          use App\\Utilities\\Time;
-          use Psr\\SimpleCache\\CacheInterface;
-          use Throwable;
-
-          final class AiDjRealtimeQueueListener
-          {
-              use LoggerAwareTrait;
-
-              private const int SEEN_ITEM_TTL_SECONDS = 21600;
-              private const int ATTEMPT_TTL_SECONDS = 30;
-
-              public function __construct(
-                  private readonly AiDjQueueListener $delegate,
-                  private readonly CacheInterface $cache,
-              ) {
-              }
-
-              public function run(Station $station): void
-              {
-                  $current = $station->current_song;
-                  if (null === $current || null === $current->timestamp_start) {
-                      return;
-                  }
-
-                  $fingerprint = $current->song_id . ':' . $current->timestamp_start->getTimestamp();
-                  $cacheKey = 'ai_dj_realtime_item_' . $station->id;
-
-                  if ($this->cache->get($cacheKey) === $fingerprint) {
-                      return;
-                  }
-
-                  // Short in-flight claim prevents parallel workers from making the
-                  // same decision. Temporary deferrals release it so this song can retry.
-                  $this->cache->set($cacheKey, $fingerprint, self::ATTEMPT_TTL_SECONDS);
-
-                  $handled = false;
-                  try {
-                      $now = Time::nowUtc()->toDateTimeImmutable();
-                      $handled = $this->delegate->onBuildQueue(
-                          new BuildQueue($station, $now, $now, $current->song_id, false)
-                      );
-                  } catch (Throwable $e) {
-                      $this->logger->error('AI DJ realtime decision failed.', [
-                          'exception' => $e->getMessage(),
-                      ]);
-                  } finally {
-                      if ($handled) {
-                          $this->cache->set($cacheKey, $fingerprint, self::SEEN_ITEM_TTL_SECONDS);
-                      } else {
-                          $this->cache->delete($cacheKey);
-                      }
-                  }
-              }
-          }
-          '''
-          Path('backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php').write_text(
-              '\n'.join(line[10:] if line.startswith('          ') else line for line in realtime.splitlines()) + '\n'
-          )
-
-          # 2) Linear Log: the strict no-fade TOH validator can legitimately leave
-          # the final protected ID window without a full music fit. A long-range
-          # projection must cross that protected window and keep building the next hour.
-          path = Path('backend/src/Radio/AutoDJ/Queue.php')
-          text = path.read_text()
-          old_ctor = '''        private readonly EventDispatcherInterface $dispatcher,
-                  private readonly StationQueueRepository $queueRepo,
-                  private readonly Scheduler $scheduler,
-                  private readonly QueueLogCache $queueLogCache
-          '''
-          # Keep indentation from the source rather than the Python literal above.
-          old_ctor = "        private readonly EventDispatcherInterface $dispatcher,\n        private readonly StationQueueRepository $queueRepo,\n        private readonly Scheduler $scheduler,\n        private readonly QueueLogCache $queueLogCache\n"
-          new_ctor = "        private readonly EventDispatcherInterface $dispatcher,\n        private readonly StationQueueRepository $queueRepo,\n        private readonly Scheduler $scheduler,\n        private readonly HourBoundaryPlanner $hourBoundaryPlanner,\n        private readonly QueueLogCache $queueLogCache\n"
-          if old_ctor not in text:
-              raise SystemExit('Queue constructor block not found')
-          text = text.replace(old_ctor, new_ctor, 1)
-
-          old_empty = '''            if (empty($nextSongs)) {
-                      $this->logger->warning(
-                          'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
-                          ['attempts' => $attempts]
-                      );
-                      $this->em->flush();
-                      break;
-                  }
-          '''
-          old_empty = """            if (empty($nextSongs)) {
-                $this->logger->warning(
-                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
-                    ['attempts' => $attempts]
-                );
-                $this->em->flush();
-                break;
-            }
-          """
-          new_empty = """            if (empty($nextSongs)) {
+          p = Path('backend/src/Radio/AutoDJ/Queue.php')
+          s = p.read_text()
+          old = "        private readonly EventDispatcherInterface $dispatcher,\n        private readonly StationQueueRepository $queueRepo,\n        private readonly Scheduler $scheduler,\n        private readonly QueueLogCache $queueLogCache\n"
+          new = "        private readonly EventDispatcherInterface $dispatcher,\n        private readonly StationQueueRepository $queueRepo,\n        private readonly Scheduler $scheduler,\n        private readonly HourBoundaryPlanner $hourBoundaryPlanner,\n        private readonly QueueLogCache $queueLogCache\n"
+          if old not in s:
+              raise SystemExit('Queue constructor target not found')
+          s = s.replace(old, new, 1)
+          marker = "            if (empty($nextSongs)) {\n"
+          start = s.index(marker, s.index('$maxAttemptsPerSlot'))
+          end = s.index("\n\n            foreach ($nextSongs as $queueRow) {", start)
+          block = s[start:end]
+          if 'Could not find a compliant song for queue slot after max attempts; stopping queue build.' not in block:
+              raise SystemExit('Queue stop block not found')
+          replacement = '''            if (empty($nextSongs)) {
                 if (
                     null !== $lookaheadMinutesOverride
                     && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
@@ -213,14 +74,10 @@ jobs:
                             $station->getTimezoneObject(),
                         )
                     );
-
                     if ($resumeAt > $expectedPlayTime) {
                         $this->logger->info(
                             'Linear Log: crossing protected top-of-hour window and continuing projection.',
-                            [
-                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
-                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
-                            ]
+                            ['from' => $expectedPlayTime->format(DateTimeImmutable::ATOM), 'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM)]
                         );
                         $expectedPlayTime = $resumeAt;
                         $expectedCueTime = $resumeAt;
@@ -228,130 +85,26 @@ jobs:
                         continue;
                     }
                 }
-
                 $this->logger->warning(
                     'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
                     ['attempts' => $attempts]
                 );
                 $this->em->flush();
                 break;
-            }
-          """
-          if old_empty not in text:
-              raise SystemExit('Queue empty-song block not found')
-          text = text.replace(old_empty, new_empty, 1)
-          path.write_text(text)
-
-          # Regression contracts for the two repaired paths.
-          Path('tests/Unit/AiDjRealtimeQueueListenerTest.php').write_text(r'''<?php
-
-          declare(strict_types=1);
-
-          namespace Tests\Unit;
-
-          use PHPUnit\Framework\TestCase;
-
-          final class AiDjRealtimeQueueListenerTest extends TestCase
-          {
-              public function testAiDjUsesActualOnAirItemsAndRetriesTemporaryDeferrals(): void
-              {
-                  $wrapper = file_get_contents(
-                      dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php'
-                  );
-                  $listener = file_get_contents(
-                      dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/AiDjQueueListener.php'
-                  );
-                  $task = file_get_contents(
-                      dirname(__DIR__, 2) . '/backend/src/Sync/NowPlaying/Task/BuildQueueTask.php'
-                  );
-                  $events = file_get_contents(dirname(__DIR__, 2) . '/backend/config/events.php');
-
-                  self::assertIsString($wrapper);
-                  self::assertIsString($listener);
-                  self::assertIsString($task);
-                  self::assertIsString($events);
-
-                  self::assertStringContainsString("'ai_dj_realtime_item_'", $wrapper);
-                  self::assertStringContainsString('ATTEMPT_TTL_SECONDS = 30', $wrapper);
-                  self::assertStringContainsString('$handled = $this->delegate->onBuildQueue(', $wrapper);
-                  self::assertStringContainsString('$this->cache->delete($cacheKey);', $wrapper);
-                  self::assertStringContainsString('public function onBuildQueue(BuildQueue $event): bool', $listener);
-                  self::assertMatchesRegularExpression(
-                      "/requests queue is not empty\\.'\\);\\s*return false;/",
-                      $listener,
-                  );
-                  self::assertMatchesRegularExpression(
-                      "/cooldown active\\.'.*?return false;/s",
-                      $listener,
-                  );
-                  self::assertMatchesRegularExpression(
-                      "/DJ clip is already queued ahead\\.'\\);\\s*return false;/",
-                      $listener,
-                  );
-                  self::assertStringContainsString('$this->aiDjRealtimeQueueListener->run($station);', $task);
-                  self::assertStringNotContainsString('App\\Radio\\AutoDJ\\AiDjQueueListener::class,', $events);
-              }
-          }
-          '''.replace('          ', ''))
-
-          Path('tests/Unit/LinearLogBoundaryContinuityTest.php').write_text(r'''<?php
-
-          declare(strict_types=1);
-
-          namespace Tests\Unit;
-
-          use PHPUnit\Framework\TestCase;
-
-          final class LinearLogBoundaryContinuityTest extends TestCase
-          {
-              public function testLongRangeProjectionContinuesAcrossProtectedTopOfHourWindow(): void
-              {
-                  $queue = file_get_contents(dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/Queue.php');
-                  $linearLog = file_get_contents(
-                      dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/LinearLogBuilder.php'
-                  );
-
-                  self::assertIsString($queue);
-                  self::assertIsString($linearLog);
-                  self::assertStringContainsString('HourBoundaryPlanner $hourBoundaryPlanner', $queue);
-                  self::assertStringContainsString('null !== $lookaheadMinutesOverride', $queue);
-                  self::assertStringContainsString('isInTopOfHourIdWindow($station, $expectedPlayTime)', $queue);
-                  self::assertStringContainsString(
-                      'Linear Log: crossing protected top-of-hour window and continuing projection.',
-                      $queue,
-                  );
-                  self::assertStringContainsString('$expectedPlayTime = $resumeAt;', $queue);
-                  self::assertStringContainsString('$expectedCueTime = $resumeAt;', $queue);
-                  self::assertStringContainsString('min(48, $hoursOverride ?? $station->backend_config->linear_log_hours)', $linearLog);
-              }
-          }
-          '''.replace('          ', ''))
+            }'''
+          p.write_text(s[:start] + replacement + s[end:])
           PY
-
-      - name: Validate PHP and repair contracts
+      - name: Validate and commit
         shell: bash
         run: |
           php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
-          php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
           php -l backend/src/Radio/AutoDJ/Queue.php
-          php -l tests/Unit/AiDjRealtimeQueueListenerTest.php
-          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
           grep -q 'public function onBuildQueue(BuildQueue $event): bool' backend/src/Radio/AutoDJ/AiDjQueueListener.php
-          grep -q 'return false;' backend/src/Radio/AutoDJ/AiDjQueueListener.php
           grep -q 'crossing protected top-of-hour window and continuing projection' backend/src/Radio/AutoDJ/Queue.php
           git diff --check
-
-      - name: Commit repair and remove temporary workflow
-        shell: bash
-        run: |
           rm .github/workflows/restore_ai_dj_linear_log.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/src/Radio/AutoDJ/AiDjQueueListener.php \
-                  backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php \
-                  backend/src/Radio/AutoDJ/Queue.php \
-                  tests/Unit/AiDjRealtimeQueueListenerTest.php \
-                  tests/Unit/LinearLogBoundaryContinuityTest.php \
-                  .github/workflows/restore_ai_dj_linear_log.yml
-          git commit -m 'Restore AI DJ cadence and linear log continuity'
+          git add -A
+          git commit -m 'Restore AI DJ retries and linear log continuity'
           git push origin HEAD:fix/restore-ai-dj-linear-log
