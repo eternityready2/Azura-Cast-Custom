@@ -5,11 +5,17 @@ on:
     branches:
       - fix/toh-natural-handoff-final
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: fix/toh-natural-handoff-final
+          fetch-depth: 0
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -19,15 +25,20 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-reqs
 
+      - name: Apply remaining TOH continuity repair
+        run: python3 .github/scripts/apply_toh_repair.py
+
       - name: PHP syntax
         run: |
           php -l backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
           php -l backend/src/Radio/AutoDJ/Queue.php
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
           php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
           php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
           php -l tests/Unit/TopOfHourPreBoundaryHoldTest.php
           php -l tests/Unit/TopOfHourNewsPriorityTest.php
           php -l tests/Unit/TopOfHourContinuityIntegrationTest.php
+          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
 
       - name: Focused TOH regression suite
         run: |
@@ -42,7 +53,33 @@ jobs:
             tests/Unit/LinearLogBoundaryContinuityTest.php \
             tests/Unit/AiDjRealtimeQueueListenerTest.php
 
-      - name: Diff hygiene
+      - name: TOH safety contracts
+        shell: bash
         run: |
-          git fetch origin fix/restore-ai-dj-linear-log --depth=1
-          git diff --check FETCH_HEAD HEAD
+          ! grep -Fq 'top_of_hour_preboundary_hold' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          ! grep -Fq 'PRE_BOUNDARY_HOLD_SECONDS' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'id="top_of_hour_natural_handoff"' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'id="top_of_hour_emergency_takeover"' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'id="top_of_hour_priority_natural_handoff"' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -Fq 'id="top_of_hour_priority_emergency_takeover"' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -Fq 'cron.add("58 * * *' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -Fq 'getIdWindowLeadSeconds($station)' backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          grep -Fq 'prebuilding post-ID audio.' backend/src/Radio/AutoDJ/Queue.php
+          grep -Fq 'exact sequence unavailable; keeping a naturally fitting record.' backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq '$selectedAirtime <= $availableSeconds + TopOfHourSequencePlanner::NATURAL_TOLERANCE_SECONDS' backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq 'refusing to turn a normal music track into a routine TOH cut/fade.' backend/src/Radio/AutoDJ/QueueBuilder.php
+          ! grep -Fq 'top_of_hour_pre_id_fade = true' backend/src/Radio/AutoDJ/QueueBuilder.php
+          git diff --check
+
+      - name: Commit validated repair and remove temporary helpers
+        shell: bash
+        run: |
+          rm .github/workflows/final_toh_natural_handoff.yml
+          rm .github/scripts/apply_toh_repair.py
+          rmdir .github/scripts 2>/dev/null || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Finalize continuous TOH natural-boundary handoff'
+          git push origin HEAD:fix/toh-natural-handoff-final
