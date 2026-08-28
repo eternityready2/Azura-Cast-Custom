@@ -26,9 +26,54 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-reqs
 
       - name: Apply final TOH continuity repair
+        run: python3 .github/scripts/apply_toh_repair.py
+
+      - name: Syntax and focused regression tests
         shell: bash
-        env:
-          REPAIR_SCRIPT_B64: "ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgoKZGVmIHJlcGxhY2Vfb25jZShwYXRoOiBzdHIsIG9sZDogc3RyLCBuZXc6IHN0cikgLT4gTm9uZToKICAgIHAgPSBQYXRoKHBhdGgpCiAgICB0ZXh0ID0gcC5yZWFkX3RleHQoKQogICAgY291bnQgPSB0ZXh0LmNvdW50KG9sZCkKICAgIGlmIGNvdW50ICE9IDE6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmIntwYXRofTogZXhwZWN0ZWQgZXhhY3RseSBvbmUgbWF0Y2gsIGZvdW5kIHtjb3VudH0iKQogICAgcC53cml0ZV90ZXh0KHRleHQucmVwbGFjZShvbGQsIG5ldywgMSkpCgoKIyAxLiBPcGVuLWhvdXIgSURzIG11c3QgYmUgc3RhZ2VkIGFzIHNvb24gYXMgdGhlIGVzdGFibGlzaGVkIDo1OCBJRCB3aW5kb3cgb3BlbnMuCnBhdGggPSAiYmFja2VuZC9zcmMvUmFkaW8vQXV0b0RKL1RvcE9mSG91cklkU2NoZWR1bGVyLnBocCIKcmVwbGFjZV9vbmNlKAogICAgcGF0aCwKICAgICcnJyAgICAvKioKICAgICAqIE9wZW4taG91ciBib3VuZGFyaWVzIHdhaXQgdW50aWwgOjU5IGJlZm9yZSBpbnRlcnJ1cHRpbmcgbm9ybWFsIG11c2ljLgogICAgICovCiAgICBwcml2YXRlIGNvbnN0IGludCBPUEVOX0hPVVJfVFJJR0dFUl9MRUFEX1NFQ09ORFMgPSA2MDsKCicnJywKICAgICcnCikKcmVwbGFjZV9vbmNlKAogICAgcGF0aCwKICAgICcnJyAgICAgICAgcmV0dXJuICRzZWNvbmRzVW50aWxUb3AgPiAwCiAgICAgICAgICAgICYmICRzZWNvbmRzVW50aWxUb3AgPD0gc2VsZjo6T1BFTl9IT1VSX1RSSUdHRVJfTEVBRF9TRUNPTkRTOwonJycsCiAgICAnJycgICAgICAgIHJldHVybiAkc2Vjb25kc1VudGlsVG9wID4gMAogICAgICAgICAgICAmJiAkc2Vjb25kc1VudGlsVG9wIDw9ICR0aGlzLT5ob3VyQm91bmRhcnlQbGFubmVyLT5nZXRJZFdpbmRvd0xlYWRTZWNvbmRzKCRzdGF0aW9uKTsKJycnCikKcmVwbGFjZV9vbmNlKAogICAgcGF0aCwKICAgICcnJyAgICAgICAgICAgICAgICAnVG9wLW9mLWhvdXIgSUQgZGVmZXJyZWQ6IG5leHQgaG91ciBpcyBvcGVuIGFuZCB0aGUgOjU5IHRyaWdnZXIgd2luZG93IGhhcyBub3QgYXJyaXZlZC4nCicnJywKICAgICcnJyAgICAgICAgICAgICAgICAnVG9wLW9mLWhvdXIgSUQgZGVmZXJyZWQ6IG5leHQgaG91ciBpcyBvcGVuIGFuZCB0aGUgbmF0dXJhbC1oYW5kb2ZmIHdpbmRvdyBoYXMgbm90IGFycml2ZWQuJwo='" 
         run: |
-          printf '%s' "$REPAIR_SCRIPT_B64" | base64 -d > /tmp/apply_toh_repair.py
-          python3 /tmp/apply_toh_repair.py
+          php -l backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          php -l backend/src/Radio/AutoDJ/Queue.php
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          php -l backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          php -l tests/Unit/TopOfHourNaturalHandoffTest.php
+          php -l tests/Unit/TopOfHourContinuityIntegrationTest.php
+          php -l tests/Unit/TopOfHourNewsPriorityTest.php
+          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
+          vendor/bin/phpunit \
+            tests/Unit/TopOfHourNaturalHandoffTest.php \
+            tests/Unit/TopOfHourContinuityIntegrationTest.php \
+            tests/Unit/TopOfHourNewsPriorityTest.php \
+            tests/Unit/LinearLogBoundaryContinuityTest.php \
+            tests/Unit/TopOfHourSequencePlannerTest.php \
+            tests/Unit/TopOfHourSmartBacktimingTest.php \
+            tests/Unit/TopOfHourFeedbackTest.php \
+            tests/Unit/AiDjRealtimeQueueListenerTest.php
+          git diff --check
+
+      - name: Source-contract safety checks
+        shell: bash
+        run: |
+          ! grep -Fq 'top_of_hour_preboundary_hold' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          ! grep -Fq 'PRE_BOUNDARY_HOLD_SECONDS' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'id="top_of_hour_natural_handoff"' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'track_sensitive=true,' backend/src/Radio/Backend/Liquidsoap/TopOfHourConfigWriter.php
+          grep -Fq 'id="top_of_hour_priority_natural_handoff"' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -Fq 'cron.add("58 * * *' backend/src/Radio/Backend/Liquidsoap/TopOfHourNewsConfigWriter.php
+          grep -Fq 'getIdWindowLeadSeconds($station)' backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          grep -Fq 'prebuilding post-ID audio' backend/src/Radio/AutoDJ/Queue.php
+          grep -Fq 'naturally fitting record' backend/src/Radio/AutoDJ/QueueBuilder.php
+          grep -Fq 'refusing to turn a normal music track into a routine TOH cut/fade.' backend/src/Radio/AutoDJ/QueueBuilder.php
+          ! grep -Fq 'top_of_hour_pre_id_fade = true' backend/src/Radio/AutoDJ/QueueBuilder.php
+
+      - name: Commit validated repair and remove temporary helpers
+        shell: bash
+        run: |
+          rm .github/workflows/final_toh_natural_handoff.yml
+          rm .github/scripts/apply_toh_repair.py
+          rmdir .github/scripts 2>/dev/null || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Make TOH handoff continuous at natural track boundaries'
+          git push origin HEAD:fix/toh-natural-handoff-final
