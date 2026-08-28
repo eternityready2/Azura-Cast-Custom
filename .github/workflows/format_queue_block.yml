@@ -1,0 +1,86 @@
+name: Normalize Queue Block
+
+on:
+  push:
+    branches:
+      - fix/restore-ai-dj-linear-log
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-ai-dj-linear-log
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+      - name: Normalize block
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          p = Path('backend/src/Radio/AutoDJ/Queue.php')
+          s = p.read_text()
+          start = s.index('            if (empty($nextSongs)) {\n', s.index('$maxAttemptsPerSlot'))
+          end = s.index('\n\n            foreach ($nextSongs as $queueRow) {', start)
+          old = s[start:end]
+          if 'Linear Log: crossing protected top-of-hour window and continuing projection.' not in old:
+              raise SystemExit('Linear Log continuation block not found')
+          lines = [
+              '            if (empty($nextSongs)) {',
+              '                if (',
+              '                    null !== $lookaheadMinutesOverride',
+              '                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)',
+              '                ) {',
+              '                    $resumeAt = CarbonImmutable::instance(',
+              '                        $this->hourBoundaryPlanner->getNextTopOfHour(',
+              '                            $expectedPlayTime,',
+              '                            $station->getTimezoneObject(),',
+              '                        )',
+              '                    );',
+              '',
+              '                    if ($resumeAt > $expectedPlayTime) {',
+              '                        $this->logger->info(',
+              "                            'Linear Log: crossing protected top-of-hour window and continuing projection.',",
+              '                            [',
+              "                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),",
+              "                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),",
+              '                            ]',
+              '                        );',
+              '                        $expectedPlayTime = $resumeAt;',
+              '                        $expectedCueTime = $resumeAt;',
+              '                        $this->em->flush();',
+              '                        continue;',
+              '                    }',
+              '                }',
+              '',
+              '                $this->logger->warning(',
+              "                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',",
+              "                    ['attempts' => $attempts]",
+              '                );',
+              '                $this->em->flush();',
+              '                break;',
+              '            }',
+          ]
+          p.write_text(s[:start] + '\n'.join(lines) + s[end:])
+          PY
+      - name: Validate and commit
+        shell: bash
+        run: |
+          php -l backend/src/Radio/AutoDJ/Queue.php
+          php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
+          php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          php -l tests/Unit/AiDjRealtimeQueueListenerTest.php
+          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
+          git diff --check
+          rm .github/workflows/format_queue_block.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Normalize Linear Log continuation formatting'
+          git push origin HEAD:fix/restore-ai-dj-linear-log
