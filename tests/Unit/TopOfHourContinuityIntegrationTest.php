@@ -35,12 +35,12 @@ final class TopOfHourContinuityIntegrationTest extends TestCase
             $source,
         );
         self::assertStringContainsString(
-            "null !== $lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ'",
+            "null !== \$lookaheadMinutesOverride ? 'Linear Log' : 'AutoDJ'",
             $source,
         );
         self::assertStringContainsString('prebuilding post-ID audio.', $source);
         self::assertStringNotContainsString(
-            'null !== $lookaheadMinutesOverride\n                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow',
+            "null !== \$lookaheadMinutesOverride\n                    && \$this->hourBoundaryPlanner->isInTopOfHourIdWindow",
             $source,
         );
     }
