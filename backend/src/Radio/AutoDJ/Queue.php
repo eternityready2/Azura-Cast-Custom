@@ -222,10 +222,14 @@ final class Queue
                   $station->getTimezoneObject(),
               )
           );
+
           if ($resumeAt > $expectedPlayTime) {
               $this->logger->info(
                   'Linear Log: crossing protected top-of-hour window and continuing projection.',
-                  ['from' => $expectedPlayTime->format(DateTimeImmutable::ATOM), 'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM)]
+                  [
+                      'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                      'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
+                  ]
               );
               $expectedPlayTime = $resumeAt;
               $expectedCueTime = $resumeAt;
@@ -233,6 +237,7 @@ final class Queue
               continue;
           }
       }
+
       $this->logger->warning(
           'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
           ['attempts' => $attempts]
