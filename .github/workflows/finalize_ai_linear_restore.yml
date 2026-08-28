@@ -1,0 +1,230 @@
+name: Finalize AI DJ and Linear Log Repair
+
+on:
+  push:
+    branches:
+      - fix/restore-ai-dj-linear-log
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-ai-dj-linear-log
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+      - name: Finalize files
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          p = Path('backend/src/Radio/AutoDJ/Queue.php')
+          s = p.read_text()
+          ugly = '''            if (empty($nextSongs)) {
+      if (
+          null !== $lookaheadMinutesOverride
+          && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
+      ) {
+          $resumeAt = CarbonImmutable::instance(
+              $this->hourBoundaryPlanner->getNextTopOfHour(
+                  $expectedPlayTime,
+                  $station->getTimezoneObject(),
+              )
+          );
+          if ($resumeAt > $expectedPlayTime) {
+              $this->logger->info(
+                  'Linear Log: crossing protected top-of-hour window and continuing projection.',
+                  ['from' => $expectedPlayTime->format(DateTimeImmutable::ATOM), 'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM)]
+              );
+              $expectedPlayTime = $resumeAt;
+              $expectedCueTime = $resumeAt;
+              $this->em->flush();
+              continue;
+          }
+      }
+      $this->logger->warning(
+          'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
+          ['attempts' => $attempts]
+      );
+      $this->em->flush();
+      break;
+  }'''
+          clean = '''            if (empty($nextSongs)) {
+                if (
+                    null !== $lookaheadMinutesOverride
+                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
+                ) {
+                    $resumeAt = CarbonImmutable::instance(
+                        $this->hourBoundaryPlanner->getNextTopOfHour(
+                            $expectedPlayTime,
+                            $station->getTimezoneObject(),
+                        )
+                    );
+
+                    if ($resumeAt > $expectedPlayTime) {
+                        $this->logger->info(
+                            'Linear Log: crossing protected top-of-hour window and continuing projection.',
+                            [
+                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
+                            ]
+                        );
+                        $expectedPlayTime = $resumeAt;
+                        $expectedCueTime = $resumeAt;
+                        $this->em->flush();
+                        continue;
+                    }
+                }
+
+                $this->logger->warning(
+                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
+                    ['attempts' => $attempts]
+                );
+                $this->em->flush();
+                break;
+            }'''
+          if ugly not in s:
+              raise SystemExit('Queue formatting target not found')
+          p.write_text(s.replace(ugly, clean, 1))
+
+          Path('backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php').write_text('''<?php
+
+declare(strict_types=1);
+
+namespace App\\Radio\\AutoDJ;
+
+use App\\Container\\LoggerAwareTrait;
+use App\\Entity\\Station;
+use App\\Event\\Radio\\BuildQueue;
+use App\\Utilities\\Time;
+use Psr\\SimpleCache\\CacheInterface;
+use Throwable;
+
+final class AiDjRealtimeQueueListener
+{
+    use LoggerAwareTrait;
+
+    private const int SEEN_ITEM_TTL_SECONDS = 21600;
+    private const int ATTEMPT_TTL_SECONDS = 30;
+
+    public function __construct(
+        private readonly AiDjQueueListener $delegate,
+        private readonly CacheInterface $cache,
+    ) {
+    }
+
+    public function run(Station $station): void
+    {
+        $current = $station->current_song;
+        if (null === $current || null === $current->timestamp_start) {
+            return;
+        }
+
+        $fingerprint = $current->song_id . ':' . $current->timestamp_start->getTimestamp();
+        $cacheKey = 'ai_dj_realtime_item_' . $station->id;
+
+        if ($this->cache->get($cacheKey) === $fingerprint) {
+            return;
+        }
+
+        $this->cache->set($cacheKey, $fingerprint, self::ATTEMPT_TTL_SECONDS);
+
+        $handled = false;
+        try {
+            $now = Time::nowUtc()->toDateTimeImmutable();
+            $handled = $this->delegate->onBuildQueue(
+                new BuildQueue($station, $now, $now, $current->song_id, false)
+            );
+        } catch (Throwable $e) {
+            $this->logger->error('AI DJ realtime decision failed.', [
+                'exception' => $e->getMessage(),
+            ]);
+        } finally {
+            if ($handled) {
+                $this->cache->set($cacheKey, $fingerprint, self::SEEN_ITEM_TTL_SECONDS);
+            } else {
+                $this->cache->delete($cacheKey);
+            }
+        }
+    }
+}
+''')
+
+          Path('tests/Unit/AiDjRealtimeQueueListenerTest.php').write_text(r'''<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+final class AiDjRealtimeQueueListenerTest extends TestCase
+{
+    public function testTemporaryRealtimeDeferralsAreRetried(): void
+    {
+        $wrapper = file_get_contents(dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php');
+        $listener = file_get_contents(dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/AiDjQueueListener.php');
+
+        self::assertIsString($wrapper);
+        self::assertIsString($listener);
+        self::assertStringContainsString('ATTEMPT_TTL_SECONDS = 30', $wrapper);
+        self::assertStringContainsString('$handled = $this->delegate->onBuildQueue(', $wrapper);
+        self::assertStringContainsString('$this->cache->delete($cacheKey);', $wrapper);
+        self::assertStringContainsString('public function onBuildQueue(BuildQueue $event): bool', $listener);
+        self::assertMatchesRegularExpression("/requests queue is not empty\\.'\\);\\s*return false;/", $listener);
+        self::assertMatchesRegularExpression("/cooldown active\\.'.*?return false;/s", $listener);
+        self::assertMatchesRegularExpression("/DJ clip is already queued ahead\\.'\\);\\s*return false;/", $listener);
+    }
+}
+''')
+
+          Path('tests/Unit/LinearLogBoundaryContinuityTest.php').write_text(r'''<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+final class LinearLogBoundaryContinuityTest extends TestCase
+{
+    public function testLongRangeProjectionContinuesAcrossProtectedTohWindow(): void
+    {
+        $queue = file_get_contents(dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/Queue.php');
+        $linearLog = file_get_contents(dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/LinearLogBuilder.php');
+
+        self::assertIsString($queue);
+        self::assertIsString($linearLog);
+        self::assertStringContainsString('HourBoundaryPlanner $hourBoundaryPlanner', $queue);
+        self::assertStringContainsString('null !== $lookaheadMinutesOverride', $queue);
+        self::assertStringContainsString('isInTopOfHourIdWindow($station, $expectedPlayTime)', $queue);
+        self::assertStringContainsString('Linear Log: crossing protected top-of-hour window and continuing projection.', $queue);
+        self::assertStringContainsString('$expectedPlayTime = $resumeAt;', $queue);
+        self::assertStringContainsString('$expectedCueTime = $resumeAt;', $queue);
+        self::assertStringContainsString('min(48, $hoursOverride ?? $station->backend_config->linear_log_hours)', $linearLog);
+    }
+}
+''')
+          PY
+      - name: Validate and commit
+        shell: bash
+        run: |
+          php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
+          php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          php -l backend/src/Radio/AutoDJ/Queue.php
+          php -l tests/Unit/AiDjRealtimeQueueListenerTest.php
+          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
+          git diff --check
+          rm .github/workflows/finalize_ai_linear_restore.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Finalize AI DJ and linear log repair'
+          git push origin HEAD:fix/restore-ai-dj-linear-log
