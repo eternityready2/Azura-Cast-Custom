@@ -1,0 +1,98 @@
+name: Validate Linear Log Repair
+
+on:
+  push:
+    branches:
+      - fix/restore-ai-dj-linear-log
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-ai-dj-linear-log
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Normalize Queue formatting
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/src/Radio/AutoDJ/Queue.php')
+          text = path.read_text()
+          marker = '            if (empty($nextSongs)) {\n'
+          start = text.index(marker, text.index('$maxAttemptsPerSlot'))
+          end = text.index('\n\n            foreach ($nextSongs as $queueRow) {', start)
+          block = text[start:end]
+
+          if 'Linear Log: crossing protected top-of-hour window and continuing projection.' not in block:
+              raise SystemExit('Expected Linear Log continuation block not found.')
+
+          clean = '''            if (empty($nextSongs)) {
+                if (
+                    null !== $lookaheadMinutesOverride
+                    && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
+                ) {
+                    $resumeAt = CarbonImmutable::instance(
+                        $this->hourBoundaryPlanner->getNextTopOfHour(
+                            $expectedPlayTime,
+                            $station->getTimezoneObject(),
+                        )
+                    );
+
+                    if ($resumeAt > $expectedPlayTime) {
+                        $this->logger->info(
+                            'Linear Log: crossing protected top-of-hour window and continuing projection.',
+                            [
+                                'from' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                                'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM),
+                            ]
+                        );
+                        $expectedPlayTime = $resumeAt;
+                        $expectedCueTime = $resumeAt;
+                        $this->em->flush();
+                        continue;
+                    }
+                }
+
+                $this->logger->warning(
+                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
+                    ['attempts' => $attempts]
+                );
+                $this->em->flush();
+                break;
+            }'''
+
+          path.write_text(text[:start] + clean + text[end:])
+          PY
+
+      - name: Validate PHP and regression contracts
+        shell: bash
+        run: |
+          php -l backend/src/Radio/AutoDJ/Queue.php
+          php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
+          php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          php -l tests/Unit/AiDjRealtimeQueueListenerTest.php
+          php -l tests/Unit/LinearLogBoundaryContinuityTest.php
+          grep -q 'Linear Log: crossing protected top-of-hour window and continuing projection.' backend/src/Radio/AutoDJ/Queue.php
+          grep -q 'ATTEMPT_TTL_SECONDS = 30' backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          git diff --check
+
+      - name: Commit formatting and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/format_linear_log_repair.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Finalize AI DJ and Linear Log repair'
+          git push origin HEAD:fix/restore-ai-dj-linear-log
