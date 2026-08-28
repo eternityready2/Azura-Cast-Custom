@@ -43,4 +43,6 @@ jobs:
             tests/Unit/AiDjRealtimeQueueListenerTest.php
 
       - name: Diff hygiene
-        run: git diff --check origin/fix/restore-ai-dj-linear-log...HEAD
+        run: |
+          git fetch origin fix/restore-ai-dj-linear-log --depth=1
+          git diff --check FETCH_HEAD HEAD
