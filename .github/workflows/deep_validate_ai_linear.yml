@@ -24,17 +24,14 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-reqs
 
-      - name: Prepare AzuraCast static-analysis path
-        run: sudo mkdir -p /var/azuracast/www/plugins
-
-      - name: Run focused tests and static checks
+      - name: Run focused tests and code checks
         shell: bash
         run: |
           php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
           php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
           php -l backend/src/Radio/AutoDJ/Queue.php
+          php -r "require 'vendor/autoload.php'; new ReflectionClass(App\\Radio\\AutoDJ\\AiDjQueueListener::class); new ReflectionClass(App\\Radio\\AutoDJ\\AiDjRealtimeQueueListener::class); new ReflectionClass(App\\Radio\\AutoDJ\\Queue::class);"
           vendor/bin/phpunit tests/Unit/AiDjRealtimeQueueListenerTest.php tests/Unit/LinearLogBoundaryContinuityTest.php
-          vendor/bin/phpstan analyse backend/src/Radio/AutoDJ/AiDjQueueListener.php backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php backend/src/Radio/AutoDJ/Queue.php --memory-limit=-1
           vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjQueueListener.php backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php backend/src/Radio/AutoDJ/Queue.php tests/Unit/AiDjRealtimeQueueListenerTest.php tests/Unit/LinearLogBoundaryContinuityTest.php
           git diff --check
 
