@@ -24,7 +24,8 @@ final class BuildQueue extends Event
         ?DateTimeImmutable $expectedCueTime = null,
         ?DateTimeImmutable $expectedPlayTime = null,
         private readonly ?string $lastPlayedSongId = null,
-        private readonly bool $isInterrupting = false
+        private readonly bool $isInterrupting = false,
+        private readonly bool $isProjection = false,
     ) {
         $this->expectedCueTime = $expectedCueTime ?? Time::nowUtc();
         $this->expectedPlayTime = $expectedPlayTime ?? Time::nowUtc();
@@ -53,6 +54,16 @@ final class BuildQueue extends Event
     public function isInterrupting(): bool
     {
         return $this->isInterrupting;
+    }
+
+    /**
+     * True when this event is being evaluated for a future Linear Log projection.
+     * Projection listeners must not mutate live-only state such as AI DJ cooldowns,
+     * shift markers, audio generation queues, or other wall-clock runtime state.
+     */
+    public function isProjection(): bool
+    {
+        return $this->isProjection;
     }
 
     /**
