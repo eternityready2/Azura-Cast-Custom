@@ -1,0 +1,46 @@
+name: Deep Validate AI DJ and Linear Log
+
+on:
+  push:
+    branches:
+      - fix/restore-ai-dj-linear-log
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/restore-ai-dj-linear-log
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-reqs
+
+      - name: Run focused tests and static checks
+        shell: bash
+        run: |
+          php -l backend/src/Radio/AutoDJ/AiDjQueueListener.php
+          php -l backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php
+          php -l backend/src/Radio/AutoDJ/Queue.php
+          vendor/bin/phpunit tests/Unit/AiDjRealtimeQueueListenerTest.php tests/Unit/LinearLogBoundaryContinuityTest.php
+          vendor/bin/phpstan analyse backend/src/Radio/AutoDJ/AiDjQueueListener.php backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php backend/src/Radio/AutoDJ/Queue.php --memory-limit=-1
+          vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjQueueListener.php backend/src/Radio/AutoDJ/AiDjRealtimeQueueListener.php backend/src/Radio/AutoDJ/Queue.php tests/Unit/AiDjRealtimeQueueListenerTest.php tests/Unit/LinearLogBoundaryContinuityTest.php
+          git diff --check
+
+      - name: Remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/deep_validate_ai_linear.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Remove temporary deep validation workflow'
+          git push origin HEAD:fix/restore-ai-dj-linear-log
