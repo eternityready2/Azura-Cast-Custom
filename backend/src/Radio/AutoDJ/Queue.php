@@ -31,6 +31,7 @@ final class Queue
         private readonly EventDispatcherInterface $dispatcher,
         private readonly StationQueueRepository $queueRepo,
         private readonly Scheduler $scheduler,
+        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly QueueLogCache $queueLogCache
     ) {
     }
@@ -211,13 +212,34 @@ final class Queue
             }
 
             if (empty($nextSongs)) {
-                $this->logger->warning(
-                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
-                    ['attempts' => $attempts]
-                );
-                $this->em->flush();
-                break;
-            }
+      if (
+          null !== $lookaheadMinutesOverride
+          && $this->hourBoundaryPlanner->isInTopOfHourIdWindow($station, $expectedPlayTime)
+      ) {
+          $resumeAt = CarbonImmutable::instance(
+              $this->hourBoundaryPlanner->getNextTopOfHour(
+                  $expectedPlayTime,
+                  $station->getTimezoneObject(),
+              )
+          );
+          if ($resumeAt > $expectedPlayTime) {
+              $this->logger->info(
+                  'Linear Log: crossing protected top-of-hour window and continuing projection.',
+                  ['from' => $expectedPlayTime->format(DateTimeImmutable::ATOM), 'resume_at' => $resumeAt->format(DateTimeImmutable::ATOM)]
+              );
+              $expectedPlayTime = $resumeAt;
+              $expectedCueTime = $resumeAt;
+              $this->em->flush();
+              continue;
+          }
+      }
+      $this->logger->warning(
+          'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
+          ['attempts' => $attempts]
+      );
+      $this->em->flush();
+      break;
+  }
 
             foreach ($nextSongs as $queueRow) {
                 $effectiveDuration = $this->getEffectiveQueueDuration($queueRow);
