@@ -31,11 +31,13 @@ use Throwable;
  */
 #[AsCommand(
     name: 'azuracast:radio:build-linear-log',
-    description: 'Build a linear playout log 24 to 48 hours ahead for one or all stations.',
+    description: 'Build a linear playout log up to N hours ahead for one or all stations.',
 )]
 final class BuildLinearLogCommand extends CommandAbstract
 {
     private const int DEFAULT_HOURS = 24;
+
+    private const int MAX_HOURS = 48;
 
     public function __construct(
         private readonly StationRepository $stationRepo,
@@ -51,7 +53,7 @@ final class BuildLinearLogCommand extends CommandAbstract
                 'hours',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'How many hours ahead to build the log (24 to 48).',
+                'How many hours ahead to build the log to.',
                 (string)self::DEFAULT_HOURS,
             );
     }
@@ -60,9 +62,8 @@ final class BuildLinearLogCommand extends CommandAbstract
     {
         $io = new SymfonyStyle($input, $output);
 
-        $hours = LinearLogBuilder::normalizeHours(
-            Types::int($input->getOption('hours'), self::DEFAULT_HOURS)
-        );
+        $hours = Types::int($input->getOption('hours'), self::DEFAULT_HOURS);
+        $hours = max(1, min($hours, self::MAX_HOURS));
 
         $stationName = Types::stringOrNull($input->getArgument('station-name'));
 

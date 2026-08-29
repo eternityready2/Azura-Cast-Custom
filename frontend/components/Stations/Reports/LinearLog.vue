@@ -9,27 +9,16 @@
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <div class="input-group input-group-sm hours-select">
                         <span class="input-group-text">{{ $gettext('Show next') }}</span>
-                        <select v-model.number="hoursAhead" class="form-select" @change="loadQueue">
+                        <select v-model.number="hoursAhead" class="form-select" @change="refresh">
+                            <option :value="6">{{ $gettext('6 hours') }}</option>
+                            <option :value="12">{{ $gettext('12 hours') }}</option>
                             <option :value="24">{{ $gettext('24 hours') }}</option>
                             <option :value="48">{{ $gettext('48 hours') }}</option>
                         </select>
                     </div>
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-outline-light"
-                        :disabled="isLoading || isBuilding"
-                        @click="loadQueue"
-                    >
-                        {{ isLoading && !isBuilding ? $gettext('Refreshing...') : $gettext('Refresh View') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-sm btn-light"
-                        :disabled="isLoading || isBuilding"
-                        @click="buildAndRefresh"
-                    >
-                        <span v-if="isBuilding" class="spinner-border spinner-border-sm me-1" />
-                        {{ isBuilding ? $gettext('Building...') : $gettext('Rebuild Schedule') }}
+                    <button type="button" class="btn btn-sm btn-light" :disabled="isLoading" @click="refresh">
+                        <span v-if="isLoading" class="spinner-border spinner-border-sm me-1" />
+                        {{ isLoading ? $gettext('Building...') : $gettext('Build and Refresh') }}
                     </button>
                 </div>
             </div>
@@ -91,19 +80,15 @@
 
             <div v-if="isLoading" class="loading-state">
                 <div class="spinner-border text-primary" role="status" />
-                <div class="mt-3 fw-semibold">
-                    {{ isBuilding ? $gettext('Building the AutoDJ schedule...') : $gettext('Loading the current AutoDJ schedule...') }}
-                </div>
+                <div class="mt-3 fw-semibold">{{ $gettext('Building the AutoDJ schedule...') }}</div>
                 <div class="small text-body-secondary mt-1">
-                    {{ isBuilding
-                        ? $gettext('The requested lookahead is generated before the queue is displayed.')
-                        : $gettext('Viewing the existing schedule does not rebuild or change it.') }}
+                    {{ $gettext('The requested lookahead is generated before the queue is displayed.') }}
                 </div>
             </div>
 
             <div v-else-if="0 === filteredItems.length" class="empty-state">
                 <h2>{{ $gettext('No Queue Entries Found') }}</h2>
-                <p>{{ $gettext('AutoDJ did not return any playable queue entries for this period. Check that the station has enabled media and playlists, then rebuild the schedule if needed.') }}</p>
+                <p>{{ $gettext('AutoDJ did not return any playable queue entries for this period. Check that the station has enabled media and playlists, then build the log again.') }}</p>
             </div>
 
             <template v-else>
@@ -192,7 +177,6 @@ const queueUrl = getStationApiUrl("/queue");
 const buildUrl = getStationApiUrl("/reports/linear-log/build");
 
 const isLoading = ref(true);
-const isBuilding = ref(false);
 const buildError = ref("");
 const hoursAhead = ref(24);
 const searchQuery = ref("");
@@ -328,8 +312,8 @@ const hourGroups = computed<HourGroup[]>(() => {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",
-                minute:"2-digit",
-                hour12:true
+                minute: "2-digit",
+                hour12: true
             }),
             isCurrent:epochHour === currentHour,
             items:sorted,
@@ -339,10 +323,17 @@ const hourGroups = computed<HourGroup[]>(() => {
     });
 });
 
-const loadQueue = async () => {
+const refresh = async () => {
     isLoading.value = true;
+    buildError.value = "";
     nowTs.value = Math.floor(Date.now() / 1000);
     try {
+        try {
+            await axios.post(buildUrl.value, {hours:hoursAhead.value});
+        } catch (error: any) {
+            buildError.value = error?.response?.data?.message ?? error?.message ?? $gettext("AutoDJ could not build the requested schedule.");
+        }
+
         const {data} = await axios.get(queueUrl.value, {params:{per_page:5000,page:1}});
         const cutoff = nowTs.value + (hoursAhead.value * 3600);
         const rows: QueueItem[] = data?.rows ?? data ?? [];
@@ -355,22 +346,7 @@ const loadQueue = async () => {
     }
 };
 
-const buildAndRefresh = async () => {
-    isBuilding.value = true;
-    isLoading.value = true;
-    buildError.value = "";
-    try {
-        await axios.post(buildUrl.value, {hours:hoursAhead.value});
-    } catch (error: any) {
-        buildError.value = error?.response?.data?.message ?? error?.message ?? $gettext("AutoDJ could not build the requested schedule.");
-    } finally {
-        isBuilding.value = false;
-    }
-
-    await loadQueue();
-};
-
-onMounted(() => { void loadQueue(); });
+onMounted(() => { void refresh(); });
 </script>
 
 <style scoped>
