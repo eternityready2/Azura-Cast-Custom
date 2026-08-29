@@ -53,6 +53,12 @@ final class Queue
             return;
         }
 
+        // A lookahead override is reserved for the Linear Log builder. Mark every
+        // BuildQueue event from that path as projection-only so listeners with live
+        // side effects (notably AI DJ generation/cooldowns) can safely opt out while
+        // normal playlist/schedule selection continues unchanged.
+        $isProjection = null !== $lookaheadMinutesOverride;
+
         // Adjust "expectedCueTime" time from current queue.
         $expectedCueTime = Time::nowUtc();
 
@@ -142,7 +148,7 @@ final class Queue
         // clearing next songs; when that happens we re-dispatch a fresh BuildQueue event
         // so a selector gets another chance to choose a different track, instead of
         // silently halting queue-building and leaving the station with dead air.
-        $maxAttemptsPerSlot = null !== $lookaheadMinutesOverride ? 50 : 10;
+        $maxAttemptsPerSlot = $isProjection ? 50 : 10;
         $tracksBuiltThisRun = 0;
 
         while (
@@ -173,7 +179,9 @@ final class Queue
                     $station,
                     $expectedCueTime,
                     $expectedPlayTime,
-                    $lastSongId
+                    $lastSongId,
+                    false,
+                    $isProjection,
                 );
 
                 try {

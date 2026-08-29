@@ -114,6 +114,13 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
+     * Recent actual or projected playback inside the requested rolling window.
+     *
+     * Future queue rows beyond the candidate timestamp must not count as recent.
+     * Including every unplayed row makes a deep 24/48-hour projection gradually
+     * exhaust the entire music pool even when older projected plays are already
+     * outside duplicate prevention's configured time range.
+     *
      * @return mixed[]
      */
     public function getRecentlyPlayedByTimeRange(
@@ -129,11 +136,13 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 FROM App\Entity\StationQueue sq
                 LEFT JOIN sq.media sm
                 WHERE sq.station = :station
-                AND (sq.is_played = 0 OR sq.timestamp_played >= :threshold)
+                AND sq.timestamp_played >= :threshold
+                AND sq.timestamp_played <= :now
                 ORDER BY sq.timestamp_played DESC
             DQL
         )->setParameter('station', $station)
             ->setParameter('threshold', $threshold)
+            ->setParameter('now', $now)
             ->getArrayResult();
     }
 
@@ -186,12 +195,14 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 FROM App\Entity\StationQueue sq
                 LEFT JOIN App\Entity\StationMedia m WITH m.song_id = sq.song_id AND m.storage_location = :storageLocation
                 WHERE sq.station = :station
-                AND (sq.is_played = 0 OR sq.timestamp_played >= :threshold)
+                AND sq.timestamp_played >= :threshold
+                AND sq.timestamp_played <= :now
                 ORDER BY sq.timestamp_played DESC
             DQL
         )->setParameter('station', $station)
             ->setParameter('storageLocation', $station->media_storage_location)
             ->setParameter('threshold', $threshold)
+            ->setParameter('now', $now)
             ->getArrayResult();
     }
 
