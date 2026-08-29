@@ -17,7 +17,7 @@ final class BuildLinearLogTask extends AbstractTask
 
     public static function getSchedulePattern(): string
     {
-        return '7 0,12 * * *';
+        return '7 * * * *';
     }
 
     public static function isLongTask(): bool
@@ -47,10 +47,7 @@ final class BuildLinearLogTask extends AbstractTask
             );
 
             try {
-                $this->linearLogBuilder->build(
-                    $station,
-                    LinearLogBuilder::MAX_HOURS
-                );
+                $this->linearLogBuilder->build($station);
             } catch (Throwable $e) {
                 $this->logger->error(
                     'Linear log build failed: ' . $e->getMessage(),
