@@ -123,17 +123,48 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     ): array {
         $threshold = CarbonImmutable::instance($now)->subMinutes($minutes);
 
+        // The "still queued but not yet played" branch below is intentionally
+        // included so AutoDJ doesn't immediately re-pick a song that's already
+        // sitting a few tracks ahead in the live queue. For live playback that
+        // queue only ever holds a few minutes of upcoming songs, so this branch
+        // is naturally self-limiting.
+        //
+        // It stops being self-limiting for the linear-log preview builder, which
+        // builds 24-48 hours of queue in a single pass: by the time that build is
+        // even a few hours deep, EVERY song used anywhere in the whole session
+        // (station-wide, across every playlist) is still "unplayed" with a
+        // far-future timestamp, so this branch would otherwise make the entire
+        // remainder of the session's picks count as "recently played" forever --
+        // duplicate/title-avoidance logic then has an ever-growing, effectively
+        // unbounded pool to avoid, which smaller/less-varied playlists run out of
+        // room to satisfy well before the horizon is covered (this is what was
+        // happening to "Hymns and Favorites - Music": it failed even with
+        // duplicates explicitly allowed, because by that point in the build
+        // nearly every title station-wide had already been used at some point
+        // in the session, however far in the future that use was scheduled).
+        //
+        // Bounding the unplayed branch to the same forward window as the played
+        // branch looks back keeps live behavior byte-for-byte identical (a live
+        // queue's unplayed horizon is always well inside this window) while
+        // preventing a long preview build from treating its own far-future tail
+        // as duplicate-prevention history for a slot only a few hours in.
+        $upperThreshold = CarbonImmutable::instance($now)->addMinutes($minutes);
+
         return $this->em->createQuery(
             <<<'DQL'
                 SELECT sq.song_id, sq.timestamp_played, sq.title, sq.artist, sq.album, COALESCE(sm.type, 'music') as media_type
                 FROM App\Entity\StationQueue sq
                 LEFT JOIN sq.media sm
                 WHERE sq.station = :station
-                AND (sq.is_played = 0 OR sq.timestamp_played >= :threshold)
+                AND (
+                    (sq.is_played = 0 AND sq.timestamp_played <= :upperThreshold)
+                    OR sq.timestamp_played >= :threshold
+                )
                 ORDER BY sq.timestamp_played DESC
             DQL
         )->setParameter('station', $station)
             ->setParameter('threshold', $threshold)
+            ->setParameter('upperThreshold', $upperThreshold)
             ->getArrayResult();
     }
 
