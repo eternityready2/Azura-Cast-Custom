@@ -323,10 +323,28 @@ const hourGroups = computed<HourGroup[]>(() => {
     });
 });
 
+// Just loads and displays whatever is already in the queue -- does NOT trigger a
+// build. Used on page load/mount/tab-return so simply viewing or reloading the
+// report doesn't force AutoDJ to rebuild the live queue every time.
+const loadQueue = async () => {
+    nowTs.value = Math.floor(Date.now() / 1000);
+    const {data} = await axios.get(queueUrl.value, {params:{per_page:5000,page:1}});
+    const cutoff = nowTs.value + (hoursAhead.value * 3600);
+    const rows: QueueItem[] = data?.rows ?? data ?? [];
+    allItems.value = rows.filter((item) => {
+        const playedAt = item.played_at ?? 0;
+        return playedAt >= nowTs.value - 300 && playedAt <= cutoff;
+    });
+};
+
+// Triggers an actual (re)build, via the "Show next" selector or the "Build and
+// Refresh" button. The build now runs asynchronously in the background (it can
+// take a while for a full 24-48 hour horizon), so this dispatches it and then
+// polls the queue a few times to pick up newly built rows as they land, rather
+// than blocking on a single request that could time out.
 const refresh = async () => {
     isLoading.value = true;
     buildError.value = "";
-    nowTs.value = Math.floor(Date.now() / 1000);
     try {
         try {
             await axios.post(buildUrl.value, {hours:hoursAhead.value});
@@ -334,19 +352,30 @@ const refresh = async () => {
             buildError.value = error?.response?.data?.message ?? error?.message ?? $gettext("AutoDJ could not build the requested schedule.");
         }
 
-        const {data} = await axios.get(queueUrl.value, {params:{per_page:5000,page:1}});
-        const cutoff = nowTs.value + (hoursAhead.value * 3600);
-        const rows: QueueItem[] = data?.rows ?? data ?? [];
-        allItems.value = rows.filter((item) => {
-            const playedAt = item.played_at ?? 0;
-            return playedAt >= nowTs.value - 300 && playedAt <= cutoff;
-        });
+        await loadQueue();
+
+        // The build was just queued in the background rather than completed
+        // synchronously -- poll a few times over the next ~20s so the page fills
+        // in as rows are actually built, without the user needing to hit refresh.
+        for (let attempt = 0; attempt < 6; attempt++) {
+            await new Promise((resolve) => setTimeout(resolve, 4000));
+            await loadQueue();
+        }
     } finally {
         isLoading.value = false;
     }
 };
 
-onMounted(() => { void refresh(); });
+onMounted(async () => {
+    isLoading.value = true;
+    try {
+        // Only load what AutoDJ has already built -- viewing or reloading this
+        // page must never itself force a rebuild of the live queue.
+        await loadQueue();
+    } finally {
+        isLoading.value = false;
+    }
+});
 </script>
 
 <style scoped>

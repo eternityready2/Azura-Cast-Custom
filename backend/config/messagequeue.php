@@ -15,6 +15,8 @@ return [
 
     Message\WritePlaylistFileMessage::class => Liquidsoap\PlaylistFileWriter::class,
 
+    Message\BuildLinearLogMessage::class => App\Radio\AutoDJ\LinearLogBuilder::class,
+
     Message\BackupMessage::class => Task\RunBackupTask::class,
 
     Message\GenerateAcmeCertificate::class => App\Service\Acme::class,

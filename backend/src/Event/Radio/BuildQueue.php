@@ -24,7 +24,8 @@ final class BuildQueue extends Event
         ?DateTimeImmutable $expectedCueTime = null,
         ?DateTimeImmutable $expectedPlayTime = null,
         private readonly ?string $lastPlayedSongId = null,
-        private readonly bool $isInterrupting = false
+        private readonly bool $isInterrupting = false,
+        private readonly bool $isPreview = false
     ) {
         $this->expectedCueTime = $expectedCueTime ?? Time::nowUtc();
         $this->expectedPlayTime = $expectedPlayTime ?? Time::nowUtc();
@@ -53,6 +54,21 @@ final class BuildQueue extends Event
     public function isInterrupting(): bool
     {
         return $this->isInterrupting;
+    }
+
+    /**
+     * True when this dispatch is a projection for the linear/24-hour log report
+     * (or any other non-live simulation), not a real build of the live AutoDJ
+     * queue that Liquidsoap will actually play. Listeners with side effects that
+     * only make sense once, in real time -- generating audio, enqueuing directly
+     * to the live Liquidsoap "Requests" queue, real-time cooldown/dedup state --
+     * MUST no-op when this is true. Pure selection logic (playlists, clock
+     * wheels, schedules, DMCA/duplicate validators) should keep running as
+     * normal so the projected log still reflects real scheduling.
+     */
+    public function isPreview(): bool
+    {
+        return $this->isPreview;
     }
 
     /**

@@ -17,7 +17,12 @@ final class BuildLinearLogTask extends AbstractTask
 
     public static function getSchedulePattern(): string
     {
-        return '7 * * * *';
+        // Every 12 hours (00:07 and 12:07). The build is incremental (it extends the
+        // existing queue tail rather than rebuilding from scratch), so this only needs
+        // to run often enough to keep the horizon topped up -- hourly was unnecessary
+        // and, combined with the report page's own on-load build, made the AutoDJ
+        // queue get rebuilt far more often than intended.
+        return '7 */12 * * *';
     }
 
     public static function isLongTask(): bool

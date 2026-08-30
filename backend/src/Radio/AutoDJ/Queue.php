@@ -41,11 +41,18 @@ final class Queue
      *        `autodj_queue_lookahead_minutes`. Used by the linear-log builder to project
      *        a full day ahead on demand without changing the station's live setting.
      * @param int|null $maxTracksOverride Safety cap override to match a larger horizon.
+     * @param bool $isPreview When true, every dispatched BuildQueue event is flagged as a
+     *        preview/projection (see {@see \App\Event\Radio\BuildQueue::isPreview()}) so
+     *        listeners with real-time-only side effects (e.g. the AI DJ, which generates
+     *        audio and enqueues directly to the live Liquidsoap requests queue) skip
+     *        themselves instead of firing for a slot that is hours in the future. Used by
+     *        the linear-log builder; live queue building always leaves this false.
      */
     public function buildQueue(
         Station $station,
         ?int $lookaheadMinutesOverride = null,
         ?int $maxTracksOverride = null,
+        bool $isPreview = false,
     ): void {
         // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
@@ -144,6 +151,10 @@ final class Queue
         // silently halting queue-building and leaving the station with dead air.
         $maxAttemptsPerSlot = null !== $lookaheadMinutesOverride ? 50 : 10;
         $tracksBuiltThisRun = 0;
+        // Consecutive slots in a row that failed to produce a song at all. Only used
+        // in preview mode (see below) as a circuit breaker distinct from the abort
+        // that live building still does immediately.
+        $consecutiveEmptySlots = 0;
 
         while (
             $queueLength < $maxQueueLength
@@ -173,7 +184,9 @@ final class Queue
                     $station,
                     $expectedCueTime,
                     $expectedPlayTime,
-                    $lastSongId
+                    $lastSongId,
+                    isInterrupting: false,
+                    isPreview: $isPreview,
                 );
 
                 try {
@@ -217,13 +230,53 @@ final class Queue
             }
 
             if (empty($nextSongs)) {
+                // Live building keeps the original behavior exactly: stop immediately,
+                // since this reflects a real, current inability to fill the live queue
+                // and should surface right away rather than be silently skipped.
+                if (!$isPreview) {
+                    $this->logger->warning(
+                        'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
+                        ['attempts' => $attempts]
+                    );
+                    $this->em->flush();
+                    break;
+                }
+
+                // Preview mode (the linear log): a single playlist running out of
+                // non-repeat-eligible tracks partway through a 24-48 hour projection
+                // is expected -- smaller playlists routinely can't cover that much
+                // runway without a repeat -- and used to abort the ENTIRE remaining
+                // report right at that point (explaining logs that stopped at 1 hour,
+                // 18 hours, etc. depending on exactly where a small playlist's
+                // rotation happened to run dry). Skip this slot instead of aborting:
+                // advance the timeline by a fallback duration and keep building, so
+                // one thin playlist doesn't truncate the whole projection.
+                $consecutiveEmptySlots++;
                 $this->logger->warning(
-                    'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
-                    ['attempts' => $attempts]
+                    'Preview build: no compliant song for this slot after max attempts; skipping slot and continuing.',
+                    ['attempts' => $attempts, 'consecutive_empty_slots' => $consecutiveEmptySlots]
                 );
-                $this->em->flush();
-                break;
+
+                // Circuit breaker: if slots fail many times in a row, the station
+                // genuinely has no eligible media at all (not just one thin
+                // playlist), and continuing would spin uselessly until the track/time
+                // caps kick in. Stop cleanly in that case, same as live behavior.
+                if ($consecutiveEmptySlots >= 12) {
+                    $this->logger->warning(
+                        'Preview build: too many consecutive empty slots; stopping queue build.',
+                        ['consecutive_empty_slots' => $consecutiveEmptySlots]
+                    );
+                    $this->em->flush();
+                    break;
+                }
+
+                $fallbackSkip = 300.0; // 5 minutes -- roughly one typical track length
+                $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $fallbackSkip);
+                $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $fallbackSkip);
+                continue;
             }
+
+            $consecutiveEmptySlots = 0;
 
             foreach ($nextSongs as $queueRow) {
                 // Guard against a corrupt or not-yet-analyzed media duration (0, null,
