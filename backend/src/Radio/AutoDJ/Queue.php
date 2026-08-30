@@ -155,6 +155,10 @@ final class Queue
         // in preview mode (see below) as a circuit breaker distinct from the abort
         // that live building still does immediately.
         $consecutiveEmptySlots = 0;
+        // When the current dry streak began (by simulated play time, not wall clock).
+        // Used to make the preview circuit breaker time-based rather than slot-count
+        // based -- see the comment at the break-out check below for why.
+        $emptySlotStreakStartedAt = null;
 
         while (
             $queueLength < $maxQueueLength
@@ -252,19 +256,32 @@ final class Queue
                 // advance the timeline by a fallback duration and keep building, so
                 // one thin playlist doesn't truncate the whole projection.
                 $consecutiveEmptySlots++;
+                $emptySlotStreakStartedAt ??= $expectedPlayTime;
                 $this->logger->warning(
                     'Preview build: no compliant song for this slot after max attempts; skipping slot and continuing.',
                     ['attempts' => $attempts, 'consecutive_empty_slots' => $consecutiveEmptySlots]
                 );
 
-                // Circuit breaker: if slots fail many times in a row, the station
-                // genuinely has no eligible media at all (not just one thin
-                // playlist), and continuing would spin uselessly until the track/time
-                // caps kick in. Stop cleanly in that case, same as live behavior.
-                if ($consecutiveEmptySlots >= 12) {
+                // Circuit breaker: give up only once a dry streak has lasted long
+                // enough that it can't just be a rolling compliance window (DMCA
+                // and/or duplicate-prevention) temporarily exhausting every eligible
+                // track -- those free back up once their window rolls forward, which
+                // can take hours, not minutes. This is measured in simulated time
+                // actually advanced during the streak, not a fixed slot count: a
+                // count-based cap combined with a small per-slot skip could give up
+                // well before a real compliance window (e.g. a 180-minute DMCA
+                // rolling window) has had a chance to clear, which is exactly what
+                // was happening before this fix -- the breaker fired after ~60
+                // simulated minutes, far short of the 180-minute window that would
+                // have actually freed content back up. 4 hours comfortably clears
+                // any station's configured DMCA/duplicate-prevention window with
+                // margin, while still catching a truly empty station instead of
+                // spinning forever.
+                $streakElapsedSeconds = $expectedPlayTime->getTimestamp() - $emptySlotStreakStartedAt->getTimestamp();
+                if ($streakElapsedSeconds >= 4 * 3600) {
                     $this->logger->warning(
-                        'Preview build: too many consecutive empty slots; stopping queue build.',
-                        ['consecutive_empty_slots' => $consecutiveEmptySlots]
+                        'Preview build: dry streak exceeded 4 simulated hours; stopping queue build.',
+                        ['consecutive_empty_slots' => $consecutiveEmptySlots, 'streak_elapsed_seconds' => $streakElapsedSeconds]
                     );
                     $this->em->flush();
                     break;
@@ -277,6 +294,7 @@ final class Queue
             }
 
             $consecutiveEmptySlots = 0;
+            $emptySlotStreakStartedAt = null;
 
             foreach ($nextSongs as $queueRow) {
                 // Guard against a corrupt or not-yet-analyzed media duration (0, null,
