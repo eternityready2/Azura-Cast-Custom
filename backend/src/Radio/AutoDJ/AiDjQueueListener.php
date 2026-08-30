@@ -103,6 +103,20 @@ final class AiDjQueueListener implements EventSubscriberInterface
             return;
         }
 
+        // Never run for a preview/projection build (e.g. the 24-hour linear log). This
+        // listener's guards (talk cooldown, "welcomed this shift", "clip already queued
+        // ahead") are all keyed off the REAL wall clock and the REAL live Liquidsoap
+        // requests queue. A linear-log build can dispatch dozens of BuildQueue events
+        // for slots hours in the future within a few seconds of real time, which
+        // instantly exhausts those guards: only the very first break (usually the shift
+        // welcome) gets through, and it also generates real TTS audio and pushes it
+        // straight into the live Liquidsoap requests queue for a slot that hasn't
+        // happened yet. Skipping entirely here is what was breaking live AI DJ playback.
+        if ($event->isPreview()) {
+            $this->logger->debug('AI DJ: Skipped - preview/projection build (linear log).');
+            return;
+        }
+
         // Skip if another listener (e.g. TopOfHourIdScheduler) already queued a song
         if (!empty($event->getNextSongs())) {
             $this->logger->debug('AI DJ: Skipped - another listener already queued songs.');

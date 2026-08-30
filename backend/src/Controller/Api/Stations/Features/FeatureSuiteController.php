@@ -14,6 +14,7 @@ use App\Entity\StationSchedule;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\Media\MediaProcessor;
+use App\Message\BuildLinearLogMessage;
 use App\Radio\Adapters;
 use App\Radio\AutoDJ\LinearLogBuilder;
 use App\Service\GuzzleFactory;
@@ -21,6 +22,7 @@ use Carbon\CarbonImmutable;
 use GuzzleHttp\RequestOptions;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Messenger\MessageBus;
 use Throwable;
 
 final class FeatureSuiteController
@@ -32,6 +34,7 @@ final class FeatureSuiteController
         private readonly GuzzleFactory $guzzleFactory,
         private readonly MediaProcessor $mediaProcessor,
         private readonly LinearLogBuilder $linearLogBuilder,
+        private readonly MessageBus $messageBus,
     ) {
     }
 
@@ -208,10 +211,20 @@ final class FeatureSuiteController
             throw new InvalidArgumentException('This station does not support the AutoDJ queue.');
         }
 
-        $this->linearLogBuilder->build($station, $hours);
+        // Dispatched to the background worker rather than run inline here: a 24-48 hour
+        // projection can take longer than an HTTP request/worker is allowed to run, and
+        // running it inline was causing the log to sometimes stop partway through (e.g.
+        // 1 hour, or 18 hours instead of the requested 24) when the request timed out
+        // mid-build.
+        $message = new BuildLinearLogMessage();
+        $message->stationId = $station->id;
+        $message->hours = $hours;
+
+        $this->messageBus->dispatch($message);
 
         return $response->withJson([
             'success' => true,
+            'queued' => true,
             'hours' => $hours,
         ]);
     }

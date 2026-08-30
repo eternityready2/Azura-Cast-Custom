@@ -41,11 +41,18 @@ final class Queue
      *        `autodj_queue_lookahead_minutes`. Used by the linear-log builder to project
      *        a full day ahead on demand without changing the station's live setting.
      * @param int|null $maxTracksOverride Safety cap override to match a larger horizon.
+     * @param bool $isPreview When true, every dispatched BuildQueue event is flagged as a
+     *        preview/projection (see {@see \App\Event\Radio\BuildQueue::isPreview()}) so
+     *        listeners with real-time-only side effects (e.g. the AI DJ, which generates
+     *        audio and enqueues directly to the live Liquidsoap requests queue) skip
+     *        themselves instead of firing for a slot that is hours in the future. Used by
+     *        the linear-log builder; live queue building always leaves this false.
      */
     public function buildQueue(
         Station $station,
         ?int $lookaheadMinutesOverride = null,
         ?int $maxTracksOverride = null,
+        bool $isPreview = false,
     ): void {
         // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
@@ -173,7 +180,9 @@ final class Queue
                     $station,
                     $expectedCueTime,
                     $expectedPlayTime,
-                    $lastSongId
+                    $lastSongId,
+                    isInterrupting: false,
+                    isPreview: $isPreview,
                 );
 
                 try {
