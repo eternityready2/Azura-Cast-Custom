@@ -327,10 +327,16 @@ const refresh = async () => {
     isLoading.value = true;
     buildError.value = "";
     nowTs.value = Math.floor(Date.now() / 1000);
+    let buildFailed = false;
     try {
         try {
+            // No axios timeout override here on purpose: a full 24-48h build
+            // can legitimately take a while server-side. The backend is what
+            // needs the longer execution budget (see buildLinearLogAction),
+            // not the client request.
             await axios.post(buildUrl.value, {hours:hoursAhead.value});
         } catch (error: any) {
+            buildFailed = true;
             buildError.value = error?.response?.data?.message ?? error?.message ?? $gettext("AutoDJ could not build the requested schedule.");
         }
 
@@ -341,6 +347,23 @@ const refresh = async () => {
             const playedAt = item.played_at ?? 0;
             return playedAt >= nowTs.value - 300 && playedAt <= cutoff;
         });
+
+        // The build call can fail (e.g. a request timeout) while still
+        // leaving a shorter, previously-built queue in place. Without this
+        // check that partial queue renders looking like a normal, complete
+        // result -- the exact "silently truncated" symptom this is meant to
+        // surface. Flag it clearly whenever the actual coverage falls well
+        // short of what was requested.
+        if (!buildFailed && allItems.value.length > 0) {
+            const latestCovered = allItems.value.reduce((latest, item) => Math.max(latest, item.played_at ?? 0), 0);
+            const shortfallSeconds = cutoff - latestCovered;
+            if (shortfallSeconds > 3600) {
+                const shortfallHours = Math.round(shortfallSeconds / 3600);
+                buildError.value = $gettext(
+                    "The log only reached %{ hours } hour(s) short of the requested horizon. The build may have been cut off before finishing -- try Build and Refresh again."
+                ).replace("%{ hours }", String(shortfallHours));
+            }
+        }
     } finally {
         isLoading.value = false;
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api\Stations\Features;
 
 use App\Container\EntityManagerAwareTrait;
+use App\Container\EnvironmentAwareTrait;
 use App\Entity\Api\Status;
 use App\Entity\Listener;
 use App\Entity\SongHistory;
@@ -26,6 +27,7 @@ use Throwable;
 final class FeatureSuiteController
 {
     use EntityManagerAwareTrait;
+    use EnvironmentAwareTrait;
 
     public function __construct(
         private readonly Adapters $adapters,
@@ -200,6 +202,15 @@ final class FeatureSuiteController
 
     public function buildLinearLogAction(ServerRequest $request, Response $response): ResponseInterface
     {
+        // Projecting a full 24-48 hour log involves selecting and persisting
+        // thousands of queue rows in a single request. PHP's default
+        // max_execution_time (commonly 30-60s) can kill this partway through,
+        // which is what silently truncates the log to a partial horizon
+        // instead of failing or completing. Extend the budget the same way
+        // other long-running sync-style actions in this codebase do (see
+        // HistoryAction).
+        set_time_limit($this->environment->getSyncLongExecutionTime());
+
         $station = $request->getStation();
         $data = (array)$request->getParsedBody();
         $hours = max(1, min(48, (int)($data['hours'] ?? 24)));
