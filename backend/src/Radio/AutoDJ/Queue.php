@@ -41,16 +41,19 @@ final class Queue
      *        `autodj_queue_lookahead_minutes`. Used by the linear-log builder to project
      *        a full day ahead on demand without changing the station's live setting.
      * @param int|null $maxTracksOverride Safety cap override to match a larger horizon.
+     * @return list<array{started_at:int, duration:int, reason:string}>
      */
     public function buildQueue(
         Station $station,
         ?int $lookaheadMinutesOverride = null,
         ?int $maxTracksOverride = null,
-    ): void {
+        bool $isPreview = false,
+    ): array {
+        $previewGaps = [];
         // Early-fail if the station is disabled.
         if (!$station->supportsAutoDjQueue()) {
             $this->logger->info('Cannot build queue: station does not support AutoDJ queue.');
-            return;
+            return [];
         }
 
         // Adjust "expectedCueTime" time from current queue.
@@ -142,8 +145,14 @@ final class Queue
         // clearing next songs; when that happens we re-dispatch a fresh BuildQueue event
         // so a selector gets another chance to choose a different track, instead of
         // silently halting queue-building and leaving the station with dead air.
-        $maxAttemptsPerSlot = null !== $lookaheadMinutesOverride ? 50 : 10;
+        $maxAttemptsPerSlot = $isPreview ? 25 : (null !== $lookaheadMinutesOverride ? 50 : 10);
         $tracksBuiltThisRun = 0;
+        $consecutivePreviewGapSeconds = 0;
+        $maxPreviewGapSeconds = (max(
+            60,
+            $station->backend_config->duplicate_prevention_time_range,
+            $station->backend_config->dmca_window_minutes ?? 180,
+        ) + 60) * 60;
 
         while (
             $queueLength < $maxQueueLength
@@ -217,6 +226,39 @@ final class Queue
             }
 
             if (empty($nextSongs)) {
+                if ($isPreview) {
+                    $gapSeconds = 300;
+                    $previewGaps[] = [
+                        'started_at' => $expectedPlayTime->getTimestamp(),
+                        'duration' => $gapSeconds,
+                        'reason' => 'No eligible AutoDJ item was available for this projected slot.',
+                    ];
+                    $consecutivePreviewGapSeconds += $gapSeconds;
+
+                    $this->logger->warning(
+                        'Linear Log preview found no eligible item; advancing the projection cursor.',
+                        [
+                            'attempts' => $attempts,
+                            'expected_play_time' => $expectedPlayTime->format(DateTimeInterface::ATOM),
+                            'dry_seconds' => $consecutivePreviewGapSeconds,
+                        ]
+                    );
+
+                    $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $gapSeconds);
+                    $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $gapSeconds);
+
+                    if ($consecutivePreviewGapSeconds >= $maxPreviewGapSeconds) {
+                        $this->logger->warning(
+                            'Linear Log preview stopped after the station remained dry beyond its compliance window.',
+                            ['dry_seconds' => $consecutivePreviewGapSeconds]
+                        );
+                        $this->em->flush();
+                        break;
+                    }
+
+                    continue;
+                }
+
                 $this->logger->warning(
                     'Could not find a compliant song for queue slot after max attempts; stopping queue build.',
                     ['attempts' => $attempts]
@@ -224,6 +266,8 @@ final class Queue
                 $this->em->flush();
                 break;
             }
+
+            $consecutivePreviewGapSeconds = 0;
 
             foreach ($nextSongs as $queueRow) {
                 // Guard against a corrupt or not-yet-analyzed media duration (0, null,
@@ -250,7 +294,9 @@ final class Queue
                 $this->em->persist($queueRow);
                 $this->em->flush();
 
-                $this->queueLogCache->setLog($queueRow, $testHandler->getRecords());
+                if (!$isPreview) {
+                    $this->queueLogCache->setLog($queueRow, $testHandler->getRecords());
+                }
 
                 $lastSongId = $queueRow->song_id;
 
@@ -269,6 +315,8 @@ final class Queue
                 $tracksBuiltThisRun++;
             }
         }
+
+        return $previewGaps;
     }
 
     /**

@@ -46,6 +46,7 @@ final class DmcaComplianceListener implements EventSubscriberInterface
 
     public function __construct(
         private readonly StationQueueRepository $queueRepo,
+        private readonly LinearLogPreviewContext $previewContext,
     ) {
     }
 
@@ -72,7 +73,12 @@ final class DmcaComplianceListener implements EventSubscriberInterface
         }
 
         foreach ($nextSongs as $queueEntry) {
-            if (!$this->isCompliant($queueEntry, $station, $event->getExpectedPlayTime())) {
+            if (!$this->isCompliant(
+                $queueEntry,
+                $station,
+                $event->getExpectedPlayTime(),
+                $this->previewContext->isActive(),
+            )) {
                 $event->setNextSongs(null); // clear selection so AutoDJ retries with a different track
 
                 $this->logger->warning(
@@ -95,6 +101,7 @@ final class DmcaComplianceListener implements EventSubscriberInterface
         StationQueue $entry,
         Station $station,
         \DateTimeImmutable $expectedPlayTime,
+        bool $isPreview,
     ): bool {
 
          if ($entry->media?->type !== 'music') { return true; }
@@ -108,11 +115,17 @@ final class DmcaComplianceListener implements EventSubscriberInterface
         $maxConsecutiveArtist    = $config->dmca_max_consecutive_artist    ?? self::DEFAULT_MAX_CONSECUTIVE_ARTIST_PLAYS;
 
         try {
-            $history = $this->queueRepo->getPlayedMusicHistoryByTimeRange(
-                $station,
-                $expectedPlayTime,
-                $windowMinutes
-            );
+            $history = $isPreview
+                ? $this->queueRepo->getProjectedMusicHistoryByTimeRange(
+                    $station,
+                    $expectedPlayTime,
+                    $windowMinutes
+                )
+                : $this->queueRepo->getPlayedMusicHistoryByTimeRange(
+                    $station,
+                    $expectedPlayTime,
+                    $windowMinutes
+                );
         } catch (\Throwable $e) {
             $this->logger->error(
                 'DMCA Compliance: Could not read play history — allowing song as fail-safe.',

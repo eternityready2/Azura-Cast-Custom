@@ -14,13 +14,15 @@ use App\Entity\StationSchedule;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\Media\MediaProcessor;
+use App\Message\BuildLinearLogMessage;
 use App\Radio\Adapters;
-use App\Radio\AutoDJ\LinearLogBuilder;
+use App\Radio\AutoDJ\LinearLogSnapshotStore;
 use App\Service\GuzzleFactory;
 use Carbon\CarbonImmutable;
 use GuzzleHttp\RequestOptions;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Messenger\MessageBus;
 use Throwable;
 
 final class FeatureSuiteController
@@ -31,7 +33,8 @@ final class FeatureSuiteController
         private readonly Adapters $adapters,
         private readonly GuzzleFactory $guzzleFactory,
         private readonly MediaProcessor $mediaProcessor,
-        private readonly LinearLogBuilder $linearLogBuilder,
+        private readonly LinearLogSnapshotStore $linearLogSnapshotStore,
+        private readonly MessageBus $messageBus,
     ) {
     }
 
@@ -202,16 +205,28 @@ final class FeatureSuiteController
     {
         $station = $request->getStation();
         $data = (array)$request->getParsedBody();
-        $hours = max(1, min(48, (int)($data['hours'] ?? 24)));
+
+        if (($data['action'] ?? 'build') === 'status') {
+            return $response->withJson([
+                ...$this->linearLogSnapshotStore->get($station),
+                'enabled' => $station->backend_config->linear_log_enabled,
+                'configured_hours' => $station->backend_config->linear_log_hours,
+                'ai_dj_projection' => 'live_only',
+            ]);
+        }
+
+        $hours = max(1, min(48, (int)($data['hours'] ?? $station->backend_config->linear_log_hours)));
 
         if (!$station->supportsAutoDjQueue()) {
             throw new InvalidArgumentException('This station does not support the AutoDJ queue.');
         }
 
-        $this->linearLogBuilder->build($station, $hours);
+        $this->linearLogSnapshotStore->markQueued($station, $hours);
+        $this->messageBus->dispatch(new BuildLinearLogMessage($station->id, $hours));
 
         return $response->withJson([
             'success' => true,
+            'status' => 'queued',
             'hours' => $hours,
         ]);
     }
