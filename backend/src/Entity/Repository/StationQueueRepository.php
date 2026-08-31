@@ -202,6 +202,15 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     /**
      * Recent plays with media category for clock wheel category separation (PR9).
      *
+     * Same unbounded-future bug as getRecentlyPlayedByTimeRange() above, and the same
+     * fix: the "still queued but not yet played" branch used to have no forward bound,
+     * so during a long linear-log preview build every media category eventually shows
+     * up as "recently used" somewhere in the ever-growing far-future queue, and clock
+     * wheels relying on category separation run out of compliant categories to pick
+     * from well before the build horizon is covered -- the same wall that
+     * "Hymns and Favorites - Music" was hitting from the duplicate-prevention side.
+     * See getRecentlyPlayedByTimeRange() for the full explanation.
+     *
      * @return array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null, category_id:int|null}>
      */
     public function getRecentlyPlayedWithCategoryByTimeRange(
@@ -210,6 +219,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         int $minutes
     ): array {
         $threshold = CarbonImmutable::instance($now)->subMinutes($minutes);
+        $upperThreshold = CarbonImmutable::instance($now)->addMinutes($minutes);
 
         return $this->em->createQuery(
             <<<'DQL'
@@ -217,12 +227,16 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 FROM App\Entity\StationQueue sq
                 LEFT JOIN App\Entity\StationMedia m WITH m.song_id = sq.song_id AND m.storage_location = :storageLocation
                 WHERE sq.station = :station
-                AND (sq.is_played = 0 OR sq.timestamp_played >= :threshold)
+                AND (
+                    (sq.is_played = 0 AND sq.timestamp_played <= :upperThreshold)
+                    OR sq.timestamp_played >= :threshold
+                )
                 ORDER BY sq.timestamp_played DESC
             DQL
         )->setParameter('station', $station)
             ->setParameter('storageLocation', $station->media_storage_location)
             ->setParameter('threshold', $threshold)
+            ->setParameter('upperThreshold', $upperThreshold)
             ->getArrayResult();
     }
 
