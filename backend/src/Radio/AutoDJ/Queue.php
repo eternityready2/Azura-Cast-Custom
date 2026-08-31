@@ -160,6 +160,18 @@ final class Queue
         // based -- see the comment at the break-out check below for why.
         $emptySlotStreakStartedAt = null;
 
+        // The circuit breaker below needs to outlast whichever of this station's
+        // rolling compliance windows is longer, so a real, temporary content lockout
+        // (every eligible track rate-limited out simultaneously) has time to actually
+        // clear before giving up. Derived from the station's own configuration instead
+        // of a hardcoded guess, so it stays correct if either setting is changed later
+        // -- a flat constant here would silently under- or over-shoot for any station
+        // whose configured windows differ from the defaults.
+        $circuitBreakerSeconds = (max(
+            $station->backend_config->duplicate_prevention_time_range,
+            $station->backend_config->dmca_window_minutes,
+        ) + 60) * 60;
+
         while (
             $queueLength < $maxQueueLength
             || ($lookaheadHorizon !== null
@@ -269,19 +281,23 @@ final class Queue
                 // can take hours, not minutes. This is measured in simulated time
                 // actually advanced during the streak, not a fixed slot count: a
                 // count-based cap combined with a small per-slot skip could give up
-                // well before a real compliance window (e.g. a 180-minute DMCA
-                // rolling window) has had a chance to clear, which is exactly what
-                // was happening before this fix -- the breaker fired after ~60
-                // simulated minutes, far short of the 180-minute window that would
-                // have actually freed content back up. 4 hours comfortably clears
-                // any station's configured DMCA/duplicate-prevention window with
-                // margin, while still catching a truly empty station instead of
-                // spinning forever.
+                // well before a real compliance window has had a chance to clear,
+                // which is exactly what was happening before this fix -- the breaker
+                // fired after ~60 simulated minutes, far short of a 180-minute DMCA
+                // window that would have actually freed content back up.
+                // $circuitBreakerSeconds (computed above, from this station's actual
+                // configured windows) comfortably clears whichever window is longer,
+                // while still catching a truly empty station instead of spinning
+                // forever.
                 $streakElapsedSeconds = $expectedPlayTime->getTimestamp() - $emptySlotStreakStartedAt->getTimestamp();
-                if ($streakElapsedSeconds >= 4 * 3600) {
+                if ($streakElapsedSeconds >= $circuitBreakerSeconds) {
                     $this->logger->warning(
-                        'Preview build: dry streak exceeded 4 simulated hours; stopping queue build.',
-                        ['consecutive_empty_slots' => $consecutiveEmptySlots, 'streak_elapsed_seconds' => $streakElapsedSeconds]
+                        'Preview build: dry streak exceeded the compliance-window safety threshold; stopping queue build.',
+                        [
+                            'consecutive_empty_slots' => $consecutiveEmptySlots,
+                            'streak_elapsed_seconds' => $streakElapsedSeconds,
+                            'circuit_breaker_seconds' => $circuitBreakerSeconds,
+                        ]
                     );
                     $this->em->flush();
                     break;
