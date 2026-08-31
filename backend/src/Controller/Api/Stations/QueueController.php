@@ -166,8 +166,18 @@ final class QueueController extends AbstractStationApiCrudController
         $apiResponse->log = $this->queueLogCache->getLog($record);
 
         // Expose media type so UIs (e.g. the linear log viewer) can filter by
-        // content category (music / talk / id / promo / jingle / podcast / stream).
+        // content category. Only categories that are actually derivable from
+        // persisted queue data are used here -- 'promo', 'jingle', and 'podcast'
+        // are deliberately NOT produced: nothing in this codebase tags a queue
+        // row with those categories (clock wheel slot types like Promo/Ad exist,
+        // but aren't persisted per-queue-row, and podcast episodes never enter
+        // the AutoDJ queue at all), so a UI filter for them would be permanently
+        // dead. AI DJ-generated clips are distinguished from genuine remote
+        // stream URLs by path, matching the convention already used by
+        // AiDjQueueListener::hasUpcomingDjClip().
         $apiResponse->media_type = match(true) {
+            $record->autodj_custom_uri !== null
+                && str_contains($record->autodj_custom_uri, 'ai_dj') => 'talk',
             $record->autodj_custom_uri !== null     => 'stream',
             $record->top_of_hour_legal_id           => 'id',
             $record->media !== null                 => $record->media->type ?? 'music',
