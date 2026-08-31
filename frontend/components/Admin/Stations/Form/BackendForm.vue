@@ -315,8 +315,8 @@
                         id="edit_form_backend_linear_log_enabled"
                         class="col-md-6"
                         :field="r$.backend_config.linear_log_enabled"
-                        :label="$gettext('Build Linear Log In Advance')"
-                        :description="$gettext('When enabled, an hourly background task keeps this station\'s playout log built out to the number of hours below, ahead of real time -- similar to a traditional 24-hour advance log.')"
+                        :label="$gettext('Enable 24-Hour Playout Log')"
+                        :description="$gettext('Maintains an isolated AutoDJ playout snapshot in advance. It is rebuilt automatically every 12 hours; opening or refreshing the report only reads the last snapshot and never triggers a rebuild.')"
                     />
 
                     <form-group-field
@@ -326,7 +326,7 @@
                         :field="r$.backend_config.linear_log_hours"
                         input-type="number"
                         :input-attrs="{ min: '1', max: '48' }"
-                        :label="$gettext('Linear Log Hours In Advance')"
+                        :label="$gettext('Playout Log Hours In Advance')"
                         :description="$gettext('How many hours ahead the automatic linear log should be kept built out to.')"
                     />
 

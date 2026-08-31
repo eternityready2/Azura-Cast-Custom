@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Radio\SmartBlock;
 
 use App\Entity\StationPlaylist;
+use App\Radio\AutoDJ\LinearLogPreviewContext;
 
 /**
  * Just-in-time Smart Block sync gate used by {@see \App\Radio\AutoDJ\QueueBuilder}
@@ -31,6 +32,7 @@ final class SmartBlockPlaybackPreparer
 
     public function __construct(
         private readonly SmartBlockSyncer $syncer,
+        private readonly LinearLogPreviewContext $linearLogPreviewContext,
     ) {
     }
 
@@ -66,7 +68,10 @@ final class SmartBlockPlaybackPreparer
         }
 
         try {
-            $result = $this->syncer->sync($playlist);
+            $result = $this->syncer->sync(
+                $playlist,
+                !$this->linearLogPreviewContext->isActive(),
+            );
             $hasMedia = $result['total'] > 0;
         } catch (\Throwable) {
             // Fail-safe: don't let a sync error take a Smart Block out of rotation.

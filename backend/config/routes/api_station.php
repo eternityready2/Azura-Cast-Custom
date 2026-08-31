@@ -1019,6 +1019,11 @@ return static function (RouteCollectorProxy $group) {
                         Controller\Api\Stations\Features\FeatureSuiteController::class . ':cadenceReportAction'
                     )->add(new Middleware\Permissions(StationPermissions::Reports, true));
 
+                    $group->get(
+                        '/reports/linear-log',
+                        Controller\Api\Stations\Features\FeatureSuiteController::class . ':linearLogStatusAction'
+                    )->add(new Middleware\Permissions(StationPermissions::Reports, true));
+
                     $group->post(
                         '/reports/linear-log/build',
                         Controller\Api\Stations\Features\FeatureSuiteController::class . ':buildLinearLogAction'
