@@ -195,9 +195,6 @@ const typeFilters = [
     {key:"music",label:$gettext("Music"),activeClass:"btn-success"},
     {key:"talk",label:$gettext("Talk"),activeClass:"btn-warning"},
     {key:"id",label:$gettext("Station ID"),activeClass:"btn-danger"},
-    {key:"promo",label:$gettext("Promo"),activeClass:"btn-info"},
-    {key:"jingle",label:$gettext("Jingle"),activeClass:"btn-secondary"},
-    {key:"podcast",label:$gettext("Podcast"),activeClass:"btn-primary"},
     {key:"stream",label:$gettext("Stream"),activeClass:"btn-dark"},
     {key:"request",label:$gettext("Request"),activeClass:"btn-outline-primary"},
     {key:"clock_wheel",label:$gettext("Clock Wheel"),activeClass:"btn-primary"},
@@ -210,19 +207,23 @@ function toggleType(key: string) {
         : [...activeTypes.value,key];
 }
 
+// Trusts the backend's media_type as the single source of truth (see
+// QueueController::viewRecord()) instead of re-deriving classification here with
+// different rules -- the previous version of this function forced ANY custom URI to
+// "stream", which silently overrode the backend's correct "talk" classification for
+// AI DJ clips. "request" and "clock_wheel" remain frontend-level overlays since they're
+// about *how* a track was selected, not *what* it is, and are useful as their own
+// filterable categories.
 function resolveType(item: QueueItem): string {
     if (item.is_request) return "request";
     if (item.clock_wheel) return "clock_wheel";
-    if (item.top_of_hour_legal_id || "id" === item.media_type) return "id";
-    if (item.autodj_custom_uri) return "stream";
     return item.media_type || "music";
 }
 
 function typeLabel(item: QueueItem): string {
     const labels: Record<string,string> = {
-        music:$gettext("Music"),talk:$gettext("Talk"),id:$gettext("ID"),promo:$gettext("Promo"),
-        jingle:$gettext("Jingle"),podcast:$gettext("Podcast"),stream:$gettext("Stream"),
-        request:$gettext("Request"),clock_wheel:$gettext("Clock"),
+        music:$gettext("Music"),talk:$gettext("Talk"),id:$gettext("ID"),
+        stream:$gettext("Stream"),request:$gettext("Request"),clock_wheel:$gettext("Clock"),
     };
     return labels[resolveType(item)] ?? $gettext("Music");
 }
@@ -230,7 +231,6 @@ function typeLabel(item: QueueItem): string {
 function typeBadgeClass(item: QueueItem): string {
     const classes: Record<string,string> = {
         music:"badge text-bg-success",talk:"badge text-bg-warning",id:"badge text-bg-danger",
-        promo:"badge text-bg-info",jingle:"badge text-bg-secondary",podcast:"badge text-bg-primary",
         stream:"badge text-bg-dark",request:"badge text-bg-primary",clock_wheel:"badge text-bg-primary",
     };
     return classes[resolveType(item)] ?? "badge text-bg-success";

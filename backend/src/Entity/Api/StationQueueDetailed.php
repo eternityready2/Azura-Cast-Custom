@@ -32,7 +32,7 @@ final class StationQueueDetailed
     public ?string $autodj_custom_uri = null;
 
     #[OA\Property(
-        description: 'The media type of this queue entry (music, talk, id, promo, jingle, podcast, etc.).',
+        description: 'The media type of this queue entry (music, talk, id, or stream).',
         example: 'music'
     )]
     public string $media_type = 'music';
