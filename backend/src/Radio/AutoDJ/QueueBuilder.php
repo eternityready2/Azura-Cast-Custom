@@ -871,6 +871,23 @@ final class QueueBuilder implements EventSubscriberInterface
             $expectedPlayTime,
         );
 
+        // Sequential and Shuffle/SmartShuffle order both reset the playlist's
+        // rotation pool when it's been fully consumed and retry -- Random order was
+        // missing this entirely, so once its pool ran dry it produced nothing for
+        // the rest of the build, permanently, with no way to recover. This rarely
+        // surfaced on live playback (a station doesn't usually burn through an
+        // entire playlist's rotation pool within a few minutes of real time), but a
+        // 24-48 hour linear-log preview build reliably does for any moderately
+        // sized playlist. Bringing Random in line with the other two order types.
+        if (empty($mediaQueue)) {
+            $this->spmRepo->resetQueue($playlist);
+            $mediaQueue = $this->preparePlaylistQueue(
+                $playlist,
+                $this->spmRepo->getQueue($playlist),
+                $expectedPlayTime,
+            );
+        }
+
         if ($playlist->avoid_duplicates) {
             return $this->duplicatePrevention->preventDuplicates($mediaQueue, $recentSongHistory, $allowDuplicates);
         }
