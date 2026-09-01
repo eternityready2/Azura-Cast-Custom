@@ -82,6 +82,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
         private readonly StationQueueRepository $stationQueueRepo,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly AiDjArtistHistoryService $artistHistoryService,
+        private readonly LinearLogPreviewContext $linearLogPreviewContext,
     ) {
     }
 
@@ -96,6 +97,11 @@ final class AiDjQueueListener implements EventSubscriberInterface
 
     public function onBuildQueue(BuildQueue $event): void
     {
+        if ($this->linearLogPreviewContext->isActive()) {
+            $this->logger->debug('AI DJ: Skipped - Linear Log preview is read-only.');
+            return;
+        }
+
         $station = $event->getStation();
 
         if ($event->isInterrupting()) {

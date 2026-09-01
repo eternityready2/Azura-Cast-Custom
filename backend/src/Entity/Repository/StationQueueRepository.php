@@ -129,11 +129,13 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 FROM App\Entity\StationQueue sq
                 LEFT JOIN sq.media sm
                 WHERE sq.station = :station
-                AND (sq.is_played = 0 OR sq.timestamp_played >= :threshold)
+                AND sq.timestamp_played >= :threshold
+                AND sq.timestamp_played <= :now
                 ORDER BY sq.timestamp_played DESC
             DQL
         )->setParameter('station', $station)
             ->setParameter('threshold', $threshold)
+            ->setParameter('now', $now)
             ->getArrayResult();
     }
 
@@ -169,6 +171,39 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
+     * Music history for an isolated Linear Log projection. Includes temporary
+     * unplayed rows created inside the preview transaction, bounded to the
+     * simulated play time so projected DMCA counting advances exactly with the
+     * preview cursor.
+     *
+     * @return mixed[]
+     */
+    public function getProjectedMusicHistoryByTimeRange(
+        Station $station,
+        DateTimeImmutable $now,
+        int $minutes
+    ): array {
+        $threshold = CarbonImmutable::instance($now)->subMinutes($minutes);
+
+        return $this->em->createQuery(
+            <<<'DQL'
+                SELECT sq.song_id, sq.timestamp_played, sq.title, sq.artist, sq.album, COALESCE(sm.type, 'music') as media_type
+                FROM App\Entity\StationQueue sq
+                LEFT JOIN sq.media sm
+                WHERE sq.station = :station
+                AND sq.timestamp_played >= :threshold
+                AND sq.timestamp_played <= :now
+                AND sq.media IS NOT NULL
+                AND sm.type = 'music'
+                ORDER BY sq.timestamp_played DESC
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('threshold', $threshold)
+            ->setParameter('now', $now)
+            ->getArrayResult();
+    }
+
+    /**
      * Recent plays with media category for clock wheel category separation (PR9).
      *
      * @return array<array{song_id:string, timestamp_played:mixed, title:string|null, artist:string|null, category_id:int|null}>
@@ -186,12 +221,14 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 FROM App\Entity\StationQueue sq
                 LEFT JOIN App\Entity\StationMedia m WITH m.song_id = sq.song_id AND m.storage_location = :storageLocation
                 WHERE sq.station = :station
-                AND (sq.is_played = 0 OR sq.timestamp_played >= :threshold)
+                AND sq.timestamp_played >= :threshold
+                AND sq.timestamp_played <= :now
                 ORDER BY sq.timestamp_played DESC
             DQL
         )->setParameter('station', $station)
             ->setParameter('storageLocation', $station->media_storage_location)
             ->setParameter('threshold', $threshold)
+            ->setParameter('now', $now)
             ->getArrayResult();
     }
 
