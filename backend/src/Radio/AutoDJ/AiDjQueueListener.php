@@ -625,9 +625,12 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 return;
             }
 
-            $track = sprintf('annotate:title="AI DJ",artist="%s",liq_cross_duration="0",liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",jingle_mode="true",azuracast_autocue="false":%s', $dj->getName(), $clipPath);
+            // Keep the semantic break type in both the Liquidsoap metadata and the
+            // StationQueue row so Past Playout History can distinguish this from liners.
+            $title = 'Song Commentary';
+            $track = sprintf('annotate:title="%s",artist="%s",liq_cross_duration="0",liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",jingle_mode="true",azuracast_autocue="false":%s', $title, $dj->getName(), $clipPath);
             $backend->enqueue($station, LiquidsoapQueues::Requests, $track);
-            $this->createQueueEntry($station, $dj->getName(), $clipPath, 'AI DJ');
+            $this->createQueueEntry($station, $dj->getName(), $clipPath, $title);
 
             $this->logger->info(sprintf(
                 'AI DJ: Queued post-song clip for DJ "%s" (clip: %s)',
@@ -756,6 +759,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
         try {
             $introText = null;
             $usedType = null;
+            $segment1Title = 'Song Commentary';
             $haveSong = ($curArtist !== null && $curArtist !== '');
 
             // Segment 1, option A: post-song mention (respect the "don't name the
@@ -784,12 +788,17 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 }
                 $introText = $this->generator->buildLinerText($dj, $c1, $station, true);
                 $usedType = $c1->type;
+                $segment1Title = $this->getLinerTitle($c1->type);
             }
 
             // Segment 2: a DIFFERENT liner type, rendered intro-free. If none is
             // available the combo degrades to a valid single-segment clip.
             $c2 = $this->selectLinerContent($dj, $station, $usedType);
             $payloadText = $c2 !== null ? $this->generator->buildLinerText($dj, $c2, $station, false) : '';
+            $segment2Title = $c2 !== null ? $this->getLinerTitle($c2->type) : null;
+            $title = $segment2Title !== null && $segment2Title !== $segment1Title
+                ? $segment1Title . ' + ' . $segment2Title
+                : $segment1Title;
 
             $clipPath = $this->generator->generateComboBreak($dj, $introText, $payloadText, $station);
             if (null === $clipPath) {
@@ -797,10 +806,12 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 return;
             }
 
-            $track = sprintf('annotate:title="AI DJ",artist="%s",liq_cross_duration="0",liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",jingle_mode="true",azuracast_autocue="false":%s', $dj->getName(), $clipPath);
+            // Preserve both combo segment categories in the metadata. This is what
+            // Past Playout History receives from Liquidsoap feedback.
+            $track = sprintf('annotate:title="%s",artist="%s",liq_cross_duration="0",liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",jingle_mode="true",azuracast_autocue="false":%s', $title, $dj->getName(), $clipPath);
             $backend->enqueue($station, LiquidsoapQueues::Requests, $track);
             $enqueued = true;
-            $this->createQueueEntry($station, $dj->getName(), $clipPath, 'AI DJ');
+            $this->createQueueEntry($station, $dj->getName(), $clipPath, $title);
 
             $this->logger->info(sprintf(
                 'AI DJ: Queued COMBO clip for DJ "%s" (segment2: %s, clip: %s)',
@@ -816,6 +827,19 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 $this->pushContentLiner($dj, $station, $backend);
             }
         }
+    }
+
+    private function getLinerTitle(string $type): string
+    {
+        return match ($type) {
+            AiDjContent::TYPE_BIBLE_VERSE => 'Bible Verse',
+            AiDjContent::TYPE_JOKE => 'Joke',
+            AiDjContent::TYPE_ENCOURAGEMENT => 'Encouragement',
+            AiDjContent::TYPE_INSPIRATION => 'Inspiration',
+            AiDjContent::TYPE_TESTIMONY => 'Testimony',
+            AiDjContent::TYPE_STORY => 'Story',
+            default => ucwords(str_replace(['_', '-'], ' ', $type)),
+        };
     }
 
     private function pushContentLiner(
@@ -839,15 +863,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 return;
             }
 
-            $title = match ($content->type) {
-                AiDjContent::TYPE_BIBLE_VERSE => 'Bible Verse',
-                AiDjContent::TYPE_JOKE => 'Joke',
-                AiDjContent::TYPE_ENCOURAGEMENT => 'Encouragement',
-                AiDjContent::TYPE_INSPIRATION => 'Inspiration',
-                AiDjContent::TYPE_TESTIMONY => 'Testimony',
-                AiDjContent::TYPE_STORY => 'Story',
-                default => 'AI DJ Liner',
-            };
+            $title = $this->getLinerTitle($content->type);
 
             $track = sprintf('annotate:title="%s",artist="%s",liq_cross_duration="0",liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",jingle_mode="true",azuracast_autocue="false":%s', $title, $dj->getName(), $clipPath);
             $backend->enqueue($station, LiquidsoapQueues::Requests, $track);
