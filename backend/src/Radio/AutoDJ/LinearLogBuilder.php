@@ -14,7 +14,6 @@ use App\Message\AbstractMessage;
 use App\Message\BuildLinearLogMessage;
 use App\Utilities\Time;
 use DateTimeImmutable;
-use Psr\SimpleCache\CacheInterface;
 use Throwable;
 
 final class LinearLogBuilder
@@ -27,7 +26,6 @@ final class LinearLogBuilder
         private readonly StationRepository $stationRepo,
         private readonly LinearLogSnapshotStore $snapshotStore,
         private readonly LinearLogPreviewContext $previewContext,
-        private readonly CacheInterface $cache,
         private readonly AiDjScheduleRepository $aiDjScheduleRepo,
     ) {
     }
@@ -40,6 +38,11 @@ final class LinearLogBuilder
 
         $station = $this->stationRepo->findByIdentifier((string)$message->stationId);
         if (!$station instanceof Station || !$station->supportsAutoDjQueue()) {
+            return;
+        }
+
+        if (!$station->backend_config->linear_log_enabled) {
+            $this->snapshotStore->cancelQueued($station);
             return;
         }
 
@@ -66,7 +69,6 @@ final class LinearLogBuilder
 
         $this->snapshotStore->markBuilding($station, $hours);
 
-        $cacheState = $this->captureMutableCacheState($station);
         $this->previewContext->begin();
 
         $connection = $this->em->getConnection();
@@ -126,7 +128,6 @@ final class LinearLogBuilder
             }
 
             $this->previewContext->end();
-            $this->restoreMutableCacheState($cacheState);
             $this->em->clear();
         }
 
@@ -144,42 +145,6 @@ final class LinearLogBuilder
         );
 
         return $this->snapshotStore->get($station);
-    }
-
-    /**
-     * @return array<string, array{exists:bool, value:mixed}>
-     */
-    private function captureMutableCacheState(Station $station): array
-    {
-        $keys = [];
-        foreach ($station->playlists as $playlist) {
-            $keys[] = 'playlist_queue.' . $playlist->id;
-        }
-
-        $state = [];
-        foreach (array_unique($keys) as $key) {
-            $exists = $this->cache->has($key);
-            $state[$key] = [
-                'exists' => $exists,
-                'value' => $exists ? $this->cache->get($key) : null,
-            ];
-        }
-
-        return $state;
-    }
-
-    /**
-     * @param array<string, array{exists:bool, value:mixed}> $state
-     */
-    private function restoreMutableCacheState(array $state): void
-    {
-        foreach ($state as $key => $item) {
-            if ($item['exists']) {
-                $this->cache->set($key, $item['value'], 6000);
-            } else {
-                $this->cache->delete($key);
-            }
-        }
     }
 
     /**

@@ -137,23 +137,7 @@
                 </span>
             </div>
 
-            <section v-if="aiDjShifts.length" class="ai-dj-shifts">
-                <div class="ai-dj-shifts-title">{{ $gettext('AI DJ Work Shifts') }}</div>
-                <div class="d-flex flex-wrap gap-2">
-                    <div
-                        v-for="shift in aiDjShifts"
-                        :key="`${shift.schedule_id}-${shift.starts_at}`"
-                        class="ai-dj-shift"
-                    >
-                        <strong>{{ shift.dj_name }}</strong>
-                        <span>{{ formatDateTime(shift.starts_at) }} – {{ formatDateTime(shift.ends_at) }}</span>
-                        <small v-if="shift.schedule_name">{{ shift.schedule_name }}</small>
-                    </div>
-                </div>
-                <div class="small text-body-secondary mt-2">
-                    {{ $gettext('The shift is scheduled here, but the DJ\'s exact talk breaks and speech are generated live and are not prebuilt by the Linear Log.') }}
-                </div>
-            </section>
+            <linear-log-ai-dj-shifts :shifts="aiDjShifts" />
 
             <div v-if="coverageWarning" class="coverage-warning">
                 <strong>{{ $gettext('Projection ended before the requested horizon.') }}</strong>
@@ -180,77 +164,12 @@
                 </button>
             </div>
 
-            <template v-else>
-                <section v-for="group in hourGroups" :key="group.epochHour" class="hour-group">
-                    <div class="hour-header" :class="{'current-hour': group.isCurrent}">
-                        <span v-if="group.isCurrent" class="badge text-bg-primary">{{ $gettext('NOW') }}</span>
-                        <strong>{{ group.label }}</strong>
-                        <span class="hour-summary">
-                            {{ group.items.length }} {{ $gettext('tracks') }} / {{ group.totalDurationFormatted }}
-                        </span>
-                        <span v-if="group.hasId" class="badge text-bg-danger ms-auto">{{ $gettext('Station ID') }}</span>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0 linear-table">
-                            <tbody>
-                                <tr
-                                    v-for="item in group.items"
-                                    :key="item.id"
-                                    class="queue-row"
-                                    :class="rowClasses(item)"
-                                >
-                                    <td v-if="visibleColumns.includes('time')" class="queue-time ps-3">
-                                        {{ formatTime(item.played_at) }}
-                                    </td>
-
-                                    <td v-if="visibleColumns.includes('title')" class="py-2">
-                                        <div class="d-flex align-items-start gap-2">
-                                            <span v-if="isNextUp(item)" class="next-marker">{{ $gettext('NEXT') }}</span>
-                                            <span v-else-if="item.is_live_queue" class="live-marker">{{ $gettext('LIVE QUEUE') }}</span>
-                                            <div>
-                                                <div v-if="item.autodj_custom_uri" class="small text-body-secondary">
-                                                    {{ item.autodj_custom_uri }}
-                                                </div>
-                                                <template v-else>
-                                                    <strong class="track-title">{{ displayTitle(item) }}</strong>
-                                                    <div v-if="item.artist" class="small track-artist">{{ item.artist }}</div>
-                                                    <div v-if="item.album" class="small text-body-secondary">{{ item.album }}</div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <td v-if="visibleColumns.includes('source')" class="playlist-cell">
-                                        <div>{{ sourceLabel(item) }}</div>
-                                        <div v-if="item.playlist_chain?.length" class="small text-body-secondary">
-                                            {{ item.playlist_chain.join(' → ') }}
-                                        </div>
-                                    </td>
-
-                                    <td v-if="visibleColumns.includes('type')" class="type-cell">
-                                        <span :class="typeBadgeClass(item)">{{ typeLabel(item) }}</span>
-                                    </td>
-
-                                    <td v-if="visibleColumns.includes('rules')" class="rules-cell">
-                                        <span v-if="item.top_of_hour_legal_id" class="badge text-bg-danger me-1">TOH</span>
-                                        <span v-if="item.clock_wheel_enforce_cap" class="badge text-bg-secondary me-1">CAP</span>
-                                        <span v-if="item.clock_wheel_stretch_ratio" class="badge text-bg-info me-1">
-                                            {{ formatStretch(item.clock_wheel_stretch_ratio) }}
-                                        </span>
-                                        <span v-if="item.hour_boundary_enforce_cap" class="badge text-bg-warning me-1">BOUNDARY</span>
-                                        <span v-if="item.is_request" class="badge text-bg-primary">REQUEST</span>
-                                    </td>
-
-                                    <td v-if="visibleColumns.includes('duration')" class="duration-cell pe-3">
-                                        {{ formatDuration(item.duration) }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </template>
+            <linear-log-schedule
+                v-else
+                :groups="hourGroups"
+                :visible-columns="visibleColumns"
+                :now-ts="nowTs"
+            />
 
             <footer class="linear-log-footer">
                 {{ $gettext('AI DJ work shifts are shown, but speech remains live-generated and is never synthesized or enqueued by this preview. The report does not change DJ cooldowns, shift state or live TTS playback.') }}
@@ -260,107 +179,34 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, ref} from "vue";
-import {useApiRouter} from "~/functions/useApiRouter";
-import {useAxios} from "~/vendor/axios";
+import {computed, ref} from "vue";
+import LinearLogAiDjShifts from "~/components/Stations/Reports/LinearLogAiDjShifts.vue";
+import LinearLogSchedule from "~/components/Stations/Reports/LinearLogSchedule.vue";
+import type {LinearLogHourGroup, LinearLogItem} from "~/entities/LinearLog";
+import {useLinearLog} from "~/functions/useLinearLog";
 import {useTranslate} from "~/vendor/gettext";
 
-interface LinearLogItem {
-    id: string;
-    queue_id: number;
-    song_id: string;
-    played_at: number | null;
-    cued_at: number;
-    duration: number;
-    title: string | null;
-    artist: string | null;
-    album: string | null;
-    text: string | null;
-    playlist: string | null;
-    playlist_id: number | null;
-    playlist_chain: string[] | null;
-    clock_wheel: string | null;
-    clock_wheel_id: number | null;
-    media_type: string;
-    source_type: string;
-    is_request: boolean;
-    is_live_queue: boolean;
-    sent_to_autodj: boolean;
-    top_of_hour_legal_id: boolean;
-    autodj_custom_uri: string | null;
-    clock_wheel_schedule_mode: string | null;
-    clock_wheel_enforce_cap: boolean;
-    clock_wheel_stretch_ratio: number | null;
-    clock_wheel_legal_id_substitute: boolean;
-    hour_boundary_enforce_cap: boolean;
-    hour_boundary_max_play_seconds: number | null;
-    top_of_hour_pre_id_fade: boolean;
-}
-
-interface LinearLogGap {
-    started_at: number;
-    duration: number;
-    reason: string;
-}
-
-interface LinearLogAiDjShift {
-    schedule_id: number;
-    schedule_name: string;
-    dj_id: number;
-    dj_name: string;
-    starts_at: number;
-    ends_at: number;
-}
-
-interface LinearLogResponse {
-    status: "idle" | "queued" | "building" | "ready" | "failed";
-    enabled: boolean;
-    hours: number;
-    configured_hours: number;
-    built_at: number | null;
-    coverage_start: number | null;
-    coverage_end: number | null;
-    entries: LinearLogItem[];
-    gaps: LinearLogGap[];
-    ai_dj_shifts: LinearLogAiDjShift[];
-    error: string | null;
-}
-
-interface HourGroup {
-    epochHour: number;
-    label: string;
-    isCurrent: boolean;
-    items: LinearLogItem[];
-    totalDurationFormatted: string;
-    hasId: boolean;
-}
-
 const {$gettext} = useTranslate();
-const {axios} = useAxios();
-const {getStationApiUrl} = useApiRouter();
+const {
+    initialLoading,
+    buildError,
+    status,
+    featureEnabled,
+    hoursAhead,
+    snapshotHours,
+    builtAt,
+    coverageStart,
+    coverageEnd,
+    allItems,
+    gaps,
+    aiDjShifts,
+    nowTs,
+    isBuilding,
+    requestBuild,
+} = useLinearLog();
 
-const statusUrl = getStationApiUrl("/reports/linear-log");
-const buildUrl = getStationApiUrl("/reports/linear-log/build");
-
-const initialLoading = ref(true);
-const buildError = ref("");
-const status = ref<LinearLogResponse["status"]>("idle");
-const featureEnabled = ref(true);
-const hoursAhead = ref(24);
-const snapshotHours = ref(24);
-const builtAt = ref<number | null>(null);
-const coverageStart = ref<number | null>(null);
-const coverageEnd = ref<number | null>(null);
-const searchQuery = ref("");
-const allItems = ref<LinearLogItem[]>([]);
-const gaps = ref<LinearLogGap[]>([]);
-const aiDjShifts = ref<LinearLogAiDjShift[]>([]);
-const nowTs = ref(Math.floor(Date.now() / 1000));
-let initializedHours = false;
-let pollTimer: number | null = null;
-
-const isBuilding = computed(() => status.value === "queued" || status.value === "building");
 const pageTitle = computed(() => `${snapshotHours.value || hoursAhead.value}-${$gettext("Hour Playout Log")}`);
+const searchQuery = ref("");
 
 const columnOptions = [
     {key: "time", label: $gettext("Time")},
@@ -385,7 +231,7 @@ const typeFilters = [
 ];
 const activeTypes = ref(typeFilters.map((item) => item.key));
 
-function toggleType(key: string) {
+function toggleType(key: string): void {
     activeTypes.value = activeTypes.value.includes(key)
         ? activeTypes.value.filter((item) => item !== key)
         : [...activeTypes.value, key];
@@ -399,58 +245,43 @@ function resolveType(item: LinearLogItem): string {
     return item.media_type || "music";
 }
 
-function typeLabel(item: LinearLogItem): string {
-    const labels: Record<string, string> = {
-        music: $gettext("Music"),
-        talk: $gettext("Talk"),
-        id: $gettext("ID"),
-        promo: $gettext("Promo"),
-        jingle: $gettext("Jingle"),
-        podcast: $gettext("Podcast"),
-        stream: $gettext("Stream"),
-        request: $gettext("Request"),
-        clock_wheel: $gettext("Clock"),
-    };
-    return labels[resolveType(item)] ?? $gettext("Music");
+const filteredItems = computed(() => {
+    const query = searchQuery.value.trim().toLowerCase();
+    return allItems.value.filter((item) => {
+        if (!activeTypes.value.includes(resolveType(item))) return false;
+        if (!query) return true;
+
+        return [
+            item.title,
+            item.artist,
+            item.album,
+            item.text,
+            item.playlist,
+            item.clock_wheel,
+            item.autodj_custom_uri,
+            ...(item.playlist_chain ?? []),
+        ].filter(Boolean).join(" ").toLowerCase().includes(query);
+    });
+});
+
+function secondsToHms(total: number): string {
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = Math.floor(total % 60);
+    return hours > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${minutes}m ${seconds}s`;
 }
 
-function typeBadgeClass(item: LinearLogItem): string {
-    const classes: Record<string, string> = {
-        music: "badge text-bg-success",
-        talk: "badge text-bg-warning",
-        id: "badge text-bg-danger",
-        promo: "badge text-bg-info",
-        jingle: "badge text-bg-secondary",
-        podcast: "badge text-bg-primary",
-        stream: "badge text-bg-dark",
-        request: "badge text-bg-primary",
-        clock_wheel: "badge text-bg-primary",
-    };
-    return classes[resolveType(item)] ?? "badge text-bg-success";
-}
-
-function sourceLabel(item: LinearLogItem): string {
-    if (item.clock_wheel) return item.clock_wheel;
-    if (item.playlist) return item.playlist;
-    if (item.is_request) return $gettext("Listener Request");
-    if (item.autodj_custom_uri) return $gettext("Remote Stream");
-    return $gettext("General Rotation");
-}
+const totalDurationFormatted = computed(() => secondsToHms(
+    filteredItems.value.reduce((sum, item) => sum + (item.duration ?? 0), 0),
+));
+const gapCount = computed(() => gaps.value.length);
+const totalGapDuration = computed(() => secondsToHms(gaps.value.reduce((sum, gap) => sum + gap.duration, 0)));
+const nextUpItem = computed(
+    () => filteredItems.value.find((item) => (item.played_at ?? 0) >= nowTs.value && item.is_live_queue) ?? null,
+);
 
 function displayTitle(item: LinearLogItem): string {
     return item.title || item.text || $gettext("Untitled");
-}
-
-function rowClasses(item: LinearLogItem): Record<string, boolean> {
-    return {
-        "next-up": isNextUp(item),
-        "legal-id": item.top_of_hour_legal_id,
-        "live-queue": item.is_live_queue,
-    };
-}
-
-function isNextUp(item: LinearLogItem): boolean {
-    return (item.played_at ?? 0) >= nowTs.value && item.is_live_queue;
 }
 
 function formatTime(timestamp: number | null): string {
@@ -474,57 +305,17 @@ function formatDateTime(timestamp: number): string {
     });
 }
 
-function formatDuration(seconds: number): string {
-    const minutes = Math.floor((seconds ?? 0) / 60);
-    const remain = Math.floor((seconds ?? 0) % 60);
-    return `${minutes}:${String(remain).padStart(2, "0")}`;
-}
-
-function secondsToHms(total: number): string {
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = Math.floor(total % 60);
-    return hours > 0 ? `${hours}h ${minutes}m ${seconds}s` : `${minutes}m ${seconds}s`;
-}
-
-function formatStretch(ratio: number): string {
-    return `${(ratio * 100).toFixed(1)}%`;
-}
-
-const filteredItems = computed(() => {
-    const query = searchQuery.value.trim().toLowerCase();
-    return allItems.value.filter((item) => {
-        if (!activeTypes.value.includes(resolveType(item))) return false;
-        if (!query) return true;
-        return [
-            item.title,
-            item.artist,
-            item.album,
-            item.text,
-            item.playlist,
-            item.clock_wheel,
-            item.autodj_custom_uri,
-            ...(item.playlist_chain ?? []),
-        ].filter(Boolean).join(" ").toLowerCase().includes(query);
-    });
-});
-
-const totalDurationFormatted = computed(() => secondsToHms(
-    filteredItems.value.reduce((sum, item) => sum + (item.duration ?? 0), 0),
-));
-const gapCount = computed(() => gaps.value.length);
-const totalGapDuration = computed(() => secondsToHms(gaps.value.reduce((sum, gap) => sum + gap.duration, 0)));
-const nextUpItem = computed(() => filteredItems.value.find((item) => isNextUp(item)) ?? null);
-
 const coverageWarning = computed(() => {
     if (!coverageStart.value || !coverageEnd.value || !builtAt.value) return "";
+
     const requestedEnd = coverageStart.value + (snapshotHours.value * 3600);
     const shortBy = requestedEnd - coverageEnd.value;
     if (shortBy <= 300) return "";
+
     return `${$gettext("Missing approximately")} ${secondsToHms(shortBy)}.`;
 });
 
-const hourGroups = computed<HourGroup[]>(() => {
+const hourGroups = computed<LinearLogHourGroup[]>(() => {
     const groups = new Map<number, LinearLogItem[]>();
     for (const item of filteredItems.value) {
         const timestamp = item.played_at ?? 0;
@@ -538,6 +329,7 @@ const hourGroups = computed<HourGroup[]>(() => {
     return [...groups.entries()].sort(([a], [b]) => a - b).map(([epochHour, items]) => {
         const sorted = [...items].sort((a, b) => (a.played_at ?? 0) - (b.played_at ?? 0));
         const total = sorted.reduce((sum, item) => sum + (item.duration ?? 0), 0);
+
         return {
             epochHour,
             label: formatDateTime(epochHour),
@@ -547,72 +339,6 @@ const hourGroups = computed<HourGroup[]>(() => {
             hasId: sorted.some((item) => item.top_of_hour_legal_id || item.media_type === "id"),
         };
     });
-});
-
-function schedulePoll() {
-    if (pollTimer !== null) {
-        window.clearTimeout(pollTimer);
-    }
-    pollTimer = window.setTimeout(() => void loadSnapshot(false), 2000);
-}
-
-async function loadSnapshot(showLoader = true) {
-    if (showLoader && allItems.value.length === 0) {
-        initialLoading.value = true;
-    }
-
-    try {
-        const {data} = await axios.get<LinearLogResponse>(statusUrl.value);
-        status.value = data.status;
-        featureEnabled.value = data.enabled;
-        snapshotHours.value = data.hours || data.configured_hours || 24;
-        builtAt.value = data.built_at;
-        coverageStart.value = data.coverage_start;
-        coverageEnd.value = data.coverage_end;
-        allItems.value = data.entries ?? [];
-        gaps.value = data.gaps ?? [];
-        aiDjShifts.value = data.ai_dj_shifts ?? [];
-        buildError.value = data.error ?? "";
-        nowTs.value = Math.floor(Date.now() / 1000);
-
-        if (!initializedHours) {
-            hoursAhead.value = data.hours || data.configured_hours || 24;
-            initializedHours = true;
-        }
-
-        if (data.status === "queued" || data.status === "building") {
-            schedulePoll();
-        }
-    } catch (error: any) {
-        buildError.value = error?.response?.data?.message ?? error?.message ?? $gettext("Unable to load the Linear Log.");
-    } finally {
-        initialLoading.value = false;
-    }
-}
-
-async function requestBuild() {
-    if (!featureEnabled.value) {
-        return;
-    }
-
-    buildError.value = "";
-    status.value = "queued";
-
-    try {
-        await axios.post(buildUrl.value, {action: "build", hours: hoursAhead.value});
-        snapshotHours.value = hoursAhead.value;
-        schedulePoll();
-    } catch (error: any) {
-        status.value = "failed";
-        buildError.value = error?.response?.data?.message ?? error?.message ?? $gettext("Unable to queue the Linear Log build.");
-    }
-}
-
-onMounted(() => void loadSnapshot());
-onUnmounted(() => {
-    if (pollTimer !== null) {
-        window.clearTimeout(pollTimer);
-    }
 });
 </script>
 
@@ -628,33 +354,10 @@ onUnmounted(() => {
 .filter-label{font-size:.8rem;font-weight:700}
 .search-box{width:230px}
 .stats-bar{display:flex;flex-wrap:wrap;gap:1.2rem;padding:.65rem 1rem;border-bottom:1px solid var(--bs-border-color);background:color-mix(in srgb,var(--bs-secondary-bg) 65%,var(--bs-body-bg));font-size:.8rem}
-.ai-dj-shifts{padding:.8rem 1rem;border-bottom:1px solid var(--bs-border-color);background:color-mix(in srgb,var(--bs-info-bg-subtle) 35%,var(--bs-body-bg))}
-.ai-dj-shifts-title{margin-bottom:.5rem;font-size:.8rem;font-weight:750}
-.ai-dj-shift{display:flex;flex-direction:column;min-width:240px;padding:.5rem .65rem;border:1px solid var(--bs-border-color);border-radius:.45rem;background:var(--bs-body-bg);font-size:.76rem}
-.ai-dj-shift small{color:var(--bs-secondary-color)}
 .coverage-warning{padding:.6rem 1rem;border-bottom:1px solid var(--bs-warning-border-subtle);background:var(--bs-warning-bg-subtle);color:var(--bs-warning-text-emphasis);font-size:.82rem}
 .loading-state,.empty-state{padding:4rem 1.5rem;text-align:center}
 .empty-state p{max-width:760px;margin:.5rem auto 0;color:var(--bs-secondary-color)}
 .empty-state h2{font-size:1.1rem}
-.hour-header{display:flex;align-items:center;gap:.6rem;padding:.62rem 1rem;border-bottom:1px solid var(--bs-border-color);background:color-mix(in srgb,var(--bs-secondary-bg) 72%,var(--bs-body-bg))}
-.hour-header.current-hour{background:linear-gradient(90deg,color-mix(in srgb,var(--bs-primary) 18%,var(--bs-body-bg)),color-mix(in srgb,var(--bs-primary) 8%,var(--bs-body-bg)));box-shadow:inset 3px 0 0 var(--bs-primary)}
-.hour-summary{color:var(--bs-secondary-color);font-size:.76rem}
-.linear-table{--bs-table-color:var(--bs-body-color);--bs-table-bg:var(--bs-body-bg);--bs-table-hover-color:var(--bs-body-color);--bs-table-hover-bg:color-mix(in srgb,var(--bs-secondary-bg) 72%,var(--bs-body-bg))}
-.queue-row td{border-color:var(--bs-border-color)}
-.queue-row.next-up td{background:color-mix(in srgb,var(--bs-success-bg-subtle) 34%,var(--bs-body-bg))}
-.queue-row.legal-id td{background:color-mix(in srgb,var(--bs-danger-bg-subtle) 28%,var(--bs-body-bg))}
-.queue-row.live-queue td{box-shadow:inset 2px 0 0 color-mix(in srgb,var(--bs-success) 55%,transparent)}
-.queue-time,.duration-cell{font-family:var(--bs-font-monospace);font-size:.76rem;white-space:nowrap}
-.queue-time{width:100px}
-.duration-cell{width:72px;text-align:right}
-.playlist-cell{width:210px;font-size:.79rem}
-.type-cell{width:95px}
-.rules-cell{width:185px}
-.track-title{color:var(--bs-body-color)}
-.track-artist{color:var(--bs-secondary-color)!important}
-.next-marker,.live-marker{display:inline-block;padding:.16rem .32rem;border-radius:.28rem;color:#fff;font-size:.58rem;font-weight:750;letter-spacing:.035em;white-space:nowrap}
-.next-marker{background:var(--bs-success)}
-.live-marker{background:var(--bs-secondary)}
 .linear-log-footer{padding:.7rem 1rem;border-top:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg);color:var(--bs-secondary-color);font-size:.76rem}
-@media(max-width:767px){.linear-log-header{align-items:flex-start;flex-direction:column}.search-box{width:100%}.rules-cell{min-width:160px}}
+@media(max-width:767px){.linear-log-header{align-items:flex-start;flex-direction:column}.search-box{width:100%}}
 </style>

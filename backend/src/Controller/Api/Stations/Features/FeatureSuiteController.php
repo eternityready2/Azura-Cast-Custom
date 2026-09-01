@@ -229,7 +229,13 @@ final class FeatureSuiteController
         $hours = max(1, min(48, (int)($data['hours'] ?? $station->backend_config->linear_log_hours)));
 
         $this->linearLogSnapshotStore->markQueued($station, $hours);
-        $this->messageBus->dispatch(new BuildLinearLogMessage($station->id, $hours));
+
+        try {
+            $this->messageBus->dispatch(new BuildLinearLogMessage($station->id, $hours));
+        } catch (Throwable $e) {
+            $this->linearLogSnapshotStore->markFailed($station, $hours, $e->getMessage());
+            throw $e;
+        }
 
         return $response->withJson([
             'success' => true,
