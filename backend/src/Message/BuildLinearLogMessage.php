@@ -11,6 +11,7 @@ final class BuildLinearLogMessage extends AbstractUniqueMessage
     public function __construct(
         public readonly int $stationId,
         public readonly int $hours,
+        public readonly bool $force = false,
     ) {
     }
 

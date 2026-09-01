@@ -640,8 +640,14 @@ final class QueueBuilder implements EventSubscriberInterface
             return [$playlist->remote_url, $duration];
         }
 
-        $queueCacheKey = $this->linearLogPreviewContext->cacheKey('playlist_queue.' . $playlist->id);
+        $liveQueueCacheKey = 'playlist_queue.' . $playlist->id;
+        $queueCacheKey = $this->linearLogPreviewContext->cacheKey($liveQueueCacheKey);
         $mediaQueue = $this->cache->get($queueCacheKey);
+
+        if ($this->linearLogPreviewContext->isActive() && null === $mediaQueue) {
+            $mediaQueue = $this->cache->get($liveQueueCacheKey);
+        }
+
         if (empty($mediaQueue)) {
             $mediaQueue = [];
 

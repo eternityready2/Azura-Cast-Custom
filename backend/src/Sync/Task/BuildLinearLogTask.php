@@ -47,7 +47,7 @@ final class BuildLinearLogTask extends AbstractTask
             try {
                 $hours = $station->backend_config->linear_log_hours;
                 $this->snapshotStore->markQueued($station, $hours);
-                $this->messageBus->dispatch(new BuildLinearLogMessage($station->id, $hours));
+                $this->messageBus->dispatch(new BuildLinearLogMessage($station->id, $hours, $force));
             } catch (Throwable $e) {
                 $this->snapshotStore->markFailed($station, $hours, $e->getMessage());
                 $this->logger->error(

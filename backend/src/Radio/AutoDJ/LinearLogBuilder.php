@@ -41,7 +41,7 @@ final class LinearLogBuilder
             return;
         }
 
-        if (!$station->backend_config->linear_log_enabled) {
+        if (!$message->force && !$station->backend_config->linear_log_enabled) {
             $this->snapshotStore->cancelQueued($station);
             return;
         }
