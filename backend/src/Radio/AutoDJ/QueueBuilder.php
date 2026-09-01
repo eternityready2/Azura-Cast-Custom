@@ -57,6 +57,7 @@ final class QueueBuilder implements EventSubscriberInterface
         private readonly SongHistoryRepository $historyRepo,
         private readonly HolidayOverrideService $holidayOverrideService,
         private readonly SmartBlockPlaybackPreparer $smartBlockPlaybackPreparer,
+        private readonly LinearLogPreviewContext $linearLogPreviewContext,
         private readonly UserUrlFilter $userUrlFilter,
         private readonly Client $httpClient,
     ) {
@@ -639,8 +640,14 @@ final class QueueBuilder implements EventSubscriberInterface
             return [$playlist->remote_url, $duration];
         }
 
-        $queueCacheKey = 'playlist_queue.' . $playlist->id;
+        $liveQueueCacheKey = 'playlist_queue.' . $playlist->id;
+        $queueCacheKey = $this->linearLogPreviewContext->cacheKey($liveQueueCacheKey);
         $mediaQueue = $this->cache->get($queueCacheKey);
+
+        if ($this->linearLogPreviewContext->isActive() && null === $mediaQueue) {
+            $mediaQueue = $this->cache->get($liveQueueCacheKey);
+        }
+
         if (empty($mediaQueue)) {
             $mediaQueue = [];
 

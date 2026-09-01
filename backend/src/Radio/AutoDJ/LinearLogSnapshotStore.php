@@ -55,6 +55,15 @@ final class LinearLogSnapshotStore
         $this->save($station, $snapshot);
     }
 
+    public function cancelQueued(Station $station): void
+    {
+        $snapshot = $this->get($station);
+        $snapshot['status'] = null !== $snapshot['built_at'] ? 'ready' : 'idle';
+        $snapshot['error'] = null;
+
+        $this->save($station, $snapshot);
+    }
+
     /**
      * @param list<array<string, mixed>> $entries
      * @param list<array<string, mixed>> $gaps

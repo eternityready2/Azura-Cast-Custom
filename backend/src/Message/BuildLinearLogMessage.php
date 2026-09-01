@@ -8,10 +8,14 @@ use App\MessageQueue\QueueNames;
 
 final class BuildLinearLogMessage extends AbstractUniqueMessage
 {
+    public bool $force = false;
+
     public function __construct(
         public readonly int $stationId,
         public readonly int $hours,
+        bool $force = false,
     ) {
+        $this->force = $force;
     }
 
     public function getIdentifier(): string
