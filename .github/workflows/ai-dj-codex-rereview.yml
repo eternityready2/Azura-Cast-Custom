@@ -45,49 +45,16 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-
           path = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php')
           text = path.read_text()
-
-          old = """        if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
-            if ($minute >= 57) {
-                $slot = $candidate->modify('+1 hour');
-            } else {
-                $slot = $candidate;
-            }
-
-            $slot = $slot->setTime((int)$slot->format('G'), 0, 0);
-            if ($this->isAiNewsActiveAt($station, $slot)) {
-                return true;
-            }
-        }
-
-        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {
-            $slot = $candidate->setTime((int)$candidate->format('G'), 30, 0);
-            return $this->isAiNewsActiveAt($station, $slot);
-        }
-"""
-          new = """        if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
-            $slot = $minute >= 57
-                ? $candidate
-                : $candidate->modify('-1 hour');
-            $slot = $slot->setTime((int)$slot->format('G'), 59, 0);
-
-            if ($this->isAiNewsActiveAt($station, $slot)) {
-                return true;
-            }
-        }
-
-        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {
-            $slot = $candidate->setTime((int)$candidate->format('G'), 29, 0);
-            return $this->isAiNewsActiveAt($station, $slot);
-        }
-"""
-
-          if text.count(old) != 1:
-              raise SystemExit(f'Expected one AI News scheduling block, found {text.count(old)}')
-
-          path.write_text(text.replace(old, new, 1))
+          old_top = "        if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {\n            if ($minute >= 57) {\n                $slot = $candidate->modify('+1 hour');\n            } else {\n                $slot = $candidate;\n            }\n\n            $slot = $slot->setTime((int)$slot->format('G'), 0, 0);\n            if ($this->isAiNewsActiveAt($station, $slot)) {\n                return true;\n            }\n        }"
+          new_top = "        if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {\n            $slot = $minute >= 57\n                ? $candidate\n                : $candidate->modify('-1 hour');\n            $slot = $slot->setTime((int)$slot->format('G'), 59, 0);\n\n            if ($this->isAiNewsActiveAt($station, $slot)) {\n                return true;\n            }\n        }"
+          old_bottom = "        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {\n            $slot = $candidate->setTime((int)$candidate->format('G'), 30, 0);\n            return $this->isAiNewsActiveAt($station, $slot);\n        }"
+          new_bottom = "        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {\n            $slot = $candidate->setTime((int)$candidate->format('G'), 29, 0);\n            return $this->isAiNewsActiveAt($station, $slot);\n        }"
+          if text.count(old_top) != 1 or text.count(old_bottom) != 1:
+              raise SystemExit('Expected exactly one top-hour and one bottom-hour scheduling block')
+          text = text.replace(old_top, new_top, 1).replace(old_bottom, new_bottom, 1)
+          path.write_text(text)
           PY
       - name: Mirror AzuraCast runtime path
         run: |
