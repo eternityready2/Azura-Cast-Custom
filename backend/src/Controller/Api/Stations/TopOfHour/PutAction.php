@@ -24,13 +24,13 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         summary: 'Save top-of-hour legal ID protection settings.',
         tags: [OpenApi::TAG_STATIONS_BROADCASTING],
         parameters: [
-        new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
+            new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
         ],
         responses: [
-        new OpenApi\Response\Success(),
-        new OpenApi\Response\AccessDenied(),
-        new OpenApi\Response\NotFound(),
-        new OpenApi\Response\GenericError(),
+            new OpenApi\Response\Success(),
+            new OpenApi\Response\AccessDenied(),
+            new OpenApi\Response\NotFound(),
+            new OpenApi\Response\GenericError(),
         ]
     )
 ]
@@ -79,10 +79,10 @@ final class PutAction implements SingleActionInterface
     private function validateRanges(object $backendConfig): void
     {
         $errors = $this->validator->validate($backendConfig->top_of_hour_lookahead_minutes, [
-        new Range(
-            min: HourBoundaryPlanner::MIN_LOOKAHEAD_MINUTES,
-            max: HourBoundaryPlanner::MAX_LOOKAHEAD_MINUTES,
-        ),
+            new Range(
+                min: HourBoundaryPlanner::MIN_LOOKAHEAD_MINUTES,
+                max: HourBoundaryPlanner::MAX_LOOKAHEAD_MINUTES,
+            ),
         ]);
 
         if (count($errors) > 0) {
@@ -90,10 +90,10 @@ final class PutAction implements SingleActionInterface
         }
 
         $errors = $this->validator->validate($backendConfig->top_of_hour_compliance_tolerance_seconds, [
-        new Range(
-            min: HourBoundaryPlanner::MIN_COMPLIANCE_TOLERANCE_SECONDS,
-            max: HourBoundaryPlanner::MAX_COMPLIANCE_TOLERANCE_SECONDS,
-        ),
+            new Range(
+                min: HourBoundaryPlanner::MIN_COMPLIANCE_TOLERANCE_SECONDS,
+                max: HourBoundaryPlanner::MAX_COMPLIANCE_TOLERANCE_SECONDS,
+            ),
         ]);
 
         if (count($errors) > 0) {
@@ -101,10 +101,10 @@ final class PutAction implements SingleActionInterface
         }
 
         $errors = $this->validator->validate($backendConfig->top_of_hour_id_max_seconds, [
-        new Range(
-            min: HourBoundaryPlanner::MIN_ID_MAX_SECONDS,
-            max: HourBoundaryPlanner::MAX_ID_MAX_SECONDS,
-        ),
+            new Range(
+                min: HourBoundaryPlanner::MIN_ID_MAX_SECONDS,
+                max: HourBoundaryPlanner::MAX_ID_MAX_SECONDS,
+            ),
         ]);
 
         if (count($errors) > 0) {
