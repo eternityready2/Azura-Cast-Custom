@@ -14,15 +14,11 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * Applies timing-related playback annotations produced by AutoDJ planning.
  *
  * The stretch ratio field predates station-wide playout controls and retains its
- * clock-wheel-prefixed database name for compatibility, but QueueBuilder also writes
- * it for ordinary rotation playlists (including Smart Block prepared playlists).
+ * clock-wheel-prefixed database name for compatibility, but it is now used by
+ * ordinary rotation playlists and Smart Blocks as well as Clock Wheels.
  */
 final class ClockWheelAnnotator implements EventSubscriberInterface
 {
-    private const bool DEFAULT_STRETCH_SQUEEZE_ENABLED = true;
-
-    private const float DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT = 5.0;
-
     public static function getSubscribedEvents(): array
     {
         return [
@@ -35,14 +31,10 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
     }
 
     /**
-     * Apply pitch-preserving stretch/squeeze metadata to any AutoDJ queue row that
-     * was backtimed by the planner. This is intentionally source-agnostic: standard
-     * rotation playlists, Smart Blocks and Clock Wheels all use the same annotation.
-     *
-     * A precomputed ratio handles tracks that naturally fit and need stretching.
-     * When a planner instead produced a small cap for a slightly-too-long track,
-     * convert that cap into a squeeze when the required adjustment is within the
-     * station maximum; otherwise leave the existing cap/fade fallback untouched.
+     * Apply the stretch/squeeze decision frozen into the queue row when AutoDJ
+     * planned it. Runtime setting changes deliberately affect newly planned rows
+     * only, preventing an already-queued row from changing duration after later
+     * timestamps and protected boundaries were calculated from its old duration.
      */
     public function applyClockWheelStretch(AnnotateNextSong $event): void
     {
@@ -56,73 +48,35 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             return;
         }
 
-        $rawConfig = $event->getStation()->backend_config->toArray(true) ?? [];
-        $enabled = (bool)(
-            $rawConfig['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED
-        );
-        if (!$enabled) {
+        $isLegalId = $queue->top_of_hour_legal_id
+            || $queue->clock_wheel_legal_id_substitute
+            || StationMediaTypes::isStationId($media->type);
+        if ($isLegalId) {
             return;
         }
 
-        $maxPercent = (float)(
-            $rawConfig['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
-        );
-        $maxPercent = max(0.5, min(5.0, $maxPercent));
-        $maxDelta = $maxPercent / 100;
-
-        // A cap/fade target is always the tighter timing requirement. This matters
-        // when a row also carries a precomputed TOH stretch ratio but a nearer
-        // scheduled boundary subsequently imposed a shorter cap.
-        $replacementTargetSeconds = match (true) {
+        // A row that still has a cap/fade requirement was intentionally left on
+        // the fallback path during queue planning. Never stack stretch metadata on
+        // top of that cap at annotation time.
+        if (
             $queue->clock_wheel_enforce_cap
-                && null !== $queue->clock_wheel_max_play_seconds
-                && $queue->clock_wheel_max_play_seconds > 0
-                => (float)$queue->clock_wheel_max_play_seconds,
-            $queue->hour_boundary_enforce_cap
-                && null !== $queue->hour_boundary_max_play_seconds
-                && $queue->hour_boundary_max_play_seconds > 0
-                => (float)$queue->hour_boundary_max_play_seconds,
-            $queue->top_of_hour_pre_id_fade
-                && null !== $queue->duration
-                && $queue->duration > 0
-                => (float)$queue->duration,
-            default => null,
-        };
-
-        $ratio = null !== $replacementTargetSeconds
-            ? $media->getCalculatedLength() / $replacementTargetSeconds
-            : $queue->clock_wheel_stretch_ratio;
-
-        if (null === $ratio) {
+            || $queue->hour_boundary_enforce_cap
+            || $queue->top_of_hour_pre_id_fade
+        ) {
             return;
         }
 
-        $minimumRatio = 1.0 - $maxDelta;
-        $maximumRatio = 1.0 + $maxDelta;
-        if ($ratio < $minimumRatio || $ratio > $maximumRatio) {
+        $ratio = $queue->clock_wheel_stretch_ratio;
+        if (null === $ratio || $ratio <= 0 || abs($ratio - 1.0) < 0.0001) {
             return;
         }
 
-        if (abs($ratio - 1.0) < 0.0001) {
-            return;
-        }
-
-        $ratio = round($ratio, 4);
         $annotations = [
-            'liq_stretch_ratio' => $ratio,
+            'liq_stretch_ratio' => round($ratio, 4),
         ];
 
-        if (null !== $replacementTargetSeconds) {
-            // The timing miss is small enough to solve without truncating audio.
-            // Clear every cap/fade flag so the later annotators do not also cut the
-            // same track after Liquidsoap has been told to squeeze it to the target.
-            $queue->clock_wheel_stretch_ratio = $ratio;
-            $queue->clock_wheel_enforce_cap = false;
-            $queue->hour_boundary_enforce_cap = false;
-            $queue->top_of_hour_pre_id_fade = false;
-            $queue->top_of_hour_pre_id_fade_seconds = null;
-            $queue->duration = $replacementTargetSeconds;
-            $annotations['duration'] = $replacementTargetSeconds;
+        if (null !== $queue->duration && $queue->duration > 0) {
+            $annotations['duration'] = $queue->duration;
         }
 
         $event->addAnnotations($annotations);
@@ -197,8 +151,8 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         $media = $event->getMedia();
-        $isLegalId = ($queue->top_of_hour_legal_id ?? false)
-            || ($queue->clock_wheel_legal_id_substitute ?? false)
+        $isLegalId = $queue->top_of_hour_legal_id
+            || $queue->clock_wheel_legal_id_substitute
             || ($media instanceof StationMedia && StationMediaTypes::isStationId($media->type));
 
         if (!$isLegalId) {
