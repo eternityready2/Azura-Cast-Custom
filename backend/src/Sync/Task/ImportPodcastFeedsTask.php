@@ -159,20 +159,52 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $this->syncLogLine($syncLog, 'info', sprintf('Fetching feed: %s', $feedUrl));
         $this->syncLogLine($syncLog, 'info', sprintf('Podcast: %s', $podcast->title));
 
-        try {
-            $response = $this->httpClient->get($feedUrl, [
-                RequestOptions::TIMEOUT => 30,
-                RequestOptions::HTTP_ERRORS => true,
-                RequestOptions::HEADERS => [
-                    'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
-                ],
-            ]);
-        } catch (\Throwable $e) {
+        $feedRequestOptions = [
+            // Some feed hosts (e.g. Buzzsprout on large/backlog-heavy feeds) can be very slow
+            // to fully deliver the XML. 30s was too tight and was silently truncating fetches
+            // once a feed grew past a few dozen episodes; give it real headroom.
+            RequestOptions::CONNECT_TIMEOUT => 15,
+            RequestOptions::TIMEOUT => 120,
+            RequestOptions::HTTP_ERRORS => true,
+            RequestOptions::HEADERS => [
+                'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
+            ],
+        ];
+
+        $response = null;
+        $lastError = null;
+        $maxAttempts = 2;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $response = $this->httpClient->get($feedUrl, $feedRequestOptions);
+                $lastError = null;
+                break;
+            } catch (\Throwable $e) {
+                $lastError = $e;
+                $this->logger->warning('Podcast feed fetch attempt failed', [
+                    'podcast' => $podcast->title,
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'error' => $e->getMessage(),
+                ]);
+                if ($attempt < $maxAttempts) {
+                    $this->syncLogLine(
+                        $syncLog,
+                        'warning',
+                        sprintf('Fetch attempt %d failed (%s); retrying...', $attempt, $e->getMessage())
+                    );
+                    sleep(5);
+                }
+            }
+        }
+
+        if ($response === null || $lastError !== null) {
             $this->logger->error('Failed to fetch podcast feed', [
                 'podcast' => $podcast->title,
-                'error' => $e->getMessage(),
+                'error' => $lastError?->getMessage(),
             ]);
-            $msg = 'Failed to fetch feed: ' . $e->getMessage();
+            $msg = 'Failed to fetch feed: ' . ($lastError?->getMessage() ?? 'unknown error');
             $this->syncLogLine($syncLog, 'error', $msg);
 
             return ['added' => 0, 'ok' => false, 'message' => $msg];
