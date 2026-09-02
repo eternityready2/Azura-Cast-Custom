@@ -59,7 +59,7 @@ final class AiDjSchedulerTest extends Unit
         $station = $this->persistStation();
 
         try {
-            $result = $this->scheduler->findActiveDj($station->getId());
+            $result = $this->scheduler->findActiveDj($station->id);
 
             self::assertNull($result);
         } finally {
@@ -71,22 +71,20 @@ final class AiDjSchedulerTest extends Unit
     {
         $station = $this->persistStation();
 
-        $dj = new AiDj($station);
-        $dj->setName('Disabled DJ');
-        $dj->setEnabled(false);
+        $dj = $this->createDj($station, 'Disabled DJ', false);
 
         $schedule = new AiDjSchedule($dj);
         $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
         $schedule->setStartTime(new DateTimeImmutable('00:00'));
         $schedule->setEndTime(new DateTimeImmutable('23:59'));
-        $schedule->setEnabled(false);
+        $schedule->setIsEnabled(false);
 
         $this->em->persist($dj);
         $this->em->persist($schedule);
         $this->em->flush();
 
         try {
-            $result = $this->scheduler->findActiveDj($station->getId());
+            $result = $this->scheduler->findActiveDj($station->id);
 
             self::assertNull($result);
         } finally {
@@ -98,22 +96,20 @@ final class AiDjSchedulerTest extends Unit
     {
         $station = $this->persistStation();
 
-        $dj = new AiDj($station);
-        $dj->setName('Active DJ');
-        $dj->setEnabled(true);
+        $dj = $this->createDj($station, 'Active DJ');
 
         $schedule = new AiDjSchedule($dj);
         $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
         $schedule->setStartTime(new DateTimeImmutable('00:00'));
         $schedule->setEndTime(new DateTimeImmutable('23:59'));
-        $schedule->setEnabled(true);
+        $schedule->setIsEnabled(true);
 
         $this->em->persist($dj);
         $this->em->persist($schedule);
         $this->em->flush();
 
         try {
-            $result = $this->scheduler->findActiveDj($station->getId());
+            $result = $this->scheduler->findActiveDj($station->id);
 
             self::assertInstanceOf(AiDj::class, $result);
             self::assertSame('Active DJ', $result->getName());
@@ -126,15 +122,13 @@ final class AiDjSchedulerTest extends Unit
     {
         $station = $this->persistStation();
 
-        $dj = new AiDj($station);
-        $dj->setName('Weekend DJ');
-        $dj->setEnabled(true);
+        $dj = $this->createDj($station, 'Weekend DJ');
 
         $schedule = new AiDjSchedule($dj);
         $schedule->setLoopDays([6, 7]); // Saturday, Sunday only
         $schedule->setStartTime(new DateTimeImmutable('00:00'));
         $schedule->setEndTime(new DateTimeImmutable('23:59'));
-        $schedule->setEnabled(true);
+        $schedule->setIsEnabled(true);
 
         $this->em->persist($dj);
         $this->em->persist($schedule);
@@ -143,12 +137,12 @@ final class AiDjSchedulerTest extends Unit
         try {
             // Wednesday (day 3)
             $wednesday = CarbonImmutable::parse('2026-05-27 10:00:00', 'UTC');
-            $result = $this->scheduler->findActiveDj($station->getId(), $wednesday);
+            $result = $this->scheduler->findActiveDj($station->id, $wednesday);
             self::assertNull($result);
 
             // Saturday (day 6)
             $saturday = CarbonImmutable::parse('2026-05-30 10:00:00', 'UTC');
-            $result = $this->scheduler->findActiveDj($station->getId(), $saturday);
+            $result = $this->scheduler->findActiveDj($station->id, $saturday);
             self::assertInstanceOf(AiDj::class, $result);
             self::assertSame('Weekend DJ', $result->getName());
         } finally {
@@ -160,16 +154,14 @@ final class AiDjSchedulerTest extends Unit
     {
         $station = $this->persistStation();
 
-        $dj = new AiDj($station);
-        $dj->setName('Afternoon DJ');
-        $dj->setEnabled(true);
+        $dj = $this->createDj($station, 'Afternoon DJ');
 
         $schedule = new AiDjSchedule($dj);
         $schedule->setName('Afternoon Shift');
         $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
         $schedule->setStartTime(new DateTimeImmutable('12:01'));
         $schedule->setEndTime(new DateTimeImmutable('16:55'));
-        $schedule->setEnabled(true);
+        $schedule->setIsEnabled(true);
 
         $this->em->persist($dj);
         $this->em->persist($schedule);
@@ -177,7 +169,7 @@ final class AiDjSchedulerTest extends Unit
 
         try {
             $timestamp = new DateTimeImmutable('2026-09-02 15:00:00 UTC');
-            $activeSchedule = $this->scheduler->findActiveSchedule($station->getId(), $timestamp);
+            $activeSchedule = $this->scheduler->findActiveSchedule($station->id, $timestamp);
 
             self::assertInstanceOf(AiDjSchedule::class, $activeSchedule);
             self::assertSame($schedule->getId(), $activeSchedule->getId());
@@ -194,16 +186,14 @@ final class AiDjSchedulerTest extends Unit
     {
         $station = $this->persistStation();
 
-        $dj = new AiDj($station);
-        $dj->setName('Overnight DJ');
-        $dj->setEnabled(true);
+        $dj = $this->createDj($station, 'Overnight DJ');
 
         $schedule = new AiDjSchedule($dj);
         $schedule->setName('Overnight Shift');
         $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
         $schedule->setStartTime(new DateTimeImmutable('22:00'));
         $schedule->setEndTime(new DateTimeImmutable('06:00'));
-        $schedule->setEnabled(true);
+        $schedule->setIsEnabled(true);
 
         $this->em->persist($dj);
         $this->em->persist($schedule);
@@ -211,7 +201,7 @@ final class AiDjSchedulerTest extends Unit
 
         try {
             $timestamp = new DateTimeImmutable('2026-09-03 02:00:00 UTC');
-            $activeSchedule = $this->scheduler->findActiveSchedule($station->getId(), $timestamp);
+            $activeSchedule = $this->scheduler->findActiveSchedule($station->id, $timestamp);
 
             self::assertInstanceOf(AiDjSchedule::class, $activeSchedule);
 
@@ -221,6 +211,52 @@ final class AiDjSchedulerTest extends Unit
         } finally {
             $this->removeStation($station);
         }
+    }
+
+    public function testConcreteShiftWindowUsesStationTimezone(): void
+    {
+        $station = $this->persistStation();
+        $station->timezone = 'America/Chicago';
+        $this->em->persist($station);
+        $this->em->flush();
+
+        $dj = $this->createDj($station, 'Central Time DJ');
+
+        $schedule = new AiDjSchedule($dj);
+        $schedule->setName('Central Afternoon Shift');
+        $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
+        $schedule->setStartTime(new DateTimeImmutable('12:01'));
+        $schedule->setEndTime(new DateTimeImmutable('16:55'));
+        $schedule->setIsEnabled(true);
+
+        $this->em->persist($dj);
+        $this->em->persist($schedule);
+        $this->em->flush();
+
+        try {
+            // 20:00 UTC is 15:00 CDT on Sep 2, 2026.
+            $timestamp = new DateTimeImmutable('2026-09-02 20:00:00 UTC');
+            $activeSchedule = $this->scheduler->findActiveSchedule($station->id, $timestamp);
+
+            self::assertInstanceOf(AiDjSchedule::class, $activeSchedule);
+
+            $window = $this->scheduler->getShiftWindow($station, $activeSchedule, $timestamp);
+            self::assertSame('2026-09-02 12:01:00', $window['starts_at']->format('Y-m-d H:i:s'));
+            self::assertSame('2026-09-02 16:55:00', $window['ends_at']->format('Y-m-d H:i:s'));
+            self::assertSame('America/Chicago', $window['starts_at']->getTimezone()->getName());
+        } finally {
+            $this->removeStation($station);
+        }
+    }
+
+    private function createDj(Station $station, string $name, bool $enabled = true): AiDj
+    {
+        $dj = new AiDj();
+        $dj->setStation($station);
+        $dj->setName($name);
+        $dj->setIsEnabled($enabled);
+
+        return $dj;
     }
 
     private function persistStation(): Station
