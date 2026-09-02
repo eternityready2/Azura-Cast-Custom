@@ -62,6 +62,17 @@ final class PutAction implements SingleActionInterface
             $this->validateRange($body['hard_clock_fade_seconds'], 0, 10);
             $config->top_of_hour_hard_trigger_fade = $body['hard_clock_fade_seconds'];
         }
+        if (array_key_exists('stretch_squeeze_enabled', $body)) {
+            $config->fromArray([
+                'playout_stretch_squeeze_enabled' => (bool)$body['stretch_squeeze_enabled'],
+            ]);
+        }
+        if (array_key_exists('stretch_squeeze_max_percent', $body)) {
+            $this->validateRange($body['stretch_squeeze_max_percent'], 0.5, 5);
+            $config->fromArray([
+                'playout_stretch_squeeze_max_percent' => (float)$body['stretch_squeeze_max_percent'],
+            ]);
+        }
         if (array_key_exists('smart_duck_enabled', $body)) {
             $config->top_of_hour_duck_enabled = $body['smart_duck_enabled'];
         }
