@@ -37,6 +37,9 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             $app->add(Middleware\EnforceSecurity::class);
 
             // Request injection middlewares.
+            $app->add(Middleware\InjectSettings::class);
+            $app->add(Middleware\InjectRouter::class);
+            $app->add(Middleware\InjectRateLimit::class);
             $app->addBodyParsingMiddleware();
             $app->addRoutingMiddleware();
 
