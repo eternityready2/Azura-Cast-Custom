@@ -7,10 +7,12 @@ namespace App\Controller\Api\Stations\PlayoutControls;
 use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Entity\Api\Status;
+use App\Entity\StationBackendConfiguration;
 use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
+use App\Utilities\Types;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Validator\Constraints\Range;
@@ -50,6 +52,8 @@ final class PutAction implements SingleActionInterface
         $body = (array)$request->getParsedBody();
         $station = $this->em->refetch($request->getStation());
         $config = $station->backend_config;
+        $originalConfig = clone $config;
+        $originalNeedsRestart = $station->needs_restart;
 
         if (array_key_exists('hard_clock_enabled', $body)) {
             $config->top_of_hour_hard_trigger_enabled = $body['hard_clock_enabled'];
@@ -64,13 +68,16 @@ final class PutAction implements SingleActionInterface
         }
         if (array_key_exists('stretch_squeeze_enabled', $body)) {
             $config->fromArray([
-                'playout_stretch_squeeze_enabled' => (bool)$body['stretch_squeeze_enabled'],
+                'playout_stretch_squeeze_enabled' => Types::bool($body['stretch_squeeze_enabled']),
             ]);
         }
         if (array_key_exists('stretch_squeeze_max_percent', $body)) {
             $this->validateRange($body['stretch_squeeze_max_percent'], 0.5, 5);
             $config->fromArray([
-                'playout_stretch_squeeze_max_percent' => (float)$body['stretch_squeeze_max_percent'],
+                'playout_stretch_squeeze_max_percent' => Types::float(
+                    $body['stretch_squeeze_max_percent'],
+                    5.0
+                ),
             ]);
         }
         if (array_key_exists('smart_duck_enabled', $body)) {
@@ -85,11 +92,32 @@ final class PutAction implements SingleActionInterface
             $config->top_of_hour_duck_delay = $body['smart_duck_delay'];
         }
 
+        $requiresRestart = $this->requiresRestart($originalConfig, $config);
+
         $station->backend_config = $config;
+        if (!$requiresRestart) {
+            // Stretch / Squeeze is consumed dynamically from AutoDJ annotation
+            // metadata, so a stretch-only update must not create a new restart
+            // requirement or clear a restart that was already pending beforehand.
+            $station->needs_restart = $originalNeedsRestart;
+        }
+
         $this->em->persist($station);
         $this->em->flush();
 
         return $response->withJson(Status::updated());
+    }
+
+    private function requiresRestart(
+        StationBackendConfiguration $original,
+        StationBackendConfiguration $updated,
+    ): bool {
+        return $original->top_of_hour_hard_trigger_enabled !== $updated->top_of_hour_hard_trigger_enabled
+            || $original->top_of_hour_hard_trigger_seconds !== $updated->top_of_hour_hard_trigger_seconds
+            || $original->top_of_hour_hard_trigger_fade !== $updated->top_of_hour_hard_trigger_fade
+            || $original->top_of_hour_duck_enabled !== $updated->top_of_hour_duck_enabled
+            || $original->top_of_hour_duck_attenuation !== $updated->top_of_hour_duck_attenuation
+            || $original->top_of_hour_duck_delay !== $updated->top_of_hour_duck_delay;
     }
 
     private function validateRange(mixed $value, int|float $min, int|float $max): void
