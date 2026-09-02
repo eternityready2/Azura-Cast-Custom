@@ -11,11 +11,18 @@ use App\Event\Radio\AnnotateNextSong;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Applies clock-wheel playback caps via AutoDJ annotations (cue_out) when the planner
- * could not guarantee fit by track selection alone.
+ * Applies timing-related playback annotations produced by AutoDJ planning.
+ *
+ * The stretch ratio field predates station-wide playout controls and retains its
+ * clock-wheel-prefixed database name for compatibility, but QueueBuilder also writes
+ * it for ordinary rotation playlists (including Smart Block prepared playlists).
  */
 final class ClockWheelAnnotator implements EventSubscriberInterface
 {
+    private const bool DEFAULT_STRETCH_SQUEEZE_ENABLED = true;
+
+    private const float DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT = 5.0;
+
     public static function getSubscribedEvents(): array
     {
         return [
@@ -27,6 +34,11 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         ];
     }
 
+    /**
+     * Apply pitch-preserving stretch/squeeze metadata to any AutoDJ queue row that
+     * was backtimed by the planner. This is intentionally source-agnostic: standard
+     * rotation playlists, Smart Blocks and Clock Wheels all use the same annotation.
+     */
     public function applyClockWheelStretch(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
@@ -43,8 +55,27 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             return;
         }
 
+        $rawConfig = $event->getStation()->backend_config->toArray(true) ?? [];
+        $enabled = (bool)(
+            $rawConfig['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED
+        );
+        if (!$enabled) {
+            return;
+        }
+
+        $maxPercent = (float)(
+            $rawConfig['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
+        );
+        $maxPercent = max(0.5, min(5.0, $maxPercent));
+        $maxDelta = $maxPercent / 100;
+        $ratio = max(1.0 - $maxDelta, min(1.0 + $maxDelta, $ratio));
+
+        if (abs($ratio - 1.0) < 0.0001) {
+            return;
+        }
+
         $event->addAnnotations([
-            'liq_stretch_ratio' => $ratio,
+            'liq_stretch_ratio' => round($ratio, 4),
         ]);
     }
 
