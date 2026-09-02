@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Radio\AutoDJ;
 
+use App\Entity\Enums\StationMediaTypes;
 use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
@@ -14,12 +15,10 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * Keeps projected queue timing aligned with pitch-preserving stretch/squeeze.
  *
  * QueueBuilder and Clock Wheel planning attach the legacy
- * `clock_wheel_stretch_ratio` field to any row that can safely be backtimed. The
- * playback annotator consumes that ratio later, but Queue::buildQueue() advances
- * its projected cursor from StationQueue::duration immediately after BuildQueue
- * dispatch. Adjust the duration here after selectors and the DMCA validator have
- * finished, so ordinary rotation, Smart Blocks, Clock Wheels and the Linear Log
- * all plan subsequent rows from the same duration Liquidsoap will actually play.
+ * `clock_wheel_stretch_ratio` field to rows that may be backtimed. This listener
+ * freezes the final timing decision while the row is being planned, so later
+ * runtime setting changes never make an already-queued row play for a different
+ * duration than the one used to plan the rows after it.
  */
 final class StretchSqueezeQueueTiming implements EventSubscriberInterface
 {
@@ -47,32 +46,36 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
     }
 
     /**
-     * Reconcile one unsent/planned queue row with the station's current
-     * Stretch/Squeeze setting. This is also used when an operator changes the
-     * runtime setting so rows that have not yet been handed to Liquidsoap remain
-     * consistent with the annotations they will receive later.
+     * Freeze one planned queue row to the station settings that were active when
+     * the row was selected. Existing queued rows are intentionally not re-timed
+     * when an operator changes the runtime setting; the new setting applies to
+     * subsequently planned rows instead.
      */
     public function normalizeQueueRow(Station $station, StationQueue $queueRow): void
     {
-        // A cap/fade already carries an explicit target duration. At annotation
-        // time that target either remains a cap or is converted into a squeeze,
-        // so its projected duration is already authoritative.
-        if (
-            $queueRow->clock_wheel_enforce_cap
-            || $queueRow->hour_boundary_enforce_cap
-            || $queueRow->top_of_hour_pre_id_fade
-        ) {
-            return;
-        }
-
-        $ratio = $queueRow->clock_wheel_stretch_ratio;
         $media = $queueRow->media;
-        if (null === $ratio || !$media instanceof StationMedia) {
+        if (!$media instanceof StationMedia) {
             return;
         }
 
         $calculatedLength = $media->getCalculatedLength();
         if ($calculatedLength <= 0) {
+            return;
+        }
+
+        $isLegalId = $queueRow->top_of_hour_legal_id
+            || $queueRow->clock_wheel_legal_id_substitute
+            || StationMediaTypes::isStationId($media->type);
+
+        $targetSeconds = $this->getTimingTarget($queueRow);
+
+        // Legal-ID max durations are ceilings, not backtiming targets. Never slow
+        // down or speed up an ID merely to fill its configured maximum duration.
+        if ($isLegalId) {
+            $queueRow->clock_wheel_stretch_ratio = null;
+            $queueRow->duration = null !== $targetSeconds && $calculatedLength > $targetSeconds
+                ? $targetSeconds
+                : $calculatedLength;
             return;
         }
 
@@ -85,8 +88,41 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
         $minimumRatio = 1.0 - ($maxPercent / 100);
         $maximumRatio = 1.0 + ($maxPercent / 100);
 
+        if (null !== $targetSeconds) {
+            $ratio = $calculatedLength / $targetSeconds;
+
+            if (
+                $enabled
+                && $ratio > 0
+                && $ratio >= $minimumRatio
+                && $ratio <= $maximumRatio
+                && abs($ratio - 1.0) >= 0.0001
+            ) {
+                $queueRow->clock_wheel_stretch_ratio = round($ratio, 4);
+                $queueRow->duration = $targetSeconds;
+
+                // The ratio now fulfills the timing requirement by itself. Clear
+                // cap/fade flags so the annotation stage cannot apply both a
+                // pitch-preserving adjustment and a cue-out truncation.
+                $queueRow->clock_wheel_enforce_cap = false;
+                $queueRow->hour_boundary_enforce_cap = false;
+                $queueRow->top_of_hour_pre_id_fade = false;
+                $queueRow->top_of_hour_pre_id_fade_seconds = null;
+                return;
+            }
+
+            // No safe stretch/squeeze is available. Freeze the fallback duration
+            // to what the cap path will actually air: longer tracks are truncated
+            // to the target; shorter tracks remain at their natural duration.
+            $queueRow->clock_wheel_stretch_ratio = null;
+            $queueRow->duration = min($calculatedLength, $targetSeconds);
+            return;
+        }
+
+        $ratio = $queueRow->clock_wheel_stretch_ratio;
         if (
             $enabled
+            && null !== $ratio
             && $ratio > 0
             && $ratio >= $minimumRatio
             && $ratio <= $maximumRatio
@@ -95,10 +131,39 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
             return;
         }
 
-        // If the feature was disabled or the configured safety limit was lowered
-        // below this row's precomputed ratio, playback will no longer apply that
-        // ratio. Restore the natural media duration so downstream queue timing
-        // matches what Liquidsoap will actually air.
+        // Disabled or outside the operator's configured safety limit. Clearing the
+        // stored ratio freezes this row to natural playback even if the station
+        // setting changes before the row is handed to Liquidsoap.
+        $queueRow->clock_wheel_stretch_ratio = null;
         $queueRow->duration = $calculatedLength;
+    }
+
+    private function getTimingTarget(StationQueue $queueRow): ?float
+    {
+        if (
+            $queueRow->clock_wheel_enforce_cap
+            && null !== $queueRow->clock_wheel_max_play_seconds
+            && $queueRow->clock_wheel_max_play_seconds > 0
+        ) {
+            return (float)$queueRow->clock_wheel_max_play_seconds;
+        }
+
+        if (
+            $queueRow->hour_boundary_enforce_cap
+            && null !== $queueRow->hour_boundary_max_play_seconds
+            && $queueRow->hour_boundary_max_play_seconds > 0
+        ) {
+            return (float)$queueRow->hour_boundary_max_play_seconds;
+        }
+
+        if (
+            $queueRow->top_of_hour_pre_id_fade
+            && null !== $queueRow->duration
+            && $queueRow->duration > 0
+        ) {
+            return (float)$queueRow->duration;
+        }
+
+        return null;
     }
 }
