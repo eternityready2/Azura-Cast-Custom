@@ -7,6 +7,7 @@ namespace App\Controller\Api\Stations\PlayoutControls;
 use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Entity\Api\Status;
+use App\Entity\Repository\StationQueueRepository;
 use App\Entity\StationBackendConfiguration;
 use App\Exception\ValidationException;
 use App\Http\Response;
@@ -39,8 +40,13 @@ final class PutAction implements SingleActionInterface
 {
     use EntityManagerAwareTrait;
 
+    private const bool DEFAULT_STRETCH_SQUEEZE_ENABLED = true;
+
+    private const float DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT = 5.0;
+
     public function __construct(
         private readonly ValidatorInterface $validator,
+        private readonly StationQueueRepository $queueRepo,
     ) {
     }
 
@@ -80,7 +86,7 @@ final class PutAction implements SingleActionInterface
             $config->fromArray([
                 'playout_stretch_squeeze_max_percent' => Types::float(
                     $body['stretch_squeeze_max_percent'],
-                    5.0
+                    self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
                 ),
             ]);
         }
@@ -97,6 +103,7 @@ final class PutAction implements SingleActionInterface
         }
 
         $requiresRestart = $this->requiresRestart($originalConfig, $config);
+        $stretchSqueezeChanged = $this->stretchSqueezeSettingsChanged($originalConfig, $config);
 
         $station->backend_config = $config;
         if (!$requiresRestart) {
@@ -108,6 +115,15 @@ final class PutAction implements SingleActionInterface
 
         $this->em->persist($station);
         $this->em->flush();
+
+        if ($stretchSqueezeChanged) {
+            // Rows already handed to Liquidsoap keep the annotations and duration
+            // they were sent with. Unsent rows were planned using the old setting,
+            // so drop only those rows and let AutoDJ rebuild them under the new
+            // setting. This keeps projected timing and eventual playback aligned
+            // without interrupting anything already buffered for air.
+            $this->queueRepo->clearUpcomingQueue($station);
+        }
 
         return $response->withJson(Status::updated());
     }
@@ -122,6 +138,37 @@ final class PutAction implements SingleActionInterface
             || $original->top_of_hour_duck_enabled !== $updated->top_of_hour_duck_enabled
             || $original->top_of_hour_duck_attenuation !== $updated->top_of_hour_duck_attenuation
             || $original->top_of_hour_duck_delay !== $updated->top_of_hour_duck_delay;
+    }
+
+    private function stretchSqueezeSettingsChanged(
+        StationBackendConfiguration $original,
+        StationBackendConfiguration $updated,
+    ): bool {
+        $originalRaw = $original->toArray(true) ?? [];
+        $updatedRaw = $updated->toArray(true) ?? [];
+
+        $originalEnabled = Types::bool(
+            $originalRaw['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
+            self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
+            true
+        );
+        $updatedEnabled = Types::bool(
+            $updatedRaw['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
+            self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
+            true
+        );
+
+        $originalMaxPercent = Types::float(
+            $originalRaw['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT,
+            self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
+        );
+        $updatedMaxPercent = Types::float(
+            $updatedRaw['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT,
+            self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
+        );
+
+        return $originalEnabled !== $updatedEnabled
+            || abs($originalMaxPercent - $updatedMaxPercent) > 0.0001;
     }
 
     private function validateRange(mixed $value, int|float $min, int|float $max): void
