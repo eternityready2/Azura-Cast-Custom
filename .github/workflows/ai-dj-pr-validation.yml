@@ -1,0 +1,33 @@
+name: AI DJ PR Validation
+
+on:
+  push:
+    branches:
+      - fix/ai-dj-shift-welcome-outro
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+      - name: PHP syntax checks
+        run: |
+          php -l backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+          php -l backend/src/Service/AiDjScheduler.php
+          php -l tests/Unit/AiDjSchedulerTest.php
+          php -l backend/config/events.php
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req='ext-*'
+      - name: Run focused AI DJ scheduler tests
+        run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
