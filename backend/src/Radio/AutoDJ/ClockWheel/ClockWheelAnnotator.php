@@ -38,6 +38,11 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
      * Apply pitch-preserving stretch/squeeze metadata to any AutoDJ queue row that
      * was backtimed by the planner. This is intentionally source-agnostic: standard
      * rotation playlists, Smart Blocks and Clock Wheels all use the same annotation.
+     *
+     * A precomputed ratio handles tracks that naturally fit and need stretching.
+     * When a planner instead produced a small cap for a slightly-too-long track,
+     * convert that cap into a squeeze when the required adjustment is within the
+     * station maximum; otherwise leave the existing cap/fade fallback untouched.
      */
     public function applyClockWheelStretch(AnnotateNextSong $event): void
     {
@@ -46,12 +51,8 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         $queue = $event->getQueue();
-        if (!$queue instanceof StationQueue) {
-            return;
-        }
-
-        $ratio = $queue->clock_wheel_stretch_ratio;
-        if (null === $ratio) {
+        $media = $event->getMedia();
+        if (!$queue instanceof StationQueue || !$media instanceof StationMedia) {
             return;
         }
 
@@ -68,14 +69,60 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         );
         $maxPercent = max(0.5, min(5.0, $maxPercent));
         $maxDelta = $maxPercent / 100;
-        $ratio = max(1.0 - $maxDelta, min(1.0 + $maxDelta, $ratio));
+
+        $ratio = $queue->clock_wheel_stretch_ratio;
+        $replacementTargetSeconds = null;
+
+        if (null === $ratio) {
+            $replacementTargetSeconds = match (true) {
+                $queue->clock_wheel_enforce_cap
+                    && null !== $queue->clock_wheel_max_play_seconds
+                    && $queue->clock_wheel_max_play_seconds > 0
+                    => (float)$queue->clock_wheel_max_play_seconds,
+                $queue->hour_boundary_enforce_cap
+                    && null !== $queue->hour_boundary_max_play_seconds
+                    && $queue->hour_boundary_max_play_seconds > 0
+                    => (float)$queue->hour_boundary_max_play_seconds,
+                $queue->top_of_hour_pre_id_fade
+                    && null !== $queue->duration
+                    && $queue->duration > 0
+                    => (float)$queue->duration,
+                default => null,
+            };
+
+            if (null === $replacementTargetSeconds) {
+                return;
+            }
+
+            $ratio = $media->length / $replacementTargetSeconds;
+        }
+
+        $minimumRatio = 1.0 - $maxDelta;
+        $maximumRatio = 1.0 + $maxDelta;
+        if ($ratio < $minimumRatio || $ratio > $maximumRatio) {
+            return;
+        }
 
         if (abs($ratio - 1.0) < 0.0001) {
             return;
         }
 
+        $ratio = round($ratio, 4);
+
+        if (null !== $replacementTargetSeconds) {
+            // The timing miss is small enough to solve without truncating audio.
+            // Clear every cap/fade flag so the later annotators do not also cut the
+            // same track after Liquidsoap has been told to squeeze it to the target.
+            $queue->clock_wheel_stretch_ratio = $ratio;
+            $queue->clock_wheel_enforce_cap = false;
+            $queue->hour_boundary_enforce_cap = false;
+            $queue->top_of_hour_pre_id_fade = false;
+            $queue->top_of_hour_pre_id_fade_seconds = null;
+            $queue->duration = $replacementTargetSeconds;
+        }
+
         $event->addAnnotations([
-            'liq_stretch_ratio' => round($ratio, 4),
+            'liq_stretch_ratio' => $ratio,
         ]);
     }
 
