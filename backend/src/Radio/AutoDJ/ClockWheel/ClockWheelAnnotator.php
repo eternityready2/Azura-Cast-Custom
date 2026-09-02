@@ -90,7 +90,7 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         };
 
         $ratio = null !== $replacementTargetSeconds
-            ? $media->length / $replacementTargetSeconds
+            ? $media->getCalculatedLength() / $replacementTargetSeconds
             : $queue->clock_wheel_stretch_ratio;
 
         if (null === $ratio) {
