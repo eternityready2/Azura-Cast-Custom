@@ -13,7 +13,6 @@ use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
-use App\Radio\AutoDJ\StretchSqueezeQueueTiming;
 use App\Utilities\Types;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
@@ -48,7 +47,6 @@ final class PutAction implements SingleActionInterface
     public function __construct(
         private readonly ValidatorInterface $validator,
         private readonly StationQueueRepository $queueRepo,
-        private readonly StretchSqueezeQueueTiming $stretchSqueezeQueueTiming,
     ) {
     }
 
@@ -119,19 +117,13 @@ final class PutAction implements SingleActionInterface
         $this->em->flush();
 
         if ($stretchSqueezeChanged) {
-            // Rows already handed to Liquidsoap keep the annotations and duration
-            // they were sent with. Reconcile only unsent rows against the newly
-            // persisted runtime setting so their projected duration matches the
-            // annotation they will receive when they are eventually handed off.
-            foreach ($this->queueRepo->getUnplayedQueue($station) as $queueRow) {
-                if ($queueRow->sent_to_autodj) {
-                    continue;
-                }
-
-                $this->stretchSqueezeQueueTiming->normalizeQueueRow($station, $queueRow);
-            }
-
-            $this->em->flush();
+            // Every unsent row was planned as part of one projected timeline. A
+            // duration change near the front shifts the expected start of every
+            // later row, so merely updating their stored durations is insufficient:
+            // schedule boundaries, Clock Wheel ratios and caps must all be planned
+            // again in sequence. Rows already handed to Liquidsoap are left alone;
+            // AutoDJ rebuilds only the remaining unsent runway under the new setting.
+            $this->queueRepo->clearUpcomingQueue($station);
         }
 
         return $response->withJson(Status::updated());
