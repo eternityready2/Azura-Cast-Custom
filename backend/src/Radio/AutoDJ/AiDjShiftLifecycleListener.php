@@ -379,17 +379,6 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             return $nowMinutes >= $startMinutes || $nowMinutes < $endMinutes;
         }
 
-        if (preg_match('/^(\d{1,2})-(\d{1,2})$/', $activeHours, $matches)) {
-            $start = (int)$matches[1];
-            $end = (int)$matches[2];
-
-            if ($start <= $end) {
-                return $currentHour >= $start && $currentHour < $end;
-            }
-
-            return $currentHour >= $start || $currentHour < $end;
-        }
-
         return true;
     }
 
