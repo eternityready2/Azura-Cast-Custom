@@ -282,8 +282,15 @@ final class AiDjSchedulerTest extends Unit
             $this->em->open();
         }
 
-        $this->em->createQuery('DELETE FROM App\Entity\AiDjSchedule s WHERE s.ai_dj IN (SELECT d FROM App\Entity\AiDj d WHERE d.station = :station)')
-            ->setParameter('station', $station)
+        $this->em->createQuery(
+            <<<'DQL'
+                DELETE FROM App\Entity\AiDjSchedule schedule
+                WHERE schedule.ai_dj IN (
+                    SELECT dj FROM App\Entity\AiDj dj
+                    WHERE dj.station = :station
+                )
+            DQL
+        )->setParameter('station', $station)
             ->execute();
 
         $this->em->createQuery('DELETE FROM App\Entity\AiDj d WHERE d.station = :station')
