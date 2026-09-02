@@ -108,6 +108,9 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         $ratio = round($ratio, 4);
+        $annotations = [
+            'liq_stretch_ratio' => $ratio,
+        ];
 
         if (null !== $replacementTargetSeconds) {
             // The timing miss is small enough to solve without truncating audio.
@@ -119,11 +122,10 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             $queue->top_of_hour_pre_id_fade = false;
             $queue->top_of_hour_pre_id_fade_seconds = null;
             $queue->duration = $replacementTargetSeconds;
+            $annotations['duration'] = $replacementTargetSeconds;
         }
 
-        $event->addAnnotations([
-            'liq_stretch_ratio' => $ratio,
-        ]);
+        $event->addAnnotations($annotations);
     }
 
     public function applyClockWheelCap(AnnotateNextSong $event): void
