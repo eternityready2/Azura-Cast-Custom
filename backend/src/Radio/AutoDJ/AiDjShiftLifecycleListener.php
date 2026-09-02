@@ -80,7 +80,10 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
         $expectedPlayTime = $event->getExpectedPlayTime()
             ->setTimezone($station->getTimezoneObject());
-        $estimatedAirTime = $this->getCurrentSongEndTime($station) ?? $expectedPlayTime;
+        $currentSongEnd = $this->getCurrentSongEndTime($station);
+        $estimatedAirTime = $currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $now
+            ? $currentSongEnd
+            : ($expectedPlayTime > $now ? $expectedPlayTime : $now);
 
         $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
@@ -183,9 +186,11 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             $this->cache->set($identityKey, $shiftIdentity, $ttl);
 
             if (!$welcomeAlreadyExists && $welcomeWindowOpen) {
-                // A new concrete shift may welcome even if this same DJ worked an
-                // earlier shift whose legacy per-DJ welcome key has not expired yet.
+                // The existing listener detects a new shift by its last-active DJ
+                // marker. Reset both legacy guards so the same DJ can legitimately
+                // welcome again when assigned to a separate scheduled shift.
                 $this->cache->delete($welcomeKey);
+                $this->cache->delete('ai_dj_last_active_' . $station->id);
                 return;
             }
         }
