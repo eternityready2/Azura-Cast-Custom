@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Unit;
 
+use App\Entity\Enums\StationMediaTypes;
 use App\Entity\Station;
+use App\Entity\StationClockWheel;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
@@ -27,89 +29,149 @@ final class StretchSqueezeQueueTimingTest extends Unit
         $this->timing->applyProjectedDuration($event);
 
         self::assertNull($queue->clock_wheel);
+        self::assertSame(0.96, $queue->clock_wheel_stretch_ratio);
         self::assertEqualsWithDelta(187.5, (float)$queue->duration, 0.001);
     }
 
-    public function testStationMaximumPreventsQueueTimingAdjustment(): void
+    public function testStationMaximumFreezesOutOfRangeRowToNaturalPlayback(): void
     {
         [$event, $queue] = $this->makeEvent(ratio: 0.96, maxPercent: 2.0);
-        $before = $queue->duration;
 
         $this->timing->applyProjectedDuration($event);
 
-        self::assertSame($before, $queue->duration);
-    }
-
-    public function testExistingBoundaryTargetRemainsAuthoritative(): void
-    {
-        [$event, $queue] = $this->makeEvent(ratio: 0.99);
-        $queue->hour_boundary_enforce_cap = true;
-        $queue->hour_boundary_max_play_seconds = 175;
-        $queue->duration = 175.0;
-
-        $this->timing->applyProjectedDuration($event);
-
-        self::assertSame(175.0, $queue->duration);
-    }
-
-    public function testDisablingRuntimeSettingRestoresNaturalPendingDuration(): void
-    {
-        [$event, $queue, $station] = $this->makeEvent(ratio: 0.96);
-        $this->timing->applyProjectedDuration($event);
-        self::assertEqualsWithDelta(187.5, (float)$queue->duration, 0.001);
-
-        $this->setStretchSettings($station, enabled: false, maxPercent: 5.0);
-        $this->timing->normalizeQueueRow($station, $queue);
-
+        self::assertNull($queue->clock_wheel_stretch_ratio);
         self::assertSame(180.0, $queue->duration);
     }
 
-    public function testLoweringRuntimeLimitRestoresNaturalPendingDuration(): void
+    public function testDisabledSettingFreezesRowToNaturalPlayback(): void
     {
-        [$event, $queue, $station] = $this->makeEvent(ratio: 0.96);
+        [$event, $queue] = $this->makeEvent(ratio: 0.96, enabled: false);
+
         $this->timing->applyProjectedDuration($event);
-        self::assertEqualsWithDelta(187.5, (float)$queue->duration, 0.001);
 
-        $this->setStretchSettings($station, enabled: true, maxPercent: 2.0);
-        $this->timing->normalizeQueueRow($station, $queue);
-
+        self::assertNull($queue->clock_wheel_stretch_ratio);
         self::assertSame(180.0, $queue->duration);
     }
 
-    public function testRaisingRuntimeLimitAppliesExistingPendingRatio(): void
+    public function testStrictClockWheelShortRowUsesTargetDurationWhenStretchIsSafe(): void
     {
-        [$event, $queue, $station] = $this->makeEvent(ratio: 0.96, maxPercent: 2.0);
+        [$event, $queue] = $this->makeEvent(
+            ratio: 58 / 60,
+            mediaLength: 58.0,
+            clockWheelTargetSeconds: 60,
+        );
+
         $this->timing->applyProjectedDuration($event);
-        self::assertSame(180.0, $queue->duration);
 
-        $this->setStretchSettings($station, enabled: true, maxPercent: 5.0);
-        $this->timing->normalizeQueueRow($station, $queue);
+        self::assertEqualsWithDelta(0.9667, (float)$queue->clock_wheel_stretch_ratio, 0.0001);
+        self::assertSame(60.0, $queue->duration);
+        self::assertFalse($queue->clock_wheel_enforce_cap);
+    }
 
-        self::assertEqualsWithDelta(187.5, (float)$queue->duration, 0.001);
+    public function testStrictClockWheelLongRowUsesTargetDurationWhenSqueezeIsSafe(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: 62 / 60,
+            mediaLength: 62.0,
+            clockWheelTargetSeconds: 60,
+        );
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertEqualsWithDelta(1.0333, (float)$queue->clock_wheel_stretch_ratio, 0.0001);
+        self::assertSame(60.0, $queue->duration);
+        self::assertFalse($queue->clock_wheel_enforce_cap);
+    }
+
+    public function testClockWheelCapFallbackUsesCappedProjectedDurationWhenAdjustmentIsUnsafe(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: null,
+            mediaLength: 70.0,
+            clockWheelTargetSeconds: 60,
+        );
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertNull($queue->clock_wheel_stretch_ratio);
+        self::assertSame(60.0, $queue->duration);
+        self::assertTrue($queue->clock_wheel_enforce_cap);
+    }
+
+    public function testLegalIdMaximumIsNotTreatedAsStretchTarget(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: 118 / 120,
+            mediaLength: 118.0,
+            hourBoundaryTargetSeconds: 120,
+            mediaType: StationMediaTypes::ID,
+        );
+        $queue->top_of_hour_legal_id = true;
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertNull($queue->clock_wheel_stretch_ratio);
+        self::assertSame(118.0, $queue->duration);
+        self::assertTrue($queue->hour_boundary_enforce_cap);
+    }
+
+    public function testLegalIdLongerThanMaximumKeepsCeilingAsCap(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: null,
+            mediaLength: 125.0,
+            hourBoundaryTargetSeconds: 120,
+            mediaType: StationMediaTypes::ID,
+        );
+        $queue->top_of_hour_legal_id = true;
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertNull($queue->clock_wheel_stretch_ratio);
+        self::assertSame(120.0, $queue->duration);
+        self::assertTrue($queue->hour_boundary_enforce_cap);
     }
 
     /**
      * @return array{BuildQueue, StationQueue, Station}
      */
-    private function makeEvent(float $ratio, float $maxPercent = 5.0): array
-    {
+    private function makeEvent(
+        ?float $ratio,
+        bool $enabled = true,
+        float $maxPercent = 5.0,
+        float $mediaLength = 180.0,
+        ?int $clockWheelTargetSeconds = null,
+        ?int $hourBoundaryTargetSeconds = null,
+        string $mediaType = 'music',
+    ): array {
         $station = new Station();
         $station->name = 'Stretch Timing Test';
         $station->short_name = 'stretch_timing_test';
         $station->timezone = 'UTC';
         $station->ensureDirectoriesExist();
-        $this->setStretchSettings($station, enabled: true, maxPercent: $maxPercent);
+        $this->setStretchSettings($station, $enabled, $maxPercent);
 
         $media = new StationMedia($station->media_storage_location, '/music.mp3');
         $media->title = 'Music';
         $media->artist = 'Artist';
-        $media->type = 'music';
-        $media->length = 180.0;
+        $media->type = $mediaType;
+        $media->length = $mediaLength;
         $media->mtime = time();
         $media->uploaded_at = time();
 
         $queue = StationQueue::fromMedia($station, $media);
         $queue->clock_wheel_stretch_ratio = $ratio;
+
+        if (null !== $clockWheelTargetSeconds) {
+            $queue->clock_wheel = new StationClockWheel($station);
+            $queue->clock_wheel_enforce_cap = true;
+            $queue->clock_wheel_max_play_seconds = $clockWheelTargetSeconds;
+        }
+
+        if (null !== $hourBoundaryTargetSeconds) {
+            $queue->hour_boundary_enforce_cap = true;
+            $queue->hour_boundary_max_play_seconds = $hourBoundaryTargetSeconds;
+        }
 
         $event = new BuildQueue($station);
         self::assertTrue($event->setNextSongs($queue));
