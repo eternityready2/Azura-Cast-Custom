@@ -1,0 +1,126 @@
+name: AI DJ Codex Re-review
+
+on:
+  push:
+    branches:
+      - fix/ai-dj-codex-followup
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: azuracast
+          MARIADB_USER: azuracast
+          MARIADB_PASSWORD: azur4c457
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: azuracast
+      MYSQL_USER: azuracast
+      MYSQL_PASSWORD: azur4c457
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      ENABLE_REDIS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply AI News cron-minute correction
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php')
+          text = path.read_text()
+
+          old = """        if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
+            if ($minute >= 57) {
+                $slot = $candidate->modify('+1 hour');
+            } else {
+                $slot = $candidate;
+            }
+
+            $slot = $slot->setTime((int)$slot->format('G'), 0, 0);
+            if ($this->isAiNewsActiveAt($station, $slot)) {
+                return true;
+            }
+        }
+
+        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {
+            $slot = $candidate->setTime((int)$candidate->format('G'), 30, 0);
+            return $this->isAiNewsActiveAt($station, $slot);
+        }
+"""
+          new = """        if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
+            $slot = $minute >= 57
+                ? $candidate
+                : $candidate->modify('-1 hour');
+            $slot = $slot->setTime((int)$slot->format('G'), 59, 0);
+
+            if ($this->isAiNewsActiveAt($station, $slot)) {
+                return true;
+            }
+        }
+
+        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {
+            $slot = $candidate->setTime((int)$candidate->format('G'), 29, 0);
+            return $this->isAiNewsActiveAt($station, $slot);
+        }
+"""
+
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one AI News scheduling block, found {text.count(old)}')
+
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Mirror AzuraCast runtime path
+        run: |
+          sudo mkdir -p /var/azuracast
+          sudo ln -s "$GITHUB_WORKSPACE" /var/azuracast/www
+          sudo mkdir -p /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage/uploads
+          sudo chown -R "$USER":"$USER" /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: redis, pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - name: PHP syntax
+        run: php -l backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req='ext-*'
+      - name: Static analysis
+        run: vendor/bin/phpstan analyze backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php --memory-limit=-1
+      - name: Coding standards
+        run: vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+      - name: Initialize test database
+        run: |
+          php bin/console migrations:sync-metadata-storage --no-interaction
+          php bin/console migrations:migrate --allow-no-migration --no-interaction
+      - name: Focused AI DJ scheduler tests
+        run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
+      - name: Commit validated correction
+        run: |
+          git config user.name "Eternity Ready, LLC."
+          git config user.email "73216191+eternityready2@users.noreply.github.com"
+          git add backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+          git diff --cached --quiet && exit 0
+          git commit -m "Align AI News protection with Liquidsoap cron minutes"
+          git push origin HEAD:fix/ai-dj-codex-followup
