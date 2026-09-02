@@ -149,7 +149,7 @@
                     </template>
 
                     <div class="alert alert-info mb-0">
-                        {{ $gettext('Ducking and Liquidsoap hard-clock configuration changes take effect after broadcasting is restarted. Stretch / Squeeze is applied from AutoDJ track metadata and does not require a broadcasting restart.') }}
+                        {{ $gettext('Ducking and Liquidsoap hard-clock configuration changes take effect after broadcasting is restarted. Stretch / Squeeze does not require a broadcasting restart; new settings apply to newly planned AutoDJ items while items already in the queue keep their existing timing plan.') }}
                     </div>
                 </div>
             </loading>
