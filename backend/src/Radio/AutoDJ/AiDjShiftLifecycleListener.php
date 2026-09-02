@@ -38,7 +38,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
     private const int OUTRO_SCAN_SECONDS = 3600;
 
-    private const int OUTRO_SCAN_STEP_SECONDS = 30;
+    private const int OUTRO_SCAN_STEP_SECONDS = 1;
 
     private const int DIRECT_REQUEST_PREFETCH_GUARD_SECONDS = 8;
 
@@ -266,7 +266,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         DateTimeImmutable $shiftStartsAt,
         DateTimeImmutable $shiftEndsAt,
     ): ?array {
-        $latestSafe = null;
+        $safeRunEnd = null;
 
         for (
             $secondsBeforeEnd = self::OUTRO_TAIL_RESERVE_SECONDS;
@@ -278,25 +278,24 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
                 break;
             }
 
-            if ($this->isSafeOutroAirTime($station, $candidate)) {
-                $latestSafe = $candidate;
-                break;
+            if (!$this->isSafeOutroAirTime($station, $candidate)) {
+                $safeRunEnd = null;
+                continue;
+            }
+
+            $safeRunEnd ??= $candidate;
+            if (
+                $safeRunEnd->getTimestamp() - $candidate->getTimestamp()
+                >= self::OUTRO_WINDOW_SECONDS
+            ) {
+                return [
+                    'starts_at' => $safeRunEnd->modify('-' . self::OUTRO_WINDOW_SECONDS . ' seconds'),
+                    'ends_at' => $safeRunEnd,
+                ];
             }
         }
 
-        if (null === $latestSafe) {
-            return null;
-        }
-
-        $startsAt = $latestSafe->modify('-' . self::OUTRO_WINDOW_SECONDS . ' seconds');
-        if ($startsAt < $shiftStartsAt) {
-            $startsAt = $shiftStartsAt;
-        }
-
-        return [
-            'starts_at' => $startsAt,
-            'ends_at' => $latestSafe,
-        ];
+        return null;
     }
 
     private function isSafeOutroAirTime(Station $station, DateTimeImmutable $candidate): bool
