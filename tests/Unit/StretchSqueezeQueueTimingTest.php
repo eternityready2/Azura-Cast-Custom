@@ -66,6 +66,37 @@ final class StretchSqueezeQueueTimingTest extends Unit
         self::assertSame(180.0, $queue->duration);
     }
 
+    public function testScheduledBoundaryStretchesShortOrdinaryRowWithoutCap(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: null,
+            mediaLength: 100.0,
+        );
+        $queue->hour_boundary_max_play_seconds = 102;
+        $queue->hour_boundary_enforce_cap = false;
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertSame(0.9804, $queue->clock_wheel_stretch_ratio);
+        self::assertSame(102.0, $queue->duration);
+        self::assertFalse($queue->hour_boundary_enforce_cap);
+    }
+
+    public function testEarlierPrecomputedAnchorWinsOverLaterScheduledBoundary(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: 100 / 102,
+            mediaLength: 100.0,
+        );
+        $queue->hour_boundary_max_play_seconds = 105;
+        $queue->hour_boundary_enforce_cap = false;
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertSame(0.9804, $queue->clock_wheel_stretch_ratio);
+        self::assertSame(102.0, $queue->duration);
+    }
+
     public function testStrictClockWheelShortRowUsesTargetDurationWhenStretchIsSafe(): void
     {
         [$event, $queue] = $this->makeEvent(
