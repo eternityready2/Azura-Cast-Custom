@@ -69,6 +69,25 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
 
         $targetSeconds = $this->getTimingTarget($queueRow);
 
+        // A precomputed ratio can represent another protected anchor, most often
+        // the station-wide top-of-hour target. If a separate scheduled-playlist
+        // target was retained on the row, use whichever anchor occurs first.
+        // Leave ratio-only rows on the normal ratio path below so disabling or
+        // lowering the station limit restores natural playback instead of creating
+        // a cap that the planner never requested.
+        $precomputedRatio = $queueRow->clock_wheel_stretch_ratio;
+        if (
+            !$isLegalId
+            && null !== $targetSeconds
+            && null !== $precomputedRatio
+            && $precomputedRatio > 0
+        ) {
+            $precomputedTargetSeconds = $calculatedLength / $precomputedRatio;
+            if ($precomputedTargetSeconds > 0) {
+                $targetSeconds = min($targetSeconds, $precomputedTargetSeconds);
+            }
+        }
+
         // Legal-ID max durations are ceilings, not backtiming targets. Never slow
         // down or speed up an ID merely to fill its configured maximum duration.
         if ($isLegalId) {
@@ -156,9 +175,12 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
             $targets[] = (float)$queueRow->clock_wheel_max_play_seconds;
         }
 
+        // QueueBuilder stores the next scheduled-playlist boundary even when the
+        // selected track is shorter than it. `hour_boundary_enforce_cap` remains
+        // false in that case, but the retained value is still an exact backtiming
+        // target for a safe stretch operation.
         if (
-            $queueRow->hour_boundary_enforce_cap
-            && null !== $queueRow->hour_boundary_max_play_seconds
+            null !== $queueRow->hour_boundary_max_play_seconds
             && $queueRow->hour_boundary_max_play_seconds > 0
         ) {
             $targets[] = (float)$queueRow->hour_boundary_max_play_seconds;
@@ -174,7 +196,7 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
 
         // More than one independent protection can apply to the same row. The
         // earliest boundary must always win; using a fixed precedence here can
-        // otherwise let a later scheduled cap hide a tighter top-of-hour target.
+        // otherwise let a later scheduled target hide a tighter top-of-hour target.
         return [] === $targets ? null : min($targets);
     }
 }
