@@ -98,6 +98,23 @@ final class StretchSqueezeQueueTimingTest extends Unit
         self::assertTrue($queue->clock_wheel_enforce_cap);
     }
 
+    public function testTightestProtectedBoundaryWinsWhenMultipleTargetsExist(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: null,
+            mediaLength: 103.0,
+            hourBoundaryTargetSeconds: 105,
+            preIdTargetSeconds: 100,
+        );
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertSame(1.03, $queue->clock_wheel_stretch_ratio);
+        self::assertSame(100.0, $queue->duration);
+        self::assertFalse($queue->hour_boundary_enforce_cap);
+        self::assertFalse($queue->top_of_hour_pre_id_fade);
+    }
+
     public function testLegalIdMaximumIsNotTreatedAsStretchTarget(): void
     {
         [$event, $queue] = $this->makeEvent(
@@ -142,6 +159,7 @@ final class StretchSqueezeQueueTimingTest extends Unit
         float $mediaLength = 180.0,
         ?int $clockWheelTargetSeconds = null,
         ?int $hourBoundaryTargetSeconds = null,
+        ?int $preIdTargetSeconds = null,
         string $mediaType = 'music',
     ): array {
         $station = new Station();
@@ -171,6 +189,12 @@ final class StretchSqueezeQueueTimingTest extends Unit
         if (null !== $hourBoundaryTargetSeconds) {
             $queue->hour_boundary_enforce_cap = true;
             $queue->hour_boundary_max_play_seconds = $hourBoundaryTargetSeconds;
+        }
+
+        if (null !== $preIdTargetSeconds) {
+            $queue->top_of_hour_pre_id_fade = true;
+            $queue->top_of_hour_pre_id_fade_seconds = 3;
+            $queue->duration = (float)$preIdTargetSeconds;
         }
 
         $event = new BuildQueue($station);
