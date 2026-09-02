@@ -82,7 +82,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
         $expectedPlayTime = $event->getExpectedPlayTime()
             ->setTimezone($station->getTimezoneObject());
-        $estimatedAirTime = $this->resolveEstimatedAirTime($station, $now, $expectedPlayTime);
+        $estimatedAirTime = $this->resolveDirectRequestAirTime($station, $now);
 
         $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
@@ -90,9 +90,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
         if (
             !$scheduleNow instanceof AiDjSchedule
-            || !$scheduleAtExpectedTime instanceof AiDjSchedule
             || !$scheduleAtAirTime instanceof AiDjSchedule
-            || $scheduleNow->getId() !== $scheduleAtExpectedTime->getId()
             || $scheduleNow->getId() !== $scheduleAtAirTime->getId()
         ) {
             $this->blockLegacyListener($station);
@@ -104,15 +102,26 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $startsAt = $shift['starts_at'];
         $endsAt = $shift['ends_at'];
 
-        $this->syncWelcomeGuard(
-            $station,
-            $scheduleNow,
-            $dj,
-            $startsAt,
-            $endsAt,
-            $now,
-            $estimatedAirTime,
-        );
+        $legacyScheduleAligned = $scheduleAtExpectedTime instanceof AiDjSchedule
+            && $scheduleNow->getId() === $scheduleAtExpectedTime->getId();
+
+        if ($legacyScheduleAligned) {
+            $this->syncWelcomeGuard(
+                $station,
+                $scheduleNow,
+                $dj,
+                $startsAt,
+                $endsAt,
+                $now,
+                $estimatedAirTime,
+            );
+        } else {
+            // AiDjQueueListener still chooses its DJ from BuildQueue's projected
+            // database slot. If that slot has crossed into another shift, suppress
+            // ordinary speech while allowing this listener's direct sign-off to use
+            // the real next playback boundary.
+            $this->blockLegacyListener($station);
+        }
 
         $outroWindow = $this->resolveOutroWindow($station, $startsAt, $endsAt);
         if (null === $outroWindow || $estimatedAirTime < $outroWindow['starts_at']) {
@@ -163,26 +172,23 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
                 $scheduleNow,
                 $outroWindow['starts_at'],
                 $outroWindow['ends_at'],
-                $estimatedAirTime,
             )
         ) {
             $this->cache->delete($outroKey);
         }
     }
 
-    private function resolveEstimatedAirTime(
+    private function resolveDirectRequestAirTime(
         Station $station,
         DateTimeImmutable $now,
-        DateTimeImmutable $minimumAirTime,
     ): DateTimeImmutable {
-        $estimatedAirTime = $minimumAirTime > $now ? $minimumAirTime : $now;
         $currentSongEnd = $this->getCurrentSongEndTime($station);
 
-        if ($currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $estimatedAirTime) {
+        if ($currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $now) {
             return $currentSongEnd;
         }
 
-        return $estimatedAirTime;
+        return $now;
     }
 
     private function syncWelcomeGuard(
@@ -298,6 +304,10 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
     private function isNearNewsBulletin(Station $station, int $minute): bool
     {
         $backendConfig = $station->backend_config;
+
+        if (!$backendConfig->ai_news_enabled) {
+            return false;
+        }
 
         if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
             return true;
@@ -434,7 +444,6 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         AiDjSchedule $schedule,
         DateTimeImmutable $outroWindowStartsAt,
         DateTimeImmutable $outroWindowEndsAt,
-        DateTimeImmutable $minimumAirTime,
     ): bool {
         try {
             $clipPath = $this->generator->generateShiftOutro($dj, $station);
@@ -447,7 +456,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             // before enqueue so a late render can never spill past the shift or into
             // a protected TOH/news interval.
             $freshNow = new DateTimeImmutable('now', $station->getTimezoneObject());
-            $freshAirTime = $this->resolveEstimatedAirTime($station, $freshNow, $minimumAirTime);
+            $freshAirTime = $this->resolveDirectRequestAirTime($station, $freshNow);
             $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $freshNow);
             $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $freshAirTime);
 
