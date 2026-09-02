@@ -38,7 +38,7 @@ final class AiDjScheduler
 
         return $this->scheduleRepo->findActiveForTimeSlot(
             $stationId,
-            (int)$stationTime->format('N'),
+            (int) $stationTime->format('N'),
             $stationTime->format('H:i:s'),
         );
     }
@@ -64,7 +64,9 @@ final class AiDjScheduler
         $startsAt = $day->setTime($startParts[0], $startParts[1], $startParts[2]);
         $endsAt = $day->setTime($endParts[0], $endParts[1], $endParts[2]);
 
-        if ($endsAt <= $startsAt) {
+        // Match AiDjScheduleRepository semantics: only end < start is a
+        // cross-midnight schedule. Equal start/end is not treated as 24 hours.
+        if ($endsAt < $startsAt) {
             if ($stationTime < $endsAt) {
                 $startsAt = $startsAt->modify('-1 day');
             } else {
