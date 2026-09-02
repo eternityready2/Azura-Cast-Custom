@@ -55,10 +55,13 @@ final class StretchSqueezeQueueTimingTest extends Unit
         $station->short_name = 'stretch_timing_test';
         $station->timezone = 'UTC';
         $station->ensureDirectoriesExist();
-        $station->backend_config->fromArray([
+
+        $config = $station->backend_config;
+        $config->fromArray([
             'playout_stretch_squeeze_enabled' => true,
             'playout_stretch_squeeze_max_percent' => $maxPercent,
         ]);
+        $station->backend_config = $config;
 
         $media = new StationMedia($station->media_storage_location, '/music.mp3');
         $media->title = 'Music';
