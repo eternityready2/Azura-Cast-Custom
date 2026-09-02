@@ -1,0 +1,99 @@
+name: PR124 Finalize V4
+
+on:
+  push:
+    branches:
+      - fix/toh-backtiming-linear-log-persistence-playout-controls
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          composer install --ignore-platform-reqs --no-interaction --no-progress --prefer-dist
+          npm ci
+
+      - name: Apply reviewed fixes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/pr124-finalize-v2.yml').read_text()
+          start = text.index('      - name: Apply final review fixes')
+          start = text.index('        run: |', start) + len('        run: |\n')
+          end = text.index('\n      - name:', start)
+          block = text[start:end]
+          lines = [(line[10:] if line.startswith('          ') else line) for line in block.splitlines()]
+          Path('/tmp/pr124-apply.sh').write_text('\n'.join(lines) + '\n')
+          PY
+          bash /tmp/pr124-apply.sh
+
+      - name: Validate code
+        run: |
+          mapfile -t php_files < <(git diff --name-only origin/dev...HEAD -- '*.php')
+          if [ "${#php_files[@]}" -gt 0 ]; then
+            set +e
+            vendor/bin/phpcbf "${php_files[@]}"
+            code=$?
+            set -e
+            if [ "$code" -gt 2 ]; then exit "$code"; fi
+            vendor/bin/phpcs -n "${php_files[@]}"
+            for file in "${php_files[@]}"; do php -l "$file"; done
+          fi
+          npx eslint --fix frontend/components/Stations/PlayoutControls.vue frontend/components/Stations/TopOfHour.vue frontend/components/Stations/menu.ts frontend/components/Stations/routes.ts frontend/entities/PlayoutControls.ts frontend/entities/TopOfHour.ts
+          npx eslint frontend/components/Stations/PlayoutControls.vue frontend/components/Stations/TopOfHour.vue frontend/components/Stations/menu.ts frontend/components/Stations/routes.ts frontend/entities/PlayoutControls.ts frontend/entities/TopOfHour.ts
+          git diff --check
+
+      - name: Validate P1 fixes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          required = {
+              'backend/src/Radio/AutoDJ/QueueBuilder.php': ['allowTopOfHourFallback', 'topOfHourFallbackPlaylists', 'TOH backtiming exhausted fitting sources'],
+              'backend/src/Entity/StationQueue.php': ['top_of_hour_expected_at'],
+              'backend/src/Radio/AutoDJ/HourBoundaryLegalIdResolver.php': ['$queueEntry->top_of_hour_expected_at = $legalIdExpectedAt;'],
+              'backend/src/Radio/AutoDJ/HourBoundaryPlanner.php': ['hasTopOfHourLegalIdForBoundary', 'resolveLegacyTopOfHourBoundary'],
+              'backend/src/Radio/AutoDJ/Scheduler.php': ['$scheduleItem->strict_start', 'ClockWheelScheduleMode::Strict'],
+          }
+          for path, needles in required.items():
+              text = Path(path).read_text()
+              for needle in needles:
+                  assert needle in text, (path, needle)
+          cw = Path('backend/src/Radio/AutoDJ/ClockWheel/ClockWheelAnnotator.php').read_text()
+          assert '$queue->hour_boundary_max_play_seconds' not in cw
+          PY
+
+      - name: Prepare test filesystem
+        run: |
+          sudo mkdir -p /var/azuracast/www/plugins /var/azuracast/stations
+          sudo chown -R "$(id -u):$(id -g)" /var/azuracast
+
+      - name: Run focused unit regression
+        run: vendor/bin/codecept run Unit HourBoundaryPlannerTest --no-interaction
+
+      - name: Commit final implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/pr124-finalize.yml .github/workflows/pr124-finalize-v2.yml .github/workflows/pr124-finalize-v3.yml .github/workflows/pr124-finalize-v4.yml
+          git add -A
+          git commit -m "Finalize TOH scheduling and playout controls"
+          git push
