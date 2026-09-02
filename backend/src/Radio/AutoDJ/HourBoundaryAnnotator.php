@@ -160,6 +160,28 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
 
         $mediaLength = $media->length;
 
+        // Stretch/Squeeze is applied by ClockWheelAnnotator at a higher event
+        // priority for every AutoDJ source, including ordinary rotation and Smart
+        // Blocks. If that adjusted duration already lands inside this live boundary,
+        // do not immediately undo the squeeze by layering a cue-out cap on top of it.
+        $existingAnnotations = $event->getAnnotations();
+        if (isset($existingAnnotations['liq_stretch_ratio'])) {
+            $stretchRatio = (float)$existingAnnotations['liq_stretch_ratio'];
+            if ($stretchRatio > 0) {
+                $adjustedDuration = $mediaLength / $stretchRatio;
+                if ($adjustedDuration <= ($liveMaxDuration + 0.5)) {
+                    $this->logger->debug(
+                        'TOH safety net: stretch/squeeze already fits the live boundary; cap skipped.',
+                        [
+                            'stretch_ratio' => $stretchRatio,
+                            'adjusted_duration' => $adjustedDuration,
+                        ]
+                    );
+                    return;
+                }
+            }
+        }
+
         // If the build-time cap was already tighter than or equal to the live
         // boundary, it's genuinely fine -- don't re-cap unnecessarily.
         $existingCap = $queue->hour_boundary_max_play_seconds;
@@ -353,4 +375,3 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         ]);
     }
 }
-
