@@ -41,6 +41,17 @@ final class ImportPodcastFeedsTask extends AbstractTask
         return '0 */2 * * *';
     }
 
+    public static function isLongTask(): bool
+    {
+        // A single slow/large feed can legitimately take up to ~85s to fetch
+        // (see feed timeout below), and stations may have several podcasts.
+        // The default 600s short-task budget is too easy to exhaust across
+        // multiple slow feeds in one run, which would silently cut off
+        // later podcasts for the cycle. Use the long-task budget (1800s)
+        // instead.
+        return true;
+    }
+
     public function run(bool $force = false): void
     {
         foreach ($this->iterateStations() as $station) {
@@ -164,7 +175,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
             // to fully deliver the XML. 30s was too tight and was silently truncating fetches
             // once a feed grew past a few dozen episodes; give it real headroom.
             RequestOptions::CONNECT_TIMEOUT => 15,
-            RequestOptions::TIMEOUT => 120,
+            // Faith Horizons' feed was observed needing ~90s at its slowest measured rate;
+            // 100s gives margin above that. Deliberately no retry (see below) so one slow
+            // feed can't consume a large share of the task's overall execution budget when
+            // a station has several podcasts.
+            RequestOptions::TIMEOUT => 100,
             RequestOptions::HTTP_ERRORS => true,
             RequestOptions::HEADERS => [
                 'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
@@ -173,30 +188,15 @@ final class ImportPodcastFeedsTask extends AbstractTask
 
         $response = null;
         $lastError = null;
-        $maxAttempts = 2;
 
-        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            try {
-                $response = $this->httpClient->get($feedUrl, $feedRequestOptions);
-                $lastError = null;
-                break;
-            } catch (\Throwable $e) {
-                $lastError = $e;
-                $this->logger->warning('Podcast feed fetch attempt failed', [
-                    'podcast' => $podcast->title,
-                    'attempt' => $attempt,
-                    'max_attempts' => $maxAttempts,
-                    'error' => $e->getMessage(),
-                ]);
-                if ($attempt < $maxAttempts) {
-                    $this->syncLogLine(
-                        $syncLog,
-                        'warning',
-                        sprintf('Fetch attempt %d failed (%s); retrying...', $attempt, $e->getMessage())
-                    );
-                    sleep(5);
-                }
-            }
+        try {
+            $response = $this->httpClient->get($feedUrl, $feedRequestOptions);
+        } catch (\Throwable $e) {
+            $lastError = $e;
+            $this->logger->warning('Podcast feed fetch failed', [
+                'podcast' => $podcast->title,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         if ($response === null || $lastError !== null) {
