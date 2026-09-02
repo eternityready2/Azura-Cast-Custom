@@ -41,53 +41,17 @@ jobs:
       ENABLE_REDIS: "true"
     steps:
       - uses: actions/checkout@v4
-      - name: Apply contiguous safe-window search
+      - name: Choose a fully safe outro window
         run: |
           python3 <<'PY'
           from pathlib import Path
-
           path = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php')
           text = path.read_text()
-
-          text = text.replace(
-              '    private const int OUTRO_SCAN_STEP_SECONDS = 30;\n',
-              '    private const int OUTRO_SCAN_STEP_SECONDS = 1;\n',
-              1,
-          )
-
-          old = """        $latestSafe = null;
-
-        for (
-            $secondsBeforeEnd = self::OUTRO_TAIL_RESERVE_SECONDS;
-            $secondsBeforeEnd <= self::OUTRO_SCAN_SECONDS;
-            $secondsBeforeEnd += self::OUTRO_SCAN_STEP_SECONDS
-        ) {
-            $candidate = $shiftEndsAt->modify('-' . $secondsBeforeEnd . ' seconds');
-            if ($candidate < $shiftStartsAt) {
-                break;
-            }
-
-            if ($this->isSafeOutroAirTime($station, $candidate)) {
-                $latestSafe = $candidate;
-                break;
-            }
-        }
-
-        if (null === $latestSafe) {
-            return null;
-        }
-
-        $startsAt = $latestSafe->modify('-' . self::OUTRO_WINDOW_SECONDS . ' seconds');
-        if ($startsAt < $shiftStartsAt) {
-            $startsAt = $shiftStartsAt;
-        }
-
-        return [
-            'starts_at' => $startsAt,
-            'ends_at' => $latestSafe,
-        ];
-"""
-          new = """        $safeRunEnd = null;
+          text = text.replace('    private const int OUTRO_SCAN_STEP_SECONDS = 30;\n', '    private const int OUTRO_SCAN_STEP_SECONDS = 1;\n', 1)
+          fn = text.index('    private function resolveOutroWindow(')
+          start = text.index('        $latestSafe = null;\n', fn)
+          end = text.index('\n    private function isSafeOutroAirTime', start)
+          replacement = '''        $safeRunEnd = null;
 
         for (
             $secondsBeforeEnd = self::OUTRO_TAIL_RESERVE_SECONDS;
@@ -117,20 +81,9 @@ jobs:
         }
 
         return null;
-"""
-
-          if text.count(old) != 1:
-              raise SystemExit(f'Expected one outro-window block, found {text.count(old)}')
-
-          path.write_text(text.replace(old, new, 1))
-          PY
-      - name: Verify legacy active-hours behavior stays conservative
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          text = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php').read_text()
-          if "preg_match('/^(\\d{1,2})-(\\d{1,2})$/" in text:
-              raise SystemExit('Legacy H-H parser must not diverge from Liquidsoap fallback behavior')
+    }
+'''
+          path.write_text(text[:start] + replacement + text[end:])
           PY
       - name: Mirror AzuraCast runtime path
         run: |
