@@ -40,6 +40,8 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             $app->add(Middleware\InjectSettings::class);
             $app->add(Middleware\InjectRouter::class);
             $app->add(Middleware\InjectRateLimit::class);
+
+            // System middleware for routing and body parsing.
             $app->addBodyParsingMiddleware();
             $app->addRoutingMiddleware();
 
