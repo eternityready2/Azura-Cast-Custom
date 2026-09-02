@@ -69,6 +69,8 @@ jobs:
       - name: Coding standards
         run: vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php backend/src/Service/AiDjScheduler.php tests/Unit/AiDjSchedulerTest.php
       - name: Initialize test database
-        run: php bin/console azuracast:setup:migrate --no-interaction
+        run: |
+          php bin/console migrations:sync-metadata-storage --no-interaction
+          php bin/console migrations:migrate --allow-no-migration --no-interaction
       - name: Focused AI DJ scheduler tests
         run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
