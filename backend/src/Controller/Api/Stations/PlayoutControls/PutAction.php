@@ -23,13 +23,13 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         summary: 'Save station-wide playout control settings.',
         tags: [OpenApi::TAG_STATIONS_BROADCASTING],
         parameters: [
-        new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
+            new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
         ],
         responses: [
-        new OpenApi\Response\Success(),
-        new OpenApi\Response\AccessDenied(),
-        new OpenApi\Response\NotFound(),
-        new OpenApi\Response\GenericError(),
+            new OpenApi\Response\Success(),
+            new OpenApi\Response\AccessDenied(),
+            new OpenApi\Response\NotFound(),
+            new OpenApi\Response\GenericError(),
         ]
     )
 ]
@@ -80,7 +80,7 @@ final class PutAction implements SingleActionInterface
     private function validateRange(mixed $value, int|float $min, int|float $max): void
     {
         $errors = $this->validator->validate($value, [
-        new Range(min: $min, max: $max),
+            new Range(min: $min, max: $max),
         ]);
 
         if (count($errors) > 0) {
