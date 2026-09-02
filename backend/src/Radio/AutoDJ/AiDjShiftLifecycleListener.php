@@ -258,7 +258,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
     private function isSafeOutroAirTime(Station $station, DateTimeImmutable $candidate): bool
     {
         $minute = (int)$candidate->format('i');
-        if ($minute <= 3 || $minute >= 55) {
+        if ($minute <= 3 || $minute >= 50) {
             return false;
         }
 
