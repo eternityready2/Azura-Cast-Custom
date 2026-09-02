@@ -41,6 +41,17 @@ final class ImportPodcastFeedsTask extends AbstractTask
         return '0 */2 * * *';
     }
 
+    public static function isLongTask(): bool
+    {
+        // A single slow/large feed can legitimately take up to ~85s to fetch
+        // (see feed timeout below), and stations may have several podcasts.
+        // The default 600s short-task budget is too easy to exhaust across
+        // multiple slow feeds in one run, which would silently cut off
+        // later podcasts for the cycle. Use the long-task budget (1800s)
+        // instead.
+        return true;
+    }
+
     public function run(bool $force = false): void
     {
         foreach ($this->iterateStations() as $station) {
@@ -159,20 +170,41 @@ final class ImportPodcastFeedsTask extends AbstractTask
         $this->syncLogLine($syncLog, 'info', sprintf('Fetching feed: %s', $feedUrl));
         $this->syncLogLine($syncLog, 'info', sprintf('Podcast: %s', $podcast->title));
 
+        $feedRequestOptions = [
+            // Some feed hosts (e.g. Buzzsprout on large/backlog-heavy feeds) can be very slow
+            // to fully deliver the XML. 30s was too tight and was silently truncating fetches
+            // once a feed grew past a few dozen episodes; give it real headroom.
+            RequestOptions::CONNECT_TIMEOUT => 15,
+            // Faith Horizons' feed was observed needing ~90s at its slowest measured rate;
+            // 100s gives margin above that. Deliberately no retry (see below) so one slow
+            // feed can't consume a large share of the task's overall execution budget when
+            // a station has several podcasts.
+            RequestOptions::TIMEOUT => 100,
+            RequestOptions::HTTP_ERRORS => true,
+            RequestOptions::HEADERS => [
+                'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
+            ],
+        ];
+
+        $response = null;
+        $lastError = null;
+
         try {
-            $response = $this->httpClient->get($feedUrl, [
-                RequestOptions::TIMEOUT => 30,
-                RequestOptions::HTTP_ERRORS => true,
-                RequestOptions::HEADERS => [
-                    'User-Agent' => 'AzuraCast/1.0 (Podcast Import)',
-                ],
-            ]);
+            $response = $this->httpClient->get($feedUrl, $feedRequestOptions);
         } catch (\Throwable $e) {
-            $this->logger->error('Failed to fetch podcast feed', [
+            $lastError = $e;
+            $this->logger->warning('Podcast feed fetch failed', [
                 'podcast' => $podcast->title,
                 'error' => $e->getMessage(),
             ]);
-            $msg = 'Failed to fetch feed: ' . $e->getMessage();
+        }
+
+        if ($response === null || $lastError !== null) {
+            $this->logger->error('Failed to fetch podcast feed', [
+                'podcast' => $podcast->title,
+                'error' => $lastError?->getMessage(),
+            ]);
+            $msg = 'Failed to fetch feed: ' . ($lastError?->getMessage() ?? 'unknown error');
             $this->syncLogLine($syncLog, 'error', $msg);
 
             return ['added' => 0, 'ok' => false, 'message' => $msg];
@@ -699,6 +731,11 @@ final class ImportPodcastFeedsTask extends AbstractTask
             return $verifiedEpisode instanceof PodcastEpisode
                 && $this->episodeAudioFileExistsOnDisk($verifiedEpisode, $station);
         } catch (\Throwable $e) {
+            $this->logger->error('Latest episode store failed', [
+                'podcast' => $podcast->title,
+                'episode_title' => $title,
+                'error' => $e->getMessage(),
+            ]);
             $this->syncLogLine($syncLog, 'error', sprintf('Latest episode store failed [%s]: %s', $title, $e->getMessage()));
             return false;
         } finally {
@@ -780,6 +817,16 @@ final class ImportPodcastFeedsTask extends AbstractTask
             @mkdir($tempDir, 0775, true);
         }
         $lockPath = $tempDir . '/podcast_latest_sync_' . $podcast->id . '.lock';
+
+        return $this->tryAcquireLatestSyncLock($lockPath, $syncLog)
+            ?? $this->recoverStaleLatestSyncLockAndRetry($lockPath, $syncLog);
+    }
+
+    /**
+     * @return resource|null
+     */
+    private function tryAcquireLatestSyncLock(string $lockPath, ?array &$syncLog)
+    {
         $handle = @fopen($lockPath, 'c+');
         if (false === $handle) {
             $this->syncLogLine($syncLog, 'warning', 'Could not create lock file; skipping sync.');
@@ -788,9 +835,57 @@ final class ImportPodcastFeedsTask extends AbstractTask
         }
         if (!@flock($handle, LOCK_EX | LOCK_NB)) {
             fclose($handle);
-            $this->syncLogLine($syncLog, 'info', 'Another sync is already running for this podcast; skipping.');
 
             return null;
+        }
+
+        return $handle;
+    }
+
+    /**
+     * A held lock is expected to live only for the duration of a single sync run. If the lock file
+     * is older than several sync intervals, no legitimately in-progress run could still hold it --
+     * it can only be left over from a previous run that died (crash, OOM kill, forced process
+     * timeout) without reaching its `finally` release. Without this recovery, such a podcast would
+     * be silently and permanently skipped by every future scheduled sync, with no error logged
+     * anywhere, since the only symptom is "another sync is already running" being treated as normal.
+     *
+     * @return resource|null
+     */
+    private function recoverStaleLatestSyncLockAndRetry(string $lockPath, ?array &$syncLog)
+    {
+        $staleAfterSeconds = 6 * 3600; // 3x the 2-hour scheduled interval.
+        $mtime = @filemtime($lockPath);
+
+        if (false === $mtime || (time() - $mtime) < $staleAfterSeconds) {
+            $this->syncLogLine($syncLog, 'info', 'Another sync is already running for this podcast; skipping.');
+            $this->logger->info('Podcast latest-sync lock held; skipping this run', [
+                'lock_path' => $lockPath,
+                'lock_age_seconds' => (false !== $mtime) ? (time() - $mtime) : null,
+            ]);
+
+            return null;
+        }
+
+        $this->logger->warning('Podcast latest-sync lock appears stale; clearing and retrying', [
+            'lock_path' => $lockPath,
+            'lock_age_seconds' => time() - $mtime,
+        ]);
+        $this->syncLogLine(
+            $syncLog,
+            'warning',
+            sprintf(
+                'Sync lock was held for over %d hours with no completion; treating as stale from a crashed '
+                . 'run and clearing it.',
+                (int) floor($staleAfterSeconds / 3600)
+            )
+        );
+
+        @unlink($lockPath);
+
+        $handle = $this->tryAcquireLatestSyncLock($lockPath, $syncLog);
+        if ($handle === null) {
+            $this->syncLogLine($syncLog, 'warning', 'Could not acquire lock even after clearing stale lock; skipping.');
         }
 
         return $handle;
