@@ -84,6 +84,38 @@ final class ClockWheelAnnotatorTest extends Unit
         self::assertSame(187.5, $event->getAnnotations()['duration']);
     }
 
+    public function testRoundedPlannedRatioStillMatchesProjectedDuration(): void
+    {
+        $event = $this->makeStretchEvent(
+            ratio: 0.9667,
+            projectedDuration: 60.0,
+            mediaLength: 58.0,
+        );
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertSame(0.9667, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertSame(60.0, $event->getAnnotations()['duration']);
+    }
+
+    public function testLegacyQueuedRatioWithNaturalDurationIsInvalidated(): void
+    {
+        $event = $this->makeStretchEvent(
+            ratio: 0.96,
+            projectedDuration: 180.0,
+            mediaLength: 180.0,
+        );
+        $queue = $event->getQueue();
+        self::assertNotNull($queue);
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertArrayNotHasKey('liq_stretch_ratio', $event->getAnnotations());
+        self::assertSame(180.0, $event->getAnnotations()['duration']);
+        self::assertNull($queue->clock_wheel_stretch_ratio);
+        self::assertSame(180.0, $queue->duration);
+    }
+
     public function testAlreadyQueuedRatioRemainsFrozenAfterRuntimeSettingChanges(): void
     {
         $event = $this->makeStretchEvent(ratio: 0.96, projectedDuration: 187.5);
