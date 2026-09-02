@@ -44,6 +44,7 @@ jobs:
       - name: Choose a fully safe outro window
         run: |
           python3 <<'PY'
+          import base64
           from pathlib import Path
           path = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php')
           text = path.read_text()
@@ -51,38 +52,7 @@ jobs:
           fn = text.index('    private function resolveOutroWindow(')
           start = text.index('        $latestSafe = null;\n', fn)
           end = text.index('\n    private function isSafeOutroAirTime', start)
-          replacement = '''        $safeRunEnd = null;
-
-        for (
-            $secondsBeforeEnd = self::OUTRO_TAIL_RESERVE_SECONDS;
-            $secondsBeforeEnd <= self::OUTRO_SCAN_SECONDS;
-            $secondsBeforeEnd += self::OUTRO_SCAN_STEP_SECONDS
-        ) {
-            $candidate = $shiftEndsAt->modify('-' . $secondsBeforeEnd . ' seconds');
-            if ($candidate < $shiftStartsAt) {
-                break;
-            }
-
-            if (!$this->isSafeOutroAirTime($station, $candidate)) {
-                $safeRunEnd = null;
-                continue;
-            }
-
-            $safeRunEnd ??= $candidate;
-            if (
-                $safeRunEnd->getTimestamp() - $candidate->getTimestamp()
-                >= self::OUTRO_WINDOW_SECONDS
-            ) {
-                return [
-                    'starts_at' => $safeRunEnd->modify('-' . self::OUTRO_WINDOW_SECONDS . ' seconds'),
-                    'ends_at' => $safeRunEnd,
-                ];
-            }
-        }
-
-        return null;
-    }
-'''
+          replacement = base64.b64decode('ICAgICAgICAkc2FmZVJ1bkVuZCA9IG51bGw7CgogICAgICAgIGZvciAoCiAgICAgICAgICAgICRzZWNvbmRzQmVmb3JlRW5kID0gc2VsZjo6T1VUUk9fVEFJTF9SRVNFUlZFX1NFQ09ORFM7CiAgICAgICAgICAgICRzZWNvbmRzQmVmb3JlRW5kIDw9IHNlbGY6Ok9VVFJPX1NDQU5fU0VDT05EUzsKICAgICAgICAgICAgJHNlY29uZHNCZWZvcmVFbmQgKz0gc2VsZjo6T1VUUk9fU0NBTl9TVEVQX1NFQ09ORFMKICAgICAgICApIHsKICAgICAgICAgICAgJGNhbmRpZGF0ZSA9ICRzaGlmdEVuZHNBdC0+bW9kaWZ5KCctJyAuICRzZWNvbmRzQmVmb3JlRW5kIC4gJyBzZWNvbmRzJyk7CiAgICAgICAgICAgIGlmICgkY2FuZGlkYXRlIDwgJHNoaWZ0U3RhcnRzQXQpIHsKICAgICAgICAgICAgICAgIGJyZWFrOwogICAgICAgICAgICB9CgogICAgICAgICAgICBpZiAoISR0aGlzLT5pc1NhZmVPdXRyb0FpclRpbWUoJHN0YXRpb24sICRjYW5kaWRhdGUpKSB7CiAgICAgICAgICAgICAgICAkc2FmZVJ1bkVuZCA9IG51bGw7CiAgICAgICAgICAgICAgICBjb250aW51ZTsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgJHNhZmVSdW5FbmQgPz89ICRjYW5kaWRhdGU7CiAgICAgICAgICAgIGlmICgKICAgICAgICAgICAgICAgICRzYWZlUnVuRW5kLT5nZXRUaW1lc3RhbXAoKSAtICRjYW5kaWRhdGUtPmdldFRpbWVzdGFtcCgpCiAgICAgICAgICAgICAgICA+PSBzZWxmOjpPVVRST19XSU5ET1dfU0VDT05EUwogICAgICAgICAgICApIHsKICAgICAgICAgICAgICAgIHJldHVybiBbCiAgICAgICAgICAgICAgICAgICAgJ3N0YXJ0c19hdCcgPT4gJHNhZmVSdW5FbmQtPm1vZGlmeSgnLScgLiBzZWxmOjpPVVRST19XSU5ET1dfU0VDT05EUyAuICcgc2Vjb25kcycpLAogICAgICAgICAgICAgICAgICAgICdlbmRzX2F0JyA9PiAkc2FmZVJ1bkVuZCwKICAgICAgICAgICAgICAgIF07CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIHJldHVybiBudWxsOwogICAgfQo=').decode()
           path.write_text(text[:start] + replacement + text[end:])
           PY
       - name: Mirror AzuraCast runtime path
