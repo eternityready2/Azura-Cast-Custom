@@ -21,6 +21,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Throwable;
 
 /**
  * Keeps AI DJ welcomes, sign-offs and schedule boundaries tied to one concrete
@@ -310,7 +311,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
             return (new DateTimeImmutable('@' . $endTs))
                 ->setTimezone($station->getTimezoneObject());
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('AI DJ: Shift lifecycle could not resolve current song end.', [
                 'exception' => $e->getMessage(),
             ]);
@@ -373,7 +374,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
                 ->getSingleScalarResult();
 
             return $queueCount > 0;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('AI DJ: Shift marker lookup failed.', [
                 'title' => $title,
                 'exception' => $e->getMessage(),
@@ -413,7 +414,9 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
             $title = 'AI DJ Sign-off';
             $track = sprintf(
-                'annotate:title="%s",artist="%s",liq_cross_duration="0",liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",jingle_mode="true",azuracast_autocue="false":%s',
+                'annotate:title="%s",artist="%s",liq_cross_duration="0",' .
+                'liq_fade_in="0",liq_fade_out="0",liq_cue_in="0",' .
+                'jingle_mode="true",azuracast_autocue="false":%s',
                 $title,
                 $dj->getName(),
                 $clipPath,
@@ -428,7 +431,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             ]);
 
             return true;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('AI DJ: Failed to queue scheduled shift sign-off.', [
                 'dj' => $dj->getName(),
                 'exception' => $e->getMessage(),
