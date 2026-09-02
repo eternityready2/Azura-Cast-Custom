@@ -71,6 +71,59 @@ final class ClockWheelAnnotatorTest extends Unit
         self::assertSame(45.0, $event->getAnnotations()['autocue_cue_out']);
     }
 
+    public function testStretchSqueezeAppliesToOrdinaryAutoDjQueueRows(): void
+    {
+        $event = $this->makeStretchEvent(ratio: 0.96);
+
+        self::assertNull($event->getQueue()?->clock_wheel);
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertSame(0.96, $event->getAnnotations()['liq_stretch_ratio']);
+    }
+
+    public function testStretchSqueezeRespectsStationMaximumAdjustment(): void
+    {
+        $event = $this->makeStretchEvent(ratio: 0.95, maxPercent: 2.0);
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertSame(0.98, $event->getAnnotations()['liq_stretch_ratio']);
+    }
+
+    public function testStretchSqueezeCanBeDisabledStationWide(): void
+    {
+        $event = $this->makeStretchEvent(ratio: 0.96, enabled: false);
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertArrayNotHasKey('liq_stretch_ratio', $event->getAnnotations());
+    }
+
+    private function makeStretchEvent(
+        float $ratio,
+        bool $enabled = true,
+        float $maxPercent = 5.0,
+    ): AnnotateNextSong {
+        $this->station->backend_config->fromArray([
+            'playout_stretch_squeeze_enabled' => $enabled,
+            'playout_stretch_squeeze_max_percent' => $maxPercent,
+        ]);
+
+        $media = new StationMedia($this->station->media_storage_location, '/music.mp3');
+        $media->title = 'Music';
+        $media->artist = 'Artist';
+        $media->type = 'music';
+        $media->length = 180.0;
+        $media->mtime = time();
+        $media->uploaded_at = time();
+
+        $queue = StationQueue::fromMedia($this->station, $media);
+        $queue->clock_wheel_stretch_ratio = $ratio;
+
+        return AnnotateNextSong::fromStationQueue($queue, true);
+    }
+
     private function makeAnnotateEvent(
         bool $enforceCap,
         bool $asAutoDj,
