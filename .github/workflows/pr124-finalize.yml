@@ -1,0 +1,276 @@
+name: PR124 Finalize
+
+on:
+  push:
+    branches:
+      - fix/toh-backtiming-linear-log-persistence-playout-controls
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          composer install --ignore-platform-reqs --no-interaction --no-progress --prefer-dist
+          npm ci
+
+      - name: Apply final TOH architecture fixes
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          branch_files = {
+              'queue_builder': Path('backend/src/Radio/AutoDJ/QueueBuilder.php'),
+              'planner': Path('backend/src/Radio/AutoDJ/HourBoundaryPlanner.php'),
+              'queue_repo': Path('backend/src/Entity/Repository/StationQueueRepository.php'),
+              'queue_entity': Path('backend/src/Entity/StationQueue.php'),
+              'resolver': Path('backend/src/Radio/AutoDJ/HourBoundaryLegalIdResolver.php'),
+              'migration': Path('backend/src/Entity/Migration/Version20260902030000.php'),
+              'test': Path('tests/Unit/HourBoundaryPlannerTest.php'),
+          }
+
+          def replace_once(path: Path, old: str, new: str):
+              text = path.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Marker not found in {path}: {old[:100]!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # QueueBuilder: decouple duplicate relaxation from the final overrun fallback.
+          p = branch_files['queue_builder']
+          replace_once(
+              p,
+              """        bool $singleTrackOnly = false,\n        bool $deferQueuePersistence = false,\n    ): StationQueue|array|null {""",
+              """        bool $singleTrackOnly = false,\n        bool $deferQueuePersistence = false,\n        bool $allowTopOfHourFallback = false,\n    ): StationQueue|array|null {""",
+          )
+          replace_once(
+              p,
+              """                $expectedPlayTime,\n                $allowDuplicates\n            );""",
+              """                $expectedPlayTime,\n                $allowDuplicates,\n                $allowTopOfHourFallback,\n            );""",
+          )
+          replace_once(
+              p,
+              """                    $expectedPlayTime,\n                    $allowDuplicates,\n                );""",
+              """                    $expectedPlayTime,\n                    $allowDuplicates,\n                    $allowTopOfHourFallback,\n                );""",
+          )
+          replace_once(
+              p,
+              """        DateTimeImmutable $expectedPlayTime,\n        bool $allowDuplicates,\n    ): StationQueue|array|null {""",
+              """        DateTimeImmutable $expectedPlayTime,\n        bool $allowDuplicates,\n        bool $allowTopOfHourFallback,\n    ): StationQueue|array|null {""",
+          )
+          # Group calls keep the fallback disabled during normal/duplicate-relaxed passes.
+          replace_once(
+              p,
+              """                true,\n                true,\n            );\n\n            if (null === $selection && !$allowDuplicates) {""",
+              """                true,\n                true,\n                $allowTopOfHourFallback,\n            );\n\n            if (null === $selection && !$allowDuplicates) {""",
+          )
+          replace_once(
+              p,
+              """                    true,\n                    true,\n                    true,\n                );\n            }""",
+              """                    true,\n                    true,\n                    true,\n                    $allowTopOfHourFallback,\n                );\n            }""",
+          )
+          replace_once(
+              p,
+              """        DateTimeImmutable $expectedPlayTime,\n        bool $allowDuplicates,\n    ): ?StationPlaylistQueue {""",
+              """        DateTimeImmutable $expectedPlayTime,\n        bool $allowDuplicates,\n        bool $allowTopOfHourFallback,\n    ): ?StationPlaylistQueue {""",
+          )
+          replace_once(
+              p,
+              "if ($allowDuplicates && is_array($fallback)) {",
+              "if ($allowTopOfHourFallback && is_array($fallback)) {",
+          )
+
+          # Collect ordered eligible sources for one final best-effort pass only after
+          # every source/type has had both normal and duplicate-relaxed fitting passes.
+          replace_once(
+              p,
+              """        foreach ($typesToPlay as $type) {\n            $typesToPlayByPriority[] = $type . '_scheduled';\n            $typesToPlayByPriority[] = $type . '_unscheduled';\n        }\n\n        foreach ($typesToPlayByPriority as $currentPlaylistType) {""",
+              """        foreach ($typesToPlay as $type) {\n            $typesToPlayByPriority[] = $type . '_scheduled';\n            $typesToPlayByPriority[] = $type . '_unscheduled';\n        }\n\n        $topOfHourFallbackPlaylists = [];\n\n        foreach ($typesToPlayByPriority as $currentPlaylistType) {""",
+          )
+          replace_once(
+              p,
+              """            $eligiblePlaylists = $this->weightedShuffle($eligiblePlaylists);\n\n            foreach ([false, true] as $allowDuplicates) {""",
+              """            $eligiblePlaylists = $this->weightedShuffle($eligiblePlaylists);\n            foreach (array_keys($eligiblePlaylists) as $playlistId) {\n                $topOfHourFallbackPlaylists[$playlistId] =\n                    $activePlaylistsByType[$currentPlaylistType][$playlistId];\n            }\n\n            foreach ([false, true] as $allowDuplicates) {""",
+          )
+          replace_once(
+              p,
+              """        if ($event->isInterrupting()) {\n            $this->logger->info('No interrupting tracks to play.');\n        } else {\n            $this->logger->error('No playable tracks were found.');\n        }""",
+              """        if (\n            !$event->isInterrupting()\n            && $topOfHourFallbackPlaylists !== []\n            && $this->hourBoundaryPlanner->isInLookaheadZone($station, $expectedPlayTime)\n        ) {\n            foreach ($topOfHourFallbackPlaylists as $playlist) {\n                if (!$this->scheduler->shouldPlaylistPlayNow($playlist, $expectedPlayTime)) {\n                    continue;\n                }\n\n                if (\n                    $event->setNextSongs(\n                        $this->playSongFromPlaylist(\n                            $playlist,\n                            $recentSongHistoryForDuplicatePrevention,\n                            $expectedPlayTime,\n                            true,\n                            false,\n                            false,\n                            true,\n                        )\n                    )\n                ) {\n                    $this->logger->warning(\n                        'TOH backtiming exhausted fitting sources; using a full-song safety fallback.',\n                        ['playlist_id' => $playlist->id]\n                    );\n                    return;\n                }\n            }\n        }\n\n        if ($event->isInterrupting()) {\n            $this->logger->info('No interrupting tracks to play.');\n        } else {\n            $this->logger->error('No playable tracks were found.');\n        }""",
+          )
+
+          # Persist the exact hour that a mandatory TOH row serves. Queue timestamps
+          # are recalculated as the live queue changes, so they cannot be the identity.
+          p = branch_files['queue_entity']
+          replace_once(
+              p,
+              """    /** True when queued by station-wide top-of-hour protection (v0.29). */\n    #[ORM\\Column]\n    public bool $top_of_hour_legal_id = false;\n\n    /** Whether AnnotateNextSong should apply a cue_out cap for hour-boundary protection. */""",
+              """    /** True when queued by station-wide top-of-hour protection (v0.29). */\n    #[ORM\\Column]\n    public bool $top_of_hour_legal_id = false;\n\n    /** Immutable boundary this mandatory ID was queued to serve. */\n    #[ORM\\Column(type: 'datetime_immutable', precision: 6, nullable: true)]\n    public ?DateTimeImmutable $top_of_hour_expected_at = null {\n        set (DateTimeImmutable|string|null $value) => Time::toNullableUtcCarbonImmutable($value);\n    }\n\n    /** Whether AnnotateNextSong should apply a cue_out cap for hour-boundary protection. */""",
+          )
+
+          p = branch_files['resolver']
+          replace_once(
+              p,
+              """        $queueEntry = StationQueue::fromMedia($station, $media);\n        $queueEntry->top_of_hour_legal_id = true;\n        $queueEntry->clock_wheel_legal_id_substitute = $usedSubstitute;""",
+              """        $queueEntry = StationQueue::fromMedia($station, $media);\n        $queueEntry->top_of_hour_legal_id = true;\n        $queueEntry->top_of_hour_expected_at = $legalIdExpectedAt;\n        $queueEntry->clock_wheel_legal_id_substitute = $usedSubstitute;""",
+          )
+
+          p = branch_files['migration']
+          replace_once(
+              p,
+              """        );\n    }\n\n    public function down(Schema $schema): void\n    {\n        $this->addSql('DROP TABLE IF EXISTS station_linear_log_snapshots');\n    }""",
+              """        );\n\n        $this->addSql(\n            'ALTER TABLE station_queue\n             ADD COLUMN IF NOT EXISTS top_of_hour_expected_at DATETIME(6) DEFAULT NULL'\n        );\n    }\n\n    public function down(Schema $schema): void\n    {\n        $this->addSql(\n            'ALTER TABLE station_queue\n             DROP COLUMN IF EXISTS top_of_hour_expected_at'\n        );\n        $this->addSql('DROP TABLE IF EXISTS station_linear_log_snapshots');\n    }""",
+          )
+
+          # Repository exact lookup plus legacy-only cue-time fallback.
+          p = branch_files['queue_repo']
+          text = p.read_text(encoding='utf-8')
+          marker = """    /**\n     * Timestamps of already-AIRED (is_played = 1) mandatory legal IDs whose\n"""
+          if marker not in text:
+              raise SystemExit('StationQueueRepository TOH history marker not found')
+          exact_method = """    public function hasTopOfHourLegalIdForBoundary(\n        Station $station,\n        DateTimeImmutable $boundary,\n    ): bool {\n        $result = $this->em->createQuery(\n            <<<'DQL'\n                SELECT sq.id\n                FROM App\\Entity\\StationQueue sq\n                WHERE sq.station = :station\n                AND sq.top_of_hour_legal_id = 1\n                AND sq.top_of_hour_expected_at = :boundary\n            DQL\n        )->setParameter('station', $station)\n            ->setParameter('boundary', $boundary)\n            ->setMaxResults(1)\n            ->getOneOrNullResult();\n\n        return null !== $result;\n    }\n\n"""
+          text = text.replace(marker, exact_method + marker, 1)
+          text = text.replace(
+              """     * Timestamps of already-AIRED (is_played = 1) mandatory legal IDs whose\n     * timestamp_played falls within the given window.\n""",
+              """     * Cue timestamps for already-aired legacy TOH rows created before\n     * top_of_hour_expected_at existed. New rows use exact boundary identity.\n""",
+              1,
+          )
+          text = text.replace(
+              """                SELECT sq.timestamp_played\n                FROM App\\Entity\\StationQueue sq\n                LEFT JOIN sq.media sm\n                WHERE sq.station = :station\n                AND sq.is_played = 1\n                AND sq.timestamp_played >= :windowStart\n                AND sq.timestamp_played <= :windowEnd\n                AND (\n                    sq.top_of_hour_legal_id = 1\n                    OR sm.type IN (:idTypes)\n                )\n""",
+              """                SELECT sq.timestamp_cued\n                FROM App\\Entity\\StationQueue sq\n                WHERE sq.station = :station\n                AND sq.is_played = 1\n                AND sq.top_of_hour_legal_id = 1\n                AND sq.top_of_hour_expected_at IS NULL\n                AND sq.timestamp_played >= :windowStart\n                AND sq.timestamp_played <= :windowEnd\n""",
+              1,
+          )
+          text = text.replace("            ->setParameter('idTypes', StationMediaTypes::stationIdTypeValues())\n", "", 1)
+          text = text.replace(
+              "static fn (array $row): DateTimeImmutable => $row['timestamp_played']",
+              "static fn (array $row): DateTimeImmutable => $row['timestamp_cued']",
+              1,
+          )
+          p.write_text(text, encoding='utf-8')
+
+          # Planner: exact boundary identity first; nearest-hour math only for legacy rows.
+          p = branch_files['planner']
+          text = p.read_text(encoding='utf-8')
+          text = text.replace("use App\\Entity\\Enums\\StationMediaTypes;\n", "", 1)
+          old = """        $targetTimestamp = $hourStart->getTimestamp();\n\n        // Check playback history first: if the mandatory ID for this hour has\n"""
+          new = """        $targetTimestamp = $hourStart->getTimestamp();\n\n        if ($this->queueRepo->hasTopOfHourLegalIdForBoundary($station, $hourStart->toDateTimeImmutable())) {\n            return true;\n        }\n\n        // Legacy fallback for queue rows created before top_of_hour_expected_at.\n        // New rows never infer their served hour from mutable cue/play timestamps.\n"""
+          if old not in text:
+              raise SystemExit('HourBoundaryPlanner history marker not found')
+          start = text.index(old)
+          # Replace the old explanatory comment block through history-window assignment prefix.
+          hist = text.index("        $historyWindowStart =", start)
+          text = text[:start] + new + text[hist:]
+          text = text.replace(
+              """            ) as $playedAt\n        ) {\n            $servedBoundary = $this->resolveTopOfHourExpectedPlayAt($station, $playedAt);\n""",
+              """            ) as $cuedAt\n        ) {\n            $servedBoundary = $this->resolveLegacyTopOfHourBoundary($station, $cuedAt);\n""",
+              1,
+          )
+          old_unplayed = """        foreach ($this->queueRepo->getUnplayedQueue($station) as $row) {\n            $isLegalId = $row->top_of_hour_legal_id;\n\n            if (!$isLegalId) {\n                $media = $row->media;\n                $isLegalId = $media !== null && StationMediaTypes::isStationId($media->type);\n            }\n\n            if (!$isLegalId) {\n                continue;\n            }\n\n            // timestamp_played is null while a row is unplayed, so it cannot be\n            // used to locate an already-queued ID. Derive the boundary this ID\n            // serves from its cue time instead: a top-of-hour ID is cued to air\n            // within ~a minute of the :00 it protects. Reusing\n            // resolveTopOfHourExpectedPlayAt() keeps this in lockstep with the\n            // boundary the scheduler is currently targeting.\n            $servedBoundary = $this->resolveTopOfHourExpectedPlayAt($station, $row->timestamp_cued);\n"""
+          new_unplayed = """        foreach ($this->queueRepo->getUnplayedQueue($station) as $row) {\n            if (!$row->top_of_hour_legal_id || null !== $row->top_of_hour_expected_at) {\n                continue;\n            }\n\n            $servedBoundary = $this->resolveLegacyTopOfHourBoundary($station, $row->timestamp_cued);\n"""
+          if old_unplayed not in text:
+              raise SystemExit('HourBoundaryPlanner unplayed legacy block not found')
+          text = text.replace(old_unplayed, new_unplayed, 1)
+          helper_marker = """    private function clampInt(int $value, int $min, int $max, int $default): int\n"""
+          helper = """    private function resolveLegacyTopOfHourBoundary(\n        Station $station,\n        DateTimeImmutable $referenceTime,\n    ): DateTimeImmutable {\n        $local = CarbonImmutable::instance($referenceTime)->setTimezone($station->getTimezoneObject());\n        $hourStart = $local->startOf('hour');\n        $nextHour = $hourStart->addHour();\n\n        $served = abs($local->getTimestamp() - $hourStart->getTimestamp())\n            <= abs($nextHour->getTimestamp() - $local->getTimestamp())\n            ? $hourStart\n            : $nextHour;\n\n        return $served->toDateTimeImmutable();\n    }\n\n"""
+          if helper_marker not in text:
+              raise SystemExit('HourBoundaryPlanner helper marker not found')
+          text = text.replace(helper_marker, helper + helper_marker, 1)
+          p.write_text(text, encoding='utf-8')
+
+          # Regression: boundary identity survives queue retiming/late actual playback.
+          p = branch_files['test']
+          text = p.read_text(encoding='utf-8')
+          test_marker = """    public function testTopOfHourMasterToggleDisablesPlanning(): void\n"""
+          test_method = """    public function testTopOfHourBoundaryIdentitySurvivesLateQueueTiming(): void\n    {\n        $backendConfig = $this->station->backend_config;\n        $backendConfig->top_of_hour_id_enabled = true;\n        $this->station->backend_config = $backendConfig;\n        $this->testsModule->em->persist($this->station);\n\n        $row = new StationQueue($this->station, Song::createFromText('Station - Legal ID'));\n        $row->top_of_hour_legal_id = true;\n        $row->top_of_hour_expected_at = CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC');\n        $row->timestamp_cued = CarbonImmutable::parse('2026-05-26 10:04:00', 'UTC');\n        $row->timestamp_played = CarbonImmutable::parse('2026-05-26 10:04:05', 'UTC');\n        $row->is_played = true;\n        $this->testsModule->em->persist($row);\n        $this->testsModule->em->flush();\n\n        self::assertTrue($this->planner->hasTopOfHourIdQueued(\n            $this->station,\n            CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC'),\n        ));\n        self::assertFalse($this->planner->hasTopOfHourIdQueued(\n            $this->station,\n            CarbonImmutable::parse('2026-05-26 11:00:00', 'UTC'),\n        ));\n    }\n\n"""
+          if test_marker not in text:
+              raise SystemExit('HourBoundaryPlannerTest marker not found')
+          text = text.replace(test_marker, test_method + test_marker, 1)
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Normalize changed source
+        run: |
+          mapfile -t php_files < <(git diff --name-only origin/dev...HEAD -- '*.php')
+          if [ "${#php_files[@]}" -gt 0 ]; then
+            set +e
+            vendor/bin/phpcbf "${php_files[@]}"
+            code=$?
+            set -e
+            if [ "$code" -gt 2 ]; then exit "$code"; fi
+            vendor/bin/phpcs "${php_files[@]}"
+            for file in "${php_files[@]}"; do php -l "$file"; done
+          fi
+
+          npx eslint --fix \
+            frontend/components/Stations/PlayoutControls.vue \
+            frontend/components/Stations/TopOfHour.vue \
+            frontend/components/Stations/menu.ts \
+            frontend/components/Stations/routes.ts \
+            frontend/entities/PlayoutControls.ts \
+            frontend/entities/TopOfHour.ts
+          npx eslint \
+            frontend/components/Stations/PlayoutControls.vue \
+            frontend/components/Stations/TopOfHour.vue \
+            frontend/components/Stations/menu.ts \
+            frontend/components/Stations/routes.ts \
+            frontend/entities/PlayoutControls.ts \
+            frontend/entities/TopOfHour.ts
+
+      - name: Validate final invariants
+        run: |
+          php -l backend/src/Radio/AutoDJ/QueueBuilder.php
+          php -l backend/src/Radio/AutoDJ/HourBoundaryPlanner.php
+          php -l backend/src/Entity/Repository/StationQueueRepository.php
+          php -l backend/src/Entity/StationQueue.php
+          php -l backend/src/Radio/AutoDJ/HourBoundaryLegalIdResolver.php
+          php -l backend/src/Entity/Migration/Version20260902030000.php
+          git diff --check
+          python3 <<'PY'
+          from pathlib import Path
+          q = Path('backend/src/Radio/AutoDJ/QueueBuilder.php').read_text()
+          p = Path('backend/src/Radio/AutoDJ/HourBoundaryPlanner.php').read_text()
+          e = Path('backend/src/Entity/StationQueue.php').read_text()
+          r = Path('backend/src/Radio/AutoDJ/HourBoundaryLegalIdResolver.php').read_text()
+          required = [
+              (q, 'allowTopOfHourFallback'),
+              (q, 'topOfHourFallbackPlaylists'),
+              (q, 'TOH backtiming exhausted fitting sources'),
+              (e, 'top_of_hour_expected_at'),
+              (r, '$queueEntry->top_of_hour_expected_at = $legalIdExpectedAt;'),
+              (p, 'hasTopOfHourLegalIdForBoundary'),
+              (p, 'resolveLegacyTopOfHourBoundary'),
+          ]
+          missing = [needle for text, needle in required if needle not in text]
+          if missing:
+              raise SystemExit(f'Missing final invariants: {missing}')
+          PY
+
+      - name: Run focused unit test
+        run: vendor/bin/codecept run Unit HourBoundaryPlannerTest --no-interaction
+
+      - name: Commit final code and remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/pr124-finalize.yml
+          git add -A
+          git commit -m "Finalize TOH boundary identity and fallback ordering"
+          git push
