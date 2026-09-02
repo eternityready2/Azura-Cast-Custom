@@ -150,10 +150,12 @@ final class ClockWheelAnnotatorTest extends Unit
         float $mediaLength = 180.0,
         ?int $hourBoundaryMaxSeconds = null,
     ): AnnotateNextSong {
-        $this->station->backend_config->fromArray([
+        $config = $this->station->backend_config;
+        $config->fromArray([
             'playout_stretch_squeeze_enabled' => $enabled,
             'playout_stretch_squeeze_max_percent' => $maxPercent,
         ]);
+        $this->station->backend_config = $config;
 
         $media = new StationMedia($this->station->media_storage_location, '/music.mp3');
         $media->title = 'Music';
