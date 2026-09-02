@@ -111,6 +111,7 @@ final class ClockWheelAnnotatorTest extends Unit
         $this->annotator->applyClockWheelStretch($event);
 
         self::assertSame(1.02, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertSame(100.0, $event->getAnnotations()['duration']);
         self::assertFalse($event->getQueue()?->hour_boundary_enforce_cap);
         self::assertSame(100.0, $event->getQueue()?->duration);
     }
@@ -126,6 +127,7 @@ final class ClockWheelAnnotatorTest extends Unit
         $this->annotator->applyClockWheelStretch($event);
 
         self::assertSame(1.02, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertSame(100.0, $event->getAnnotations()['duration']);
         self::assertFalse($event->getQueue()?->hour_boundary_enforce_cap);
     }
 
