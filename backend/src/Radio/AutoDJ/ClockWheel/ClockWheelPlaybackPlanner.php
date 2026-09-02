@@ -108,6 +108,23 @@ final class ClockWheelPlaybackPlanner
         $scheduleMode = $activeSchedule->clock_wheel_mode ?? ClockWheelScheduleMode::Flexible;
 
         if (ClockWheelSlotTypes::isMandatoryTopOfHourSlot($activeSlot->type, $activeSlot->position_seconds)) {
+            if (!$this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
+                $this->logger->info(
+                    'Clock Wheel mandatory top-of-hour ID skipped: station Top-of-Hour ID is disabled.',
+                    ['clock_wheel_id' => $wheel->id, 'slot_id' => $activeSlot->id]
+                );
+                $this->eventLogger->recordFallback(
+                    $station,
+                    $wheel,
+                    $activeSlot,
+                    $expectedPlayTime,
+                    ClockWheelFallbackReason::TopOfHourDisabled,
+                    $secondsIntoHour,
+                );
+
+                return null;
+            }
+
             return $this->resolveMandatoryLegalIdSlot(
                 $wheel,
                 $activeSlot,

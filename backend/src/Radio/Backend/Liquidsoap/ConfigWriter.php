@@ -12,7 +12,6 @@ use App\Entity\Enums\PlaylistRemoteTypes;
 use App\Entity\Enums\PlaylistSources;
 use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Enums\StationBackendPerformanceModes;
-use App\Entity\Enums\StationMediaTypes;
 use App\Entity\Station;
 use App\Entity\StationBackendConfiguration;
 use App\Entity\StationMedia;
@@ -126,24 +125,13 @@ final class ConfigWriter implements EventSubscriberInterface
             $backendConfig->live_broadcast_text
         );
 
-        $topOfHourHardTriggerEnabled = ($backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_hard_trigger_enabled) ? 'true' : 'false';
-        $topOfHourHardTriggerSeconds = self::toFloat($backendConfig->top_of_hour_hard_trigger_seconds);
-        $topOfHourHardTriggerFade = self::toFloat($backendConfig->top_of_hour_hard_trigger_fade);
-
-        $topOfHourDuckEnabled = ($backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_duck_enabled) ? 'true' : 'false';
+        $topOfHourDuckEnabled = $backendConfig->top_of_hour_duck_enabled ? 'true' : 'false';
         $topOfHourDuckAttenuation = self::toFloat($backendConfig->top_of_hour_duck_attenuation);
         $topOfHourDuckDelay = self::toFloat($backendConfig->top_of_hour_duck_delay);
 
-        // PHP booleans used for conditional code generation below.
-        $hardTriggerEnabled = $backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_hard_trigger_enabled;
-        $duckEnabled = $backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_duck_enabled;
-        $topOfHourSafetyMediaUri = $hardTriggerEnabled
-            ? $this->getTopOfHourSafetyMediaUri($station, $backendConfig)
-            : null;
+        // General interrupting-audio ducking. This is deliberately independent
+        // from the Top-of-Hour ID master switch.
+        $duckEnabled = $backendConfig->top_of_hour_duck_enabled;
 
         $fallbackPath = self::toRawString(
             $this->fallbackFile->getFallbackPathForStation($station)
@@ -186,12 +174,8 @@ final class ConfigWriter implements EventSubscriberInterface
             LIQ
         );
 
-        // Only write optional settings when their Liquidsoap features are enabled.
-        if ($hardTriggerEnabled || $duckEnabled) {
+        if ($duckEnabled) {
             $event->appendLines([
-                "settings.azuracast.top_of_hour_hard_trigger_enabled := {$topOfHourHardTriggerEnabled}",
-                "settings.azuracast.top_of_hour_hard_trigger_seconds := {$topOfHourHardTriggerSeconds}",
-                "settings.azuracast.top_of_hour_hard_trigger_fade := {$topOfHourHardTriggerFade}",
                 "settings.azuracast.top_of_hour_duck_enabled := {$topOfHourDuckEnabled}",
                 "settings.azuracast.top_of_hour_duck_attenuation := {$topOfHourDuckAttenuation}",
                 "settings.azuracast.top_of_hour_duck_delay := {$topOfHourDuckDelay}",
@@ -226,13 +210,7 @@ final class ConfigWriter implements EventSubscriberInterface
         $station = $event->getStation();
         $backendConfig = $event->getBackendConfig();
 
-        $hardTriggerEnabled = $backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_hard_trigger_enabled;
-        $duckEnabled = $backendConfig->top_of_hour_id_enabled
-            && $backendConfig->top_of_hour_duck_enabled;
-        $topOfHourSafetyMediaUri = $hardTriggerEnabled
-            ? $this->getTopOfHourSafetyMediaUri($station, $backendConfig)
-            : null;
+        $duckEnabled = $backendConfig->top_of_hour_duck_enabled;
 
         $this->writeCustomConfigurationSection($event, StationBackendConfiguration::CUSTOM_PRE_PLAYLISTS);
 
@@ -562,19 +540,7 @@ final class ConfigWriter implements EventSubscriberInterface
 
         $requestsQueueName = LiquidsoapQueues::Requests->value;
         $interruptingQueueName = LiquidsoapQueues::Interrupting->value;
-        $topOfHourQueueName = LiquidsoapQueues::TopOfHour->value;
 
-        $topOfHourFadeSeconds = self::toFloat(
-            ($backendConfig->top_of_hour_duck_delay > 0)
-                ? $backendConfig->top_of_hour_duck_delay
-                : 3.0
-        );
-
-        $topOfHourSkipDelaySeconds = self::toFloat(
-            (($backendConfig->top_of_hour_duck_delay > 0)
-                ? $backendConfig->top_of_hour_duck_delay
-                : 3.0) + 1.0
-        );
 
         if ($duckEnabled) {
             $interruptingBlock = <<<LIQ
@@ -586,21 +552,6 @@ final class ConfigWriter implements EventSubscriberInterface
             LIQ;
         }
 
-        if ($hardTriggerEnabled) {
-            $safetySourceUri = null !== $topOfHourSafetyMediaUri
-                ? self::toRawString('annotate:liq_disable_autocue="true":' . $topOfHourSafetyMediaUri)
-                : 'settings.azuracast.fallback_path()';
-
-            $hardTriggerBlock = <<<LIQ
-            top_of_hour_safety_source = single(
-                id="top_of_hour_safety",
-                {$safetySourceUri}
-            )
-            radio = azuracast.apply_top_of_hour_hard_trigger(top_of_hour_safety_source, radio)
-            LIQ;
-        } else {
-            $hardTriggerBlock = '';
-        }
 
         $event->appendBlock(
             <<< LIQ
@@ -609,7 +560,6 @@ final class ConfigWriter implements EventSubscriberInterface
 
             interrupting_queue = request.queue(id="{$interruptingQueueName}", timeout=settings.azuracast.request_timeout())
             {$interruptingBlock}
-            {$hardTriggerBlock}
             LIQ
         );
 
@@ -629,46 +579,6 @@ final class ConfigWriter implements EventSubscriberInterface
             }
         }
 
-        // Dedicated top-of-hour legal ID queue — applied LAST so it wraps
-        // every other source including remote schedule switches. The ID must
-        // outrank everything. Ducking stays on for the interrupting queue
-        // (liners/promos); the legal ID bypasses it via this separate queue
-        // so the song it replaces does not resume underneath it.
-        $event->appendBlock(
-            <<< LIQ
-            radio_before_top_of_hour = radio
-
-            def top_of_hour_retire_current_track() =
-              thread.run(
-                delay={$topOfHourSkipDelaySeconds},
-                { source.skip(radio_before_top_of_hour) }
-              )
-            end
-
-            def to_top_of_hour(old, new) =
-              top_of_hour_retire_current_track()
-              add(normalize=false, [
-                fade.out(duration={$topOfHourFadeSeconds}, old),
-                fade.in(duration={$topOfHourFadeSeconds}, new)
-              ])
-            end
-
-            def from_top_of_hour(old, new) =
-              add(normalize=false, [
-                fade.out(duration={$topOfHourFadeSeconds}, old),
-                fade.in(duration={$topOfHourFadeSeconds}, new)
-              ])
-            end
-
-            top_of_hour_queue = request.queue(id="{$topOfHourQueueName}", timeout=settings.azuracast.request_timeout())
-            radio = fallback(
-              id="top_of_hour_fallback",
-              track_sensitive = false,
-              transitions=[to_top_of_hour, from_top_of_hour],
-              [top_of_hour_queue, radio_before_top_of_hour]
-            )
-            LIQ
-        );
     }
 
     public function writeNewsBulletinConfiguration(WriteLiquidsoapConfiguration $event): void
@@ -1766,45 +1676,6 @@ LIQ;
         );
 
         return $string ?? '';
-    }
-
-    private function getTopOfHourSafetyMediaUri(
-        Station $station,
-        StationBackendConfiguration $backendConfig
-    ): ?string {
-        /** @var StationMedia[] $media */
-        $media = $this->em->createQuery(
-            <<<'DQL'
-                SELECT m FROM App\Entity\StationMedia m
-                WHERE m.storage_location = :storageLocation
-                AND m.type IN (:types)
-                ORDER BY m.id ASC
-            DQL
-        )->setParameters([
-            'storageLocation' => $station->media_storage_location,
-            'types' => StationMediaTypes::stationIdTypeValues(),
-        ])->getResult();
-
-        if ([] === $media) {
-            return null;
-        }
-
-        $maxSeconds = max(1, $backendConfig->top_of_hour_id_max_seconds);
-        $fitting = array_values(array_filter(
-            $media,
-            static fn (StationMedia $item): bool => $item->getCalculatedLength() <= $maxSeconds
-        ));
-
-        if ([] === $fitting) {
-            usort(
-                $media,
-                static fn (StationMedia $a, StationMedia $b): int =>
-                    $a->getCalculatedLength() <=> $b->getCalculatedLength()
-            );
-            $fitting = [$media[0]];
-        }
-
-        return 'media:' . $fitting[0]->path;
     }
 
     public static function toRawString(?string $value): string

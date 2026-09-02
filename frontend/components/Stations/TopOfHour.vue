@@ -14,7 +14,7 @@
                 <p class="mb-0">
                     {{
                         $gettext(
-                            'Queues a station ID at exactly :00 without interrupting the current song. During the lookahead window, music picks are filtered so long songs do not run past the hour. Tag files as ID on the Music Files page.'
+                            'Plans one station ID during minute :59 through the normal AutoDJ queue. It never interrupts or resumes a song. The scheduler prefers music that can finish before the ID window; if no safe fit exists, the song is allowed to finish rather than being cut. Tag files as ID on the Music Files page.'
                         )
                     }}
                 </p>
@@ -50,24 +50,6 @@
                             type="number"
                             class="form-control"
                             min="1"
-                            max="30"
-                        >
-                    </form-group>
-
-                    <form-group
-                        id="top_of_hour_finish_buffer_seconds"
-                        class="mb-3"
-                    >
-                        <template #label>
-                            {{ $gettext('Finish buffer (seconds before :00)') }}
-                        </template>
-
-                        <input
-                            id="top_of_hour_finish_buffer_seconds"
-                            v-model.number="form.top_of_hour_finish_buffer_seconds"
-                            type="number"
-                            class="form-control"
-                            min="0"
                             max="30"
                         >
                     </form-group>
@@ -111,81 +93,12 @@
                     <hr class="my-4">
 
                     <h3 class="h6">
-                        {{ $gettext('Hard Clock Trigger') }}
+                        {{ $gettext('Related Feature: Interrupting Audio Ducking') }}
                     </h3>
                     <p class="text-secondary small">
                         {{
                             $gettext(
-                                'Belt-and-suspenders safety net driven purely by the system clock, independent of the AutoDJ queue. If nothing was queued in time, this forces a fallback ID/announcement across the hour boundary with a smooth fade rather than a hard cut.'
-                            )
-                        }}
-                    </p>
-
-                    <form-group
-                        id="top_of_hour_hard_trigger_enabled"
-                        class="mb-3"
-                    >
-                        <template #label>
-                            {{ $gettext('Enable hard clock trigger') }}
-                        </template>
-
-                        <form-checkbox
-                            id="top_of_hour_hard_trigger_enabled"
-                            v-model="form.top_of_hour_hard_trigger_enabled"
-                        />
-                    </form-group>
-
-                    <template v-if="form.top_of_hour_hard_trigger_enabled">
-                        <form-group
-                            id="top_of_hour_hard_trigger_seconds"
-                            class="mb-3"
-                        >
-                            <template #label>
-                                {{ $gettext('Trigger window (seconds before :00)') }}
-                            </template>
-
-                            <input
-                                id="top_of_hour_hard_trigger_seconds"
-                                v-model.number="form.top_of_hour_hard_trigger_seconds"
-                                type="number"
-                                class="form-control"
-                                min="1"
-                                max="30"
-                                step="0.5"
-                                placeholder="5"
-                            >
-                        </form-group>
-
-                        <form-group
-                            id="top_of_hour_hard_trigger_fade"
-                            class="mb-3"
-                        >
-                            <template #label>
-                                {{ $gettext('Fade duration (seconds)') }}
-                            </template>
-
-                            <input
-                                id="top_of_hour_hard_trigger_fade"
-                                v-model.number="form.top_of_hour_hard_trigger_fade"
-                                type="number"
-                                class="form-control"
-                                min="0"
-                                max="10"
-                                step="0.5"
-                                placeholder="3"
-                            >
-                        </form-group>
-                    </template>
-
-                    <hr class="my-4">
-
-                    <h3 class="h6">
-                        {{ $gettext('Smart Ducking') }}
-                    </h3>
-                    <p class="text-secondary small">
-                        {{
-                            $gettext(
-                                'When enabled, legal IDs and promos lower the music bed under them instead of hard-replacing it, then smoothly bring the music back up afterward.'
+                                'This is separate from Top-of-Hour ID playback. When enabled, normal interrupting liners and promos lower the music bed under them instead of replacing it.'
                             )
                         }}
                     </p>
@@ -334,33 +247,8 @@ import {useAxios} from '~/vendor/axios.ts';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
 import {useNotify} from '~/components/Common/Toasts/useNotify.ts';
 import {onMounted, ref} from 'vue';
+import type {TopOfHourCompliance, TopOfHourSettings} from '~/entities/TopOfHour.ts';
 
-interface TopOfHourCompliance {
-    tolerance_seconds: number;
-    hours_with_legal_id: number;
-    on_time_count: number;
-    late_count: number;
-    compliance_percent: number | null;
-    fallback_count: number;
-}
-
-interface TopOfHourSettings {
-    top_of_hour_id_enabled: boolean;
-    top_of_hour_id_mode: string;
-    top_of_hour_lookahead_minutes: number;
-    top_of_hour_compliance_tolerance_seconds: number;
-    top_of_hour_finish_buffer_seconds: number;
-    top_of_hour_id_max_seconds: number;
-    top_of_hour_hard_trigger_enabled: boolean;
-    top_of_hour_hard_trigger_seconds: number;
-    top_of_hour_hard_trigger_fade: number;
-    top_of_hour_duck_enabled: boolean;
-    top_of_hour_duck_attenuation: number;
-    top_of_hour_duck_delay: number;
-    id_media_count?: number;
-    legal_id_media_count: number;
-    compliance?: TopOfHourCompliance;
-}
 
 const {axios} = useAxios();
 const {getStationApiUrl} = useApiRouter();
@@ -375,14 +263,9 @@ const compliance = ref<TopOfHourCompliance | null>(null);
 
 const form = ref({
     top_of_hour_id_enabled: false,
-    top_of_hour_id_mode: 'strict',
     top_of_hour_lookahead_minutes: 10,
     top_of_hour_compliance_tolerance_seconds: 10,
-    top_of_hour_finish_buffer_seconds: 15,
     top_of_hour_id_max_seconds: 60,
-    top_of_hour_hard_trigger_enabled: false,
-    top_of_hour_hard_trigger_seconds: 3,
-    top_of_hour_hard_trigger_fade: 3,
     top_of_hour_duck_enabled: false,
     top_of_hour_duck_attenuation: 0.2,
     top_of_hour_duck_delay: 3,
@@ -394,14 +277,9 @@ const loadSettings = async () => {
         const {data} = await axios.get<TopOfHourSettings>(apiUrl.value);
         form.value = {
             top_of_hour_id_enabled: data.top_of_hour_id_enabled ?? false,
-            top_of_hour_id_mode: data.top_of_hour_id_mode ?? 'strict',
             top_of_hour_lookahead_minutes: data.top_of_hour_lookahead_minutes ?? 10,
             top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds ?? 10,
-            top_of_hour_finish_buffer_seconds: data.top_of_hour_finish_buffer_seconds ?? 15,
             top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds ?? 60,
-            top_of_hour_hard_trigger_enabled: data.top_of_hour_hard_trigger_enabled ?? false,
-            top_of_hour_hard_trigger_seconds: data.top_of_hour_hard_trigger_seconds ?? 5,
-            top_of_hour_hard_trigger_fade: data.top_of_hour_hard_trigger_fade ?? 3,
             top_of_hour_duck_enabled: data.top_of_hour_duck_enabled ?? false,
             top_of_hour_duck_attenuation: data.top_of_hour_duck_attenuation ?? 0.2,
             top_of_hour_duck_delay: data.top_of_hour_duck_delay ?? 3,

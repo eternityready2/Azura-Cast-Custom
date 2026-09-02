@@ -102,15 +102,8 @@ final class HourBoundaryLegalIdResolver
         }
 
         $queueEntry = StationQueue::fromMedia($station, $media);
-        $maxPlaySeconds = (int)floor($maxDuration);
         $queueEntry->top_of_hour_legal_id = true;
         $queueEntry->clock_wheel_legal_id_substitute = $usedSubstitute;
-        $queueEntry->hour_boundary_enforce_cap = true;
-        $queueEntry->hour_boundary_max_play_seconds = $maxPlaySeconds;
-        $queueEntry->duration = min(
-            $queueEntry->duration ?? (float)$maxPlaySeconds,
-            (float)$maxPlaySeconds
-        );
         $this->em->persist($queueEntry);
 
         $this->eventLogger->recordTopOfHourLegalIdQueued(

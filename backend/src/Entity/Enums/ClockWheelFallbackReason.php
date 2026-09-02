@@ -20,6 +20,8 @@ enum ClockWheelFallbackReason: string
     case DuplicatePreventionEmpty = 'duplicate_prevention_empty';
     case MediaNotFound = 'media_not_found';
     case AutodjFallback = 'autodj_fallback';
+    /** Station-wide Top-of-Hour ID is disabled; mandatory :00 wheel ID was skipped. */
+    case TopOfHourDisabled = 'top_of_hour_disabled';
     /** No legal_id media available; a station promo was substituted. */
     case LegalIdMissingUsedPromo = 'legal_id_missing_used_promo';
     /** Hard anchor slot could not play at its scheduled position. */
