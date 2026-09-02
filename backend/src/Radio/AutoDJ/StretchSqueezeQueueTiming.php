@@ -127,13 +127,19 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
             && $ratio >= $minimumRatio
             && $ratio <= $maximumRatio
         ) {
-            $queueRow->duration = $calculatedLength / $ratio;
-            return;
+            $ratio = round($ratio, 4);
+            if (abs($ratio - 1.0) >= 0.0001) {
+                // Liquidsoap receives four decimal places. Freeze both the stored
+                // ratio and projected duration to that same precision so queue
+                // timing cannot differ from actual playout by rounding drift.
+                $queueRow->clock_wheel_stretch_ratio = $ratio;
+                $queueRow->duration = $calculatedLength / $ratio;
+                return;
+            }
         }
 
-        // Disabled or outside the operator's configured safety limit. Clearing the
-        // stored ratio freezes this row to natural playback even if the station
-        // setting changes before the row is handed to Liquidsoap.
+        // Disabled, outside the operator's safety limit, or effectively 1.0 after
+        // serialization precision. Freeze the row to natural playback.
         $queueRow->clock_wheel_stretch_ratio = null;
         $queueRow->duration = $calculatedLength;
     }
