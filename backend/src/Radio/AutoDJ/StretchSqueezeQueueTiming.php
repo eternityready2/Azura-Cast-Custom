@@ -140,12 +140,14 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
 
     private function getTimingTarget(StationQueue $queueRow): ?float
     {
+        $targets = [];
+
         if (
             $queueRow->clock_wheel_enforce_cap
             && null !== $queueRow->clock_wheel_max_play_seconds
             && $queueRow->clock_wheel_max_play_seconds > 0
         ) {
-            return (float)$queueRow->clock_wheel_max_play_seconds;
+            $targets[] = (float)$queueRow->clock_wheel_max_play_seconds;
         }
 
         if (
@@ -153,7 +155,7 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
             && null !== $queueRow->hour_boundary_max_play_seconds
             && $queueRow->hour_boundary_max_play_seconds > 0
         ) {
-            return (float)$queueRow->hour_boundary_max_play_seconds;
+            $targets[] = (float)$queueRow->hour_boundary_max_play_seconds;
         }
 
         if (
@@ -161,9 +163,12 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
             && null !== $queueRow->duration
             && $queueRow->duration > 0
         ) {
-            return (float)$queueRow->duration;
+            $targets[] = (float)$queueRow->duration;
         }
 
-        return null;
+        // More than one independent protection can apply to the same row. The
+        // earliest boundary must always win; using a fixed precedence here can
+        // otherwise let a later scheduled cap hide a tighter top-of-hour target.
+        return [] === $targets ? null : min($targets);
     }
 }
