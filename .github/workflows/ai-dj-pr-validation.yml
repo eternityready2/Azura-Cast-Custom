@@ -13,6 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Mirror AzuraCast runtime path
+        run: |
+          sudo mkdir -p /var/azuracast
+          sudo ln -s "$GITHUB_WORKSPACE" /var/azuracast/www
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
