@@ -16,9 +16,9 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * `clock_wheel_stretch_ratio` field to any row that can safely be backtimed. The
  * playback annotator consumes that ratio later, but Queue::buildQueue() advances
  * its projected cursor from StationQueue::duration immediately after BuildQueue
- * dispatch. Adjust the duration here, after selectors/validators have finished,
- * so ordinary rotation, Smart Blocks, Clock Wheels and the Linear Log all plan
- * subsequent rows from the same duration Liquidsoap will actually play.
+ * dispatch. Adjust the duration here after selectors and the DMCA validator have
+ * finished, so ordinary rotation, Smart Blocks, Clock Wheels and the Linear Log
+ * all plan subsequent rows from the same duration Liquidsoap will actually play.
  */
 final class StretchSqueezeQueueTiming implements EventSubscriberInterface
 {
@@ -29,7 +29,8 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            BuildQueue::class => ['applyProjectedDuration', -1],
+            // DMCA validation runs at -5 and may clear the selected row.
+            BuildQueue::class => ['applyProjectedDuration', -6],
         ];
     }
 
