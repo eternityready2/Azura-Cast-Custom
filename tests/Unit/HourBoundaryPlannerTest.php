@@ -7,10 +7,10 @@ namespace Unit;
 use App\Doctrine\ReloadableEntityManagerInterface;
 use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Repository\StationQueueRepository;
+use App\Entity\Song;
 use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationQueue;
-use App\Entity\Song;
 use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Tests\Module;
 use Carbon\CarbonImmutable;
@@ -107,10 +107,54 @@ final class HourBoundaryPlannerTest extends Unit
         $this->testsModule->em->flush();
 
         $expectedPlayTime = CarbonImmutable::parse('2026-05-26 09:55:00', 'UTC');
+        $preferredDuration = $this->planner->preferredMusicDurationBeforeTopOfHour(
+            $this->station,
+            $expectedPlayTime,
+        );
         $maxDuration = $this->planner->maxMusicDurationBeforeTopOfHour($this->station, $expectedPlayTime);
 
-        // Window opens at 09:58:55, 235 seconds after 09:55:00.
-        self::assertSame(235.0, $maxDuration);
+        self::assertSame(240.0, $preferredDuration); // 09:59:00
+        self::assertSame(310.0, $maxDuration); // through 10:00:10 grace
+    }
+
+    public function testTopOfHourExpectedPlayAtUsesConfiguredTolerance(): void
+    {
+        $backendConfig = $this->station->backend_config;
+        $backendConfig->top_of_hour_compliance_tolerance_seconds = 60;
+        $this->station->backend_config = $backendConfig;
+        $this->testsModule->em->persist($this->station);
+        $this->testsModule->em->flush();
+
+        $withinGrace = $this->planner->resolveTopOfHourExpectedPlayAt(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:35', 'UTC'),
+        );
+        $afterGrace = $this->planner->resolveTopOfHourExpectedPlayAt(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:01:01', 'UTC'),
+        );
+
+        self::assertSame('2026-05-26 10:00:00', $withinGrace->format('Y-m-d H:i:s'));
+        self::assertSame('2026-05-26 11:00:00', $afterGrace->format('Y-m-d H:i:s'));
+    }
+
+    public function testTopOfHourIdDueIncludesMaximumToleranceEndpoint(): void
+    {
+        $backendConfig = $this->station->backend_config;
+        $backendConfig->top_of_hour_id_enabled = true;
+        $backendConfig->top_of_hour_compliance_tolerance_seconds = 60;
+        $this->station->backend_config = $backendConfig;
+        $this->testsModule->em->persist($this->station);
+        $this->testsModule->em->flush();
+
+        self::assertTrue($this->planner->isTopOfHourIdDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:01:00', 'UTC'),
+        ));
+        self::assertFalse($this->planner->isTopOfHourIdDue(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:01:01', 'UTC'),
+        ));
     }
 
     public function testMusicCapTargetsMinuteFiftyNine(): void
@@ -123,10 +167,14 @@ final class HourBoundaryPlannerTest extends Unit
         $this->testsModule->em->flush();
 
         $expectedPlayTime = CarbonImmutable::parse('2026-05-26 09:58:00', 'UTC');
+        $preferredDuration = $this->planner->preferredMusicDurationBeforeTopOfHour(
+            $this->station,
+            $expectedPlayTime,
+        );
         $maxDuration = $this->planner->maxMusicDurationBeforeTopOfHour($this->station, $expectedPlayTime);
 
-        // Window opens at 09:58:55, 55 seconds after 09:58:00.
-        self::assertSame(55.0, $maxDuration);
+        self::assertSame(60.0, $preferredDuration); // target 09:59:00
+        self::assertSame(130.0, $maxDuration); // through 10:00:10 grace
     }
 
     public function testTopOfHourIdUsesMinuteFiftyNineWindowWithSmallGrace(): void
@@ -140,11 +188,11 @@ final class HourBoundaryPlannerTest extends Unit
 
         self::assertFalse($this->planner->isTopOfHourIdDue(
             $this->station,
-            CarbonImmutable::parse('2026-05-26 09:58:54', 'UTC'),
+            CarbonImmutable::parse('2026-05-26 09:58:29', 'UTC'),
         ));
         self::assertTrue($this->planner->isTopOfHourIdDue(
             $this->station,
-            CarbonImmutable::parse('2026-05-26 09:58:55', 'UTC'),
+            CarbonImmutable::parse('2026-05-26 09:58:30', 'UTC'),
         ));
         self::assertTrue($this->planner->isTopOfHourIdDue(
             $this->station,

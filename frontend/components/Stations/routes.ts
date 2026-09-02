@@ -67,6 +67,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:top_of_hour'
                 },
                 {
+                    path: 'playout-controls',
+                    component: () => import('~/components/Stations/PlayoutControls.vue'),
+                    name: 'stations:playout_controls'
+                },
+                {
                     path: 'dmca_compliance',
                     component: () => import('~/components/Stations/DmcaCompliance.vue'),
                     name: 'stations:dmca_compliance'

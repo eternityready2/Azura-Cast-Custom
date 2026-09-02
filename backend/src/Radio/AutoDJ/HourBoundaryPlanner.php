@@ -129,7 +129,7 @@ final class HourBoundaryPlanner
         $hourStart = $local->startOf('hour');
         $secondsIntoHour = $local->getTimestamp() - $hourStart->getTimestamp();
 
-        if ($secondsIntoHour > 30) {
+        if ($secondsIntoHour > $this->getComplianceToleranceSeconds($station)) {
             return $hourStart->addHour()->toDateTimeImmutable();
         }
 
@@ -176,16 +176,44 @@ final class HourBoundaryPlanner
     }
 
     /**
-     * Max music duration before the legal-ID window begins.
+     * Preferred final-music duration before the legal ID.
      *
-     * The ID window opens five seconds before minute :59. Selection tries to
-     * land there naturally; if no media can fit, callers may let the current
-     * song finish rather than truncating listener-facing audio.
+     * The target is exactly the start of minute :59. QueueBuilder uses this as
+     * a scoring target rather than forcing every song to end before :59.
+     */
+    public function preferredMusicDurationBeforeTopOfHour(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): ?float {
+        $window = $this->resolveMusicBacktimeWindow($station, $expectedPlayTime);
+
+        return $window['preferred_seconds'] ?? null;
+    }
+
+    /**
+     * Latest safe duration for a final music selection before the legal ID.
+     *
+     * Music may finish during minute :59 or inside the configured post-:00
+     * compliance grace. This prevents the previous failure mode where a song
+     * ending at :58:34 left a tiny unfillable gap, causing AutoDJ to launch a
+     * full song that carried past the hour and skipped the ID entirely.
      */
     public function maxMusicDurationBeforeTopOfHour(
         Station $station,
         DateTimeImmutable $expectedPlayTime,
     ): ?float {
+        $window = $this->resolveMusicBacktimeWindow($station, $expectedPlayTime);
+
+        return $window['latest_seconds'] ?? null;
+    }
+
+    /**
+     * @return array{preferred_seconds: float, latest_seconds: float}|null
+     */
+    private function resolveMusicBacktimeWindow(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+    ): ?array {
         if (!$this->isTopOfHourProtectionEnabled($station)) {
             return null;
         }
@@ -193,27 +221,38 @@ final class HourBoundaryPlanner
         $tz = $station->getTimezoneObject();
         $local = CarbonImmutable::instance($expectedPlayTime)->setTimezone($tz);
         $nextTop = CarbonImmutable::instance($this->getNextTopOfHour($expectedPlayTime, $tz));
-        $windowStart = $nextTop->subMinute()->subSeconds(self::ID_EARLY_ALLOWANCE_SECONDS);
-        $secondsUntilWindow = $windowStart->getTimestamp() - $local->getTimestamp();
+        $preferredStart = $nextTop->subMinute();
+        $latestStart = $nextTop->addSeconds($this->getComplianceToleranceSeconds($station));
+
+        $preferredSeconds = $preferredStart->getTimestamp() - $local->getTimestamp();
+        $latestSeconds = $latestStart->getTimestamp() - $local->getTimestamp();
         $lookaheadSeconds = $this->getLookaheadMinutes($station) * 60;
 
-        if ($secondsUntilWindow <= 0 || $secondsUntilWindow > $lookaheadSeconds) {
+        if (
+            $preferredSeconds <= 0
+            || $preferredSeconds > $lookaheadSeconds
+            || $latestSeconds < self::MIN_USABLE_CAP_SECONDS
+        ) {
             return null;
         }
 
-        return $secondsUntilWindow >= self::MIN_USABLE_CAP_SECONDS
-            ? (float)$secondsUntilWindow
-            : null;
+        return [
+            'preferred_seconds' => (float)$preferredSeconds,
+            'latest_seconds' => (float)$latestSeconds,
+        ];
     }
 
-    private const int ID_EARLY_ALLOWANCE_SECONDS = 5;
+    // Small last-resort early window. Normal backtiming should land the final
+    // music inside minute :59; this only prevents an orphaned few seconds from
+    // causing a full song to be launched across the boundary.
+    private const int ID_EARLY_ALLOWANCE_SECONDS = 30;
 
     private const float MIN_USABLE_CAP_SECONDS = 15.0;
 
     /**
      * True when AutoDJ should queue the mandatory legal ID for this projected slot.
      *
-     * The normal target is minute :59, with a five-second early allowance to
+     * The normal target is minute :59, with a 30-second early allowance to
      * absorb crossfade/prefetch drift. A small post-:00 grace window uses the
      * station's compliance tolerance, but still queues normally and never
      * interrupts a song already on air.
@@ -231,12 +270,13 @@ final class HourBoundaryPlanner
         $hourStart = $local->startOf('hour');
         $minute = (int)$local->format('i');
         $second = (int)$local->format('s');
+        $secondsIntoHour = $local->getTimestamp() - $hourStart->getTimestamp();
 
         if ($minute === 58 && $second >= 60 - self::ID_EARLY_ALLOWANCE_SECONDS) {
             $targetTop = $hourStart->addHour();
         } elseif ($minute === 59) {
             $targetTop = $hourStart->addHour();
-        } elseif ($minute === 0 && $second <= $this->getComplianceToleranceSeconds($station)) {
+        } elseif ($secondsIntoHour <= $this->getComplianceToleranceSeconds($station)) {
             $targetTop = $hourStart;
         } else {
             return false;

@@ -16,6 +16,7 @@ use App\Radio\Enums\LiquidsoapQueues;
 use App\Utilities\Time;
 use Monolog\LogRecord;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Throwable;
 
 final class QueueInterruptingTracks extends AbstractTask
 {
@@ -165,11 +166,15 @@ final class QueueInterruptingTracks extends AbstractTask
      */
     private function enforceScheduledBoundary(Station $station, Liquidsoap $backend): void
     {
+        if (!$station->backend_config->top_of_hour_hard_trigger_enabled) {
+            return;
+        }
+
         $now = Time::nowUtc();
 
         try {
             $secondsToScheduled = $this->scheduler->secondsUntilNextScheduledStart($station, $now);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error(
                 'Scheduled boundary enforcement: lookup failed, skipping this check for this tick.',
                 ['exception' => $e->getMessage()]
@@ -181,12 +186,13 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // Only act inside a short pre-boundary window. Wide enough to
-        // guarantee at least one once-a-minute tick lands inside it
-        // regardless of exact cron alignment, narrow enough that this never
-        // fires as an early/aggressive cutoff far ahead of the actual
-        // boundary.
-        if ($secondsToScheduled > 90) {
+        // The task runs once per minute, so a sub-minute trigger can be missed
+        // depending on cron alignment. The configurable window is therefore
+        // clamped to 60-180 seconds in StationBackendConfiguration.
+        $triggerWindowSeconds = (int)round(
+            $station->backend_config->top_of_hour_hard_trigger_seconds
+        );
+        if ($secondsToScheduled > $triggerWindowSeconds) {
             return;
         }
 

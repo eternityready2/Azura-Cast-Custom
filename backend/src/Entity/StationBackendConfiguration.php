@@ -149,34 +149,37 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         }
     }
 
-    // Liquidsoap wall-clock safety trigger for top-of-hour station IDs.
+    // Legacy storage keys retained for compatibility. These now configure
+    // station-wide Scheduled Boundary Protection, not Top-of-Hour ID playback.
     #[OA\Property]
     public bool $top_of_hour_hard_trigger_enabled = false {
         set(bool|null $value) => Types::bool($value);
     }
 
-    protected const float DEFAULT_HARD_TRIGGER_SECONDS = 3.0;
+    protected const float DEFAULT_HARD_TRIGGER_SECONDS = 90.0;
 
     #[OA\Property]
     public float $top_of_hour_hard_trigger_seconds = self::DEFAULT_HARD_TRIGGER_SECONDS {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_SECONDS);
-            $this->top_of_hour_hard_trigger_seconds = max(1.0, min($floatVal, 30.0));
+  $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_SECONDS);
+  $this->top_of_hour_hard_trigger_seconds = max(60.0, min($floatVal, 180.0));
         }
     }
 
+    // Legacy TOH fade value retained in stored station configuration. Scheduled
+    // Boundary Protection uses the station's normal crossfade transition instead.
     protected const float DEFAULT_HARD_TRIGGER_FADE = 3.0;
 
     #[OA\Property]
     public float $top_of_hour_hard_trigger_fade = self::DEFAULT_HARD_TRIGGER_FADE {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_FADE);
-            $this->top_of_hour_hard_trigger_fade = max(0.0, min($floatVal, 10.0));
+  $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_FADE);
+  $this->top_of_hour_hard_trigger_fade = max(0.0, min($floatVal, 10.0));
         }
     }
 
-    // Smart ducking (Liquidsoap smooth_add) for the interrupting queue --
-    // legal IDs/promos lower the music bed instead of hard-replacing it.
+    // Legacy storage names retained for compatibility. These values now control
+    // general interrupting-audio ducking and are independent of Top-of-Hour ID.
     #[OA\Property]
     public bool $top_of_hour_duck_enabled = false {
         set(bool|null $value) => Types::bool($value);
@@ -187,8 +190,8 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     #[OA\Property]
     public float $top_of_hour_duck_attenuation = self::DEFAULT_DUCK_ATTENUATION {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_DUCK_ATTENUATION);
-            $this->top_of_hour_duck_attenuation = max(0.0, min($floatVal, 1.0));
+  $floatVal = Types::float($value, self::DEFAULT_DUCK_ATTENUATION);
+  $this->top_of_hour_duck_attenuation = max(0.0, min($floatVal, 1.0));
         }
     }
 
@@ -197,8 +200,8 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     #[OA\Property]
     public float $top_of_hour_duck_delay = self::DEFAULT_DUCK_DELAY {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_DUCK_DELAY);
-            $this->top_of_hour_duck_delay = max(0.5, min($floatVal, 15.0));
+  $floatVal = Types::float($value, self::DEFAULT_DUCK_DELAY);
+  $this->top_of_hour_duck_delay = max(0.5, min($floatVal, 15.0));
         }
     }
 

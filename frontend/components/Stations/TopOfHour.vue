@@ -14,7 +14,7 @@
                 <p class="mb-0">
                     {{
                         $gettext(
-                            'Plans one station ID during minute :59 through the normal AutoDJ queue. It never interrupts or resumes a song. The scheduler prefers music that can finish before the ID window; if no safe fit exists, the song is allowed to finish rather than being cut. Tag files as ID on the Music Files page.'
+                            'Plans one station ID around minute :59 through the normal AutoDJ queue. It never interrupts or resumes a song. During lookahead, AutoDJ backtimes music toward the :59 target and can use the configured late tolerance if a song lands slightly after the hour.'
                         )
                     }}
                 </p>
@@ -90,74 +90,9 @@
                         >
                     </form-group>
 
-                    <hr class="my-4">
-
-                    <h3 class="h6">
-                        {{ $gettext('Related Feature: Interrupting Audio Ducking') }}
-                    </h3>
-                    <p class="text-secondary small">
-                        {{
-                            $gettext(
-                                'This is separate from Top-of-Hour ID playback. When enabled, normal interrupting liners and promos lower the music bed under them instead of replacing it.'
-                            )
-                        }}
+                    <p class="text-secondary small mb-3">
+                        {{ $gettext('Interrupting ducking and strict scheduled-boundary controls are now managed on the Playout Controls page.') }}
                     </p>
-
-                    <form-group
-                        id="top_of_hour_duck_enabled"
-                        class="mb-3"
-                    >
-                        <template #label>
-                            {{ $gettext('Enable smart ducking') }}
-                        </template>
-
-                        <form-checkbox
-                            id="top_of_hour_duck_enabled"
-                            v-model="form.top_of_hour_duck_enabled"
-                        />
-                    </form-group>
-
-                    <template v-if="form.top_of_hour_duck_enabled">
-                        <form-group
-                            id="top_of_hour_duck_attenuation"
-                            class="mb-3"
-                        >
-                            <template #label>
-                                {{ $gettext('Music bed level while ducked (0 = silent, 1 = full volume)') }}
-                            </template>
-
-                            <input
-                                id="top_of_hour_duck_attenuation"
-                                v-model.number="form.top_of_hour_duck_attenuation"
-                                type="number"
-                                class="form-control"
-                                min="0"
-                                max="1"
-                                step="0.05"
-                                placeholder="0.2"
-                            >
-                        </form-group>
-
-                        <form-group
-                            id="top_of_hour_duck_delay"
-                            class="mb-3"
-                        >
-                            <template #label>
-                                {{ $gettext('Ducking fade time (seconds)') }}
-                            </template>
-
-                            <input
-                                id="top_of_hour_duck_delay"
-                                v-model.number="form.top_of_hour_duck_delay"
-                                type="number"
-                                class="form-control"
-                                min="0.5"
-                                max="15"
-                                step="0.5"
-                                placeholder="3"
-                            >
-                        </form-group>
-                    </template>
 
                     <p class="text-secondary mb-3">
                         {{
@@ -249,7 +184,6 @@ import {useNotify} from '~/components/Common/Toasts/useNotify.ts';
 import {onMounted, ref} from 'vue';
 import type {TopOfHourCompliance, TopOfHourSettings} from '~/entities/TopOfHour.ts';
 
-
 const {axios} = useAxios();
 const {getStationApiUrl} = useApiRouter();
 const {notifySuccess, notifyError} = useNotify();
@@ -266,9 +200,6 @@ const form = ref({
     top_of_hour_lookahead_minutes: 10,
     top_of_hour_compliance_tolerance_seconds: 10,
     top_of_hour_id_max_seconds: 60,
-    top_of_hour_duck_enabled: false,
-    top_of_hour_duck_attenuation: 0.2,
-    top_of_hour_duck_delay: 3,
 });
 
 const loadSettings = async () => {
@@ -276,13 +207,10 @@ const loadSettings = async () => {
     try {
         const {data} = await axios.get<TopOfHourSettings>(apiUrl.value);
         form.value = {
-            top_of_hour_id_enabled: data.top_of_hour_id_enabled ?? false,
-            top_of_hour_lookahead_minutes: data.top_of_hour_lookahead_minutes ?? 10,
-            top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds ?? 10,
-            top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds ?? 60,
-            top_of_hour_duck_enabled: data.top_of_hour_duck_enabled ?? false,
-            top_of_hour_duck_attenuation: data.top_of_hour_duck_attenuation ?? 0.2,
-            top_of_hour_duck_delay: data.top_of_hour_duck_delay ?? 3,
+  top_of_hour_id_enabled: data.top_of_hour_id_enabled ?? false,
+  top_of_hour_lookahead_minutes: data.top_of_hour_lookahead_minutes ?? 10,
+  top_of_hour_compliance_tolerance_seconds: data.top_of_hour_compliance_tolerance_seconds ?? 10,
+  top_of_hour_id_max_seconds: data.top_of_hour_id_max_seconds ?? 60,
         };
         legalIdMediaCount.value = data.id_media_count ?? data.legal_id_media_count ?? 0;
         compliance.value = data.compliance ?? null;

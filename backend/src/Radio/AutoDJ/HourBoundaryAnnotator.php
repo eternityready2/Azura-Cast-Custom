@@ -13,6 +13,7 @@ use App\Event\Radio\AnnotateNextSong;
 use App\Radio\AutoDJ\Scheduler;
 use App\Utilities\Time;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Throwable;
 
 /**
  * Applies station-wide hour-boundary playback annotations independently of Clock Wheels.
@@ -116,28 +117,28 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
 
         $secondsToScheduled = null;
 
-        try {
-            $secondsToScheduled = $this->scheduler->secondsUntilNextScheduledStart(
-                $station,
-                $now,
-            );
+        if ($station->backend_config->top_of_hour_hard_trigger_enabled) {
+            try {
+                $secondsToScheduled = $this->scheduler->secondsUntilNextScheduledStart(
+                    $station,
+                    $now,
+                );
 
-            if (null !== $secondsToScheduled && $secondsToScheduled > 0) {
-                $scheduledMax = (float)$secondsToScheduled;
-                $liveMaxDuration = (null === $liveMaxDuration)
-                    ? $scheduledMax
-                    : min($liveMaxDuration, $scheduledMax);
+                if (null !== $secondsToScheduled && $secondsToScheduled > 0) {
+                    $scheduledMax = (float)$secondsToScheduled;
+                    $liveMaxDuration = (null === $liveMaxDuration)
+                        ? $scheduledMax
+                        : min($liveMaxDuration, $scheduledMax);
+                }
+            } catch (Throwable $e) {
+                $this->logger->error(
+                    'TOH safety net: scheduled-boundary lookup failed; ignoring it for this track.',
+                    [
+                        'exception' => $e->getMessage(),
+                        'media' => $media->title,
+                    ]
+                );
             }
-        } catch (\Throwable $e) {
-            // Previously swallowed silently -- logged now so a lookup failure
-            // is visible instead of just quietly producing no cap.
-            $this->logger->error(
-                'TOH safety net: secondsUntilNextScheduledStart() threw, scheduled boundary ignored for this track.',
-                [
-                    'exception' => $e->getMessage(),
-                    'media' => $media->title,
-                ]
-            );
         }
 
         $this->logger->debug(
@@ -278,6 +279,19 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
             return;
         }
 
+        $station = $event->getStation();
+        if (!$station instanceof Station) {
+            return;
+        }
+
+        $isTopOfHourCap = $queue->top_of_hour_pre_id_fade
+            || $queue->top_of_hour_legal_id
+            || StationMediaTypes::isStationId($media->type);
+
+        if (!$isTopOfHourCap && !$station->backend_config->top_of_hour_hard_trigger_enabled) {
+            return;
+        }
+
         $cueIn = 0.0;
         $existing = $event->getAnnotations();
         if (isset($existing['autocue_cue_in'])) {
@@ -353,4 +367,3 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         ]);
     }
 }
-
