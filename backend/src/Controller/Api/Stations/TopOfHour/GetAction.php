@@ -66,14 +66,9 @@ final class GetAction implements SingleActionInterface
 
         return $response->withJson([
             'top_of_hour_id_enabled' => $backendConfig->top_of_hour_id_enabled,
-            'top_of_hour_id_mode' => $backendConfig->top_of_hour_id_mode,
             'top_of_hour_lookahead_minutes' => $backendConfig->top_of_hour_lookahead_minutes,
             'top_of_hour_compliance_tolerance_seconds' => $backendConfig->top_of_hour_compliance_tolerance_seconds,
-            'top_of_hour_finish_buffer_seconds' => $backendConfig->top_of_hour_finish_buffer_seconds,
             'top_of_hour_id_max_seconds' => $backendConfig->top_of_hour_id_max_seconds,
-            'top_of_hour_hard_trigger_enabled' => $backendConfig->top_of_hour_hard_trigger_enabled,
-            'top_of_hour_hard_trigger_seconds' => $backendConfig->top_of_hour_hard_trigger_seconds,
-            'top_of_hour_hard_trigger_fade' => $backendConfig->top_of_hour_hard_trigger_fade,
             'top_of_hour_duck_enabled' => $backendConfig->top_of_hour_duck_enabled,
             'top_of_hour_duck_attenuation' => $backendConfig->top_of_hour_duck_attenuation,
             'top_of_hour_duck_delay' => $backendConfig->top_of_hour_duck_delay,
@@ -86,7 +81,6 @@ final class GetAction implements SingleActionInterface
             ),
             'defaults' => [
                 'lookahead_minutes' => HourBoundaryPlanner::DEFAULT_LOOKAHEAD_MINUTES,
-                'finish_buffer_seconds' => HourBoundaryPlanner::DEFAULT_FINISH_BUFFER_SECONDS,
                 'compliance_tolerance_seconds' => HourBoundaryPlanner::DEFAULT_COMPLIANCE_TOLERANCE_SECONDS,
                 'id_max_seconds' => HourBoundaryPlanner::DEFAULT_ID_MAX_SECONDS,
             ],

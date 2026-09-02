@@ -41,14 +41,9 @@ final class PutAction implements SingleActionInterface
     /** @var array<int, string> */
     private const array VALID_FIELDS = [
         'top_of_hour_id_enabled',
-        'top_of_hour_id_mode',
         'top_of_hour_lookahead_minutes',
         'top_of_hour_compliance_tolerance_seconds',
-        'top_of_hour_finish_buffer_seconds',
         'top_of_hour_id_max_seconds',
-        'top_of_hour_hard_trigger_enabled',
-        'top_of_hour_hard_trigger_seconds',
-        'top_of_hour_hard_trigger_fade',
         'top_of_hour_duck_enabled',
         'top_of_hour_duck_attenuation',
         'top_of_hour_duck_delay',
@@ -101,17 +96,6 @@ final class PutAction implements SingleActionInterface
             new Range(
                 min: HourBoundaryPlanner::MIN_COMPLIANCE_TOLERANCE_SECONDS,
                 max: HourBoundaryPlanner::MAX_COMPLIANCE_TOLERANCE_SECONDS,
-            ),
-        ]);
-
-        if (count($errors) > 0) {
-            throw ValidationException::fromValidationErrors($errors);
-        }
-
-        $errors = $this->validator->validate($backendConfig->top_of_hour_finish_buffer_seconds, [
-            new Range(
-                min: HourBoundaryPlanner::MIN_FINISH_BUFFER_SECONDS,
-                max: HourBoundaryPlanner::MAX_FINISH_BUFFER_SECONDS,
             ),
         ]);
 

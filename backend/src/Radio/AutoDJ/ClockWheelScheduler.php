@@ -55,6 +55,10 @@ final class ClockWheelScheduler implements EventSubscriberInterface
 
     public function buildFromClockWheel(BuildQueue $event): void
     {
+        if ($event->isInterrupting()) {
+            return;
+        }
+
         if (!empty($event->getNextSongs())) {
             return;
         }

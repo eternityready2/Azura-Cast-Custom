@@ -570,16 +570,14 @@ final class QueueBuilder implements EventSubscriberInterface
         );
 
         if (null !== $topOfHourMaxDuration && $mediaToPlay->getCalculatedLength() > $topOfHourMaxDuration) {
-            $cappedSeconds = (int)floor($topOfHourMaxDuration);
-
-            $fadeOutSeconds = min(
-                $playlist->station->backend_config->getCrossfadeDuration(),
-                (float)$cappedSeconds
-            );
-
-            $stationQueueEntry->top_of_hour_pre_id_fade = true;
-            $stationQueueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
-            $stationQueueEntry->duration = (float)$cappedSeconds;
+            // Never truncate a listener-facing song for a station ID. Selection above
+            // tries to find a fitting track; if none exists, preserve the full song and
+            // accept a late compliance event instead of cutting/resuming programme audio.
+            $this->logger->warning('Top-of-hour protection: no safe-fitting music track; allowing full track to finish.', [
+                'media_id' => $mediaToPlay->id,
+                'track_duration' => $mediaToPlay->getCalculatedLength(),
+                'available_seconds' => $topOfHourMaxDuration,
+            ]);
         } elseif (null !== $topOfHourMaxDuration) {
             $stretchRatio = $this->stretchCalculator->calculate(
                 $mediaToPlay->getCalculatedLength(),
@@ -739,7 +737,7 @@ final class QueueBuilder implements EventSubscriberInterface
         }
 
         $this->logger->warning(
-            'Hour boundary: NO track fits before top of hour (check finish buffer / ID max seconds vs shortest track length). Falling back to shortest non-recent track.',
+            'Top-of-hour protection: no track fits the reserved window; using the shortest safe choice without truncation.',
             [
                 'playlist_id' => $playlist->id,
                 'max_duration_seconds' => $maxDuration,
