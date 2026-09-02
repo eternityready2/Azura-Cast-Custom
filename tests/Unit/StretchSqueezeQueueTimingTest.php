@@ -33,6 +33,19 @@ final class StretchSqueezeQueueTimingTest extends Unit
         self::assertEqualsWithDelta(187.5, (float)$queue->duration, 0.001);
     }
 
+    public function testOrdinaryRatioUsesSerializedPrecisionForProjectedDuration(): void
+    {
+        [$event, $queue] = $this->makeEvent(
+            ratio: 58 / 60,
+            mediaLength: 58.0,
+        );
+
+        $this->timing->applyProjectedDuration($event);
+
+        self::assertSame(0.9667, $queue->clock_wheel_stretch_ratio);
+        self::assertEqualsWithDelta(58 / 0.9667, (float)$queue->duration, 0.0001);
+    }
+
     public function testStationMaximumFreezesOutOfRangeRowToNaturalPlayback(): void
     {
         [$event, $queue] = $this->makeEvent(ratio: 0.96, maxPercent: 2.0);
