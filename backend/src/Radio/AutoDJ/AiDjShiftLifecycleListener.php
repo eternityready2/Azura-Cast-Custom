@@ -18,6 +18,7 @@ use App\Radio\Enums\LiquidsoapQueues;
 use App\Service\AiDjGenerator;
 use App\Service\AiDjScheduler;
 use DateTimeImmutable;
+use DateTimeZone;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -143,6 +144,13 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
                 'shift_end' => $endsAt->format(DATE_ATOM),
                 'estimated_air_time' => $estimatedAirTime->format(DATE_ATOM),
             ]);
+            return;
+        }
+
+        // The five-minute sign-off window can straddle a narrower news or TOH
+        // protection interval. Validate the actual projected airtime too, not only
+        // the window endpoint, so a goodbye never talks over protected content.
+        if (!$this->isSafeOutroAirTime($station, $estimatedAirTime)) {
             return;
         }
 
@@ -318,6 +326,13 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         DateTimeImmutable $endsAt,
     ): bool {
         try {
+            // SongHistory and StationQueue timestamps are persisted in UTC. Shift
+            // boundaries are deliberately calculated in station-local time, so
+            // normalize the query bounds before checking durable lifecycle markers.
+            $utc = new DateTimeZone('UTC');
+            $startsAtUtc = $startsAt->setTimezone($utc);
+            $endsAtUtc = $endsAt->setTimezone($utc);
+
             $historyCount = (int)$this->em->createQuery(
                 <<<'DQL'
                     SELECT COUNT(sh.id) FROM App\Entity\SongHistory sh
@@ -330,8 +345,8 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             )->setParameter('station', $station)
                 ->setParameter('artist', $dj->getName())
                 ->setParameter('title', $title)
-                ->setParameter('startsAt', $startsAt)
-                ->setParameter('endsAt', $endsAt)
+                ->setParameter('startsAt', $startsAtUtc)
+                ->setParameter('endsAt', $endsAtUtc)
                 ->getSingleScalarResult();
 
             if ($historyCount > 0) {
@@ -353,8 +368,8 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             )->setParameter('station', $station)
                 ->setParameter('artist', $dj->getName())
                 ->setParameter('title', $title)
-                ->setParameter('startsAt', $startsAt)
-                ->setParameter('endsAt', $endsAt)
+                ->setParameter('startsAt', $startsAtUtc)
+                ->setParameter('endsAt', $endsAtUtc)
                 ->getSingleScalarResult();
 
             return $queueCount > 0;
