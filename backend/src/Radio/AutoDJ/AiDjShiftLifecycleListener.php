@@ -82,10 +82,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
         $expectedPlayTime = $event->getExpectedPlayTime()
             ->setTimezone($station->getTimezoneObject());
-        $currentSongEnd = $this->getCurrentSongEndTime($station);
-        $estimatedAirTime = $currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $now
-            ? $currentSongEnd
-            : ($expectedPlayTime > $now ? $expectedPlayTime : $now);
+        $estimatedAirTime = $this->resolveEstimatedAirTime($station, $now, $expectedPlayTime);
 
         $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
@@ -114,12 +111,17 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             $startsAt,
             $endsAt,
             $now,
+            $estimatedAirTime,
         );
 
         $outroWindow = $this->resolveOutroWindow($station, $startsAt, $endsAt);
-        if (null === $outroWindow) {
+        if (null === $outroWindow || $estimatedAirTime < $outroWindow['starts_at']) {
             return;
         }
+
+        // Once the final sign-off window begins, normal random talk stops. This
+        // guarantees there is never ordinary chatter after the DJ has said goodbye.
+        $this->blockLegacyListener($station);
 
         $outroKey = $this->getOutroKey($station, $scheduleNow, $startsAt);
         $alreadySignedOff = $this->cache->get($outroKey)
@@ -127,17 +129,8 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
         if ($alreadySignedOff) {
             $this->cache->set($outroKey, true, $this->getStateTtl($endsAt, $now));
-            $this->blockLegacyListener($station);
             return;
         }
-
-        if ($estimatedAirTime < $outroWindow['starts_at']) {
-            return;
-        }
-
-        // Once the final sign-off window begins, normal random talk stops. This
-        // guarantees there is never ordinary chatter after the DJ has said goodbye.
-        $this->blockLegacyListener($station);
 
         if ($estimatedAirTime > $outroWindow['ends_at']) {
             $this->logger->warning('AI DJ: Shift sign-off window was missed.', [
@@ -162,9 +155,32 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $ttl = $this->getStateTtl($endsAt, $now);
         $this->cache->set($outroKey, true, $ttl);
 
-        if (!$this->pushOutroClip($dj, $station, $backend)) {
+        if (!$this->pushOutroClip(
+            $dj,
+            $station,
+            $backend,
+            $scheduleNow,
+            $outroWindow['starts_at'],
+            $outroWindow['ends_at'],
+            $estimatedAirTime,
+        )) {
             $this->cache->delete($outroKey);
         }
+    }
+
+    private function resolveEstimatedAirTime(
+        Station $station,
+        DateTimeImmutable $now,
+        DateTimeImmutable $minimumAirTime,
+    ): DateTimeImmutable {
+        $estimatedAirTime = $minimumAirTime > $now ? $minimumAirTime : $now;
+        $currentSongEnd = $this->getCurrentSongEndTime($station);
+
+        if ($currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $estimatedAirTime) {
+            return $currentSongEnd;
+        }
+
+        return $estimatedAirTime;
     }
 
     private function syncWelcomeGuard(
@@ -174,12 +190,17 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         DateTimeImmutable $startsAt,
         DateTimeImmutable $endsAt,
         DateTimeImmutable $now,
+        DateTimeImmutable $estimatedAirTime,
     ): void {
         $welcomeKey = 'ai_dj_welcomed_' . $station->id . '_' . $dj->getId();
         $identityKey = 'ai_dj_welcome_shift_' . $station->id . '_' . $dj->getId();
         $shiftIdentity = $schedule->getId() . ':' . $startsAt->getTimestamp();
         $cachedIdentity = $this->cache->get($identityKey);
         $ttl = $this->getStateTtl($endsAt, $now);
+
+        if ($cachedIdentity === $shiftIdentity && null !== $this->cache->get($welcomeKey)) {
+            return;
+        }
 
         $welcomeAlreadyExists = $this->hasDurableShiftMarker(
             $station,
@@ -189,7 +210,10 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             $endsAt,
         );
         $welcomeWindowEndsAt = $startsAt->modify('+' . self::WELCOME_WINDOW_SECONDS . ' seconds');
-        $welcomeWindowOpen = $now >= $startsAt && $now < $welcomeWindowEndsAt;
+        $welcomeWindowOpen = $now >= $startsAt
+            && $now < $welcomeWindowEndsAt
+            && $estimatedAirTime >= $startsAt
+            && $estimatedAirTime < $welcomeWindowEndsAt;
 
         if ($cachedIdentity !== $shiftIdentity) {
             $this->cache->set($identityKey, $shiftIdentity, $ttl);
@@ -405,10 +429,40 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         AiDj $dj,
         Station $station,
         Liquidsoap $backend,
+        AiDjSchedule $schedule,
+        DateTimeImmutable $outroWindowStartsAt,
+        DateTimeImmutable $outroWindowEndsAt,
+        DateTimeImmutable $minimumAirTime,
     ): bool {
         try {
             $clipPath = $this->generator->generateShiftOutro($dj, $station);
             if (null === $clipPath) {
+                return false;
+            }
+
+            // TTS is synchronous and can take long enough for the safe window to
+            // close while the clip is rendering. Recompute all timing immediately
+            // before enqueue so a late render can never spill past the shift or into
+            // a protected TOH/news interval.
+            $freshNow = new DateTimeImmutable('now', $station->getTimezoneObject());
+            $freshAirTime = $this->resolveEstimatedAirTime($station, $freshNow, $minimumAirTime);
+            $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $freshNow);
+            $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $freshAirTime);
+
+            if (
+                !$scheduleNow instanceof AiDjSchedule
+                || !$scheduleAtAirTime instanceof AiDjSchedule
+                || $scheduleNow->getId() !== $schedule->getId()
+                || $scheduleAtAirTime->getId() !== $schedule->getId()
+                || $freshAirTime < $outroWindowStartsAt
+                || $freshAirTime > $outroWindowEndsAt
+                || !$this->isSafeOutroAirTime($station, $freshAirTime)
+                || !$backend->isQueueEmpty($station, LiquidsoapQueues::Requests)
+            ) {
+                $this->logger->info('AI DJ: Discarded late or unsafe shift sign-off render.', [
+                    'dj' => $dj->getName(),
+                    'fresh_air_time' => $freshAirTime->format(DATE_ATOM),
+                ]);
                 return false;
             }
 
