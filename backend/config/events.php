@@ -37,11 +37,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             $app->add(Middleware\EnforceSecurity::class);
 
             // Request injection middlewares.
-            $app->add(Middleware\InjectSettings::class);
-            $app->add(Middleware\InjectRouter::class);
-            $app->add(Middleware\InjectRateLimit::class);
-
-            // System middleware for routing and body parsing.
             $app->addBodyParsingMiddleware();
             $app->addRoutingMiddleware();
 
@@ -155,6 +150,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Nginx\ConfigWriter::class,
             App\Radio\AutoDJ\ClockWheelScheduler::class,
             App\Radio\AutoDJ\QueueBuilder::class,
+            App\Radio\AutoDJ\StretchSqueezeQueueTiming::class,
             App\Radio\AutoDJ\Annotations::class,
             App\Radio\AutoDJ\ClockWheel\ClockWheelAnnotator::class,
             App\Radio\AutoDJ\HourBoundaryAnnotator::class,
