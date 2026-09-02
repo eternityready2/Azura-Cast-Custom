@@ -68,7 +68,11 @@ final class PutAction implements SingleActionInterface
         }
         if (array_key_exists('stretch_squeeze_enabled', $body)) {
             $config->fromArray([
-                'playout_stretch_squeeze_enabled' => Types::bool($body['stretch_squeeze_enabled']),
+                'playout_stretch_squeeze_enabled' => Types::bool(
+                    $body['stretch_squeeze_enabled'],
+                    false,
+                    true
+                ),
             ]);
         }
         if (array_key_exists('stretch_squeeze_max_percent', $body)) {
