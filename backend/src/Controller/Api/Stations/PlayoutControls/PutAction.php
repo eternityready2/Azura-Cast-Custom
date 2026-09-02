@@ -7,7 +7,6 @@ namespace App\Controller\Api\Stations\PlayoutControls;
 use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Entity\Api\Status;
-use App\Entity\Repository\StationQueueRepository;
 use App\Entity\StationBackendConfiguration;
 use App\Exception\ValidationException;
 use App\Http\Response;
@@ -40,13 +39,10 @@ final class PutAction implements SingleActionInterface
 {
     use EntityManagerAwareTrait;
 
-    private const bool DEFAULT_STRETCH_SQUEEZE_ENABLED = true;
-
     private const float DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT = 5.0;
 
     public function __construct(
         private readonly ValidatorInterface $validator,
-        private readonly StationQueueRepository $queueRepo,
     ) {
     }
 
@@ -103,28 +99,18 @@ final class PutAction implements SingleActionInterface
         }
 
         $requiresRestart = $this->requiresRestart($originalConfig, $config);
-        $stretchSqueezeChanged = $this->stretchSqueezeSettingsChanged($originalConfig, $config);
 
         $station->backend_config = $config;
         if (!$requiresRestart) {
-            // Stretch / Squeeze is consumed dynamically from AutoDJ annotation
-            // metadata, so a stretch-only update must not create a new restart
-            // requirement or clear a restart that was already pending beforehand.
+            // Stretch / Squeeze is frozen into each queue row while AutoDJ plans
+            // it. A runtime setting change therefore applies to newly planned rows
+            // without rewriting or deleting rows whose requests, playlist state,
+            // timestamps and protected-boundary decisions are already committed.
             $station->needs_restart = $originalNeedsRestart;
         }
 
         $this->em->persist($station);
         $this->em->flush();
-
-        if ($stretchSqueezeChanged) {
-            // Every unsent row was planned as part of one projected timeline. A
-            // duration change near the front shifts the expected start of every
-            // later row, so merely updating their stored durations is insufficient:
-            // schedule boundaries, Clock Wheel ratios and caps must all be planned
-            // again in sequence. Rows already handed to Liquidsoap are left alone;
-            // AutoDJ rebuilds only the remaining unsent runway under the new setting.
-            $this->queueRepo->clearUpcomingQueue($station);
-        }
 
         return $response->withJson(Status::updated());
     }
@@ -139,37 +125,6 @@ final class PutAction implements SingleActionInterface
             || $original->top_of_hour_duck_enabled !== $updated->top_of_hour_duck_enabled
             || $original->top_of_hour_duck_attenuation !== $updated->top_of_hour_duck_attenuation
             || $original->top_of_hour_duck_delay !== $updated->top_of_hour_duck_delay;
-    }
-
-    private function stretchSqueezeSettingsChanged(
-        StationBackendConfiguration $original,
-        StationBackendConfiguration $updated,
-    ): bool {
-        $originalRaw = $original->toArray(true) ?? [];
-        $updatedRaw = $updated->toArray(true) ?? [];
-
-        $originalEnabled = Types::bool(
-            $originalRaw['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
-            self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
-            true
-        );
-        $updatedEnabled = Types::bool(
-            $updatedRaw['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
-            self::DEFAULT_STRETCH_SQUEEZE_ENABLED,
-            true
-        );
-
-        $originalMaxPercent = Types::float(
-            $originalRaw['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT,
-            self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
-        );
-        $updatedMaxPercent = Types::float(
-            $updatedRaw['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT,
-            self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
-        );
-
-        return $originalEnabled !== $updatedEnabled
-            || abs($originalMaxPercent - $updatedMaxPercent) > 0.0001;
     }
 
     private function validateRange(mixed $value, int|float $min, int|float $max): void
