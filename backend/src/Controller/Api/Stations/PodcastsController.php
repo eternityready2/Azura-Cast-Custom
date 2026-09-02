@@ -404,6 +404,22 @@ final class PodcastsController extends AbstractApiCrudController
         if ($importStrategySet) {
             $record->import_strategy = $importStrategy;
         }
+
+        // The frontend keeps `auto_import_enabled` mirrored to `is_enabled` for
+        // RSS-import podcasts via a reactive watcher, but that watcher only fires
+        // on a *change* to is_enabled, not on initial form population. That leaves
+        // a gap where a podcast can display as "Enabled" in the UI while its
+        // stored auto_import_enabled is stale/false (e.g. left over from before
+        // that column existed, or from a client that didn't submit it) -- and the
+        // scheduled sync task explicitly filters on auto_import_enabled = true, so
+        // such a podcast would silently never be picked up by cron while still
+        // working fine via the manual "Sync Now" action (which does not check
+        // this flag). Enforce the invariant here so it cannot drift regardless of
+        // what any client sends.
+        if ($record->source === PodcastSources::Import) {
+            $record->auto_import_enabled = $record->is_enabled;
+        }
+
         if (null !== $newCategories) {
             $categories = $record->categories;
             if ($categories->count() > 0) {
