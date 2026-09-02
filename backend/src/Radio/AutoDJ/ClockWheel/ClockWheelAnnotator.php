@@ -70,31 +70,31 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         $maxPercent = max(0.5, min(5.0, $maxPercent));
         $maxDelta = $maxPercent / 100;
 
-        $ratio = $queue->clock_wheel_stretch_ratio;
-        $replacementTargetSeconds = null;
+        // A cap/fade target is always the tighter timing requirement. This matters
+        // when a row also carries a precomputed TOH stretch ratio but a nearer
+        // scheduled boundary subsequently imposed a shorter cap.
+        $replacementTargetSeconds = match (true) {
+            $queue->clock_wheel_enforce_cap
+                && null !== $queue->clock_wheel_max_play_seconds
+                && $queue->clock_wheel_max_play_seconds > 0
+                => (float)$queue->clock_wheel_max_play_seconds,
+            $queue->hour_boundary_enforce_cap
+                && null !== $queue->hour_boundary_max_play_seconds
+                && $queue->hour_boundary_max_play_seconds > 0
+                => (float)$queue->hour_boundary_max_play_seconds,
+            $queue->top_of_hour_pre_id_fade
+                && null !== $queue->duration
+                && $queue->duration > 0
+                => (float)$queue->duration,
+            default => null,
+        };
+
+        $ratio = null !== $replacementTargetSeconds
+            ? $media->length / $replacementTargetSeconds
+            : $queue->clock_wheel_stretch_ratio;
 
         if (null === $ratio) {
-            $replacementTargetSeconds = match (true) {
-                $queue->clock_wheel_enforce_cap
-                    && null !== $queue->clock_wheel_max_play_seconds
-                    && $queue->clock_wheel_max_play_seconds > 0
-                    => (float)$queue->clock_wheel_max_play_seconds,
-                $queue->hour_boundary_enforce_cap
-                    && null !== $queue->hour_boundary_max_play_seconds
-                    && $queue->hour_boundary_max_play_seconds > 0
-                    => (float)$queue->hour_boundary_max_play_seconds,
-                $queue->top_of_hour_pre_id_fade
-                    && null !== $queue->duration
-                    && $queue->duration > 0
-                    => (float)$queue->duration,
-                default => null,
-            };
-
-            if (null === $replacementTargetSeconds) {
-                return;
-            }
-
-            $ratio = $media->length / $replacementTargetSeconds;
+            return;
         }
 
         $minimumRatio = 1.0 - $maxDelta;
