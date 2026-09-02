@@ -19,6 +19,8 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  */
 final class ClockWheelAnnotator implements EventSubscriberInterface
 {
+    private const float RATIO_ALIGNMENT_TOLERANCE = 0.000075;
+
     public static function getSubscribedEvents(): array
     {
         return [
@@ -71,15 +73,31 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             return;
         }
 
-        $annotations = [
-            'liq_stretch_ratio' => round($ratio, 4),
-        ];
-
-        if (null !== $queue->duration && $queue->duration > 0) {
-            $annotations['duration'] = $queue->duration;
+        $naturalDuration = $media->getCalculatedLength();
+        $projectedDuration = $queue->duration;
+        if (null === $projectedDuration || $projectedDuration <= 0 || $naturalDuration <= 0) {
+            $queue->clock_wheel_stretch_ratio = null;
+            return;
         }
 
-        $event->addAnnotations($annotations);
+        // Older queued rows can contain a planner ratio that predates active
+        // Liquidsoap serialization while their stored duration is still natural.
+        // Only activate a ratio when the persisted projected duration proves that
+        // this row was normalized for the same ratio during queue planning.
+        $durationRatio = $naturalDuration / $projectedDuration;
+        if (abs($durationRatio - $ratio) > self::RATIO_ALIGNMENT_TOLERANCE) {
+            $queue->clock_wheel_stretch_ratio = null;
+            $queue->duration = $naturalDuration;
+            $event->addAnnotations([
+                'duration' => $naturalDuration,
+            ]);
+            return;
+        }
+
+        $event->addAnnotations([
+            'liq_stretch_ratio' => round($ratio, 4),
+            'duration' => $projectedDuration,
+        ]);
     }
 
     public function applyClockWheelCap(AnnotateNextSong $event): void
