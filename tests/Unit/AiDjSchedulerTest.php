@@ -156,6 +156,73 @@ final class AiDjSchedulerTest extends Unit
         }
     }
 
+    public function testReturnsActiveScheduleAndConcreteShiftWindow(): void
+    {
+        $station = $this->persistStation();
+
+        $dj = new AiDj($station);
+        $dj->setName('Afternoon DJ');
+        $dj->setEnabled(true);
+
+        $schedule = new AiDjSchedule($dj);
+        $schedule->setName('Afternoon Shift');
+        $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
+        $schedule->setStartTime(new DateTimeImmutable('12:01'));
+        $schedule->setEndTime(new DateTimeImmutable('16:55'));
+        $schedule->setEnabled(true);
+
+        $this->em->persist($dj);
+        $this->em->persist($schedule);
+        $this->em->flush();
+
+        try {
+            $timestamp = new DateTimeImmutable('2026-09-02 15:00:00 UTC');
+            $activeSchedule = $this->scheduler->findActiveSchedule($station->getId(), $timestamp);
+
+            self::assertInstanceOf(AiDjSchedule::class, $activeSchedule);
+            self::assertSame($schedule->getId(), $activeSchedule->getId());
+
+            $window = $this->scheduler->getShiftWindow($station, $activeSchedule, $timestamp);
+            self::assertSame('2026-09-02 12:01:00', $window['starts_at']->format('Y-m-d H:i:s'));
+            self::assertSame('2026-09-02 16:55:00', $window['ends_at']->format('Y-m-d H:i:s'));
+        } finally {
+            $this->removeStation($station);
+        }
+    }
+
+    public function testConcreteShiftWindowHandlesCrossMidnightSchedule(): void
+    {
+        $station = $this->persistStation();
+
+        $dj = new AiDj($station);
+        $dj->setName('Overnight DJ');
+        $dj->setEnabled(true);
+
+        $schedule = new AiDjSchedule($dj);
+        $schedule->setName('Overnight Shift');
+        $schedule->setLoopDays([1, 2, 3, 4, 5, 6, 7]);
+        $schedule->setStartTime(new DateTimeImmutable('22:00'));
+        $schedule->setEndTime(new DateTimeImmutable('06:00'));
+        $schedule->setEnabled(true);
+
+        $this->em->persist($dj);
+        $this->em->persist($schedule);
+        $this->em->flush();
+
+        try {
+            $timestamp = new DateTimeImmutable('2026-09-03 02:00:00 UTC');
+            $activeSchedule = $this->scheduler->findActiveSchedule($station->getId(), $timestamp);
+
+            self::assertInstanceOf(AiDjSchedule::class, $activeSchedule);
+
+            $window = $this->scheduler->getShiftWindow($station, $activeSchedule, $timestamp);
+            self::assertSame('2026-09-02 22:00:00', $window['starts_at']->format('Y-m-d H:i:s'));
+            self::assertSame('2026-09-03 06:00:00', $window['ends_at']->format('Y-m-d H:i:s'));
+        } finally {
+            $this->removeStation($station);
+        }
+    }
+
     private function persistStation(): Station
     {
         $station = new Station();
