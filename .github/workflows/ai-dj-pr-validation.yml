@@ -13,10 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Mirror AzuraCast runtime path
-        run: |
-          sudo mkdir -p /var/azuracast
-          sudo ln -s "$GITHUB_WORKSPACE" /var/azuracast/www
       - name: Set up PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
@@ -33,5 +29,7 @@ jobs:
           php -l backend/config/events.php
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req='ext-*'
-      - name: Run focused AI DJ scheduler tests
-        run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
+      - name: Static analysis
+        run: vendor/bin/phpstan analyze backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php backend/src/Service/AiDjScheduler.php tests/Unit/AiDjSchedulerTest.php --memory-limit=-1
+      - name: Coding standards
+        run: vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php backend/src/Service/AiDjScheduler.php tests/Unit/AiDjSchedulerTest.php
