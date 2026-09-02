@@ -83,11 +83,14 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $estimatedAirTime = $this->getCurrentSongEndTime($station) ?? $expectedPlayTime;
 
         $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
+        $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
         $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $estimatedAirTime);
 
         if (
             !$scheduleNow instanceof AiDjSchedule
+            || !$scheduleAtExpectedTime instanceof AiDjSchedule
             || !$scheduleAtAirTime instanceof AiDjSchedule
+            || $scheduleNow->getId() !== $scheduleAtExpectedTime->getId()
             || $scheduleNow->getId() !== $scheduleAtAirTime->getId()
         ) {
             $this->blockLegacyListener($station);
