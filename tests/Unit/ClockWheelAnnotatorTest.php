@@ -82,13 +82,13 @@ final class ClockWheelAnnotatorTest extends Unit
         self::assertSame(0.96, $event->getAnnotations()['liq_stretch_ratio']);
     }
 
-    public function testStretchSqueezeRespectsStationMaximumAdjustment(): void
+    public function testStretchSqueezeHonorsStationMaximumAsHardLimit(): void
     {
         $event = $this->makeStretchEvent(ratio: 0.95, maxPercent: 2.0);
 
         $this->annotator->applyClockWheelStretch($event);
 
-        self::assertSame(0.98, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertArrayNotHasKey('liq_stretch_ratio', $event->getAnnotations());
     }
 
     public function testStretchSqueezeCanBeDisabledStationWide(): void
@@ -100,10 +100,41 @@ final class ClockWheelAnnotatorTest extends Unit
         self::assertArrayNotHasKey('liq_stretch_ratio', $event->getAnnotations());
     }
 
+    public function testSqueezeReplacesSmallHourBoundaryCapForOrdinaryQueueRow(): void
+    {
+        $event = $this->makeStretchEvent(
+            ratio: null,
+            mediaLength: 102.0,
+            hourBoundaryMaxSeconds: 100,
+        );
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertSame(1.02, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertFalse($event->getQueue()?->hour_boundary_enforce_cap);
+        self::assertSame(100.0, $event->getQueue()?->duration);
+    }
+
+    public function testSqueezeLeavesCapFallbackWhenRequiredAdjustmentExceedsMaximum(): void
+    {
+        $event = $this->makeStretchEvent(
+            ratio: null,
+            mediaLength: 106.0,
+            hourBoundaryMaxSeconds: 100,
+        );
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertArrayNotHasKey('liq_stretch_ratio', $event->getAnnotations());
+        self::assertTrue($event->getQueue()?->hour_boundary_enforce_cap);
+    }
+
     private function makeStretchEvent(
-        float $ratio,
+        ?float $ratio,
         bool $enabled = true,
         float $maxPercent = 5.0,
+        float $mediaLength = 180.0,
+        ?int $hourBoundaryMaxSeconds = null,
     ): AnnotateNextSong {
         $this->station->backend_config->fromArray([
             'playout_stretch_squeeze_enabled' => $enabled,
@@ -114,12 +145,18 @@ final class ClockWheelAnnotatorTest extends Unit
         $media->title = 'Music';
         $media->artist = 'Artist';
         $media->type = 'music';
-        $media->length = 180.0;
+        $media->length = $mediaLength;
         $media->mtime = time();
         $media->uploaded_at = time();
 
         $queue = StationQueue::fromMedia($this->station, $media);
         $queue->clock_wheel_stretch_ratio = $ratio;
+
+        if (null !== $hourBoundaryMaxSeconds) {
+            $queue->hour_boundary_enforce_cap = true;
+            $queue->hour_boundary_max_play_seconds = $hourBoundaryMaxSeconds;
+            $queue->duration = (float)$hourBoundaryMaxSeconds;
+        }
 
         return AnnotateNextSong::fromStationQueue($queue, true);
     }
