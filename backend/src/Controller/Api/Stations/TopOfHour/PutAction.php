@@ -46,12 +46,6 @@ final class PutAction implements SingleActionInterface
         'top_of_hour_compliance_tolerance_seconds',
         'top_of_hour_finish_buffer_seconds',
         'top_of_hour_id_max_seconds',
-        'top_of_hour_hard_trigger_enabled',
-        'top_of_hour_hard_trigger_seconds',
-        'top_of_hour_hard_trigger_fade',
-        'top_of_hour_duck_enabled',
-        'top_of_hour_duck_attenuation',
-        'top_of_hour_duck_delay',
     ];
 
     public function __construct(
@@ -64,8 +58,7 @@ final class PutAction implements SingleActionInterface
         Response $response,
         array $params
     ): ResponseInterface {
-        $body = (array) $request->getParsedBody();
-
+        $body = (array)$request->getParsedBody();
         $station = $this->em->refetch($request->getStation());
         $backendConfig = $station->backend_config;
 
@@ -92,7 +85,6 @@ final class PutAction implements SingleActionInterface
                 max: HourBoundaryPlanner::MAX_LOOKAHEAD_MINUTES,
             ),
         ]);
-
         if (count($errors) > 0) {
             throw ValidationException::fromValidationErrors($errors);
         }
@@ -103,7 +95,6 @@ final class PutAction implements SingleActionInterface
                 max: HourBoundaryPlanner::MAX_COMPLIANCE_TOLERANCE_SECONDS,
             ),
         ]);
-
         if (count($errors) > 0) {
             throw ValidationException::fromValidationErrors($errors);
         }
@@ -114,7 +105,6 @@ final class PutAction implements SingleActionInterface
                 max: HourBoundaryPlanner::MAX_FINISH_BUFFER_SECONDS,
             ),
         ]);
-
         if (count($errors) > 0) {
             throw ValidationException::fromValidationErrors($errors);
         }
@@ -125,7 +115,6 @@ final class PutAction implements SingleActionInterface
                 max: HourBoundaryPlanner::MAX_ID_MAX_SECONDS,
             ),
         ]);
-
         if (count($errors) > 0) {
             throw ValidationException::fromValidationErrors($errors);
         }

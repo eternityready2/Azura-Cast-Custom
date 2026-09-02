@@ -14,6 +14,7 @@ use App\Message\AbstractMessage;
 use App\Message\BuildLinearLogMessage;
 use App\Utilities\Time;
 use DateTimeImmutable;
+use RuntimeException;
 use Throwable;
 
 final class LinearLogBuilder
@@ -54,6 +55,7 @@ final class LinearLogBuilder
      */
     public function build(Station $station, ?int $hoursOverride = null): array
     {
+        $stationId = $station->id;
         $hours = max(1, min(48, $hoursOverride ?? $station->backend_config->linear_log_hours));
         $lookaheadMinutes = $hours * 60;
         $maxTracks = max(1000, $lookaheadMinutes * 2);
@@ -130,6 +132,14 @@ final class LinearLogBuilder
             $this->previewContext->end();
             $this->em->clear();
         }
+
+        $managedStation = $this->stationRepo->findByIdentifier((string)$stationId);
+        if (!$managedStation instanceof Station) {
+            $error = 'Station could not be reloaded after Linear Log preview.';
+            $this->snapshotStore->markFailed($station, $hours, $error);
+            throw new RuntimeException($error);
+        }
+        $station = $managedStation;
 
         $aiDjShifts = $this->buildAiDjShifts($station, $projectionStartTs, $projectionEndTs);
 

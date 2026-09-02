@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ;
 
 use App\Entity\Station;
+use App\Entity\StationLinearLogSnapshot;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\SimpleCache\CacheInterface;
 
 final class LinearLogSnapshotStore
@@ -13,6 +15,7 @@ final class LinearLogSnapshotStore
 
     public function __construct(
         private readonly CacheInterface $cache,
+        private readonly EntityManagerInterface $em,
     ) {
     }
 
@@ -22,15 +25,24 @@ final class LinearLogSnapshotStore
     public function get(Station $station): array
     {
         $snapshot = $this->cache->get($this->getKey($station));
-
-        if (!is_array($snapshot)) {
-            return $this->emptySnapshot($station);
+        if (is_array($snapshot)) {
+            return [
+                ...$this->emptySnapshot($station),
+                ...$snapshot,
+            ];
         }
 
-        return [
-            ...$this->emptySnapshot($station),
-            ...$snapshot,
-        ];
+        $persistent = $this->loadPersistent($station);
+        if (is_array($persistent)) {
+            $this->saveCache($station, $persistent);
+
+            return [
+                ...$this->emptySnapshot($station),
+                ...$persistent,
+            ];
+        }
+
+        return $this->emptySnapshot($station);
     }
 
     public function markQueued(Station $station, int $hours): void
@@ -41,7 +53,7 @@ final class LinearLogSnapshotStore
         $snapshot['requested_at'] = time();
         $snapshot['error'] = null;
 
-        $this->save($station, $snapshot);
+        $this->saveCache($station, $snapshot);
     }
 
     public function markBuilding(Station $station, int $hours): void
@@ -52,7 +64,7 @@ final class LinearLogSnapshotStore
         $snapshot['started_at'] = time();
         $snapshot['error'] = null;
 
-        $this->save($station, $snapshot);
+        $this->saveCache($station, $snapshot);
     }
 
     public function cancelQueued(Station $station): void
@@ -61,7 +73,7 @@ final class LinearLogSnapshotStore
         $snapshot['status'] = null !== $snapshot['built_at'] ? 'ready' : 'idle';
         $snapshot['error'] = null;
 
-        $this->save($station, $snapshot);
+        $this->saveCache($station, $snapshot);
     }
 
     /**
@@ -79,24 +91,27 @@ final class LinearLogSnapshotStore
         array $gaps,
         array $aiDjShifts,
     ): void {
-        $this->save(
-            $station,
-            [
-                'version' => 2,
-                'station_id' => $station->id,
-                'status' => 'ready',
-                'hours' => $hours,
-                'requested_at' => $this->get($station)['requested_at'],
-                'started_at' => $buildStartedAt,
-                'built_at' => time(),
-                'coverage_start' => $coverageStart,
-                'coverage_end' => $coverageEnd,
-                'entries' => $entries,
-                'gaps' => $gaps,
-                'ai_dj_shifts' => $aiDjShifts,
-                'error' => null,
-            ]
-        );
+        $snapshot = [
+            'version' => 2,
+            'station_id' => $station->id,
+            'status' => 'ready',
+            'hours' => $hours,
+            'requested_at' => $this->get($station)['requested_at'],
+            'started_at' => $buildStartedAt,
+            'built_at' => time(),
+            'failed_at' => null,
+            'coverage_start' => $coverageStart,
+            'coverage_end' => $coverageEnd,
+            'entries' => $entries,
+            'gaps' => $gaps,
+            'ai_dj_shifts' => $aiDjShifts,
+            'error' => null,
+        ];
+
+        // Write the durable copy first. If cache is cleared by a container
+        // restart or deployment, the report can repopulate from this row.
+        $this->savePersistent($station, $snapshot);
+        $this->saveCache($station, $snapshot);
     }
 
     public function markFailed(Station $station, int $hours, string $error): void
@@ -107,7 +122,43 @@ final class LinearLogSnapshotStore
         $snapshot['failed_at'] = time();
         $snapshot['error'] = $error;
 
-        $this->save($station, $snapshot);
+        // Do not replace the durable last-known-good snapshot with a failed
+        // attempt. A restart should still recover the most recent good log.
+        $this->saveCache($station, $snapshot);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function loadPersistent(Station $station): ?array
+    {
+        return $this->findPersistent($station)?->snapshot;
+    }
+
+    /**
+     * @param array<string, mixed> $snapshot
+     */
+    private function savePersistent(Station $station, array $snapshot): void
+    {
+        $record = $this->findPersistent($station);
+        if (!$record instanceof StationLinearLogSnapshot) {
+            $record = new StationLinearLogSnapshot($station);
+        }
+
+        $record->snapshot = $snapshot;
+        $record->updated_at = time();
+
+        $this->em->persist($record);
+        $this->em->flush();
+    }
+
+    private function findPersistent(Station $station): ?StationLinearLogSnapshot
+    {
+        $record = $this->em
+            ->getRepository(StationLinearLogSnapshot::class)
+            ->findOneBy(['station' => $station]);
+
+        return $record instanceof StationLinearLogSnapshot ? $record : null;
     }
 
     /**
@@ -136,7 +187,7 @@ final class LinearLogSnapshotStore
     /**
      * @param array<string, mixed> $snapshot
      */
-    private function save(Station $station, array $snapshot): void
+    private function saveCache(Station $station, array $snapshot): void
     {
         $this->cache->set($this->getKey($station), $snapshot, self::CACHE_TTL);
     }

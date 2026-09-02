@@ -1425,6 +1425,22 @@ return static function (RouteCollectorProxy $group) {
                         }
                     )->add(new Middleware\Permissions(StationPermissions::Broadcasting, true));
 
+                    // Station-wide playout controls (strict boundaries and interrupting ducking)
+                    $group->group(
+                        '/playout-controls',
+                        function (RouteCollectorProxy $group) {
+                            $group->get(
+                                '',
+                                Controller\Api\Stations\PlayoutControls\GetAction::class
+                            )->setName('api:stations:playout-controls');
+
+                            $group->put(
+                                '',
+                                Controller\Api\Stations\PlayoutControls\PutAction::class
+                            );
+                        }
+                    )->add(new Middleware\Permissions(StationPermissions::Broadcasting, true));
+
                     // Top-of-hour legal ID protection (v0.29)
                     $group->group(
                         '/top-of-hour',
