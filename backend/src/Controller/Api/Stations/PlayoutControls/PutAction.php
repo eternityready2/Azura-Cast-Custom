@@ -13,6 +13,7 @@ use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
+use App\Radio\AutoDJ\StretchSqueezeQueueTiming;
 use App\Utilities\Types;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
@@ -47,6 +48,7 @@ final class PutAction implements SingleActionInterface
     public function __construct(
         private readonly ValidatorInterface $validator,
         private readonly StationQueueRepository $queueRepo,
+        private readonly StretchSqueezeQueueTiming $stretchSqueezeQueueTiming,
     ) {
     }
 
@@ -118,11 +120,18 @@ final class PutAction implements SingleActionInterface
 
         if ($stretchSqueezeChanged) {
             // Rows already handed to Liquidsoap keep the annotations and duration
-            // they were sent with. Unsent rows were planned using the old setting,
-            // so drop only those rows and let AutoDJ rebuild them under the new
-            // setting. This keeps projected timing and eventual playback aligned
-            // without interrupting anything already buffered for air.
-            $this->queueRepo->clearUpcomingQueue($station);
+            // they were sent with. Reconcile only unsent rows against the newly
+            // persisted runtime setting so their projected duration matches the
+            // annotation they will receive when they are eventually handed off.
+            foreach ($this->queueRepo->getUnplayedQueue($station) as $queueRow) {
+                if ($queueRow->sent_to_autodj) {
+                    continue;
+                }
+
+                $this->stretchSqueezeQueueTiming->normalizeQueueRow($station, $queueRow);
+            }
+
+            $this->em->flush();
         }
 
         return $response->withJson(Status::updated());
