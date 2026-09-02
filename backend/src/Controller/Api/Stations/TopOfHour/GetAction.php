@@ -23,13 +23,13 @@ use Psr\Http\Message\ResponseInterface;
         summary: 'Get top-of-hour legal ID protection settings.',
         tags: [OpenApi::TAG_STATIONS_BROADCASTING],
         parameters: [
-        new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
+            new OA\Parameter(ref: OpenApi::REF_STATION_ID_REQUIRED),
         ],
         responses: [
-        new OpenApi\Response\Success(),
-        new OpenApi\Response\AccessDenied(),
-        new OpenApi\Response\NotFound(),
-        new OpenApi\Response\GenericError(),
+            new OpenApi\Response\Success(),
+            new OpenApi\Response\AccessDenied(),
+            new OpenApi\Response\NotFound(),
+            new OpenApi\Response\GenericError(),
         ]
     )
 ]
@@ -55,32 +55,32 @@ final class GetAction implements SingleActionInterface
 
         $idMediaCount = (int)$this->em->createQuery(
             <<<'DQL'
-          SELECT COUNT(m.id) FROM App\Entity\StationMedia m
-          WHERE m.storage_location = :storageLocation
-          AND m.type IN (:types)
-          DQL
+                SELECT COUNT(m.id) FROM App\Entity\StationMedia m
+                WHERE m.storage_location = :storageLocation
+                AND m.type IN (:types)
+            DQL
         )->setParameters([
-        'storageLocation' => $station->media_storage_location,
-        'types' => StationMediaTypes::stationIdTypeValues(),
+            'storageLocation' => $station->media_storage_location,
+            'types' => StationMediaTypes::stationIdTypeValues(),
         ])->getSingleScalarResult();
 
         return $response->withJson([
-        'top_of_hour_id_enabled' => $backendConfig->top_of_hour_id_enabled,
-        'top_of_hour_lookahead_minutes' => $backendConfig->top_of_hour_lookahead_minutes,
-        'top_of_hour_compliance_tolerance_seconds' => $backendConfig->top_of_hour_compliance_tolerance_seconds,
-        'top_of_hour_id_max_seconds' => $backendConfig->top_of_hour_id_max_seconds,
-        'id_media_count' => $idMediaCount,
-        'legal_id_media_count' => $idMediaCount,
-        'compliance' => $this->eventRepo->getStationTopOfHourLegalIdComplianceSummary(
-            $station,
-            $since,
-            $tolerance,
-        ),
-        'defaults' => [
-        'lookahead_minutes' => HourBoundaryPlanner::DEFAULT_LOOKAHEAD_MINUTES,
-        'compliance_tolerance_seconds' => HourBoundaryPlanner::DEFAULT_COMPLIANCE_TOLERANCE_SECONDS,
-        'id_max_seconds' => HourBoundaryPlanner::DEFAULT_ID_MAX_SECONDS,
-        ],
+            'top_of_hour_id_enabled' => $backendConfig->top_of_hour_id_enabled,
+            'top_of_hour_lookahead_minutes' => $backendConfig->top_of_hour_lookahead_minutes,
+            'top_of_hour_compliance_tolerance_seconds' => $backendConfig->top_of_hour_compliance_tolerance_seconds,
+            'top_of_hour_id_max_seconds' => $backendConfig->top_of_hour_id_max_seconds,
+            'id_media_count' => $idMediaCount,
+            'legal_id_media_count' => $idMediaCount,
+            'compliance' => $this->eventRepo->getStationTopOfHourLegalIdComplianceSummary(
+                $station,
+                $since,
+                $tolerance,
+            ),
+            'defaults' => [
+                'lookahead_minutes' => HourBoundaryPlanner::DEFAULT_LOOKAHEAD_MINUTES,
+                'compliance_tolerance_seconds' => HourBoundaryPlanner::DEFAULT_COMPLIANCE_TOLERANCE_SECONDS,
+                'id_max_seconds' => HourBoundaryPlanner::DEFAULT_ID_MAX_SECONDS,
+            ],
         ]);
     }
 }
