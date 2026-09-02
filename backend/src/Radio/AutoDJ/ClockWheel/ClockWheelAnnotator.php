@@ -60,14 +60,10 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         if (null === $queue->clock_wheel || !$queue->clock_wheel_enforce_cap) {
-            if (!$queue->hour_boundary_enforce_cap) {
-                return;
-            }
-
-            $maxSeconds = $queue->hour_boundary_max_play_seconds;
-        } else {
-            $maxSeconds = $queue->clock_wheel_max_play_seconds;
+            return;
         }
+
+        $maxSeconds = $queue->clock_wheel_max_play_seconds;
 
         $media = $event->getMedia();
         if (!$media instanceof StationMedia) {

@@ -27,10 +27,19 @@ final class Version20260902030000 extends AbstractMigration
           ON DELETE CASCADE
   ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci ENGINE = InnoDB'
         );
+
+        $this->addSql(
+            'ALTER TABLE station_queue
+             ADD COLUMN IF NOT EXISTS top_of_hour_expected_at DATETIME(6) DEFAULT NULL'
+        );
     }
 
     public function down(Schema $schema): void
     {
+        $this->addSql(
+            'ALTER TABLE station_queue
+             DROP COLUMN IF EXISTS top_of_hour_expected_at'
+        );
         $this->addSql('DROP TABLE IF EXISTS station_linear_log_snapshots');
     }
 }

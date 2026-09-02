@@ -6,6 +6,7 @@ namespace App\Radio\AutoDJ;
 
 use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
+use App\Entity\Enums\ClockWheelScheduleMode;
 use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Repository\StationPlaylistMediaRepository;
 use App\Entity\Repository\StationQueueRepository;
@@ -55,6 +56,9 @@ final class Scheduler
                 continue;
             }
             foreach ($playlist->schedule_items as $scheduleItem) {
+                if (!$scheduleItem->strict_start) {
+                    continue;
+                }
                 $allScheduleItems[] = $scheduleItem;
             }
         }
@@ -63,7 +67,13 @@ final class Scheduler
         // but equally represent hard programme boundaries that music must not
         // run past.
         foreach ($station->clock_wheels as $clockWheel) {
+            if (!$clockWheel->is_active) {
+                continue;
+            }
             foreach ($clockWheel->schedule_items as $scheduleItem) {
+                if ($scheduleItem->clock_wheel_mode !== ClockWheelScheduleMode::Strict) {
+                    continue;
+                }
                 $allScheduleItems[] = $scheduleItem;
             }
         }

@@ -280,6 +280,26 @@ final class StationQueueRepository extends AbstractStationBasedRepository
         return null !== $result;
     }
 
+    public function hasTopOfHourLegalIdForBoundary(
+        Station $station,
+        DateTimeImmutable $boundary,
+    ): bool {
+        $result = $this->em->createQuery(
+            <<<'DQL'
+                SELECT sq.id
+                FROM App\Entity\StationQueue sq
+                WHERE sq.station = :station
+                AND sq.top_of_hour_legal_id = 1
+                AND sq.top_of_hour_expected_at = :boundary
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('boundary', $boundary)
+            ->setMaxResults(1)
+            ->getOneOrNullResult();
+
+        return null !== $result;
+    }
+
     /**
      * Timestamps of already-AIRED (is_played = 1) mandatory legal IDs whose
      * timestamp_played falls within the given window.
@@ -303,26 +323,22 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     ): array {
         $rows = $this->em->createQuery(
             <<<'DQL'
-                SELECT sq.timestamp_played
+                SELECT sq.timestamp_cued
                 FROM App\Entity\StationQueue sq
-                LEFT JOIN sq.media sm
                 WHERE sq.station = :station
                 AND sq.is_played = 1
+                AND sq.top_of_hour_legal_id = 1
+                AND sq.top_of_hour_expected_at IS NULL
                 AND sq.timestamp_played >= :windowStart
                 AND sq.timestamp_played <= :windowEnd
-                AND (
-                    sq.top_of_hour_legal_id = 1
-                    OR sm.type IN (:idTypes)
-                )
             DQL
         )->setParameter('station', $station)
             ->setParameter('windowStart', $windowStart)
             ->setParameter('windowEnd', $windowEnd)
-            ->setParameter('idTypes', StationMediaTypes::stationIdTypeValues())
             ->getArrayResult();
 
         return array_map(
-            static fn (array $row): DateTimeImmutable => $row['timestamp_played'],
+            static fn (array $row): DateTimeImmutable => $row['timestamp_cued'],
             $rows
         );
     }

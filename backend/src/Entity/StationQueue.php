@@ -133,6 +133,12 @@ final class StationQueue implements
     #[ORM\Column]
     public bool $top_of_hour_legal_id = false;
 
+    /** Immutable top-of-hour boundary this mandatory ID was queued to serve. */
+    #[ORM\Column(type: 'datetime_immutable', precision: 6, nullable: true)]
+    public ?DateTimeImmutable $top_of_hour_expected_at = null {
+        set (DateTimeImmutable|string|null $value) => Time::toNullableUtcCarbonImmutable($value);
+    }
+
     /** Whether AnnotateNextSong should apply a cue_out cap for hour-boundary protection. */
     #[ORM\Column]
     public bool $hour_boundary_enforce_cap = false;

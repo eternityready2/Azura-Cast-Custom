@@ -208,6 +208,32 @@ final class HourBoundaryPlannerTest extends Unit
         ));
     }
 
+    public function testTopOfHourBoundaryIdentitySurvivesLatePlayback(): void
+    {
+        $backendConfig = $this->station->backend_config;
+        $backendConfig->top_of_hour_id_enabled = true;
+        $this->station->backend_config = $backendConfig;
+        $this->testsModule->em->persist($this->station);
+
+        $row = new StationQueue($this->station, Song::createFromText('Station - Legal ID'));
+        $row->top_of_hour_legal_id = true;
+        $row->top_of_hour_expected_at = CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC');
+        $row->timestamp_cued = CarbonImmutable::parse('2026-05-26 10:04:00', 'UTC');
+        $row->is_played = true;
+        $row->timestamp_played = CarbonImmutable::parse('2026-05-26 10:04:05', 'UTC');
+        $this->testsModule->em->persist($row);
+        $this->testsModule->em->flush();
+
+        self::assertTrue($this->planner->hasTopOfHourIdQueued(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 10:00:00', 'UTC'),
+        ));
+        self::assertFalse($this->planner->hasTopOfHourIdQueued(
+            $this->station,
+            CarbonImmutable::parse('2026-05-26 11:00:00', 'UTC'),
+        ));
+    }
+
     public function testTopOfHourMasterToggleDisablesPlanning(): void
     {
         $backendConfig = $this->station->backend_config;

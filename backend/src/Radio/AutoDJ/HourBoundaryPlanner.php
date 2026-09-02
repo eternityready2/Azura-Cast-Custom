@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ;
 
 use App\Entity\Enums\PlaylistTypes;
-use App\Entity\Enums\StationMediaTypes;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
 use App\Entity\StationPlaylist;
@@ -306,18 +305,11 @@ final class HourBoundaryPlanner
     ): bool {
         $targetTimestamp = $hourStart->getTimestamp();
 
-        // Check playback history first: if the mandatory ID for this hour has
-        // ALREADY AIRED, it's no longer in the unplayed queue scanned below, so
-        // without this check a later queue build whose expected play time still
-        // resolves to this boundary could wrongly conclude nothing has been queued
-        // yet and insert a duplicate ID for the same hour.
-        //
-        // Window is +/-70 minutes around the boundary: wide enough to catch an
-        // on-time ID that aired up to ~10 minutes early (the lookahead window) in
-        // the *previous* wall-clock hour, without pulling in the adjacent hours'
-        // own IDs. Each candidate is then re-resolved through the exact same
-        // resolveTopOfHourExpectedPlayAt() rollover math used for unplayed rows
-        // below, so a :58/:59 play is correctly attributed to the hour it serves.
+        if ($this->queueRepo->hasTopOfHourLegalIdForBoundary($station, $hourStart->toDateTimeImmutable())) {
+            return true;
+        }
+
+        // Compatibility for TOH rows created before exact boundary identity existed.
         $historyWindowStart = $hourStart->subMinutes(70)->toDateTimeImmutable();
         $historyWindowEnd = $hourStart->addMinutes(70)->toDateTimeImmutable();
 
@@ -326,9 +318,9 @@ final class HourBoundaryPlanner
                 $station,
                 $historyWindowStart,
                 $historyWindowEnd,
-            ) as $playedAt
+            ) as $cuedAt
         ) {
-            $servedBoundary = $this->resolveTopOfHourExpectedPlayAt($station, $playedAt);
+            $servedBoundary = $this->resolveLegacyTopOfHourBoundary($station, $cuedAt);
 
             if ($servedBoundary->getTimestamp() === $targetTimestamp) {
                 return true;
@@ -336,24 +328,11 @@ final class HourBoundaryPlanner
         }
 
         foreach ($this->queueRepo->getUnplayedQueue($station) as $row) {
-            $isLegalId = $row->top_of_hour_legal_id;
-
-            if (!$isLegalId) {
-                $media = $row->media;
-                $isLegalId = $media !== null && StationMediaTypes::isStationId($media->type);
-            }
-
-            if (!$isLegalId) {
+            if (!$row->top_of_hour_legal_id || null !== $row->top_of_hour_expected_at) {
                 continue;
             }
 
-            // timestamp_played is null while a row is unplayed, so it cannot be
-            // used to locate an already-queued ID. Derive the boundary this ID
-            // serves from its cue time instead: a top-of-hour ID is cued to air
-            // within ~a minute of the :00 it protects. Reusing
-            // resolveTopOfHourExpectedPlayAt() keeps this in lockstep with the
-            // boundary the scheduler is currently targeting.
-            $servedBoundary = $this->resolveTopOfHourExpectedPlayAt($station, $row->timestamp_cued);
+            $servedBoundary = $this->resolveLegacyTopOfHourBoundary($station, $row->timestamp_cued);
 
             if ($servedBoundary->getTimestamp() === $targetTimestamp) {
                 return true;
@@ -361,6 +340,22 @@ final class HourBoundaryPlanner
         }
 
         return false;
+    }
+
+    private function resolveLegacyTopOfHourBoundary(
+        Station $station,
+        DateTimeImmutable $referenceTime,
+    ): DateTimeImmutable {
+        $local = CarbonImmutable::instance($referenceTime)->setTimezone($station->getTimezoneObject());
+        $hourStart = $local->startOf('hour');
+        $nextHour = $hourStart->addHour();
+
+        $served = abs($local->getTimestamp() - $hourStart->getTimestamp())
+            <= abs($nextHour->getTimestamp() - $local->getTimestamp())
+            ? $hourStart
+            : $nextHour;
+
+        return $served->toDateTimeImmutable();
     }
 
     private function clampInt(int $value, int $min, int $max, int $default): int

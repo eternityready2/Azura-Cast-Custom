@@ -103,6 +103,7 @@ final class HourBoundaryLegalIdResolver
 
         $queueEntry = StationQueue::fromMedia($station, $media);
         $queueEntry->top_of_hour_legal_id = true;
+        $queueEntry->top_of_hour_expected_at = $legalIdExpectedAt;
         $queueEntry->clock_wheel_legal_id_substitute = $usedSubstitute;
         $this->em->persist($queueEntry);
 

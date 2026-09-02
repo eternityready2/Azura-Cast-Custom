@@ -163,6 +163,8 @@ final class QueueBuilder implements EventSubscriberInterface
             $typesToPlayByPriority[] = $type . '_unscheduled';
         }
 
+        $topOfHourFallbackPlaylists = [];
+
         foreach ($typesToPlayByPriority as $currentPlaylistType) {
             if (empty($activePlaylistsByType[$currentPlaylistType])) {
                 continue;
@@ -197,6 +199,10 @@ final class QueueBuilder implements EventSubscriberInterface
             );
 
             $eligiblePlaylists = $this->weightedShuffle($eligiblePlaylists);
+            foreach (array_keys($eligiblePlaylists) as $playlistId) {
+                $topOfHourFallbackPlaylists[$playlistId] =
+                    $activePlaylistsByType[$currentPlaylistType][$playlistId];
+            }
 
             foreach ([false, true] as $allowDuplicates) {
                 foreach ($eligiblePlaylists as $playlistId => $weight) {
@@ -218,6 +224,38 @@ final class QueueBuilder implements EventSubscriberInterface
                         );
                         return;
                     }
+                }
+            }
+        }
+
+        if (
+            !$event->isInterrupting()
+            && $topOfHourFallbackPlaylists !== []
+            && $this->hourBoundaryPlanner->isInLookaheadZone($station, $expectedPlayTime)
+        ) {
+            foreach ($topOfHourFallbackPlaylists as $playlist) {
+                if (!$this->scheduler->shouldPlaylistPlayNow($playlist, $expectedPlayTime)) {
+                    continue;
+                }
+
+                if (
+                    $event->setNextSongs(
+                        $this->playSongFromPlaylist(
+                            $playlist,
+                            $recentSongHistoryForDuplicatePrevention,
+                            $expectedPlayTime,
+                            true,
+                            false,
+                            false,
+                            true,
+                        )
+                    )
+                ) {
+                    $this->logger->warning(
+                        'TOH backtiming exhausted fitting sources; using a full-song safety fallback.',
+                        ['playlist_id' => $playlist->id]
+                    );
+                    return;
                 }
             }
         }
@@ -260,6 +298,7 @@ final class QueueBuilder implements EventSubscriberInterface
         bool $allowDuplicates = false,
         bool $singleTrackOnly = false,
         bool $deferQueuePersistence = false,
+        bool $allowTopOfHourFallback = false,
     ): StationQueue|array|null {
         if (!$this->smartBlockPlaybackPreparer->prepare($playlist)) {
             return null;
@@ -270,7 +309,8 @@ final class QueueBuilder implements EventSubscriberInterface
                 $playlist,
                 $recentSongHistory,
                 $expectedPlayTime,
-                $allowDuplicates
+                $allowDuplicates,
+                $allowTopOfHourFallback,
             );
         }
 
@@ -345,6 +385,7 @@ final class QueueBuilder implements EventSubscriberInterface
                     $recentSongHistory,
                     $expectedPlayTime,
                     $allowDuplicates,
+                    $allowTopOfHourFallback,
                 );
 
                 if (null === $validTrack) {
@@ -382,6 +423,7 @@ final class QueueBuilder implements EventSubscriberInterface
         array $recentSongHistory,
         DateTimeImmutable $expectedPlayTime,
         bool $allowDuplicates,
+        bool $allowTopOfHourFallback,
     ): StationQueue|array|null {
         foreach ($this->getPlaylistGroupQueueForOrder($group) as $membership) {
             $memberPlaylist = $membership->playlist;
@@ -411,6 +453,7 @@ final class QueueBuilder implements EventSubscriberInterface
                 $allowDuplicates,
                 true,
                 true,
+                $allowTopOfHourFallback,
             );
 
             if (null === $selection && !$allowDuplicates) {
@@ -421,6 +464,7 @@ final class QueueBuilder implements EventSubscriberInterface
                     true,
                     true,
                     true,
+                    $allowTopOfHourFallback,
                 );
             }
 
@@ -692,6 +736,7 @@ final class QueueBuilder implements EventSubscriberInterface
         array $recentSongHistory,
         DateTimeImmutable $expectedPlayTime,
         bool $allowDuplicates,
+        bool $allowTopOfHourFallback,
     ): ?StationPlaylistQueue {
         $preferredDuration = $this->hourBoundaryPlanner->preferredMusicDurationBeforeTopOfHour(
             $playlist->station,
@@ -756,7 +801,7 @@ final class QueueBuilder implements EventSubscriberInterface
             // The normal pass returns null so every eligible source can try to
             // fit the TOH window. AutoDJ's duplicate-relaxed pass is the final
             // safety net: use the shortest full song instead of leaving a dry queue.
-            if ($allowDuplicates && is_array($fallback)) {
+            if ($allowTopOfHourFallback && is_array($fallback)) {
                 $this->logger->warning(
                     'TOH backtiming: no fitting track after source retries; using shortest best-effort full song.',
                     [
