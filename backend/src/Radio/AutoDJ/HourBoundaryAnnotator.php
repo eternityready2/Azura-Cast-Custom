@@ -21,6 +21,10 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
 {
     use LoggerAwareTrait;
 
+    private const bool DEFAULT_STRETCH_SQUEEZE_ENABLED = true;
+
+    private const float DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT = 5.0;
+
     public function __construct(
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly Scheduler $scheduler,
@@ -159,6 +163,39 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         }
 
         $mediaLength = $media->length;
+        $effectiveLength = $media->getCalculatedLength();
+        $existingAnnotations = $event->getAnnotations();
+
+        // A ratio chosen while the row was originally queued can become stale if
+        // the live scheduled boundary is now tighter. Keep it only if it still
+        // lands inside the current boundary; otherwise remove it before any cap or
+        // replacement squeeze is considered so two timing mechanisms never stack.
+        if (isset($existingAnnotations['liq_stretch_ratio'])) {
+            $stretchRatio = (float)$existingAnnotations['liq_stretch_ratio'];
+            if ($stretchRatio > 0) {
+                $adjustedDuration = $effectiveLength / $stretchRatio;
+                if ($adjustedDuration <= ($liveMaxDuration + 0.5)) {
+                    $this->logger->debug(
+                        'TOH safety net: stretch/squeeze already fits the live boundary; cap skipped.',
+                        [
+                            'stretch_ratio' => $stretchRatio,
+                            'adjusted_duration' => $adjustedDuration,
+                        ]
+                    );
+                    return;
+                }
+            }
+
+            unset($existingAnnotations['liq_stretch_ratio']);
+            $existingAnnotations['duration'] = $effectiveLength;
+            $event->setAnnotations($existingAnnotations);
+            $queue->clock_wheel_stretch_ratio = null;
+            $queue->duration = $effectiveLength;
+
+            $this->logger->debug(
+                'TOH safety net: removed stale stretch/squeeze ratio and restored natural duration.'
+            );
+        }
 
         // If the build-time cap was already tighter than or equal to the live
         // boundary, it's genuinely fine -- don't re-cap unnecessarily.
@@ -172,8 +209,60 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
             return;
         }
 
-        if ($mediaLength <= $liveMaxDuration) {
-            // Track already fits within the live boundary on its own.
+        if ($effectiveLength <= $liveMaxDuration) {
+            // The unmodified track fits; a stale slow-down was the only problem.
+            return;
+        }
+
+        // Prefer a live squeeze over truncation when the overrun is small enough
+        // to remain within the same station-wide safety limit used by the queue
+        // planner and Clock Wheel annotator.
+        $rawConfig = $station->backend_config->toArray(true) ?? [];
+        $stretchSqueezeEnabled = (bool)(
+            $rawConfig['playout_stretch_squeeze_enabled'] ?? self::DEFAULT_STRETCH_SQUEEZE_ENABLED
+        );
+        $maxPercent = (float)(
+            $rawConfig['playout_stretch_squeeze_max_percent'] ?? self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT
+        );
+        $maxPercent = max(0.5, min(5.0, $maxPercent));
+        $requiredRatio = $effectiveLength / $liveMaxDuration;
+
+        if (
+            $stretchSqueezeEnabled
+            && $requiredRatio >= 1.0
+            && $requiredRatio <= (1.0 + ($maxPercent / 100))
+        ) {
+            $ratio = round($requiredRatio, 4);
+            $hadHourBoundaryCap = $queue->hour_boundary_enforce_cap;
+            $hadPreIdFade = $queue->top_of_hour_pre_id_fade;
+            $annotations = $event->getAnnotations();
+
+            if ($hadHourBoundaryCap || $hadPreIdFade) {
+                unset($annotations['autocue_cue_out']);
+                if ($hadPreIdFade) {
+                    unset($annotations['autocue_fade_out']);
+                }
+            }
+
+            $event->setAnnotations($annotations);
+            $event->addAnnotations([
+                'liq_stretch_ratio' => $ratio,
+                'duration' => $liveMaxDuration,
+            ]);
+
+            $queue->clock_wheel_stretch_ratio = $ratio;
+            $queue->duration = $liveMaxDuration;
+            $queue->hour_boundary_enforce_cap = false;
+            $queue->top_of_hour_pre_id_fade = false;
+            $queue->top_of_hour_pre_id_fade_seconds = null;
+
+            $this->logger->debug(
+                'TOH safety net: replaced live cap with safe squeeze.',
+                [
+                    'stretch_ratio' => $ratio,
+                    'adjusted_duration' => $liveMaxDuration,
+                ]
+            );
             return;
         }
 
@@ -353,4 +442,3 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
         ]);
     }
 }
-

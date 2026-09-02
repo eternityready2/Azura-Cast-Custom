@@ -21,6 +21,14 @@ final class LinearLogBuilder
 {
     use EntityManagerAwareTrait;
 
+    /**
+     * The selected horizon is a minimum. Keep one additional program hour so a
+     * 24-hour log does not hard-stop at exactly +24:00 and operators can see the
+     * handoff into the next hour. This also gives the scheduled 12-hour rebuild a
+     * small safety runway if a build is delayed.
+     */
+    public const int SAFETY_RUNWAY_MINUTES = 60;
+
     public function __construct(
         private readonly Queue $queue,
         private readonly StationQueueRepository $queueRepo,
@@ -57,12 +65,13 @@ final class LinearLogBuilder
     {
         $stationId = $station->id;
         $hours = max(1, min(48, $hoursOverride ?? $station->backend_config->linear_log_hours));
-        $lookaheadMinutes = $hours * 60;
+        $requestedLookaheadMinutes = $hours * 60;
+        $lookaheadMinutes = $requestedLookaheadMinutes + self::SAFETY_RUNWAY_MINUTES;
         $maxTracks = max(1000, $lookaheadMinutes * 2);
         $buildStartedAt = time();
         $projectionStart = Time::nowUtc();
         $projectionStartTs = $projectionStart->getTimestamp();
-        $projectionEndTs = $projectionStart->modify('+' . $hours . ' hours')->getTimestamp();
+        $projectionEndTs = $projectionStart->modify('+' . $lookaheadMinutes . ' minutes')->getTimestamp();
 
         $liveQueueIds = [];
         foreach ($this->queueRepo->getUnplayedQueue($station) as $queueRow) {
@@ -148,7 +157,7 @@ final class LinearLogBuilder
             $hours,
             $buildStartedAt,
             $projectionStartTs,
-            min($coverageEnd, $projectionEndTs),
+            $coverageEnd,
             $entries,
             $gaps,
             $aiDjShifts,

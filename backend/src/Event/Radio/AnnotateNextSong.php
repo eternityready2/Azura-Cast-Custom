@@ -29,6 +29,7 @@ final class AnnotateNextSong extends Event
         'request_id',
         'sq_id',
         'liq_amplify',
+        'liq_stretch_ratio',
         'azuracast_autocue',
         'azuracast_cache_key',
         'azuracast_ai_news',

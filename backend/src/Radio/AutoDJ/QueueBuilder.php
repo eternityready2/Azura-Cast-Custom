@@ -557,11 +557,14 @@ final class QueueBuilder implements EventSubscriberInterface
             $maxDuration = null;
         }
 
-        if (null !== $maxDuration && $mediaToPlay->getCalculatedLength() > $maxDuration) {
+        if (null !== $maxDuration) {
             $maxPlaySeconds = (int)floor($maxDuration);
-            $stationQueueEntry->hour_boundary_enforce_cap = true;
             $stationQueueEntry->hour_boundary_max_play_seconds = $maxPlaySeconds;
-            $stationQueueEntry->duration = (float)$maxPlaySeconds;
+
+            if ($mediaToPlay->getCalculatedLength() > $maxDuration) {
+                $stationQueueEntry->hour_boundary_enforce_cap = true;
+                $stationQueueEntry->duration = (float)$maxPlaySeconds;
+            }
         }
 
         $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(

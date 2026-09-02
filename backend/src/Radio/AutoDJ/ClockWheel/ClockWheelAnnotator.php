@@ -11,11 +11,16 @@ use App\Event\Radio\AnnotateNextSong;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Applies clock-wheel playback caps via AutoDJ annotations (cue_out) when the planner
- * could not guarantee fit by track selection alone.
+ * Applies timing-related playback annotations produced by AutoDJ planning.
+ *
+ * The stretch ratio field predates station-wide playout controls and retains its
+ * clock-wheel-prefixed database name for compatibility, but it is now used by
+ * ordinary rotation playlists and Smart Blocks as well as Clock Wheels.
  */
 final class ClockWheelAnnotator implements EventSubscriberInterface
 {
+    private const float RATIO_ALIGNMENT_TOLERANCE = 0.000075;
+
     public static function getSubscribedEvents(): array
     {
         return [
@@ -27,6 +32,12 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         ];
     }
 
+    /**
+     * Apply the stretch/squeeze decision frozen into the queue row when AutoDJ
+     * planned it. Runtime setting changes deliberately affect newly planned rows
+     * only, preventing an already-queued row from changing duration after later
+     * timestamps and protected boundaries were calculated from its old duration.
+     */
     public function applyClockWheelStretch(AnnotateNextSong $event): void
     {
         if (!$event->isAsAutoDj()) {
@@ -34,17 +45,58 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         $queue = $event->getQueue();
-        if (!$queue instanceof StationQueue) {
+        $media = $event->getMedia();
+        if (!$queue instanceof StationQueue || !$media instanceof StationMedia) {
+            return;
+        }
+
+        $isLegalId = $queue->top_of_hour_legal_id
+            || $queue->clock_wheel_legal_id_substitute
+            || StationMediaTypes::isStationId($media->type);
+        if ($isLegalId) {
+            return;
+        }
+
+        // A row that still has a cap/fade requirement was intentionally left on
+        // the fallback path during queue planning. Never stack stretch metadata on
+        // top of that cap at annotation time.
+        if (
+            $queue->clock_wheel_enforce_cap
+            || $queue->hour_boundary_enforce_cap
+            || $queue->top_of_hour_pre_id_fade
+        ) {
             return;
         }
 
         $ratio = $queue->clock_wheel_stretch_ratio;
-        if (null === $ratio) {
+        if (null === $ratio || $ratio <= 0 || abs($ratio - 1.0) < 0.0001) {
+            return;
+        }
+
+        $naturalDuration = $media->getCalculatedLength();
+        $projectedDuration = $queue->duration;
+        if (null === $projectedDuration || $projectedDuration <= 0 || $naturalDuration <= 0) {
+            $queue->clock_wheel_stretch_ratio = null;
+            return;
+        }
+
+        // Older queued rows can contain a planner ratio that predates active
+        // Liquidsoap serialization while their stored duration is still natural.
+        // Only activate a ratio when the persisted projected duration proves that
+        // this row was normalized for the same ratio during queue planning.
+        $durationRatio = $naturalDuration / $projectedDuration;
+        if (abs($durationRatio - $ratio) > self::RATIO_ALIGNMENT_TOLERANCE) {
+            $queue->clock_wheel_stretch_ratio = null;
+            $queue->duration = $naturalDuration;
+            $event->addAnnotations([
+                'duration' => $naturalDuration,
+            ]);
             return;
         }
 
         $event->addAnnotations([
-            'liq_stretch_ratio' => $ratio,
+            'liq_stretch_ratio' => round($ratio, 4),
+            'duration' => $projectedDuration,
         ]);
     }
 
@@ -117,8 +169,8 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
         }
 
         $media = $event->getMedia();
-        $isLegalId = ($queue->top_of_hour_legal_id ?? false)
-            || ($queue->clock_wheel_legal_id_substitute ?? false)
+        $isLegalId = $queue->top_of_hour_legal_id
+            || $queue->clock_wheel_legal_id_substitute
             || ($media instanceof StationMedia && StationMediaTypes::isStationId($media->type));
 
         if (!$isLegalId) {
