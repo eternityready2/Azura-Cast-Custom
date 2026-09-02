@@ -1,0 +1,76 @@
+name: AI DJ PR Validation
+
+on:
+  push:
+    branches:
+      - fix/ai-dj-shift-welcome-outro
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: azuracast
+          MARIADB_USER: azuracast
+          MARIADB_PASSWORD: azur4c457
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: azuracast
+      MYSQL_USER: azuracast
+      MYSQL_PASSWORD: azur4c457
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      ENABLE_REDIS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mirror AzuraCast runtime path
+        run: |
+          sudo mkdir -p /var/azuracast
+          sudo ln -s "$GITHUB_WORKSPACE" /var/azuracast/www
+          sudo mkdir -p /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage/uploads
+          sudo chown -R "$USER":"$USER" /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: redis, pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer validate --no-check-publish
+      - name: PHP syntax checks
+        run: |
+          php -l backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+          php -l backend/src/Service/AiDjScheduler.php
+          php -l tests/Unit/AiDjSchedulerTest.php
+          php -l backend/config/events.php
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req='ext-*'
+      - name: Static analysis
+        run: vendor/bin/phpstan analyze backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php backend/src/Service/AiDjScheduler.php tests/Unit/AiDjSchedulerTest.php --memory-limit=-1
+      - name: Coding standards
+        run: vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php backend/src/Service/AiDjScheduler.php tests/Unit/AiDjSchedulerTest.php
+      - name: Initialize test database
+        run: |
+          php bin/console migrations:sync-metadata-storage --no-interaction
+          php bin/console migrations:migrate --allow-no-migration --no-interaction
+      - name: Focused AI DJ scheduler tests
+        run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
