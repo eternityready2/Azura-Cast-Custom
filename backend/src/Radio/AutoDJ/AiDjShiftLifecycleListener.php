@@ -155,15 +155,17 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $ttl = $this->getStateTtl($endsAt, $now);
         $this->cache->set($outroKey, true, $ttl);
 
-        if (!$this->pushOutroClip(
-            $dj,
-            $station,
-            $backend,
-            $scheduleNow,
-            $outroWindow['starts_at'],
-            $outroWindow['ends_at'],
-            $estimatedAirTime,
-        )) {
+        if (
+            !$this->pushOutroClip(
+                $dj,
+                $station,
+                $backend,
+                $scheduleNow,
+                $outroWindow['starts_at'],
+                $outroWindow['ends_at'],
+                $estimatedAirTime,
+            )
+        ) {
             $this->cache->delete($outroKey);
         }
     }
