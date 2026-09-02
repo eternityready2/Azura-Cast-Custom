@@ -12,7 +12,7 @@
 
             <info-card>
                 <p class="mb-0">
-                    {{ $gettext('Advanced hard-clock and audio-ducking controls, kept separate from the Top of Hour ID page.') }}
+                    {{ $gettext('Advanced hard-clock, stretch/squeeze and audio-ducking controls, kept separate from the Top of Hour ID page.') }}
                 </p>
             </info-card>
 
@@ -67,6 +67,42 @@
                     <hr class="my-4">
 
                     <h3 class="h6">
+                        {{ $gettext('Stretch / Squeeze') }}
+                    </h3>
+                    <p class="text-secondary small">
+                        {{ $gettext('Uses pitch-preserving time adjustment when AutoDJ backtimes music into a protected boundary. This is station-wide and applies to standard rotation playlists, Smart Blocks and Clock Wheels when their selected track has stretch/squeeze timing metadata.') }}
+                    </p>
+
+                    <form-group id="stretch_squeeze_enabled" class="mb-3">
+                        <template #label>
+                            {{ $gettext('Enable stretch / squeeze') }}
+                        </template>
+                        <form-checkbox id="stretch_squeeze_enabled" v-model="form.stretch_squeeze_enabled" />
+                    </form-group>
+
+                    <template v-if="form.stretch_squeeze_enabled">
+                        <form-group id="stretch_squeeze_max_percent" class="mb-3">
+                            <template #label>
+                                {{ $gettext('Maximum timing adjustment (%)') }}
+                            </template>
+                            <input
+                                id="stretch_squeeze_max_percent"
+                                v-model.number="form.stretch_squeeze_max_percent"
+                                type="number"
+                                class="form-control"
+                                min="0.5"
+                                max="5"
+                                step="0.5"
+                            >
+                            <div class="form-text">
+                                {{ $gettext('The existing safe limit is 5%. Lower values reduce how much AutoDJ may speed up or slow down a track.') }}
+                            </div>
+                        </form-group>
+                    </template>
+
+                    <hr class="my-4">
+
+                    <h3 class="h6">
                         {{ $gettext('Smart Ducking') }}
                     </h3>
                     <p class="text-secondary small">
@@ -113,7 +149,7 @@
                     </template>
 
                     <div class="alert alert-info mb-0">
-                        {{ $gettext('Ducking and Liquidsoap hard-clock configuration changes take effect after broadcasting is restarted.') }}
+                        {{ $gettext('Ducking and Liquidsoap hard-clock configuration changes take effect after broadcasting is restarted. Stretch / Squeeze is applied from AutoDJ track metadata and does not require a broadcasting restart.') }}
                     </div>
                 </div>
             </loading>
@@ -155,6 +191,8 @@ const form = ref<PlayoutControlsSettings>({
     hard_clock_enabled: false,
     hard_clock_trigger_seconds: 3,
     hard_clock_fade_seconds: 3,
+    stretch_squeeze_enabled: true,
+    stretch_squeeze_max_percent: 5,
     smart_duck_enabled: false,
     smart_duck_attenuation: 0.2,
     smart_duck_delay: 3,
@@ -168,6 +206,8 @@ const loadSettings = async () => {
             hard_clock_enabled: data.hard_clock_enabled ?? false,
             hard_clock_trigger_seconds: data.hard_clock_trigger_seconds ?? 3,
             hard_clock_fade_seconds: data.hard_clock_fade_seconds ?? 3,
+            stretch_squeeze_enabled: data.stretch_squeeze_enabled ?? true,
+            stretch_squeeze_max_percent: data.stretch_squeeze_max_percent ?? 5,
             smart_duck_enabled: data.smart_duck_enabled ?? false,
             smart_duck_attenuation: data.smart_duck_attenuation ?? 0.2,
             smart_duck_delay: data.smart_duck_delay ?? 3,
