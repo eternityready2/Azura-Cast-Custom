@@ -187,10 +187,14 @@ final class HourBoundaryAnnotator implements EventSubscriberInterface
             }
 
             unset($existingAnnotations['liq_stretch_ratio']);
+            $existingAnnotations['duration'] = $effectiveLength;
             $event->setAnnotations($existingAnnotations);
             $queue->clock_wheel_stretch_ratio = null;
+            $queue->duration = $effectiveLength;
 
-            $this->logger->debug('TOH safety net: removed stale stretch/squeeze ratio before live fitting.');
+            $this->logger->debug(
+                'TOH safety net: removed stale stretch/squeeze ratio and restored natural duration.'
+            );
         }
 
         // If the build-time cap was already tighter than or equal to the live
