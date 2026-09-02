@@ -115,6 +115,20 @@ final class ClockWheelAnnotatorTest extends Unit
         self::assertSame(100.0, $event->getQueue()?->duration);
     }
 
+    public function testSqueezeUsesTighterCapInsteadOfStalePrecomputedRatio(): void
+    {
+        $event = $this->makeStretchEvent(
+            ratio: 0.99,
+            mediaLength: 102.0,
+            hourBoundaryMaxSeconds: 100,
+        );
+
+        $this->annotator->applyClockWheelStretch($event);
+
+        self::assertSame(1.02, $event->getAnnotations()['liq_stretch_ratio']);
+        self::assertFalse($event->getQueue()?->hour_boundary_enforce_cap);
+    }
+
     public function testSqueezeLeavesCapFallbackWhenRequiredAdjustmentExceedsMaximum(): void
     {
         $event = $this->makeStretchEvent(
