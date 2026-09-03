@@ -132,6 +132,11 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                     name: 'stations:aircheck'
                 },
                 {
+                    path: 'diagnostics',
+                    component: () => import('~/components/Stations/Diagnostics.vue'),
+                    name: 'stations:diagnostics'
+                },
+                {
                     path: 'smart-blocks',
                     component: () => import('~/components/Stations/SmartBlocks.vue'),
                     name: 'stations:smart-blocks:index'
