@@ -1,10 +1,10 @@
 <template>
     <div
         id="app-toolbar"
-        class="d-flex pt-4"
+        class="d-flex flex-wrap align-items-start gap-2 pt-4"
     >
-        <div class="flex-fill buttons d-flex align-items-center">
-            <span>
+        <div class="flex-fill buttons d-flex flex-wrap align-items-center">
+            <span class="text-body-secondary fw-semibold">
                 {{ $gettext('With selected:') }}
             </span>
 
@@ -78,6 +78,11 @@
             >
                 {{ $gettext('Apply Genre') }}
             </button>
+
+            <div
+                class="w-100 me-0 my-1"
+                aria-hidden="true"
+            />
 
             <div
                 class="btn-group btn-group-sm dropdown allow-focus"
@@ -279,7 +284,7 @@
                 </span>
             </button>
         </div>
-        <div class="flex-shrink-0">
+        <div class="flex-shrink-0 ms-auto">
             <button
                 type="button"
                 class="btn btn-sm btn-primary"
