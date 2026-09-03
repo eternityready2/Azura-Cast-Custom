@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Entity\Station;
 use DateTimeImmutable;
-use RuntimeException;
 use Throwable;
 
 final class StationDiagnostics
@@ -25,12 +24,12 @@ final class StationDiagnostics
         $path = $this->getLogPath($station);
         $directory = dirname($path);
 
-        if (!is_dir($directory) && !mkdir($directory, 0o775, true) && !is_dir($directory)) {
-            throw new RuntimeException(sprintf('Could not create diagnostics directory "%s".', $directory));
+        if (!is_dir($directory)) {
+            @mkdir($directory, 0o775, true);
         }
 
-        if (!is_file($path) && false === file_put_contents($path, '', LOCK_EX)) {
-            throw new RuntimeException(sprintf('Could not create diagnostics log "%s".', $path));
+        if (is_dir($directory) && !is_file($path)) {
+            @file_put_contents($path, '', LOCK_EX);
         }
 
         return $path;
@@ -64,6 +63,10 @@ final class StationDiagnostics
     ): void {
         try {
             $path = $this->ensureLogFile($station);
+            if (!is_file($path)) {
+                return;
+            }
+
             $this->trimIfNeeded($path);
 
             $timestamp = (new DateTimeImmutable('now', $station->getTimezoneObject()))->format(DATE_ATOM);
@@ -85,7 +88,6 @@ final class StationDiagnostics
 
             file_put_contents($path, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
         } catch (Throwable) {
-            // Diagnostics must never interfere with station playback or scheduled tasks.
         }
     }
 
