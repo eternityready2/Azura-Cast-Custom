@@ -22,11 +22,13 @@ final readonly class AirCheckHealthMonitor
     {
         $stationServices = [
             $this->getStationService(
+                $station,
                 'backend',
                 $this->adapters->getBackendAdapter($station),
                 'AutoDJ Backend'
             ),
             $this->getStationService(
+                $station,
                 'frontend',
                 $this->adapters->getFrontendAdapter($station),
                 'Broadcast Frontend'
@@ -72,6 +74,7 @@ final readonly class AirCheckHealthMonitor
 
     /** @return array<string, mixed> */
     private function getStationService(
+        Station $station,
         string $key,
         ?AbstractLocalAdapter $adapter,
         string $fallbackName,
