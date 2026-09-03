@@ -117,6 +117,16 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             return;
         }
 
+        // Reserve the concrete sign-off phase without borrowing the normal talk
+        // cooldown. AiDjQueueListener reads this shift-end timestamp and suppresses
+        // only ordinary AI chatter until the shift ends; normal AutoDJ music remains
+        // completely independent.
+        $this->cache->set(
+            'ai_dj_shift_winddown_until_' . $station->id,
+            $endsAt->getTimestamp(),
+            $this->getStateTtl($endsAt, $now),
+        );
+
         $outroKey = $this->getOutroKey($station, $scheduleNow, $startsAt);
         $alreadySignedOff = $this->cache->get($outroKey)
             || $this->hasDurableShiftMarker($station, $dj, 'AI DJ Sign-off', $startsAt, $endsAt);
