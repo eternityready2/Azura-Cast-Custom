@@ -80,20 +80,20 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
-        $expectedPlayTime = $event->getExpectedPlayTime()
-            ->setTimezone($station->getTimezoneObject());
         $estimatedAirTime = $this->resolveDirectRequestAirTime($station, $now);
 
         $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
-        $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
         $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $estimatedAirTime);
 
+        // Lifecycle work is only valid when the same concrete shift owns both the
+        // current moment and the direct Liquidsoap request boundary. A mismatch
+        // skips lifecycle work for this build only; it never changes normal talk
+        // cooldown state and never blocks the lower-priority AutoDJ music selector.
         if (
             !$scheduleNow instanceof AiDjSchedule
             || !$scheduleAtAirTime instanceof AiDjSchedule
             || $scheduleNow->getId() !== $scheduleAtAirTime->getId()
         ) {
-            $this->blockLegacyListener($station);
             return;
         }
 
@@ -102,35 +102,30 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $startsAt = $shift['starts_at'];
         $endsAt = $shift['ends_at'];
 
-        $legacyScheduleAligned = $scheduleAtExpectedTime instanceof AiDjSchedule
-            && $scheduleNow->getId() === $scheduleAtExpectedTime->getId();
-
-        if ($legacyScheduleAligned) {
-            $this->syncWelcomeGuard(
-                $station,
-                $scheduleNow,
-                $dj,
-                $startsAt,
-                $endsAt,
-                $now,
-                $estimatedAirTime,
-            );
-        } else {
-            // AiDjQueueListener still chooses its DJ from BuildQueue's projected
-            // database slot. If that slot has crossed into another shift, suppress
-            // ordinary speech while allowing this listener's direct sign-off to use
-            // the real next playback boundary.
-            $this->blockLegacyListener($station);
-        }
+        $this->syncWelcomeGuard(
+            $station,
+            $scheduleNow,
+            $dj,
+            $startsAt,
+            $endsAt,
+            $now,
+            $estimatedAirTime,
+        );
 
         $outroWindow = $this->resolveOutroWindow($station, $startsAt, $endsAt);
         if (null === $outroWindow || $estimatedAirTime < $outroWindow['starts_at']) {
             return;
         }
 
-        // Once the final sign-off window begins, normal random talk stops. This
-        // guarantees there is never ordinary chatter after the DJ has said goodbye.
-        $this->blockLegacyListener($station);
+        // Reserve the concrete sign-off phase without borrowing the normal talk
+        // cooldown. AiDjQueueListener reads this shift-end timestamp and suppresses
+        // only ordinary AI chatter until the shift ends; normal AutoDJ music remains
+        // completely independent.
+        $this->cache->set(
+            'ai_dj_shift_winddown_until_' . $station->id,
+            $endsAt->getTimestamp(),
+            $this->getStateTtl($endsAt, $now),
+        );
 
         $outroKey = $this->getOutroKey($station, $scheduleNow, $startsAt);
         $alreadySignedOff = $this->cache->get($outroKey)
@@ -314,14 +309,6 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         return $backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33;
-    }
-
-    private function blockLegacyListener(Station $station): void
-    {
-        // AiDjQueueListener checks this key before it generates any speech. Refreshing
-        // it on each out-of-shift/final-window BuildQueue cycle prevents pre-queued
-        // expected times from leaking speech outside the actual work schedule.
-        $this->cache->set('ai_dj_cooldown_' . $station->id, time(), 300);
     }
 
     private function getCurrentSongEndTime(Station $station): ?DateTimeImmutable

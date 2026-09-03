@@ -129,9 +129,10 @@ final class AiDjQueueListener implements EventSubscriberInterface
             return;
         }
 
-        // Cooldown: minimum gap between DJ talk breaks so she does not talk on
-        // consecutive songs (was 60s, which allowed back-to-back chatter).
-        $cooldownKey = 'ai_dj_cooldown_' . $station->id;
+        // This key is deliberately owned only by ordinary AI DJ speech. Lifecycle
+        // schedule checks use separate state and must never make a skipped attempt
+        // look like a DJ actually spoke.
+        $cooldownKey = 'ai_dj_talk_cooldown_' . $station->id;
         $lastGenTime = $this->cache->get($cooldownKey);
         if ($lastGenTime && (time() - $lastGenTime) < 180) {
             $this->logger->debug('AI DJ: Skipped - cooldown active.', ['elapsed' => time() - $lastGenTime]);
@@ -148,54 +149,72 @@ final class AiDjQueueListener implements EventSubscriberInterface
             return;
         }
 
-        $expectedPlayTime = $event->getExpectedPlayTime();
+        // AI DJ audio goes directly to Liquidsoap's track-sensitive Requests queue.
+        // Its useful scheduling clock is therefore the boundary where that request
+        // can actually air, normally the end of the song currently on air. The
+        // database queue's expectedPlayTime can be several songs ahead after queue
+        // projection/Linear Log work and must not decide which DJ speaks or whether
+        // the direct request is inside a protected window.
+        $now = new DateTimeImmutable('now', $station->getTimezoneObject());
+        $directAirTime = $this->resolveDirectRequestAirTime($station, $now);
 
-        // Skip if top-of-hour protection is active and we're in the lookahead zone.
-        // This uses the station's configured lookahead window instead of hardcoded minutes,
-        // so DJ clips never compete with legal IDs or news at the top of hour.
-        if ($this->hourBoundaryPlanner->isInLookaheadZone($station, $expectedPlayTime)) {
+        // The lifecycle listener owns a separate wind-down marker once the concrete
+        // sign-off window begins. It carries only the shift end timestamp and never
+        // touches the ordinary talk cooldown. Expired state is removed lazily so a
+        // following shift is never suppressed by the previous DJ's goodbye.
+        $winddownKey = 'ai_dj_shift_winddown_until_' . $station->id;
+        $winddownUntil = (int)($this->cache->get($winddownKey) ?? 0);
+        if ($winddownUntil > 0) {
+            if ($directAirTime->getTimestamp() < $winddownUntil) {
+                $this->logger->debug('AI DJ: Skipped - scheduled shift is in sign-off wind-down.');
+                return;
+            }
+
+            $this->cache->delete($winddownKey);
+        }
+
+        // Skip if top-of-hour protection is active at the actual likely request airtime.
+        if ($this->hourBoundaryPlanner->isInLookaheadZone($station, $directAirTime)) {
             $this->logger->debug('AI DJ: Skipped - in top-of-hour lookahead zone.');
             return;
         }
 
         // Also skip the first 3 minutes after the hour to let legal IDs and news finish.
-        $now = new DateTimeImmutable('now', $station->getTimezoneObject());
-        $minute = (int) $now->format('i');
+        $minute = (int)$now->format('i');
         if ($minute <= 3) {
             $this->logger->debug('AI DJ: Skipped - post-hour buffer (minute ' . $minute . ').');
             return;
         }
 
         // Quiet window: keep the AI DJ off the air before the top of the hour so it never
-        // steps on the station ID or news. A DJ clip is enqueued ahead of airtime and airs
-        // when the current (or a queued) song ends, which can be several minutes after it
-        // is decided, so a long song can push a break well past its intended slot. To keep
-        // that drift from overrunning the hour, new breaks stop being started at :50 and are
-        // additionally blocked based on the queue's estimate and the current song's real end
-        // time. Net effect: nothing airs between :55 and :00.
-        $playMinute = (int) $expectedPlayTime->setTimezone($station->getTimezoneObject())->format('i');
+        // steps on the station ID or news. A DJ request airs at the current-song boundary,
+        // so use that direct airtime rather than a far-ahead database queue projection.
+        $playMinute = (int)$directAirTime->format('i');
         $songEnd = $this->getCurrentSongEndTime($station);
         $endSecOfHour = -1;
         if ($songEnd !== null) {
             $endLocal = $songEnd->setTimezone($station->getTimezoneObject());
-            $endSecOfHour = ((int) $endLocal->format('i')) * 60 + (int) $endLocal->format('s');
+            $endSecOfHour = ((int)$endLocal->format('i')) * 60 + (int)$endLocal->format('s');
         }
         // A DJ clip airs when the current song ends and then runs ~15-30s. To keep even
         // the clip's TAIL out of the :55-:00 window, block from :54:30 (3270s into the
         // hour) onward - a break that aired at :54:55 once bled ~19s past :55.
         if ($minute >= 50 || $playMinute >= 55 || $endSecOfHour >= 3270) {
             $this->logger->debug('AI DJ: Skipped - DJ winding down before top of hour.', [
-                'now_min' => $minute, 'queue_min' => $playMinute, 'song_end_sec' => $endSecOfHour,
+                'now_min' => $minute,
+                'air_min' => $playMinute,
+                'song_end_sec' => $endSecOfHour,
             ]);
             return;
         }
 
-        // Coordinate with AI Newscaster: avoid minutes around news bulletin times.
-        if ($this->isNearNewsBulletin($station, $minute)) {
+        // Coordinate with AI Newscaster at the time this request is likely to air.
+        if ($this->isNearNewsBulletin($station, $playMinute)) {
             $this->logger->debug('AI DJ: Skipped - near AI Newscaster bulletin time.');
             return;
         }
-        $dj = $this->scheduler->findActiveDj($station->id, $expectedPlayTime);
+
+        $dj = $this->scheduler->findActiveDj($station->id, $directAirTime);
 
         // Track DJ shift transitions for outro firing
         $cacheKey = 'ai_dj_last_active_' . $station->id;
@@ -212,13 +231,11 @@ final class AiDjQueueListener implements EventSubscriberInterface
 
         // Fire the shift intro when a new DJ block begins. Only one clip per break.
         if ($currentDjId !== null && $previousDjId !== $currentDjId && $dj instanceof AiDj) {
-            // The queue is built several minutes ahead, so $expectedPlayTime can cross a
-            // shift boundary before the clip actually airs, which would let a DJ welcome
-            // itself before its shift has truly started. Require the shift to have
-            // actually begun in real time before welcoming; if not, revert the transition
-            // marker and wait so nothing airs before the DJ's appointed start. The welcome
-            // then fires on a later build cycle once the shift has truly started.
-            $djNow = $this->scheduler->findActiveDj($station->id, new \DateTimeImmutable('now'));
+            // The direct request can be prepared before a shift boundary, but a welcome
+            // must never air before the scheduled shift has actually begun. If the
+            // direct-airtime DJ differs from the DJ active right now, wait for a later
+            // BuildQueue cycle rather than announcing the next DJ early.
+            $djNow = $this->scheduler->findActiveDj($station->id, $now);
             if (!$djNow instanceof AiDj || $djNow->getId() !== $currentDjId) {
                 $this->cache->set($cacheKey, $previousDjId, 3600);
                 $this->trackCurrentSong($station);
@@ -247,13 +264,13 @@ final class AiDjQueueListener implements EventSubscriberInterface
         }
 
         if (null === $dj) {
-            $this->logger->debug('AI DJ: No active DJ for this time slot.');
+            $this->logger->debug('AI DJ: No active DJ for direct request airtime.');
             return;
         }
 
         $this->logger->info('AI DJ: Active DJ found.', ['dj_name' => $dj->getName()]);
 
-        // Check talk frequency
+        // Check talk frequency only after all real-airtime safety gates have passed.
         $frequency = $dj->getTalkFrequency();
         if ($frequency < 1.0 && (mt_rand(1, 100) / 100) > $frequency) {
             $this->logger->debug('AI DJ: Skipped by talk frequency.', ['frequency' => $frequency]);
@@ -395,7 +412,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
             }
 
             $elapsed = time() - $last->timestamp_start->getTimestamp();
-            $remaining = $last->duration - (float) $elapsed;
+            $remaining = $last->duration - (float)$elapsed;
 
             if ($remaining <= self::NAME_SAFE_MIN_REMAINING_SECONDS) {
                 $this->logger->debug(
@@ -455,12 +472,28 @@ final class AiDjQueueListener implements EventSubscriberInterface
     }
 
     /**
+     * Resolve when a track-sensitive Liquidsoap request is actually likely to air.
+     * If the current song has a trustworthy future end, that boundary is the request
+     * airtime. Otherwise fail open to now rather than a projected DB queue slot.
+     */
+    private function resolveDirectRequestAirTime(
+        Station $station,
+        DateTimeImmutable $now,
+    ): DateTimeImmutable {
+        $currentSongEnd = $this->getCurrentSongEndTime($station);
+
+        if ($currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $now) {
+            return $currentSongEnd;
+        }
+
+        return $now;
+    }
+
+    /**
      * Projected end time (= break airtime) of the song currently on air. A DJ clip
      * enqueues to Requests and airs when the current song finishes, so this is the
      * most accurate estimate of when the clip is actually heard - more reliable than
-     * the queue's expectedPlayTime, which under-estimates and once let a clip air at
-     * :58 inside the quiet window. Null when timing is unknown (caller then relies on
-     * the clock-minute + expectedPlayTime checks).
+     * the queue's expectedPlayTime, which can be far ahead of the direct request.
      */
     private function getCurrentSongEndTime(Station $station): ?\DateTimeImmutable
     {
@@ -482,7 +515,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
                 return null;
             }
 
-            $endTs = $last->timestamp_start->getTimestamp() + (int) ceil($last->duration);
+            $endTs = $last->timestamp_start->getTimestamp() + (int)ceil($last->duration);
             return (new \DateTimeImmutable('@' . $endTs))->setTimezone($station->getTimezoneObject());
         } catch (\Throwable $e) {
             $this->logger->error(sprintf('AI DJ: song-end timing check failed: %s', $e->getMessage()));
