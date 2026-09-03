@@ -1,0 +1,100 @@
+name: AI DJ Codex DST Validation
+
+on:
+  push:
+    branches:
+      - fix/ai-dj-codex-followup
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: azuracast
+          MARIADB_USER: azuracast
+          MARIADB_PASSWORD: azur4c457
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: azuracast
+      MYSQL_USER: azuracast
+      MYSQL_PASSWORD: azur4c457
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      ENABLE_REDIS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply DST-safe AI News protection
+        run: |
+          python3 <<'PY'
+          import base64
+          from pathlib import Path
+
+          path = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php')
+          text = path.read_text()
+
+          property_block = base64.b64decode('ICAgIC8qKiBAdmFyIGFycmF5PHN0cmluZywgbGlzdDxpbnQ+PiAqLwogICAgcHJpdmF0ZSBhcnJheSAkYWlOZXdzVGltZXpvbmVPZmZzZXRDYWNoZSA9IFtdOwoK').decode('utf-8')
+          marker = '    private const int STATE_GRACE_SECONDS = 3600;\n\n'
+          if property_block not in text:
+              if text.count(marker) != 1:
+                  raise SystemExit('Could not locate STATE_GRACE_SECONDS marker')
+              text = text.replace(marker, marker + property_block, 1)
+
+          replacement = base64.b64decode('ICAgIHByaXZhdGUgZnVuY3Rpb24gaXNBaU5ld3NBY3RpdmVBdChTdGF0aW9uICRzdGF0aW9uLCBEYXRlVGltZUltbXV0YWJsZSAkY2FuZGlkYXRlKTogYm9vbAogICAgewogICAgICAgICRiYWNrZW5kQ29uZmlnID0gJHN0YXRpb24tPmJhY2tlbmRfY29uZmlnOwogICAgICAgICR0aW1lem9uZSA9ICRzdGF0aW9uLT5nZXRUaW1lem9uZU9iamVjdCgpOwogICAgICAgICRjYW5kaWRhdGUgPSAkY2FuZGlkYXRlLT5zZXRUaW1lem9uZSgkdGltZXpvbmUpOwoKICAgICAgICAkYWN0aXZlRGF5cyA9IGFycmF5X3ZhbHVlcyhhcnJheV91bmlxdWUoYXJyYXlfZmlsdGVyKAogICAgICAgICAgICBhcnJheV9tYXAoCiAgICAgICAgICAgICAgICBzdGF0aWMgZm4obWl4ZWQgJGRheSk6IGludCA9PiAoaW50KSRkYXksCiAgICAgICAgICAgICAgICAkYmFja2VuZENvbmZpZy0+YWlfbmV3c19hY3RpdmVfZGF5cywKICAgICAgICAgICAgKSwKICAgICAgICAgICAgc3RhdGljIGZuKGludCAkZGF5KTogYm9vbCA9PiAkZGF5ID49IDEgJiYgJGRheSA8PSA3LAogICAgICAgICkpKTsKCiAgICAgICAgaWYgKCRhY3RpdmVEYXlzICE9PSBbXSAmJiAhaW5fYXJyYXkoKGludCkkY2FuZGlkYXRlLT5mb3JtYXQoJ04nKSwgJGFjdGl2ZURheXMsIHRydWUpKSB7CiAgICAgICAgICAgIHJldHVybiBmYWxzZTsKICAgICAgICB9CgogICAgICAgICRhY3RpdmVIb3VycyA9ICRiYWNrZW5kQ29uZmlnLT5haV9uZXdzX2FjdGl2ZV9ob3VyczsKICAgICAgICBpZiAobnVsbCA9PT0gJGFjdGl2ZUhvdXJzIHx8ICcnID09PSB0cmltKCRhY3RpdmVIb3VycykpIHsKICAgICAgICAgICAgcmV0dXJuIHRydWU7CiAgICAgICAgfQoKICAgICAgICAkYWN0aXZlSG91cnMgPSB0cmltKCRhY3RpdmVIb3Vycyk7CiAgICAgICAgaWYgKCFwcmVnX21hdGNoKCcvXihcZHsxLDJ9KTooXGR7Mn0pLShcZHsxLDJ9KTooXGR7Mn0pJC8nLCAkYWN0aXZlSG91cnMsICRtYXRjaGVzKSkgewogICAgICAgICAgICByZXR1cm4gdHJ1ZTsKICAgICAgICB9CgogICAgICAgICRzdGFydE1pbnV0ZXMgPSAoKGludCkkbWF0Y2hlc1sxXSkgKiA2MCArIChpbnQpJG1hdGNoZXNbMl07CiAgICAgICAgJGVuZE1pbnV0ZXMgPSAoKGludCkkbWF0Y2hlc1szXSkgKiA2MCArIChpbnQpJG1hdGNoZXNbNF07CiAgICAgICAgJHV0Y0NhbmRpZGF0ZSA9ICRjYW5kaWRhdGUtPnNldFRpbWV6b25lKG5ldyBEYXRlVGltZVpvbmUoJ1VUQycpKTsKICAgICAgICAkdXRjTWludXRlcyA9ICgoaW50KSR1dGNDYW5kaWRhdGUtPmZvcm1hdCgnRycpKSAqIDYwICsgKGludCkkdXRjQ2FuZGlkYXRlLT5mb3JtYXQoJ2knKTsKCiAgICAgICAgZm9yZWFjaCAoJHRoaXMtPmdldEFpTmV3c1RpbWV6b25lT2Zmc2V0cygkdGltZXpvbmUsICRjYW5kaWRhdGUpIGFzICRvZmZzZXRTZWNvbmRzKSB7CiAgICAgICAgICAgICRlZmZlY3RpdmVMb2NhbE1pbnV0ZXMgPSAoJHV0Y01pbnV0ZXMgKyBpbnRkaXYoJG9mZnNldFNlY29uZHMsIDYwKSkgJSAxNDQwOwogICAgICAgICAgICBpZiAoJGVmZmVjdGl2ZUxvY2FsTWludXRlcyA8IDApIHsKICAgICAgICAgICAgICAgICRlZmZlY3RpdmVMb2NhbE1pbnV0ZXMgKz0gMTQ0MDsKICAgICAgICAgICAgfQoKICAgICAgICAgICAgaWYgKCRzdGFydE1pbnV0ZXMgPD0gJGVuZE1pbnV0ZXMpIHsKICAgICAgICAgICAgICAgIGlmICgkZWZmZWN0aXZlTG9jYWxNaW51dGVzID49ICRzdGFydE1pbnV0ZXMgJiYgJGVmZmZWN0aXZlTG9jYWxNaW51dGVzIDwgJGVuZE1pbnV0ZXMpIHsKICAgICAgICAgICAgICAgICAgICByZXR1cm4gdHJ1ZTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfSBlbHNlaWYgKCRlZmZlY3RpdmVMb2NhbE1pbnV0ZXMgPj0gJHN0YXJ0TWludXRlcyB8fCAkZWZmZWN0aXZlTG9jYWxNaW51dGVzIDwgJGVuZE1pbnV0ZXMpIHsKICAgICAgICAgICAgICAgIHJldHVybiB0cnVlOwogICAgICAgICAgICB9CiAgICAgICAgfQoKICAgICAgICByZXR1cm4gZmFsc2U7CiAgICB9CgogICAgLyoqCiAgICAgKiBDb25maWdXcml0ZXIgYmFrZXMgdGhlIHN0YXRpb24ncyBVVEMgb2Zmc2V0IGludG8gTGlxdWlkc29hcCBhY3RpdmUtaG91cgogICAgICogYm91bmRzLiBVbnRpbCBMaXF1aWRzb2FwIGlzIHJlZ2VuZXJhdGVkIGFmdGVyIGEgRFNUIHRyYW5zaXRpb24sIGVpdGhlcgogICAgICogc2lkZSBvZiB0aGUgc3RhdGlvbidzIERTVCBjeWNsZSBjYW4gdGhlcmVmb3JlIGJlIHRoZSBlbWJlZGRlZCBvZmZzZXQuCiAgICAgKgogICAgICogQHJldHVybiBsaXN0PGludD4KICAgICAqLwogICAgcHJpdmF0ZSBmdW5jdGlvbiBnZXRBaU5ld3NUaW1lem9uZU9mZnNldHMoCiAgICAgICAgRGF0ZVRpbWVab25lICR0aW1lem9uZSwKICAgICAgICBEYXRlVGltZUltbXV0YWJsZSAkY2FuZGlkYXRlLAogICAgKTogYXJyYXkgewogICAgICAgICRjYWNoZUtleSA9ICR0aW1lem9uZS0+Z2V0TmFtZSgpIC4gJzonIC4gJGNhbmRpZGF0ZS0+Zm9ybWF0KCdZJyk7CiAgICAgICAgaWYgKGlzc2V0KCR0aGlzLT5haU5ld3NUaW1lem9uZU9mZnNldENhY2hlWyRjYWNoZUtleV0pKSB7CiAgICAgICAgICAgIHJldHVybiAkdGhpcy0+YWlOZXdzVGltZXpvbmVPZmZzZXRDYWNoZVskY2FjaGVLZXldOwogICAgICAgIH0KCiAgICAgICAgJG9mZnNldHMgPSBbJHRpbWV6b25lLT5nZXRPZmZzZXQoJGNhbmRpZGF0ZSldOwogICAgICAgICR0cmFuc2l0aW9ucyA9ICR0aW1lem9uZS0+Z2V0VHJhbnNpdGlvbnMoCiAgICAgICAgICAgICRjYW5kaWRhdGUtPm1vZGlmeSgnLTM3MCBkYXlzJyktPmdldFRpbWVzdGFtcCgpLAogICAgICAgICAgICAkY2FuZGlkYXRlLT5tb2RpZnkoJyszNzAgZGF5cycpLT5nZXRUaW1lc3RhbXAoKSwKICAgICAgICApOwoKICAgICAgICBpZiAoZmFsc2UgIT09ICR0cmFuc2l0aW9ucykgewogICAgICAgICAgICBmb3JlYWNoICgkdHJhbnNpdGlvbnMgYXMgJHRyYW5zaXRpb24pIHsKICAgICAgICAgICAgICAgICRvZmZzZXRzW10gPSAoaW50KSR0cmFuc2l0aW9uWydvZmZzZXQnXTsKICAgICAgICAgICAgfQogICAgICAgIH0KCiAgICAgICAgJG9mZnNldHMgPSBhcnJheV92YWx1ZXMoYXJyYXlfdW5pcXVlKCRvZmZzZXRzKSk7CiAgICAgICAgJHRoaXMtPmFpTmV3c1RpbWV6b25lT2Zmc2V0Q2FjaGVbJGNhY2hlS2V5XSA9ICRvZmZzZXRzOwoKICAgICAgICByZXR1cm4gJG9mZnNldHM7CiAgICB9Cg==').decode('utf-8')
+          start = text.index('    private function isAiNewsActiveAt(')
+          end = text.index('    private function isSafeOutroInterval(', start)
+          text = text[:start] + replacement + '\n' + text[end:]
+          path.write_text(text)
+          PY
+      - name: Mirror AzuraCast runtime path
+        run: |
+          sudo mkdir -p /var/azuracast
+          sudo ln -s "$GITHUB_WORKSPACE" /var/azuracast/www
+          sudo mkdir -p /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage/uploads
+          sudo chown -R "$USER":"$USER" /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: redis, pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - name: PHP syntax
+        run: php -l backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req='ext-*'
+      - name: Static analysis
+        run: vendor/bin/phpstan analyze backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php --memory-limit=-1
+      - name: Coding standards
+        run: vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+      - name: Initialize test database
+        run: |
+          php bin/console migrations:sync-metadata-storage --no-interaction
+          php bin/console migrations:migrate --allow-no-migration --no-interaction
+      - name: Focused AI DJ scheduler tests
+        run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
+      - name: Commit validated fix
+        run: |
+          git config user.name "Eternity Ready, LLC."
+          git config user.email "73216191+eternityready2@users.noreply.github.com"
+          git add backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+          git diff --cached --quiet && exit 0
+          git commit -m "Keep AI News protection safe across DST changes"
+          git push origin HEAD:fix/ai-dj-codex-followup
