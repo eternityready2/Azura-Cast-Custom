@@ -19,7 +19,6 @@ use App\Service\AiDjGenerator;
 use App\Service\AiDjScheduler;
 use DateTimeImmutable;
 use DateTimeZone;
-use FFMpeg\FFProbe;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Throwable;
@@ -36,18 +35,13 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
     private const int OUTRO_WINDOW_SECONDS = 300;
 
-    private const int OUTRO_SCAN_SECONDS = 3600;
+    private const int OUTRO_SCAN_SECONDS = 1800;
 
-    private const int OUTRO_SCAN_STEP_SECONDS = 1;
-
-    private const int DIRECT_REQUEST_PREFETCH_GUARD_SECONDS = 8;
+    private const int OUTRO_SCAN_STEP_SECONDS = 30;
 
     private const int OUTRO_TAIL_RESERVE_SECONDS = 60;
 
     private const int STATE_GRACE_SECONDS = 3600;
-
-    /** @var array<string, list<int>> */
-    private array $aiNewsTimezoneOffsetCache = [];
 
     public function __construct(
         private readonly AiDjScheduler $scheduler,
@@ -86,22 +80,11 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
-        $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $expectedPlayTime = $event->getExpectedPlayTime()
             ->setTimezone($station->getTimezoneObject());
         $estimatedAirTime = $this->resolveDirectRequestAirTime($station, $now);
-        if (!$estimatedAirTime instanceof DateTimeImmutable) {
-            $this->blockLegacyListener($station);
 
-            // Only defer normal queue selection when an AI DJ shift is actually
-            // active. Stations without a current AI DJ schedule must still let the
-            // priority-0 AutoDJ selector fill the queue normally.
-            if ($scheduleNow instanceof AiDjSchedule) {
-                $event->stopPropagation();
-            }
-            return;
-        }
-
+        $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
         $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $estimatedAirTime);
 
@@ -198,15 +181,10 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
     private function resolveDirectRequestAirTime(
         Station $station,
         DateTimeImmutable $now,
-    ): ?DateTimeImmutable {
+    ): DateTimeImmutable {
         $currentSongEnd = $this->getCurrentSongEndTime($station);
 
         if ($currentSongEnd instanceof DateTimeImmutable && $currentSongEnd > $now) {
-            $remainingSeconds = $currentSongEnd->getTimestamp() - $now->getTimestamp();
-            if ($remainingSeconds <= self::DIRECT_REQUEST_PREFETCH_GUARD_SECONDS) {
-                return null;
-            }
-
             return $currentSongEnd;
         }
 
@@ -239,9 +217,7 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             $startsAt,
             $endsAt,
         );
-        $welcomeWindowEndsAt = $startsAt->setTimestamp(
-            $startsAt->getTimestamp() + self::WELCOME_WINDOW_SECONDS,
-        );
+        $welcomeWindowEndsAt = $startsAt->modify('+' . self::WELCOME_WINDOW_SECONDS . ' seconds');
         $welcomeWindowOpen = $now >= $startsAt
             && $now < $welcomeWindowEndsAt
             && $estimatedAirTime >= $startsAt
@@ -278,39 +254,37 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         DateTimeImmutable $shiftStartsAt,
         DateTimeImmutable $shiftEndsAt,
     ): ?array {
-        $safeRunEnd = null;
-        $shiftEndTimestamp = $shiftEndsAt->getTimestamp();
+        $latestSafe = null;
 
         for (
             $secondsBeforeEnd = self::OUTRO_TAIL_RESERVE_SECONDS;
             $secondsBeforeEnd <= self::OUTRO_SCAN_SECONDS;
             $secondsBeforeEnd += self::OUTRO_SCAN_STEP_SECONDS
         ) {
-            $candidate = $shiftEndsAt->setTimestamp($shiftEndTimestamp - $secondsBeforeEnd);
+            $candidate = $shiftEndsAt->modify('-' . $secondsBeforeEnd . ' seconds');
             if ($candidate < $shiftStartsAt) {
                 break;
             }
 
-            if (!$this->isSafeOutroAirTime($station, $candidate)) {
-                $safeRunEnd = null;
-                continue;
-            }
-
-            $safeRunEnd ??= $candidate;
-            if (
-                $safeRunEnd->getTimestamp() - $candidate->getTimestamp()
-                >= self::OUTRO_WINDOW_SECONDS
-            ) {
-                return [
-                    'starts_at' => $safeRunEnd->setTimestamp(
-                        $safeRunEnd->getTimestamp() - self::OUTRO_WINDOW_SECONDS,
-                    ),
-                    'ends_at' => $safeRunEnd,
-                ];
+            if ($this->isSafeOutroAirTime($station, $candidate)) {
+                $latestSafe = $candidate;
+                break;
             }
         }
 
-        return null;
+        if (null === $latestSafe) {
+            return null;
+        }
+
+        $startsAt = $latestSafe->modify('-' . self::OUTRO_WINDOW_SECONDS . ' seconds');
+        if ($startsAt < $shiftStartsAt) {
+            $startsAt = $shiftStartsAt;
+        }
+
+        return [
+            'starts_at' => $startsAt,
+            'ends_at' => $latestSafe,
+        ];
     }
 
     private function isSafeOutroAirTime(Station $station, DateTimeImmutable $candidate): bool
@@ -324,140 +298,22 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             return false;
         }
 
-        return !$this->isNearNewsBulletin($station, $candidate);
+        return !$this->isNearNewsBulletin($station, $minute);
     }
 
-    private function isNearNewsBulletin(Station $station, DateTimeImmutable $candidate): bool
+    private function isNearNewsBulletin(Station $station, int $minute): bool
     {
         $backendConfig = $station->backend_config;
+
         if (!$backendConfig->ai_news_enabled) {
             return false;
         }
 
-        $minute = (int)$candidate->format('i');
-        $second = (int)$candidate->format('s');
-
         if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
-            $offsetSeconds = $minute >= 57
-                ? ((59 - $minute) * 60) - $second
-                : -(($minute + 1) * 60 + $second);
-            $slot = $candidate->setTimestamp($candidate->getTimestamp() + $offsetSeconds);
-
-            if ($this->isAiNewsActiveAt($station, $slot)) {
-                return true;
-            }
-        }
-
-        if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {
-            $offsetSeconds = ((29 - $minute) * 60) - $second;
-            $slot = $candidate->setTimestamp($candidate->getTimestamp() + $offsetSeconds);
-            return $this->isAiNewsActiveAt($station, $slot);
-        }
-
-        return false;
-    }
-
-    private function isAiNewsActiveAt(Station $station, DateTimeImmutable $candidate): bool
-    {
-        $backendConfig = $station->backend_config;
-        $timezone = $station->getTimezoneObject();
-        $candidate = $candidate->setTimezone($timezone);
-
-        $activeDays = array_values(array_unique(array_filter(
-            array_map(
-                static fn(mixed $day): int => (int)$day,
-                $backendConfig->ai_news_active_days,
-            ),
-            static fn(int $day): bool => $day >= 1 && $day <= 7,
-        )));
-
-        if ($activeDays !== [] && !in_array((int)$candidate->format('N'), $activeDays, true)) {
-            return false;
-        }
-
-        $activeHours = $backendConfig->ai_news_active_hours;
-        if (null === $activeHours || '' === trim($activeHours)) {
             return true;
         }
 
-        $activeHours = trim($activeHours);
-        if (!preg_match('/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/', $activeHours, $matches)) {
-            return true;
-        }
-
-        $startMinutes = ((int)$matches[1]) * 60 + (int)$matches[2];
-        $endMinutes = ((int)$matches[3]) * 60 + (int)$matches[4];
-        $utcCandidate = $candidate->setTimezone(new DateTimeZone('UTC'));
-        $utcMinutes = ((int)$utcCandidate->format('G')) * 60 + (int)$utcCandidate->format('i');
-
-        foreach ($this->getAiNewsTimezoneOffsets($timezone, $candidate) as $offsetSeconds) {
-            $effectiveLocalMinutes = ($utcMinutes + intdiv($offsetSeconds, 60)) % 1440;
-            if ($effectiveLocalMinutes < 0) {
-                $effectiveLocalMinutes += 1440;
-            }
-
-            if ($startMinutes <= $endMinutes) {
-                if ($effectiveLocalMinutes >= $startMinutes && $effectiveLocalMinutes < $endMinutes) {
-                    return true;
-                }
-            } elseif ($effectiveLocalMinutes >= $startMinutes || $effectiveLocalMinutes < $endMinutes) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * ConfigWriter bakes the station's UTC offset into Liquidsoap active-hour
-     * bounds. Until Liquidsoap is regenerated after a DST transition, either
-     * side of the station's DST cycle can therefore be the embedded offset.
-     *
-     * @return list<int>
-     */
-    private function getAiNewsTimezoneOffsets(
-        DateTimeZone $timezone,
-        DateTimeImmutable $candidate,
-    ): array {
-        $cacheKey = $timezone->getName() . ':' . $candidate->format('Y');
-        if (isset($this->aiNewsTimezoneOffsetCache[$cacheKey])) {
-            return $this->aiNewsTimezoneOffsetCache[$cacheKey];
-        }
-
-        $offsets = [$timezone->getOffset($candidate)];
-        $transitions = $timezone->getTransitions(
-            $candidate->modify('-370 days')->getTimestamp(),
-            $candidate->modify('+370 days')->getTimestamp(),
-        );
-
-        foreach ($transitions as $transition) {
-            $offsets[] = (int)$transition['offset'];
-        }
-
-        $offsets = array_values(array_unique($offsets));
-        $this->aiNewsTimezoneOffsetCache[$cacheKey] = $offsets;
-
-        return $offsets;
-    }
-
-    private function isSafeOutroInterval(
-        Station $station,
-        DateTimeImmutable $startsAt,
-        DateTimeImmutable $endsAt,
-    ): bool {
-        if ($endsAt < $startsAt) {
-            return false;
-        }
-
-        $timezone = $station->getTimezoneObject();
-        for ($timestamp = $startsAt->getTimestamp(); $timestamp <= $endsAt->getTimestamp(); $timestamp++) {
-            $candidate = (new DateTimeImmutable('@' . $timestamp))->setTimezone($timezone);
-            if (!$this->isSafeOutroAirTime($station, $candidate)) {
-                return false;
-            }
-        }
-
-        return true;
+        return $backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33;
     }
 
     private function blockLegacyListener(Station $station): void
@@ -599,38 +455,19 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             // close while the clip is rendering. Recompute all timing immediately
             // before enqueue so a late render can never spill past the shift or into
             // a protected TOH/news interval.
-            $clipDuration = $this->getClipDurationSeconds($clipPath);
-            if (null === $clipDuration || $clipDuration <= 0.0) {
-                $this->logger->warning('AI DJ: Could not determine shift sign-off duration; discarding clip.', [
-                    'dj' => $dj->getName(),
-                    'clip' => basename($clipPath),
-                ]);
-                return false;
-            }
-
             $freshNow = new DateTimeImmutable('now', $station->getTimezoneObject());
             $freshAirTime = $this->resolveDirectRequestAirTime($station, $freshNow);
-            if (!$freshAirTime instanceof DateTimeImmutable) {
-                return false;
-            }
-
-            $clipEndTime = $freshAirTime->setTimestamp(
-                $freshAirTime->getTimestamp() + (int)ceil($clipDuration),
-            );
             $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $freshNow);
             $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $freshAirTime);
-            $scheduleAtClipEnd = $this->scheduler->findActiveSchedule($station->id, $clipEndTime);
 
             if (
                 !$scheduleNow instanceof AiDjSchedule
                 || !$scheduleAtAirTime instanceof AiDjSchedule
-                || !$scheduleAtClipEnd instanceof AiDjSchedule
                 || $scheduleNow->getId() !== $schedule->getId()
                 || $scheduleAtAirTime->getId() !== $schedule->getId()
-                || $scheduleAtClipEnd->getId() !== $schedule->getId()
                 || $freshAirTime < $outroWindowStartsAt
-                || $clipEndTime > $outroWindowEndsAt
-                || !$this->isSafeOutroInterval($station, $freshAirTime, $clipEndTime)
+                || $freshAirTime > $outroWindowEndsAt
+                || !$this->isSafeOutroAirTime($station, $freshAirTime)
                 || !$backend->isQueueEmpty($station, LiquidsoapQueues::Requests)
             ) {
                 $this->logger->info('AI DJ: Discarded late or unsafe shift sign-off render.', [
@@ -666,30 +503,6 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             ]);
             return false;
         }
-    }
-
-    private function getClipDurationSeconds(string $clipPath): ?float
-    {
-        try {
-            $ffprobe = FFProbe::create([], $this->logger);
-            $formatDuration = $ffprobe->format($clipPath)->get('duration');
-            if (is_numeric($formatDuration) && (float)$formatDuration > 0.0) {
-                return (float)$formatDuration;
-            }
-
-            foreach ($ffprobe->streams($clipPath)->audios() as $stream) {
-                $streamDuration = $stream->get('duration');
-                if (is_numeric($streamDuration) && (float)$streamDuration > 0.0) {
-                    return (float)$streamDuration;
-                }
-            }
-        } catch (Throwable $e) {
-            $this->logger->error('AI DJ: Failed to probe shift sign-off duration.', [
-                'exception' => $e->getMessage(),
-            ]);
-        }
-
-        return null;
     }
 
     private function createQueueEntry(
