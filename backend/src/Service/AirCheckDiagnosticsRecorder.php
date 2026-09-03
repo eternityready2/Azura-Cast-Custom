@@ -35,6 +35,47 @@ final readonly class AirCheckDiagnosticsRecorder
         }
     }
 
+    /** @param array<string, mixed> $service */
+    public function recordSystemServiceTransition(
+        Station $station,
+        array $service,
+        ?bool $previousState,
+    ): void {
+        $running = $service['running'] ?? null;
+        if (!is_bool($running)) {
+            return;
+        }
+
+        $name = (string)($service['name'] ?? $service['key'] ?? 'System service');
+        $key = (string)($service['key'] ?? 'unknown');
+
+        if (!$running && false !== $previousState) {
+            $this->diagnostics->warning(
+                $station,
+                'AirCheck',
+                'A shared system dependency is not running.',
+                [
+                    'service' => $name,
+                    'key' => $key,
+                    'recovery' => 'monitor_only',
+                ]
+            );
+            return;
+        }
+
+        if ($running && false === $previousState) {
+            $this->diagnostics->info(
+                $station,
+                'AirCheck',
+                'A shared system dependency recovered.',
+                [
+                    'service' => $name,
+                    'key' => $key,
+                ]
+            );
+        }
+    }
+
     private function getStationServiceLabel(string $service): string
     {
         return match ($service) {
