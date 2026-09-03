@@ -14,7 +14,6 @@ use App\Http\Response;
 use App\Http\ServerRequest;
 use App\OpenApi;
 use App\Radio\Adapters;
-use App\Service\StationDiagnostics;
 use OpenApi\Attributes as OA;
 use Psr\Http\Message\ResponseInterface;
 
@@ -71,7 +70,6 @@ class LogsAction implements SingleActionInterface
 
     public function __construct(
         private readonly Adapters $adapters,
-        private readonly StationDiagnostics $diagnostics,
     ) {
     }
 
@@ -131,12 +129,6 @@ class LogsAction implements SingleActionInterface
     protected function getStationLogs(Station $station): array
     {
         return [
-            new LogType(
-                'custom_diagnostics',
-                __('Custom Feature Diagnostics'),
-                $this->diagnostics->ensureLogFile($station),
-                true
-            ),
             ...$this->adapters->getBackendAdapter($station)?->getLogTypes($station) ?? [],
             ...$this->adapters->getFrontendAdapter($station)?->getLogTypes($station) ?? [],
             new LogType(

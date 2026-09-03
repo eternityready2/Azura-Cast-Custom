@@ -507,6 +507,15 @@ export function useStationsMenu() {
             visible: () => userAllowedForStation(StationPermissions.Broadcasting)
         },
         {
+            key: 'diagnostics',
+            label: $gettext('Diagnostics'),
+            icon: () => IconIcAssignment,
+            url: {
+                name: 'stations:diagnostics'
+            },
+            visible: () => userAllowedForStation(StationPermissions.Logs)
+        },
+        {
             key: 'logs',
             label: $gettext('Logs'),
             icon: () => IconIcAssignment,
