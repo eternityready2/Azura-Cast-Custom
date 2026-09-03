@@ -1,0 +1,190 @@
+name: AI DJ Codex DST Validation
+
+on:
+  push:
+    branches:
+      - fix/ai-dj-codex-followup
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: azuracast
+          MARIADB_USER: azuracast
+          MARIADB_PASSWORD: azur4c457
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: azuracast
+      MYSQL_USER: azuracast
+      MYSQL_PASSWORD: azur4c457
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      ENABLE_REDIS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply DST-safe AI News protection
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php')
+          text = path.read_text()
+
+          property_block = "\n".join([
+              "    /** @var array<string, list<int>> */",
+              "    private array $aiNewsTimezoneOffsetCache = [];",
+              "",
+              "",
+          ])
+          marker = "    private const int STATE_GRACE_SECONDS = 3600;\n\n"
+          if property_block not in text:
+              if text.count(marker) != 1:
+                  raise SystemExit('Could not locate state marker')
+              text = text.replace(marker, marker + property_block, 1)
+
+          new_block = "\n".join([
+              "    private function isAiNewsActiveAt(Station $station, DateTimeImmutable $candidate): bool",
+              "    {",
+              "        $backendConfig = $station->backend_config;",
+              "        $timezone = $station->getTimezoneObject();",
+              "        $candidate = $candidate->setTimezone($timezone);",
+              "",
+              "        $activeDays = array_values(array_unique(array_filter(",
+              "            array_map(",
+              "                static fn(mixed $day): int => (int)$day,",
+              "                $backendConfig->ai_news_active_days,",
+              "            ),",
+              "            static fn(int $day): bool => $day >= 1 && $day <= 7,",
+              "        )));",
+              "",
+              "        if ($activeDays !== [] && !in_array((int)$candidate->format('N'), $activeDays, true)) {",
+              "            return false;",
+              "        }",
+              "",
+              "        $activeHours = $backendConfig->ai_news_active_hours;",
+              "        if (null === $activeHours || '' === trim($activeHours)) {",
+              "            return true;",
+              "        }",
+              "",
+              "        $activeHours = trim($activeHours);",
+              "        if (!preg_match('/^(\\d{1,2}):(\\d{2})-(\\d{1,2}):(\\d{2})$/', $activeHours, $matches)) {",
+              "            return true;",
+              "        }",
+              "",
+              "        $startMinutes = ((int)$matches[1]) * 60 + (int)$matches[2];",
+              "        $endMinutes = ((int)$matches[3]) * 60 + (int)$matches[4];",
+              "        $utcCandidate = $candidate->setTimezone(new DateTimeZone('UTC'));",
+              "        $utcMinutes = ((int)$utcCandidate->format('G')) * 60 + (int)$utcCandidate->format('i');",
+              "",
+              "        foreach ($this->getAiNewsTimezoneOffsets($timezone, $candidate) as $offsetSeconds) {",
+              "            $effectiveLocalMinutes = ($utcMinutes + intdiv($offsetSeconds, 60)) % 1440;",
+              "            if ($effectiveLocalMinutes < 0) {",
+              "                $effectiveLocalMinutes += 1440;",
+              "            }",
+              "",
+              "            if ($startMinutes <= $endMinutes) {",
+              "                if ($effectiveLocalMinutes >= $startMinutes && $effectiveLocalMinutes < $endMinutes) {",
+              "                    return true;",
+              "                }",
+              "            } elseif ($effectiveLocalMinutes >= $startMinutes || $effectiveLocalMinutes < $endMinutes) {",
+              "                return true;",
+              "            }",
+              "        }",
+              "",
+              "        return false;",
+              "    }",
+              "",
+              "    /**",
+              "     * ConfigWriter bakes the station's UTC offset into Liquidsoap active-hour",
+              "     * bounds. Until Liquidsoap is regenerated after a DST transition, either",
+              "     * side of the station's DST cycle can therefore be the embedded offset.",
+              "     *",
+              "     * @return list<int>",
+              "     */",
+              "    private function getAiNewsTimezoneOffsets(",
+              "        DateTimeZone $timezone,",
+              "        DateTimeImmutable $candidate,",
+              "    ): array {",
+              "        $cacheKey = $timezone->getName() . ':' . $candidate->format('Y');",
+              "        if (isset($this->aiNewsTimezoneOffsetCache[$cacheKey])) {",
+              "            return $this->aiNewsTimezoneOffsetCache[$cacheKey];",
+              "        }",
+              "",
+              "        $offsets = [$timezone->getOffset($candidate)];",
+              "        $transitions = $timezone->getTransitions(",
+              "            $candidate->modify('-370 days')->getTimestamp(),",
+              "            $candidate->modify('+370 days')->getTimestamp(),",
+              "        );",
+              "",
+              "        if (false !== $transitions) {",
+              "            foreach ($transitions as $transition) {",
+              "                $offsets[] = (int)$transition['offset'];",
+              "            }",
+              "        }",
+              "",
+              "        $offsets = array_values(array_unique($offsets));",
+              "        $this->aiNewsTimezoneOffsetCache[$cacheKey] = $offsets;",
+              "",
+              "        return $offsets;",
+              "    }",
+              "",
+              "",
+          ])
+          start = text.index('    private function isAiNewsActiveAt(')
+          end = text.index('    private function isSafeOutroInterval(', start)
+          path.write_text(text[:start] + new_block + text[end:])
+          PY
+      - name: Mirror AzuraCast runtime path
+        run: |
+          sudo mkdir -p /var/azuracast
+          sudo ln -s "$GITHUB_WORKSPACE" /var/azuracast/www
+          sudo mkdir -p /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage/uploads
+          sudo chown -R "$USER":"$USER" /var/azuracast/www_tmp /var/azuracast/stations /var/azuracast/storage
+      - name: Set up PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: redis, pdo_mysql
+          tools: composer:v2
+          coverage: none
+      - name: PHP syntax
+        run: php -l backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req='ext-*'
+      - name: Static analysis
+        run: vendor/bin/phpstan analyze backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php --memory-limit=-1
+      - name: Coding standards
+        run: vendor/bin/phpcs backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+      - name: Initialize test database
+        run: |
+          php bin/console migrations:sync-metadata-storage --no-interaction
+          php bin/console migrations:migrate --allow-no-migration --no-interaction
+      - name: Focused AI DJ scheduler tests
+        run: vendor/bin/codecept run Unit tests/Unit/AiDjSchedulerTest.php --no-interaction
+      - name: Commit validated fix
+        run: |
+          git config user.name "Eternity Ready, LLC."
+          git config user.email "73216191+eternityready2@users.noreply.github.com"
+          git add backend/src/Radio/AutoDJ/AiDjShiftLifecycleListener.php
+          git diff --cached --quiet && exit 0
+          git commit -m "Keep AI News protection safe across DST changes"
+          git push origin HEAD:fix/ai-dj-codex-followup
