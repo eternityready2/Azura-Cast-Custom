@@ -1,84 +1,101 @@
 <template>
     <div
         id="app-toolbar"
-        class="d-flex pt-4"
+        class="d-flex flex-column gap-2 pt-4"
     >
-        <div class="flex-fill buttons d-flex align-items-center">
-            <span>
-                {{ $gettext('With selected:') }}
-            </span>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="buttons d-flex flex-wrap align-items-center">
+                <span class="text-body-secondary fw-semibold">
+                    {{ $gettext('With selected:') }}
+                </span>
 
-            <select
-                id="bulk_media_type"
-                class="form-select form-select-sm bulk-classify-select"
-                :disabled="!hasSelectedClassifyItems || classifyPending"
-                :title="$gettext('Set type on selected files')"
-                @change="onBulkTypeChange"
-            >
-                <option
-                    value=""
-                    selected
-                    disabled
-                    hidden
+                <select
+                    id="bulk_media_type"
+                    class="form-select form-select-sm bulk-classify-select"
+                    :disabled="!hasSelectedClassifyItems || classifyPending"
+                    :title="$gettext('Set type on selected files')"
+                    @change="onBulkTypeChange"
                 >
-                    {{ $gettext('Set type…') }}
-                </option>
-                <option
-                    v-for="opt in mediaTypeOptions"
-                    :key="opt.value"
-                    :value="opt.value"
+                    <option
+                        value=""
+                        selected
+                        disabled
+                        hidden
+                    >
+                        {{ $gettext('Set type…') }}
+                    </option>
+                    <option
+                        v-for="opt in mediaTypeOptions"
+                        :key="opt.value"
+                        :value="opt.value"
+                    >
+                        {{ opt.shortLabel }}
+                    </option>
+                </select>
+
+                <select
+                    id="bulk_media_category"
+                    class="form-select form-select-sm bulk-classify-select"
+                    :disabled="!hasSelectedClassifyItems || classifyPending"
+                    :title="$gettext('Set category on selected files')"
+                    @change="onBulkCategoryChange"
                 >
-                    {{ opt.shortLabel }}
-                </option>
-            </select>
+                    <option
+                        value=""
+                        selected
+                        disabled
+                        hidden
+                    >
+                        {{ $gettext('Set category…') }}
+                    </option>
+                    <option value="none">
+                        {{ $gettext('No category') }}
+                    </option>
+                    <option
+                        v-for="cat in mediaCategories"
+                        :key="cat.id"
+                        :value="String(cat.id)"
+                    >
+                        {{ cat.name }}
+                    </option>
+                </select>
 
-            <select
-                id="bulk_media_category"
-                class="form-select form-select-sm bulk-classify-select"
-                :disabled="!hasSelectedClassifyItems || classifyPending"
-                :title="$gettext('Set category on selected files')"
-                @change="onBulkCategoryChange"
-            >
-                <option
-                    value=""
-                    selected
-                    disabled
-                    hidden
+                <input
+                    id="bulk_media_genre"
+                    v-model="bulkGenre"
+                    type="text"
+                    class="form-control form-control-sm bulk-classify-select"
+                    :disabled="!hasSelectedClassifyItems || classifyPending"
+                    :title="$gettext('Set genre on selected files')"
+                    :placeholder="$gettext('Set genre…')"
+                    @keyup.enter="onBulkGenreApply"
                 >
-                    {{ $gettext('Set category…') }}
-                </option>
-                <option value="none">
-                    {{ $gettext('No category') }}
-                </option>
-                <option
-                    v-for="cat in mediaCategories"
-                    :key="cat.id"
-                    :value="String(cat.id)"
+
+                <button
+                    type="button"
+                    class="btn btn-sm btn-primary"
+                    :disabled="!hasSelectedClassifyItems || classifyPending || bulkGenre.trim() === ''"
+                    @click="onBulkGenreApply"
                 >
-                    {{ cat.name }}
-                </option>
-            </select>
+                    {{ $gettext('Apply Genre') }}
+                </button>
+            </div>
 
-            <input
-                id="bulk_media_genre"
-                v-model="bulkGenre"
-                type="text"
-                class="form-control form-control-sm bulk-classify-select"
-                :disabled="!hasSelectedClassifyItems || classifyPending"
-                :title="$gettext('Set genre on selected files')"
-                :placeholder="$gettext('Set genre…')"
-                @keyup.enter="onBulkGenreApply"
-            >
+            <div class="flex-shrink-0">
+                <button
+                    type="button"
+                    class="btn btn-sm btn-primary"
+                    @click="createDirectory"
+                >
+                    <icon-ic-folder/>
+                    <span>
+                        {{ $gettext('New Folder') }}
+                    </span>
+                </button>
+            </div>
+        </div>
 
-            <button
-                type="button"
-                class="btn btn-sm btn-primary"
-                :disabled="!hasSelectedClassifyItems || classifyPending || bulkGenre.trim() === ''"
-                @click="onBulkGenreApply"
-            >
-                {{ $gettext('Apply Genre') }}
-            </button>
-
+        <div class="buttons d-flex flex-wrap align-items-center">
             <div
                 class="btn-group btn-group-sm dropdown allow-focus"
             >
@@ -276,18 +293,6 @@
 
                 <span>
                     {{ $gettext('Delete') }}
-                </span>
-            </button>
-        </div>
-        <div class="flex-shrink-0">
-            <button
-                type="button"
-                class="btn btn-sm btn-primary"
-                @click="createDirectory"
-            >
-                <icon-ic-folder/>
-                <span>
-                    {{ $gettext('New Folder') }}
                 </span>
             </button>
         </div>
