@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Sync\Task;
 
 use App\Controller\Api\Stations\Features\FeatureSuiteController;
+use App\Service\StationDiagnostics;
 
 final class AirCheckTask extends AbstractTask
 {
     public function __construct(
-        private readonly FeatureSuiteController $featureSuiteController
+        private readonly FeatureSuiteController $featureSuiteController,
+        private readonly StationDiagnostics $diagnostics,
     ) {
     }
 
@@ -25,7 +27,28 @@ final class AirCheckTask extends AbstractTask
                 continue;
             }
 
-            $this->featureSuiteController->runAirCheck($station);
+            $result = $this->featureSuiteController->runAirCheck($station);
+            if (!($result['checked'] ?? false)) {
+                continue;
+            }
+
+            foreach ((array)($result['restarted'] ?? []) as $service) {
+                $this->diagnostics->warning(
+                    $station,
+                    'AirCheck',
+                    'AirCheck restarted a failed station service.',
+                    ['service' => (string)$service]
+                );
+            }
+
+            foreach ((array)($result['failures'] ?? []) as $failure) {
+                $this->diagnostics->error(
+                    $station,
+                    'AirCheck',
+                    'AirCheck could not complete a station recovery action.',
+                    ['error' => (string)$failure]
+                );
+            }
         }
     }
 }
