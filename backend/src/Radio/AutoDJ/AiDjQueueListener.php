@@ -72,12 +72,6 @@ final class AiDjQueueListener implements EventSubscriberInterface
      */
     private const int COMBO_PROBABILITY_PCT = 50;
 
-    /**
-     * Keep ordinary chatter out of the last few minutes of any scheduled shift so
-     * the lifecycle listener has a clean opportunity to place the sign-off.
-     */
-    private const int SHIFT_WINDDOWN_SECONDS = 300;
-
     public function __construct(
         private readonly AiDjScheduler $scheduler,
         private readonly AiDjGenerator $generator,
@@ -164,6 +158,21 @@ final class AiDjQueueListener implements EventSubscriberInterface
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
         $directAirTime = $this->resolveDirectRequestAirTime($station, $now);
 
+        // The lifecycle listener owns a separate wind-down marker once the concrete
+        // sign-off window begins. It carries only the shift end timestamp and never
+        // touches the ordinary talk cooldown. Expired state is removed lazily so a
+        // following shift is never suppressed by the previous DJ's goodbye.
+        $winddownKey = 'ai_dj_shift_winddown_until_' . $station->id;
+        $winddownUntil = (int)($this->cache->get($winddownKey) ?? 0);
+        if ($winddownUntil > 0) {
+            if ($directAirTime->getTimestamp() < $winddownUntil) {
+                $this->logger->debug('AI DJ: Skipped - scheduled shift is in sign-off wind-down.');
+                return;
+            }
+
+            $this->cache->delete($winddownKey);
+        }
+
         // Skip if top-of-hour protection is active at the actual likely request airtime.
         if ($this->hourBoundaryPlanner->isInLookaheadZone($station, $directAirTime)) {
             $this->logger->debug('AI DJ: Skipped - in top-of-hour lookahead zone.');
@@ -203,19 +212,6 @@ final class AiDjQueueListener implements EventSubscriberInterface
         if ($this->isNearNewsBulletin($station, $playMinute)) {
             $this->logger->debug('AI DJ: Skipped - near AI Newscaster bulletin time.');
             return;
-        }
-
-        $schedule = $this->scheduler->findActiveSchedule($station->id, $directAirTime);
-        if (null !== $schedule) {
-            $shift = $this->scheduler->getShiftWindow($station, $schedule, $directAirTime);
-            $winddownStartsAt = $shift['ends_at']->setTimestamp(
-                $shift['ends_at']->getTimestamp() - self::SHIFT_WINDDOWN_SECONDS,
-            );
-
-            if ($directAirTime >= $winddownStartsAt && $directAirTime < $shift['ends_at']) {
-                $this->logger->debug('AI DJ: Skipped - scheduled shift is in sign-off wind-down.');
-                return;
-            }
         }
 
         $dj = $this->scheduler->findActiveDj($station->id, $directAirTime);
