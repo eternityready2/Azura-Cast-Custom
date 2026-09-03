@@ -46,6 +46,9 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
 
     private const int STATE_GRACE_SECONDS = 3600;
 
+    /** @var array<string, list<int>> */
+    private array $aiNewsTimezoneOffsetCache = [];
+
     public function __construct(
         private readonly AiDjScheduler $scheduler,
         private readonly AiDjGenerator $generator,
@@ -343,7 +346,8 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
     private function isAiNewsActiveAt(Station $station, DateTimeImmutable $candidate): bool
     {
         $backendConfig = $station->backend_config;
-        $candidate = $candidate->setTimezone($station->getTimezoneObject());
+        $timezone = $station->getTimezoneObject();
+        $candidate = $candidate->setTimezone($timezone);
 
         $activeDays = array_values(array_unique(array_filter(
             array_map(
@@ -363,22 +367,63 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         $activeHours = trim($activeHours);
-        $currentHour = (int)$candidate->format('G');
-        $currentMinute = (int)$candidate->format('i');
-
-        if (preg_match('/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/', $activeHours, $matches)) {
-            $startMinutes = ((int)$matches[1]) * 60 + (int)$matches[2];
-            $endMinutes = ((int)$matches[3]) * 60 + (int)$matches[4];
-            $nowMinutes = $currentHour * 60 + $currentMinute;
-
-            if ($startMinutes <= $endMinutes) {
-                return $nowMinutes >= $startMinutes && $nowMinutes < $endMinutes;
-            }
-
-            return $nowMinutes >= $startMinutes || $nowMinutes < $endMinutes;
+        if (!preg_match('/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/', $activeHours, $matches)) {
+            return true;
         }
 
-        return true;
+        $startMinutes = ((int)$matches[1]) * 60 + (int)$matches[2];
+        $endMinutes = ((int)$matches[3]) * 60 + (int)$matches[4];
+        $utcCandidate = $candidate->setTimezone(new DateTimeZone('UTC'));
+        $utcMinutes = ((int)$utcCandidate->format('G')) * 60 + (int)$utcCandidate->format('i');
+
+        foreach ($this->getAiNewsTimezoneOffsets($timezone, $candidate) as $offsetSeconds) {
+            $effectiveLocalMinutes = ($utcMinutes + intdiv($offsetSeconds, 60)) % 1440;
+            if ($effectiveLocalMinutes < 0) {
+                $effectiveLocalMinutes += 1440;
+            }
+
+            if ($startMinutes <= $endMinutes) {
+                if ($effectiveLocalMinutes >= $startMinutes && $effectiveLocalMinutes < $endMinutes) {
+                    return true;
+                }
+            } elseif ($effectiveLocalMinutes >= $startMinutes || $effectiveLocalMinutes < $endMinutes) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * ConfigWriter bakes the station's UTC offset into Liquidsoap active-hour
+     * bounds. Until Liquidsoap is regenerated after a DST transition, either
+     * side of the station's DST cycle can therefore be the embedded offset.
+     *
+     * @return list<int>
+     */
+    private function getAiNewsTimezoneOffsets(
+        DateTimeZone $timezone,
+        DateTimeImmutable $candidate,
+    ): array {
+        $cacheKey = $timezone->getName() . ':' . $candidate->format('Y');
+        if (isset($this->aiNewsTimezoneOffsetCache[$cacheKey])) {
+            return $this->aiNewsTimezoneOffsetCache[$cacheKey];
+        }
+
+        $offsets = [$timezone->getOffset($candidate)];
+        $transitions = $timezone->getTransitions(
+            $candidate->modify('-370 days')->getTimestamp(),
+            $candidate->modify('+370 days')->getTimestamp(),
+        );
+
+        foreach ($transitions as $transition) {
+            $offsets[] = (int)$transition['offset'];
+        }
+
+        $offsets = array_values(array_unique($offsets));
+        $this->aiNewsTimezoneOffsetCache[$cacheKey] = $offsets;
+
+        return $offsets;
     }
 
     private function isSafeOutroInterval(
