@@ -91,6 +91,11 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         $estimatedAirTime = $this->resolveDirectRequestAirTime($station, $now);
         if (!$estimatedAirTime instanceof DateTimeImmutable) {
             $this->blockLegacyListener($station);
+            // Do not let lower-priority selectors fill this slot while the current
+            // song is inside the prefetch guard. Leaving the event empty makes the
+            // queue builder defer this slot so the next sync can retry from a
+            // trustworthy playback boundary.
+            $event->stopPropagation();
             return;
         }
 
@@ -232,7 +237,9 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             $startsAt,
             $endsAt,
         );
-        $welcomeWindowEndsAt = $startsAt->modify('+' . self::WELCOME_WINDOW_SECONDS . ' seconds');
+        $welcomeWindowEndsAt = $startsAt->setTimestamp(
+            $startsAt->getTimestamp() + self::WELCOME_WINDOW_SECONDS,
+        );
         $welcomeWindowOpen = $now >= $startsAt
             && $now < $welcomeWindowEndsAt
             && $estimatedAirTime >= $startsAt
@@ -270,13 +277,14 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         DateTimeImmutable $shiftEndsAt,
     ): ?array {
         $safeRunEnd = null;
+        $shiftEndTimestamp = $shiftEndsAt->getTimestamp();
 
         for (
             $secondsBeforeEnd = self::OUTRO_TAIL_RESERVE_SECONDS;
             $secondsBeforeEnd <= self::OUTRO_SCAN_SECONDS;
             $secondsBeforeEnd += self::OUTRO_SCAN_STEP_SECONDS
         ) {
-            $candidate = $shiftEndsAt->modify('-' . $secondsBeforeEnd . ' seconds');
+            $candidate = $shiftEndsAt->setTimestamp($shiftEndTimestamp - $secondsBeforeEnd);
             if ($candidate < $shiftStartsAt) {
                 break;
             }
@@ -292,7 +300,9 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
                 >= self::OUTRO_WINDOW_SECONDS
             ) {
                 return [
-                    'starts_at' => $safeRunEnd->modify('-' . self::OUTRO_WINDOW_SECONDS . ' seconds'),
+                    'starts_at' => $safeRunEnd->setTimestamp(
+                        $safeRunEnd->getTimestamp() - self::OUTRO_WINDOW_SECONDS,
+                    ),
                     'ends_at' => $safeRunEnd,
                 ];
             }
@@ -602,7 +612,9 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
                 return false;
             }
 
-            $clipEndTime = $freshAirTime->modify('+' . (int)ceil($clipDuration) . ' seconds');
+            $clipEndTime = $freshAirTime->setTimestamp(
+                $freshAirTime->getTimestamp() + (int)ceil($clipDuration),
+            );
             $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $freshNow);
             $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $freshAirTime);
             $scheduleAtClipEnd = $this->scheduler->findActiveSchedule($station->id, $clipEndTime);
