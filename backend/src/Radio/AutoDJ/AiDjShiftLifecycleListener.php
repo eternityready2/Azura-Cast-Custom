@@ -86,20 +86,22 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         $now = new DateTimeImmutable('now', $station->getTimezoneObject());
+        $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $expectedPlayTime = $event->getExpectedPlayTime()
             ->setTimezone($station->getTimezoneObject());
         $estimatedAirTime = $this->resolveDirectRequestAirTime($station, $now);
         if (!$estimatedAirTime instanceof DateTimeImmutable) {
             $this->blockLegacyListener($station);
-            // Do not let lower-priority selectors fill this slot while the current
-            // song is inside the prefetch guard. Leaving the event empty makes the
-            // queue builder defer this slot so the next sync can retry from a
-            // trustworthy playback boundary.
-            $event->stopPropagation();
+
+            // Only defer normal queue selection when an AI DJ shift is actually
+            // active. Stations without a current AI DJ schedule must still let the
+            // priority-0 AutoDJ selector fill the queue normally.
+            if ($scheduleNow instanceof AiDjSchedule) {
+                $event->stopPropagation();
+            }
             return;
         }
 
-        $scheduleNow = $this->scheduler->findActiveSchedule($station->id, $now);
         $scheduleAtExpectedTime = $this->scheduler->findActiveSchedule($station->id, $expectedPlayTime);
         $scheduleAtAirTime = $this->scheduler->findActiveSchedule($station->id, $estimatedAirTime);
 
