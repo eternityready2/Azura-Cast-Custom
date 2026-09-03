@@ -18,6 +18,13 @@ return static function (RouteCollectorProxy $group): void {
                 ->add(new Middleware\Permissions(StationPermissions::View, true))
                 ->add(Middleware\RequireLogin::class);
 
+            $group->post(
+                '/features/aircheck/check',
+                Controller\Api\Stations\Features\AirCheckRunAction::class
+            )->setName('api:stations:aircheck:check')
+                ->add(new Middleware\Permissions(StationPermissions::Broadcasting, true))
+                ->add(Middleware\RequireLogin::class);
+
             $group->get(
                 '/diagnostics/download',
                 Controller\Api\Stations\Diagnostics\DownloadAction::class
