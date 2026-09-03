@@ -41,6 +41,7 @@ return static function (App $app) {
                     call_user_func(include(__DIR__ . '/routes/api_frontend.php'), $group);
                     call_user_func(include(__DIR__ . '/routes/api_station.php'), $group);
                     call_user_func(include(__DIR__ . '/routes/api_station_playlist_config.php'), $group);
+                    call_user_func(include(__DIR__ . '/routes/api_station_diagnostics.php'), $group);
                 }
             )
                 ->add(Middleware\Module\Api::class)

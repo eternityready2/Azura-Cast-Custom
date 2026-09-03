@@ -12,6 +12,7 @@ use App\Entity\StationClockWheel;
 use App\Entity\StationClockWheelSlot;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
+use App\Service\StationDiagnostics;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -22,6 +23,7 @@ final class ClockWheelEventLogger
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly ?StationDiagnostics $diagnostics = null,
     ) {
     }
 
@@ -54,6 +56,21 @@ final class ClockWheelEventLogger
         $event->separation_relaxed = $separationRelaxed;
         $event->burn_rate_warning = $burnRateWarning;
 
+        if ($separationRelaxed || $burnRateWarning) {
+            $this->diagnostics?->warning(
+                $station,
+                'Clock Wheels',
+                'Clock Wheel queued media with a scheduling safeguard relaxed.',
+                [
+                    'wheel' => $wheel->name,
+                    'anchor' => $slot->type?->value,
+                    'separation_relaxed' => $separationRelaxed,
+                    'burn_rate_warning' => $burnRateWarning,
+                    'expected_play_at' => $logExpectedPlayAt->format(DATE_ATOM),
+                ]
+            );
+        }
+
         $this->em->persist($event);
     }
 
@@ -71,6 +88,18 @@ final class ClockWheelEventLogger
         $event->fallback_reason = $reason;
         $event->anchor_type = $slot->type?->value;
         $event->drift_seconds = $this->computeDriftSeconds($secondsIntoHour, $slot->position_seconds);
+
+        $this->diagnostics?->warning(
+            $station,
+            'Clock Wheels',
+            'Clock Wheel slot was deferred.',
+            [
+                'wheel' => $wheel->name,
+                'anchor' => $slot->type?->value,
+                'reason' => $reason->value,
+                'expected_play_at' => $expectedPlayAt->format(DATE_ATOM),
+            ]
+        );
 
         $this->em->persist($event);
     }
@@ -99,6 +128,16 @@ final class ClockWheelEventLogger
         $event->fallback_reason = $reason;
         $event->anchor_type = 'legal_id';
 
+        $this->diagnostics?->warning(
+            $station,
+            'Clock Wheels',
+            'Top-of-hour legal ID used fallback behavior.',
+            [
+                'reason' => $reason->value,
+                'expected_play_at' => $expectedPlayAt->format(DATE_ATOM),
+            ]
+        );
+
         $this->em->persist($event);
     }
 
@@ -121,6 +160,18 @@ final class ClockWheelEventLogger
                 $event->drift_seconds = $this->computeDriftSeconds($secondsIntoHour, $slot->position_seconds);
             }
         }
+
+        $this->diagnostics?->warning(
+            $station,
+            'Clock Wheels',
+            'Clock Wheel used fallback behavior.',
+            [
+                'wheel' => $wheel?->name,
+                'anchor' => $slot?->type?->value,
+                'reason' => $reason->value,
+                'expected_play_at' => $expectedPlayAt->format(DATE_ATOM),
+            ]
+        );
 
         $this->em->persist($event);
     }

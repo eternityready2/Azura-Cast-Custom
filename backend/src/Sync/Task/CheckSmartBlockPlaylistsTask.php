@@ -9,6 +9,8 @@ use App\Entity\Enums\SmartBlockType;
 use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Radio\SmartBlock\SmartBlockSyncer;
+use App\Service\StationDiagnostics;
+use Throwable;
 
 /**
  * Keeps every Smart Block playlist's membership automatically in sync with its filter
@@ -25,6 +27,7 @@ final class CheckSmartBlockPlaylistsTask extends AbstractTask
 {
     public function __construct(
         private readonly SmartBlockSyncer $syncer,
+        private readonly StationDiagnostics $diagnostics,
     ) {
     }
 
@@ -61,9 +64,22 @@ final class CheckSmartBlockPlaylistsTask extends AbstractTask
                 continue;
             }
 
-            $this->em->wrapInTransaction(
-                fn() => $this->syncPlaylist($playlist)
-            );
+            try {
+                $this->em->wrapInTransaction(
+                    fn() => $this->syncPlaylist($playlist)
+                );
+            } catch (Throwable $e) {
+                $this->diagnostics->error(
+                    $station,
+                    'Smart Blocks',
+                    'Dynamic Smart Block synchronization failed.',
+                    [
+                        'playlist' => $playlist->name,
+                        'error' => $e->getMessage(),
+                    ]
+                );
+                throw $e;
+            }
         }
     }
 
