@@ -323,12 +323,13 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         $minute = (int)$candidate->format('i');
+        $second = (int)$candidate->format('s');
 
         if ($backendConfig->ai_news_top_of_hour && ($minute >= 57 || $minute <= 3)) {
-            $slot = $minute >= 57
-                ? $candidate
-                : $candidate->modify('-1 hour');
-            $slot = $slot->setTime((int)$slot->format('G'), 59, 0);
+            $offsetSeconds = $minute >= 57
+                ? ((59 - $minute) * 60) - $second
+                : -(($minute + 1) * 60 + $second);
+            $slot = $candidate->setTimestamp($candidate->getTimestamp() + $offsetSeconds);
 
             if ($this->isAiNewsActiveAt($station, $slot)) {
                 return true;
@@ -336,7 +337,8 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
         }
 
         if ($backendConfig->ai_news_bottom_of_hour && $minute >= 27 && $minute <= 33) {
-            $slot = $candidate->setTime((int)$candidate->format('G'), 29, 0);
+            $offsetSeconds = ((29 - $minute) * 60) - $second;
+            $slot = $candidate->setTimestamp($candidate->getTimestamp() + $offsetSeconds);
             return $this->isAiNewsActiveAt($station, $slot);
         }
 
