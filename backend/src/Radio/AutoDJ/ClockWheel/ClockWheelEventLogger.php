@@ -23,7 +23,7 @@ final class ClockWheelEventLogger
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly StationDiagnostics $diagnostics,
+        private readonly ?StationDiagnostics $diagnostics = null,
     ) {
     }
 
@@ -57,7 +57,7 @@ final class ClockWheelEventLogger
         $event->burn_rate_warning = $burnRateWarning;
 
         if ($separationRelaxed || $burnRateWarning) {
-            $this->diagnostics->warning(
+            $this->diagnostics?->warning(
                 $station,
                 'Clock Wheels',
                 'Clock Wheel queued media with a scheduling safeguard relaxed.',
@@ -89,7 +89,7 @@ final class ClockWheelEventLogger
         $event->anchor_type = $slot->type?->value;
         $event->drift_seconds = $this->computeDriftSeconds($secondsIntoHour, $slot->position_seconds);
 
-        $this->diagnostics->warning(
+        $this->diagnostics?->warning(
             $station,
             'Clock Wheels',
             'Clock Wheel slot was deferred.',
@@ -128,7 +128,7 @@ final class ClockWheelEventLogger
         $event->fallback_reason = $reason;
         $event->anchor_type = 'legal_id';
 
-        $this->diagnostics->warning(
+        $this->diagnostics?->warning(
             $station,
             'Clock Wheels',
             'Top-of-hour legal ID used fallback behavior.',
@@ -161,7 +161,7 @@ final class ClockWheelEventLogger
             }
         }
 
-        $this->diagnostics->warning(
+        $this->diagnostics?->warning(
             $station,
             'Clock Wheels',
             'Clock Wheel used fallback behavior.',
