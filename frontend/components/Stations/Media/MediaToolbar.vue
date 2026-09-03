@@ -59,25 +59,27 @@
                 </option>
             </select>
 
-            <input
-                id="bulk_media_genre"
-                v-model="bulkGenre"
-                type="text"
-                class="form-control form-control-sm bulk-classify-select"
-                :disabled="!hasSelectedClassifyItems || classifyPending"
-                :title="$gettext('Set genre on selected files')"
-                :placeholder="$gettext('Set genre…')"
-                @keyup.enter="onBulkGenreApply"
-            >
+            <div class="input-group input-group-sm bulk-genre-group">
+                <input
+                    id="bulk_media_genre"
+                    v-model="bulkGenre"
+                    type="text"
+                    class="form-control"
+                    :disabled="!hasSelectedClassifyItems || classifyPending"
+                    :title="$gettext('Set genre on selected files')"
+                    :placeholder="$gettext('Set genre…')"
+                    @keyup.enter="onBulkGenreApply"
+                >
 
-            <button
-                type="button"
-                class="btn btn-sm btn-primary"
-                :disabled="!hasSelectedClassifyItems || classifyPending || bulkGenre.trim() === ''"
-                @click="onBulkGenreApply"
-            >
-                {{ $gettext('Apply Genre') }}
-            </button>
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    :disabled="!hasSelectedClassifyItems || classifyPending || bulkGenre.trim() === ''"
+                    @click="onBulkGenreApply"
+                >
+                    {{ $gettext('Apply Genre') }}
+                </button>
+            </div>
 
             <div
                 class="w-100 me-0 my-1"
@@ -617,5 +619,11 @@ const createGenrePlaylists = () => {
     width: auto;
     min-width: 8.5rem;
     max-width: 11rem;
+}
+
+.bulk-genre-group {
+    width: auto;
+    min-width: 15rem;
+    max-width: 18rem;
 }
 </style>
