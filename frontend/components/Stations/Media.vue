@@ -52,12 +52,6 @@
                 @relist="onTriggerRelist"
             />
 
-            <div class="d-flex justify-content-end mb-3">
-                <button type="button" class="btn btn-primary" @click="$downloadFromUrlModal?.open()">
-                    {{ $gettext('Download from URL') }}
-                </button>
-            </div>
-
             <media-toolbar
                 :batch-url="batchUrl"
                 :selected-items="selectedItems"
@@ -68,6 +62,7 @@
                 @add-playlist="onAddPlaylist"
                 @relist="onTriggerRelist"
                 @create-directory="createDirectory"
+                @download-from-url="$downloadFromUrlModal?.open()"
                 @move-files="moveFiles"
             />
         </div>
