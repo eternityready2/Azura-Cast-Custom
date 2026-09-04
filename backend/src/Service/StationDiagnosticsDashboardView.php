@@ -60,6 +60,22 @@ final readonly class StationDiagnosticsDashboardView
         foreach (['healthy', 'monitoring', 'warning', 'critical', 'inactive'] as $status) {
             $counts[$status] = (int)($snapshot['distribution'][$status] ?? 0);
         }
+
+        $successes = 0;
+        $warnings = 0;
+        $failures = 0;
+        foreach ($features as $feature) {
+            if (!is_array($feature)) {
+                continue;
+            }
+            $stats = (array)($feature['stats'] ?? []);
+            $successes += (int)($stats['successes'] ?? 0);
+            $warnings += (int)($stats['warnings'] ?? 0);
+            $failures += (int)($stats['failures'] ?? 0);
+        }
+        $counts['successes'] = $successes;
+        $counts['warning_signals'] = $warnings;
+        $counts['failures'] = $failures;
         $snapshot['counts'] = $counts;
 
         $services = (array)($snapshot['services'] ?? []);
