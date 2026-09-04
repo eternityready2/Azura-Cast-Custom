@@ -9,6 +9,7 @@ use App\Http\Response;
 use App\Http\ServerRequest;
 use App\Service\StationDiagnosticsDashboardView;
 use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 final readonly class ReportAction implements SingleActionInterface
 {
@@ -24,7 +25,6 @@ final readonly class ReportAction implements SingleActionInterface
     ): ResponseInterface {
         $station = $request->getStation();
         [$start, $end, $feature] = SummaryAction::resolveFilters($request, $station);
-        $snapshot = $this->dashboard->getSnapshot($station, $start, $end, $feature);
 
         $stream = fopen('php://temp', 'w+');
         if (false === $stream) {
@@ -49,62 +49,85 @@ final readonly class ReportAction implements SingleActionInterface
             'source',
         ]);
 
-        foreach ((array)($snapshot['features'] ?? []) as $featureRow) {
-            if (!is_array($featureRow)) {
-                continue;
+        try {
+            $snapshot = $this->dashboard->getSnapshot($station, $start, $end, $feature);
+
+            foreach ((array)($snapshot['features'] ?? []) as $featureRow) {
+                if (!is_array($featureRow)) {
+                    continue;
+                }
+
+                $stats = (array)($featureRow['stats'] ?? []);
+                fputcsv($stream, [
+                    'feature',
+                    (string)($featureRow['label'] ?? ''),
+                    (string)($featureRow['category'] ?? ''),
+                    (string)($featureRow['status'] ?? ''),
+                    (string)($featureRow['metric'] ?? ''),
+                    (int)($stats['successes'] ?? 0),
+                    (int)($stats['successful_executions'] ?? 0),
+                    (int)($stats['checks_passed'] ?? 0),
+                    (int)($stats['warnings'] ?? 0),
+                    (int)($stats['failures'] ?? 0),
+                    null === ($stats['success_rate'] ?? null) ? '' : (string)$stats['success_rate'],
+                    (string)($featureRow['headline'] ?? ''),
+                    (string)($featureRow['confidence_note'] ?? $featureRow['detail'] ?? ''),
+                    '',
+                    (string)($featureRow['basis'] ?? ''),
+                ]);
+
+                foreach ((array)($featureRow['top_problems'] ?? []) as $problem) {
+                    if (!is_array($problem)) {
+                        continue;
+                    }
+                    fputcsv($stream, [
+                        'problem',
+                        (string)($featureRow['label'] ?? ''),
+                        (string)($featureRow['category'] ?? ''),
+                        (string)($problem['severity'] ?? ''),
+                        '', '', '', '', '', '', '',
+                        (string)($problem['title'] ?? ''),
+                        (string)($problem['detail'] ?? ''),
+                        isset($problem['timestamp']) ? date(DATE_ATOM, (int)$problem['timestamp']) : '',
+                        (string)($problem['source'] ?? ''),
+                    ]);
+                }
             }
 
-            $stats = (array)($featureRow['stats'] ?? []);
-            fputcsv($stream, [
-                'feature',
-                (string)($featureRow['label'] ?? ''),
-                (string)($featureRow['category'] ?? ''),
-                (string)($featureRow['status'] ?? ''),
-                (string)($featureRow['metric'] ?? ''),
-                (int)($stats['successes'] ?? 0),
-                (int)($stats['successful_executions'] ?? 0),
-                (int)($stats['checks_passed'] ?? 0),
-                (int)($stats['warnings'] ?? 0),
-                (int)($stats['failures'] ?? 0),
-                null === ($stats['success_rate'] ?? null) ? '' : (string)$stats['success_rate'],
-                (string)($featureRow['headline'] ?? ''),
-                (string)($featureRow['confidence_note'] ?? $featureRow['detail'] ?? ''),
-                '',
-                (string)($featureRow['basis'] ?? ''),
-            ]);
-
-            foreach ((array)($featureRow['top_problems'] ?? []) as $problem) {
-                if (!is_array($problem)) {
+            foreach ((array)($snapshot['services'] ?? []) as $service) {
+                if (!is_array($service)) {
                     continue;
                 }
                 fputcsv($stream, [
-                    'problem',
-                    (string)($featureRow['label'] ?? ''),
-                    (string)($featureRow['category'] ?? ''),
-                    (string)($problem['severity'] ?? ''),
+                    'service',
+                    (string)($service['name'] ?? ''),
+                    (string)($service['scope'] ?? ''),
+                    (string)($service['status'] ?? ''),
                     '', '', '', '', '', '', '',
-                    (string)($problem['title'] ?? ''),
-                    (string)($problem['detail'] ?? ''),
-                    isset($problem['timestamp']) ? date(DATE_ATOM, (int)$problem['timestamp']) : '',
-                    (string)($problem['source'] ?? ''),
+                    (string)($service['recovery'] ?? ''),
+                    (string)($service['problem'] ?? $service['description'] ?? ''),
+                    '',
+                    'live',
                 ]);
             }
-        }
-
-        foreach ((array)($snapshot['services'] ?? []) as $service) {
-            if (!is_array($service)) {
-                continue;
-            }
+        } catch (Throwable $e) {
+            $error = str_replace($station->getFilteredPasswords(), '(PASSWORD)', $e->getMessage());
             fputcsv($stream, [
-                'service',
-                (string)($service['name'] ?? ''),
-                (string)($service['scope'] ?? ''),
-                (string)($service['status'] ?? ''),
-                '', '', '', '', '', '', '',
-                (string)($service['recovery'] ?? ''),
-                (string)($service['problem'] ?? $service['description'] ?? ''),
-                '',
-                'live',
+                'diagnostics-engine',
+                'Diagnostics Engine',
+                'runtime',
+                'critical',
+                'snapshot failed',
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                'Dashboard analysis failed',
+                $error,
+                date(DATE_ATOM),
+                'diagnostics',
             ]);
         }
 
