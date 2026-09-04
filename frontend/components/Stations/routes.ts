@@ -133,8 +133,10 @@ export default function useStationsRoutes(): RouteRecordRaw[] {
                 },
                 {
                     path: 'diagnostics',
-                    component: () => import('~/components/Stations/Diagnostics.vue'),
-                    name: 'stations:diagnostics'
+                    name: 'stations:diagnostics',
+                    redirect: {
+                        name: 'stations:logs'
+                    }
                 },
                 {
                     path: 'smart-blocks',
