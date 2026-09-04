@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Entity\Station;
 use DateTimeImmutable;
 use DateTimeZone;
+use Throwable;
 
 final readonly class StationDiagnosticsReport
 {
@@ -21,12 +22,22 @@ final readonly class StationDiagnosticsReport
         int $endTimestamp,
         ?string $feature = null,
     ): string {
-        $snapshot = $this->dashboard->getSnapshot(
-            $station,
-            $startTimestamp,
-            $endTimestamp,
-            $feature,
-        );
+        try {
+            $snapshot = $this->dashboard->getSnapshot(
+                $station,
+                $startTimestamp,
+                $endTimestamp,
+                $feature,
+            );
+        } catch (Throwable $e) {
+            return $this->renderFailure(
+                $station,
+                $startTimestamp,
+                $endTimestamp,
+                $feature,
+                $e,
+            );
+        }
 
         $timezone = $station->getTimezoneObject();
         $generatedAt = (int)($snapshot['generated_at'] ?? time());
@@ -191,6 +202,34 @@ final readonly class StationDiagnosticsReport
         $lines[] = 'has no entries at the moment; it does not make this diagnostics report empty.';
 
         return implode(PHP_EOL, $lines) . PHP_EOL;
+    }
+
+    private function renderFailure(
+        Station $station,
+        int $startTimestamp,
+        int $endTimestamp,
+        ?string $feature,
+        Throwable $error,
+    ): string {
+        $timezone = $station->getTimezoneObject();
+        $message = str_replace($station->getFilteredPasswords(), '(PASSWORD)', $error->getMessage());
+
+        return implode(PHP_EOL, [
+            'AZURACAST STATION DIAGNOSTICS REPORT',
+            str_repeat('=', 72),
+            'Station: ' . $station->name,
+            'Generated: ' . $this->formatTimestamp(time(), $timezone),
+            'Range: ' . $this->formatTimestamp($startTimestamp, $timezone)
+                . ' through ' . $this->formatTimestamp($endTimestamp, $timezone),
+            'Feature filter: ' . ($feature ?: 'All feature areas'),
+            '',
+            'DIAGNOSTICS ENGINE FAILURE',
+            str_repeat('-', 72),
+            'The operational snapshot could not be fully generated.',
+            'Error: ' . $message,
+            '',
+            'The raw station/service logs remain available on the Logs page.',
+        ]) . PHP_EOL;
     }
 
     private function formatTimestamp(int $timestamp, DateTimeZone $timezone): string
