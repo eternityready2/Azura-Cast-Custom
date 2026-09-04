@@ -24,4 +24,6 @@ enum ClockWheelFallbackReason: string
     case LegalIdMissingUsedPromo = 'legal_id_missing_used_promo';
     /** Hard anchor slot could not play at its scheduled position. */
     case HardAnchorMissed = 'hard_anchor_missed';
+    /** Legacy value retained so historical Clock Wheel event rows remain readable. */
+    case TopOfHourHardClock = 'top_of_hour_hard_clock';
 }
