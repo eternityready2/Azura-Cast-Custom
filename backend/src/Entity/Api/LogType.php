@@ -24,7 +24,13 @@ final class LogType
         #[OA\Property(readOnly: true)]
         public string $path,
         #[OA\Property(readOnly: true)]
-        public bool $tail = false
+        public bool $tail = false,
+        #[OA\Property(readOnly: true)]
+        public bool $exists = false,
+        #[OA\Property(readOnly: true)]
+        public int $size = 0,
+        #[OA\Property(readOnly: true, nullable: true)]
+        public ?int $modified_at = null,
     ) {
     }
 }
