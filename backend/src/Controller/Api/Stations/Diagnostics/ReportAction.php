@@ -7,14 +7,14 @@ namespace App\Controller\Api\Stations\Diagnostics;
 use App\Controller\SingleActionInterface;
 use App\Http\Response;
 use App\Http\ServerRequest;
-use App\Service\StationDiagnosticsDashboardView;
+use App\Service\StationDiagnosticsFinalizer;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
 
 final readonly class ReportAction implements SingleActionInterface
 {
     public function __construct(
-        private StationDiagnosticsDashboardView $dashboard,
+        private StationDiagnosticsFinalizer $dashboard,
     ) {
     }
 
