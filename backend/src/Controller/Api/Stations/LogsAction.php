@@ -129,6 +129,12 @@ class LogsAction implements SingleActionInterface
     protected function getStationLogs(Station $station): array
     {
         return [
+            new LogType(
+                'custom_diagnostics',
+                __('Custom Feature Diagnostics'),
+                $station->getRadioConfigDir() . '/custom_diagnostics.log',
+                true
+            ),
             ...$this->adapters->getBackendAdapter($station)?->getLogTypes($station) ?? [],
             ...$this->adapters->getFrontendAdapter($station)?->getLogTypes($station) ?? [],
             new LogType(
