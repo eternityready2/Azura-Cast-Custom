@@ -35,6 +35,7 @@ final readonly class SummaryAction implements SingleActionInterface
         } catch (Throwable $e) {
             $timestamp = time();
             $windowHours = max(1, (int)ceil(($end - $start) / 3600));
+            $error = str_replace($station->getFilteredPasswords(), '(PASSWORD)', $e->getMessage());
 
             return $response->withJson([
                 'generated_at' => $timestamp,
@@ -84,7 +85,7 @@ final readonly class SummaryAction implements SingleActionInterface
                     'category' => 'runtime',
                     'status' => 'critical',
                     'headline' => __('A diagnostics source could not be analyzed'),
-                    'detail' => $e->getMessage(),
+                    'detail' => $error,
                     'metric' => __('Check failed'),
                     'basis' => 'runtime',
                     'issues' => 1,
@@ -103,7 +104,7 @@ final readonly class SummaryAction implements SingleActionInterface
                         'feature_key' => 'diagnostics-engine',
                         'feature' => __('Diagnostics Engine'),
                         'title' => __('Dashboard analysis failed'),
-                        'detail' => $e->getMessage(),
+                        'detail' => $error,
                         'timestamp' => $timestamp,
                         'source' => 'diagnostics',
                     ]],
@@ -111,7 +112,7 @@ final readonly class SummaryAction implements SingleActionInterface
                     'drilldown' => [[
                         'state' => 'failure',
                         'title' => __('Dashboard analysis failed'),
-                        'detail' => $e->getMessage(),
+                        'detail' => $error,
                         'timestamp' => $timestamp,
                         'source' => 'diagnostics',
                     ]],
@@ -124,7 +125,7 @@ final readonly class SummaryAction implements SingleActionInterface
                     'feature_key' => 'diagnostics-engine',
                     'feature' => __('Diagnostics Engine'),
                     'title' => __('Dashboard analysis failed'),
-                    'detail' => $e->getMessage(),
+                    'detail' => $error,
                     'timestamp' => $timestamp,
                     'source' => 'diagnostics',
                 ]],
