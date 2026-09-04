@@ -7,13 +7,13 @@ namespace App\Controller\Api\Stations\Diagnostics;
 use App\Controller\SingleActionInterface;
 use App\Http\Response;
 use App\Http\ServerRequest;
-use App\Service\StationDiagnosticsDashboard;
+use App\Service\StationDiagnosticsDashboardView;
 use Psr\Http\Message\ResponseInterface;
 
 final readonly class ReportAction implements SingleActionInterface
 {
     public function __construct(
-        private StationDiagnosticsDashboard $dashboard,
+        private StationDiagnosticsDashboardView $dashboard,
     ) {
     }
 
@@ -68,7 +68,7 @@ final readonly class ReportAction implements SingleActionInterface
                 (int)($stats['failures'] ?? 0),
                 null === ($stats['success_rate'] ?? null) ? '' : (string)$stats['success_rate'],
                 (string)($featureRow['headline'] ?? ''),
-                (string)($featureRow['detail'] ?? ''),
+                (string)($featureRow['confidence_note'] ?? $featureRow['detail'] ?? ''),
                 '',
                 (string)($featureRow['basis'] ?? ''),
             ]);
@@ -82,13 +82,7 @@ final readonly class ReportAction implements SingleActionInterface
                     (string)($featureRow['label'] ?? ''),
                     (string)($featureRow['category'] ?? ''),
                     (string)($problem['severity'] ?? ''),
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
+                    '', '', '', '', '', '', '',
                     (string)($problem['title'] ?? ''),
                     (string)($problem['detail'] ?? ''),
                     isset($problem['timestamp']) ? date(DATE_ATOM, (int)$problem['timestamp']) : '',
@@ -108,7 +102,7 @@ final readonly class ReportAction implements SingleActionInterface
                 (string)($service['status'] ?? ''),
                 '', '', '', '', '', '', '',
                 (string)($service['recovery'] ?? ''),
-                (string)($service['description'] ?? ''),
+                (string)($service['problem'] ?? $service['description'] ?? ''),
                 '',
                 'live',
             ]);
@@ -127,6 +121,7 @@ final readonly class ReportAction implements SingleActionInterface
         return $response
             ->withHeader('Content-Type', 'text/csv; charset=utf-8')
             ->withHeader('Content-Disposition', 'attachment; filename="' . $filename . '"')
+            ->withHeader('Cache-Control', 'no-store')
             ->write(false === $csv ? '' : $csv);
     }
 }
