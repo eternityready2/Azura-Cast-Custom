@@ -6,6 +6,7 @@ namespace App\Console\Command;
 
 use App\Container\EntityManagerAwareTrait;
 use App\Service\AiNewsGenerator;
+use App\Service\StationDiagnostics;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -25,6 +26,7 @@ final class GenerateAiNewsCommand extends CommandAbstract
 
     public function __construct(
         private readonly AiNewsGenerator $generator,
+        private readonly StationDiagnostics $diagnostics,
     ) {
         parent::__construct();
     }
@@ -83,11 +85,49 @@ final class GenerateAiNewsCommand extends CommandAbstract
                 $io->text('<comment>Force mode: ignoring disabled state.</comment>');
             }
 
+            $previousGeneratedAt = $station->ai_news_last_generation_time?->getTimestamp();
+
             try {
                 $this->generator->generate($station, $force);
+                $currentGeneratedAt = $station->ai_news_last_generation_time?->getTimestamp();
+
+                if (null !== $currentGeneratedAt && $currentGeneratedAt !== $previousGeneratedAt) {
+                    $this->diagnostics->info(
+                        $station,
+                        'ai news',
+                        'AI News bulletin generation completed.',
+                        [
+                            'forced' => $force,
+                            'generation_time' => $currentGeneratedAt,
+                            'status' => $station->ai_news_last_generation_status,
+                        ]
+                    );
+                } else {
+                    $this->diagnostics->info(
+                        $station,
+                        'ai news',
+                        'AI News generation was checked but intentionally skipped.',
+                        [
+                            'forced' => $force,
+                            'status' => $station->ai_news_last_generation_status,
+                        ]
+                    );
+                }
+
                 $io->text('<info>Generation succeeded.</info>');
                 $successCount++;
             } catch (Throwable $e) {
+                $error = str_replace($station->getFilteredPasswords(), '(PASSWORD)', $e->getMessage());
+                $this->diagnostics->error(
+                    $station,
+                    'ai news',
+                    'AI News bulletin generation failed.',
+                    [
+                        'forced' => $force,
+                        'error' => $error,
+                    ]
+                );
+
                 $io->error(sprintf('Failed: %s', $e->getMessage()));
                 return 1;
             }

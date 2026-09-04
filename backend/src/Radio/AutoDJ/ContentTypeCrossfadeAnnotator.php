@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ;
 
 use App\Container\EntityManagerAwareTrait;
-use App\Entity\Repository\SongHistoryRepository;
 use App\Entity\Enums\StationMediaTypes;
+use App\Entity\Repository\SongHistoryRepository;
+use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\AnnotateNextSong;
+use App\Service\StationDiagnostics;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
@@ -21,6 +23,7 @@ final class ContentTypeCrossfadeAnnotator implements EventSubscriberInterface
     public function __construct(
         private readonly ContentTypeCrossfadeService $crossfadeService,
         private readonly SongHistoryRepository $historyRepo,
+        private readonly StationDiagnostics $diagnostics,
     ) {
     }
 
@@ -83,5 +86,21 @@ final class ContentTypeCrossfadeAnnotator implements EventSubscriberInterface
             'autocue_fade_in' => $fades['fade_in'],
             'autocue_fade_out' => $fades['fade_out'],
         ]);
+
+        $this->diagnostics->info(
+            $station,
+            'crossfade',
+            'Content-type crossfade transition applied.',
+            [
+                'queue_id' => isset($queue->id) ? $queue->id : null,
+                'media_id' => $media->id,
+                'playlist_id' => $queue->playlist?->id,
+                'previous_type' => $fromType,
+                'current_type' => $toType,
+                'profile' => $queue->playlist?->crossfade_profile,
+                'fade_in_seconds' => (float)$fades['fade_in'],
+                'fade_out_seconds' => (float)$fades['fade_out'],
+            ]
+        );
     }
 }

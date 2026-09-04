@@ -12,6 +12,7 @@ use App\Doctrine\Messenger\ClearEntityManagerSubscriber;
 use App\MessageQueue\LogWorkerExceptionSubscriber;
 use App\MessageQueue\QueueManagerInterface;
 use App\MessageQueue\ResetArrayCacheSubscriber;
+use App\MessageQueue\StationDiagnosticsWorkerSubscriber;
 use App\Utilities\Types;
 use Psr\Log\LogLevel;
 use Psr\Log\NullLogger;
@@ -73,6 +74,7 @@ final class ProcessCommand extends AbstractSyncCommand
 
         $this->eventDispatcher->addServiceSubscriber(ClearEntityManagerSubscriber::class);
         $this->eventDispatcher->addServiceSubscriber(LogWorkerExceptionSubscriber::class);
+        $this->eventDispatcher->addServiceSubscriber(StationDiagnosticsWorkerSubscriber::class);
         $this->eventDispatcher->addServiceSubscriber(ResetArrayCacheSubscriber::class);
 
         if ($runtime <= 0) {
