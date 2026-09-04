@@ -12,7 +12,7 @@ use Throwable;
 final readonly class StationDiagnosticsReport
 {
     public function __construct(
-        private StationDiagnosticsDashboardView $dashboard,
+        private StationDiagnosticsFinalizer $dashboard,
     ) {
     }
 
