@@ -72,6 +72,9 @@ final class AiDjQueueListener implements EventSubscriberInterface
      */
     private const int COMBO_PROBABILITY_PCT = 50;
 
+    /** Keep cadence credit through a full shift, but let it naturally reset overnight. */
+    private const int TALK_CADENCE_TTL_SECONDS = 12 * 3600;
+
     public function __construct(
         private readonly AiDjScheduler $scheduler,
         private readonly AiDjGenerator $generator,
@@ -159,9 +162,9 @@ final class AiDjQueueListener implements EventSubscriberInterface
         $directAirTime = $this->resolveDirectRequestAirTime($station, $now);
 
         // The lifecycle listener owns a separate wind-down marker once the concrete
-        // sign-off window begins. It carries only the shift end timestamp and never
-        // touches the ordinary talk cooldown. Expired state is removed lazily so a
-        // following shift is never suppressed by the previous DJ's goodbye.
+        // sign-off has actually been queued. It carries only the shift end timestamp
+        // and never touches the ordinary talk cooldown. Expired state is removed lazily
+        // so a following shift is never suppressed by the previous DJ's goodbye.
         $winddownKey = 'ai_dj_shift_winddown_until_' . $station->id;
         $winddownUntil = (int)($this->cache->get($winddownKey) ?? 0);
         if ($winddownUntil > 0) {
@@ -251,8 +254,7 @@ final class AiDjQueueListener implements EventSubscriberInterface
             // id) has a different, absent key and so still welcomes.
             $welcomedKey = 'ai_dj_welcomed_' . $station->id . '_' . $currentDjId;
             if (null === $this->cache->get($welcomedKey)) {
-                // 6h: longer than any single program gap, shorter than the 24h loop
-                // so the same DJ's next-day shift still gets a fresh welcome.
+                // Long enough to survive a program gap while remaining shift-local in practice.
                 $this->cache->set($welcomedKey, time(), 72000);
                 $this->pushIntroShiftClip($dj, $station, $backend);
                 $this->cache->set($cooldownKey, time(), 300);
@@ -270,14 +272,40 @@ final class AiDjQueueListener implements EventSubscriberInterface
 
         $this->logger->info('AI DJ: Active DJ found.', ['dj_name' => $dj->getName()]);
 
-        // Check talk frequency only after all real-airtime safety gates have passed.
+        // Treat talk_frequency as the share of ELIGIBLE song boundaries that should
+        // contain a DJ break. The previous independent random roll could produce long
+        // unlucky silent streaks (and materially under-deliver over a single shift).
+        // Fractional credit keeps the same configured percentage while making the
+        // cadence stable: 0.5 => about every second eligible boundary; 0.75 => about
+        // three of every four. Safety windows and the 3-minute cooldown still win.
         $frequency = $dj->getTalkFrequency();
-        if ($frequency < 1.0 && (mt_rand(1, 100) / 100) > $frequency) {
-            $this->logger->debug('AI DJ: Skipped by talk frequency.', ['frequency' => $frequency]);
-            // Still track current song for post-song use even when skipping
+        if ($frequency <= 0.0) {
+            $this->logger->debug('AI DJ: Skipped - talk frequency is zero.');
             $this->trackCurrentSong($station);
             return;
         }
+
+        $cadenceKey = 'ai_dj_talk_cadence_' . $station->id . '_' . $dj->getId();
+        $cadenceCredit = (float)($this->cache->get($cadenceKey) ?? 0.0) + $frequency;
+        if ($cadenceCredit < 1.0) {
+            $this->cache->set($cadenceKey, $cadenceCredit, self::TALK_CADENCE_TTL_SECONDS);
+            $this->logger->debug('AI DJ: Skipped by talk cadence.', [
+                'frequency' => $frequency,
+                'credit' => $cadenceCredit,
+            ]);
+            $this->trackCurrentSong($station);
+            return;
+        }
+
+        // Reserve this eligible break before synchronous TTS starts. This keeps the
+        // original anti-parallel behavior: another queue request arriving while a clip
+        // is rendering sees the cooldown and cannot generate a second adjacent DJ clip.
+        $this->cache->set(
+            $cadenceKey,
+            max(0.0, $cadenceCredit - 1.0),
+            self::TALK_CADENCE_TTL_SECONDS,
+        );
+        $this->cache->set($cooldownKey, time(), 300);
 
         // Name the current song only when the clip will air right after it. The clip
         // goes to the track_sensitive "requests" queue, but the station's crossfade
@@ -298,9 +326,6 @@ final class AiDjQueueListener implements EventSubscriberInterface
         $nextMusicEntry = $this->findNextMusicEntry($station);
         $nextArtist = $nextMusicEntry?->artist;
         $nextTitle = $nextMusicEntry?->title;
-
-        // Record cooldown BEFORE generation to prevent parallel attempts
-        $this->cache->set($cooldownKey, time(), 300);
 
         $roll = mt_rand(1, 100);
         $wantCombo = (mt_rand(1, 100) <= self::COMBO_PROBABILITY_PCT);

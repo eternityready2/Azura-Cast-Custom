@@ -117,22 +117,15 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             return;
         }
 
-        // Reserve the concrete sign-off phase without borrowing the normal talk
-        // cooldown. AiDjQueueListener reads this shift-end timestamp and suppresses
-        // only ordinary AI chatter until the shift ends; normal AutoDJ music remains
-        // completely independent.
-        $this->cache->set(
-            'ai_dj_shift_winddown_until_' . $station->id,
-            $endsAt->getTimestamp(),
-            $this->getStateTtl($endsAt, $now),
-        );
-
         $outroKey = $this->getOutroKey($station, $scheduleNow, $startsAt);
+        $winddownKey = 'ai_dj_shift_winddown_until_' . $station->id;
+        $ttl = $this->getStateTtl($endsAt, $now);
         $alreadySignedOff = $this->cache->get($outroKey)
             || $this->hasDurableShiftMarker($station, $dj, 'AI DJ Sign-off', $startsAt, $endsAt);
 
         if ($alreadySignedOff) {
-            $this->cache->set($outroKey, true, $this->getStateTtl($endsAt, $now));
+            $this->cache->set($outroKey, true, $ttl);
+            $this->cache->set($winddownKey, $endsAt->getTimestamp(), $ttl);
             return;
         }
 
@@ -156,7 +149,6 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             return;
         }
 
-        $ttl = $this->getStateTtl($endsAt, $now);
         $this->cache->set($outroKey, true, $ttl);
 
         if (
@@ -170,7 +162,14 @@ final class AiDjShiftLifecycleListener implements EventSubscriberInterface
             )
         ) {
             $this->cache->delete($outroKey);
+            return;
         }
+
+        // Only reserve the rest of the shift after the sign-off is genuinely in
+        // Liquidsoap's Requests queue. Merely entering the candidate sign-off
+        // window must not silence ordinary DJ breaks while the outro is still
+        // waiting for a safe song boundary or an empty request queue.
+        $this->cache->set($winddownKey, $endsAt->getTimestamp(), $ttl);
     }
 
     private function resolveDirectRequestAirTime(
