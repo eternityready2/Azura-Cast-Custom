@@ -31,11 +31,7 @@ const values = computed(() => [
 ]);
 
 useChart<'bar'>(
-    {
-        labels: labels.value,
-        data: [{data: values.value}],
-        aspectRatio: 3.4,
-    },
+    {},
     $canvas,
     computed(() => ({
         type: 'bar',
@@ -54,6 +50,7 @@ useChart<'bar'>(
             }],
         },
         options: {
+            aspectRatio: 3.4,
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: true,
