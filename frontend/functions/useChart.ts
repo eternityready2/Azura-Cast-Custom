@@ -16,9 +16,7 @@ import "chartjs-adapter-luxon";
 import "~/vendor/luxon";
 
 Chart.register(...registerables);
-
 Chart.register(zoomPlugin);
-
 Chart.register(chartjsColorSchemes);
 
 interface ChartAltValue {
@@ -79,7 +77,7 @@ export default function useChart<
 
         const chartContext = $canvas.value?.getContext('2d');
         if (!chartContext) {
-            throw new Error("Cannot find chart context!");
+            return;
         }
 
         $chart = new Chart(
@@ -91,7 +89,7 @@ export default function useChart<
     onMounted(rebuildChart);
 
     watch(
-        () => chartConfig,
+        chartConfig,
         () => {
             rebuildChart();
         },
@@ -104,5 +102,5 @@ export default function useChart<
 
     return {
         $chart,
-    }
+    };
 }
