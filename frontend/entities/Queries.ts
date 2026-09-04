@@ -5,6 +5,7 @@ export enum QueryKeys {
     Dashboard = 'Dashboard',
 
     StationGroup = 'Station',
+    StationDiagnostics = 'StationDiagnostics',
     StationGlobals = 'StationGlobals',
     StationHlsStreams = 'StationHlsStreams',
     StationLogs = 'StationLogs',
