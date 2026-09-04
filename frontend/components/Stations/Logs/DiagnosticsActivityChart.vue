@@ -15,7 +15,8 @@ interface ActivityPoint {
 }
 
 const props = defineProps<{
-    points: ActivityPoint[]
+    points: ActivityPoint[],
+    windowHours?: number,
 }>();
 
 const {$gettext} = useTranslate();
@@ -23,6 +24,10 @@ const $canvas = useTemplateRef('$canvas');
 
 const labels = computed(() => props.points.map((point) => {
     const date = new Date(point.timestamp * 1000);
+    if ((props.windowHours ?? 24) > 48) {
+        return date.toLocaleDateString([], {month: 'short', day: 'numeric'});
+    }
+
     return date.toLocaleTimeString([], {hour: 'numeric'});
 }));
 
@@ -42,7 +47,7 @@ const datasets = computed(() => [
         maxBarThickness: 18,
     },
     {
-        label: $gettext('Info'),
+        label: $gettext('Success / Info'),
         data: props.points.map((point) => point.info),
         backgroundColor: 'rgba(13, 202, 240, 0.38)',
         borderRadius: 4,
@@ -88,7 +93,7 @@ useChart<'bar'>(
                 x: {
                     stacked: true,
                     grid: {display: false},
-                    ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 8},
+                    ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 10},
                 },
                 y: {
                     stacked: true,
