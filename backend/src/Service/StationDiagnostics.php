@@ -35,6 +35,53 @@ final class StationDiagnostics
         return $path;
     }
 
+    /**
+     * @return list<array{
+     *     timestamp: int,
+     *     timestamp_iso: string,
+     *     level: string,
+     *     feature: string,
+     *     message: string,
+     *     context: array<string, mixed>
+     * }>
+     */
+    public function getRecentEvents(Station $station, int $windowHours = 24, int $limit = 1500): array
+    {
+        $path = $this->ensureLogFile($station);
+        if (!is_file($path) || !is_readable($path)) {
+            return [];
+        }
+
+        $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines) || [] === $lines) {
+            return [];
+        }
+
+        $windowHours = max(1, min(168, $windowHours));
+        $limit = max(1, min(5000, $limit));
+        $minimumTimestamp = time() - ($windowHours * 3600);
+        $events = [];
+
+        foreach (array_reverse($lines) as $line) {
+            if (count($events) >= $limit) {
+                break;
+            }
+
+            $event = $this->parseLine($line);
+            if (null === $event) {
+                continue;
+            }
+
+            if ($event['timestamp'] < $minimumTimestamp) {
+                continue;
+            }
+
+            $events[] = $event;
+        }
+
+        return array_reverse($events);
+    }
+
     /** @param array<string, scalar|null> $context */
     public function info(Station $station, string $feature, string $message, array $context = []): void
     {
@@ -89,6 +136,51 @@ final class StationDiagnostics
             file_put_contents($path, $line . PHP_EOL, FILE_APPEND | LOCK_EX);
         } catch (Throwable) {
         }
+    }
+
+    /**
+     * @return array{
+     *     timestamp: int,
+     *     timestamp_iso: string,
+     *     level: string,
+     *     feature: string,
+     *     message: string,
+     *     context: array<string, mixed>
+     * }|null
+     */
+    private function parseLine(string $line): ?array
+    {
+        if (!preg_match('/^\[([^]]+)] \[(INFO|WARNING|ERROR)] \[([^]]+)] (.+)$/', $line, $matches)) {
+            return null;
+        }
+
+        try {
+            $timestamp = new DateTimeImmutable($matches[1]);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $payload = $matches[4];
+        $message = $payload;
+        $context = [];
+
+        $jsonStart = strrpos($payload, ' {');
+        if (false !== $jsonStart) {
+            $decoded = json_decode(substr($payload, $jsonStart + 1), true);
+            if (is_array($decoded)) {
+                $context = $decoded;
+                $message = substr($payload, 0, $jsonStart);
+            }
+        }
+
+        return [
+            'timestamp' => $timestamp->getTimestamp(),
+            'timestamp_iso' => $timestamp->format(DATE_ATOM),
+            'level' => $matches[2],
+            'feature' => trim($matches[3]),
+            'message' => trim($message),
+            'context' => $context,
+        ];
     }
 
     private function trimIfNeeded(string $path): void
