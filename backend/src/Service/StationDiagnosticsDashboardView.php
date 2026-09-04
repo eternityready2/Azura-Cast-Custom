@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Station;
+use App\Entity\StationStreamer;
+use DateTimeImmutable;
+use DateTimeZone;
+use Doctrine\ORM\EntityManagerInterface;
+use Throwable;
 
 /**
  * Presentation layer for the station diagnostics snapshot.
  *
  * Keeps the collector focused on gathering evidence while this service applies
- * operator-facing confidence semantics (healthy vs monitoring), fixes derived
- * playout-control state, and normalizes totals used by the dashboard/report.
+ * operator-facing confidence semantics, fills operational areas backed by
+ * existing database history, and normalizes totals used by the dashboard/report.
  */
 final readonly class StationDiagnosticsDashboardView
 {
     public function __construct(
         private StationDiagnosticsDashboard $dashboard,
+        private EntityManagerInterface $em,
     ) {
     }
 
@@ -27,14 +33,33 @@ final readonly class StationDiagnosticsDashboardView
         ?int $endTimestamp = null,
         ?string $featureFilter = null,
     ): array {
+        // Always collect the full snapshot here so presentation-layer feature
+        // additions participate in the same filter/export behavior as native
+        // collector features.
         $snapshot = $this->dashboard->getSnapshot(
             $station,
             $startTimestamp,
             $endTimestamp,
-            $featureFilter,
+            null,
         );
 
+        $window = (array)($snapshot['window'] ?? []);
+        $start = (int)($window['start'] ?? $startTimestamp ?? (time() - 86400));
+        $end = (int)($window['end'] ?? $endTimestamp ?? time());
+        $generatedAt = (int)($snapshot['generated_at'] ?? time());
+
         $features = (array)($snapshot['features'] ?? []);
+        $recentIssues = (array)($snapshot['recent_issues'] ?? []);
+
+        [$liveBroadcastingFeature, $liveBroadcastingIssues] = $this->buildLiveBroadcastingFeature(
+            $station,
+            $start,
+            $end,
+            $generatedAt,
+        );
+        $features[] = $liveBroadcastingFeature;
+        $recentIssues = [...$recentIssues, ...$liveBroadcastingIssues];
+
         foreach ($features as &$feature) {
             if (!is_array($feature)) {
                 continue;
@@ -48,13 +73,41 @@ final readonly class StationDiagnosticsDashboardView
         }
         unset($feature);
 
+        $availableFeatures = (array)($snapshot['available_features'] ?? []);
+        $availableFeatures[] = [
+            'key' => 'live-broadcasting',
+            'label' => __('Live Broadcasting'),
+            'category' => 'runtime',
+        ];
+        $availableFeatures = $this->uniqueFeatureDefinitions($availableFeatures);
+        $snapshot['available_features'] = $availableFeatures;
+
+        $validFeatureKeys = array_column($availableFeatures, 'key');
+        if (null !== $featureFilter && !in_array($featureFilter, $validFeatureKeys, true)) {
+            $featureFilter = null;
+        }
+
+        $services = (array)($snapshot['services'] ?? []);
+        if (null !== $featureFilter && '' !== $featureFilter) {
+            $features = array_values(array_filter(
+                $features,
+                static fn(array $feature): bool => ($feature['key'] ?? null) === $featureFilter,
+            ));
+            $recentIssues = array_values(array_filter(
+                $recentIssues,
+                static fn(array $issue): bool => ($issue['feature_key'] ?? null) === $featureFilter,
+            ));
+            if ('station-services' !== $featureFilter) {
+                $services = [];
+            }
+        }
+
+        $recentIssues = $this->sortIssues($recentIssues);
+        $snapshot['filter'] = ['feature' => $featureFilter];
         $snapshot['features'] = array_values($features);
         $snapshot['distribution'] = $this->buildDistribution($features);
         $snapshot['health_score'] = $this->calculateHealthScore($features);
-        $snapshot['overall_status'] = $this->calculateOverallStatus(
-            $features,
-            (array)($snapshot['services'] ?? []),
-        );
+        $snapshot['overall_status'] = $this->calculateOverallStatus($features, $services);
 
         $counts = (array)($snapshot['counts'] ?? []);
         foreach (['healthy', 'monitoring', 'warning', 'critical', 'inactive'] as $status) {
@@ -76,9 +129,9 @@ final readonly class StationDiagnosticsDashboardView
         $counts['successes'] = $successes;
         $counts['warning_signals'] = $warnings;
         $counts['failures'] = $failures;
+        $counts['active_issues'] = count($recentIssues);
         $snapshot['counts'] = $counts;
 
-        $services = (array)($snapshot['services'] ?? []);
         foreach ($services as &$service) {
             if (!is_array($service)) {
                 continue;
@@ -88,9 +141,172 @@ final readonly class StationDiagnosticsDashboardView
                 : null;
         }
         unset($service);
+
         $snapshot['services'] = array_values($services);
+        $snapshot['recent_issues'] = array_slice($recentIssues, 0, 40);
 
         return $snapshot;
+    }
+
+    /**
+     * @return array{0:array<string,mixed>,1:list<array<string,mixed>>}
+     */
+    private function buildLiveBroadcastingFeature(
+        Station $station,
+        int $start,
+        int $end,
+        int $generatedAt,
+    ): array {
+        $enabled = $station->enable_streamers;
+        $accounts = 0;
+        $activeAccounts = 0;
+        $scheduledAccounts = 0;
+
+        foreach ($station->streamers as $streamer) {
+            if (!$streamer instanceof StationStreamer) {
+                continue;
+            }
+            ++$accounts;
+            if ($streamer->is_active) {
+                ++$activeAccounts;
+            }
+            if ($streamer->enforce_schedule && $streamer->schedule_items->count() > 0) {
+                ++$scheduledAccounts;
+            }
+        }
+
+        [$broadcasts, $lastBroadcastAt] = $this->getLiveBroadcastStats($station, $start, $end);
+        $issues = [];
+        $status = 'inactive';
+        if ($enabled) {
+            if (0 === $activeAccounts) {
+                $status = 'warning';
+                $issues[] = [
+                    'severity' => 'warning',
+                    'feature_key' => 'live-broadcasting',
+                    'feature' => __('Live Broadcasting'),
+                    'title' => __('Live broadcasting is enabled but no active DJ accounts are available'),
+                    'detail' => __('Add or reactivate a streamer/DJ account before expecting a live connection.'),
+                    'timestamp' => $generatedAt,
+                    'source' => 'state',
+                ];
+            } else {
+                $status = 'healthy';
+            }
+        }
+
+        $checksPassed = $enabled ? $activeAccounts : 0;
+        $successes = $checksPassed + $broadcasts;
+        $warnings = count($issues);
+        $observations = $successes + $warnings;
+        $successRate = $observations > 0 ? round(($successes / $observations) * 100, 1) : null;
+
+        $drilldown = [
+            [
+                'state' => $enabled ? 'success' : 'warning',
+                'title' => __('Live broadcasting'),
+                'detail' => $enabled ? __('Enabled') : __('Disabled'),
+                'timestamp' => $generatedAt,
+                'source' => 'state',
+            ],
+            [
+                'state' => $activeAccounts > 0 ? 'success' : 'warning',
+                'title' => __('Active DJ accounts'),
+                'detail' => (string)$activeAccounts,
+                'timestamp' => $generatedAt,
+                'source' => 'state',
+            ],
+        ];
+        if (null !== $lastBroadcastAt) {
+            $drilldown[] = [
+                'state' => 'success',
+                'title' => __('Live broadcast observed'),
+                'detail' => sprintf(__('%d live broadcast session(s) observed in the selected range.'), $broadcasts),
+                'timestamp' => $lastBroadcastAt,
+                'source' => 'database',
+            ];
+        }
+        foreach ($issues as $issue) {
+            $drilldown[] = [
+                'state' => 'warning',
+                'title' => (string)$issue['title'],
+                'detail' => (string)$issue['detail'],
+                'timestamp' => (int)$issue['timestamp'],
+                'source' => (string)$issue['source'],
+            ];
+        }
+
+        return [[
+            'key' => 'live-broadcasting',
+            'label' => __('Live Broadcasting'),
+            'category' => 'runtime',
+            'status' => $status,
+            'headline' => !$enabled
+                ? __('Live DJ/streamer broadcasting disabled')
+                : __('Live DJ connection readiness'),
+            'detail' => __('Tracks streamer/DJ account readiness and actual live broadcast sessions recorded in the selected range.'),
+            'metric' => $enabled
+                ? sprintf('%d active DJs · %d broadcasts', $activeAccounts, $broadcasts)
+                : __('Off'),
+            'basis' => 'state+database',
+            'issues' => count($issues),
+            'details' => [
+                ['label' => __('Live broadcasting enabled'), 'value' => $enabled ? __('Yes') : __('No')],
+                ['label' => __('DJ accounts'), 'value' => $accounts],
+                ['label' => __('Active DJ accounts'), 'value' => $activeAccounts],
+                ['label' => __('Scheduled DJ accounts'), 'value' => $scheduledAccounts],
+                ['label' => __('Broadcasts in range'), 'value' => $broadcasts],
+            ],
+            'stats' => [
+                'successes' => $successes,
+                'successful_executions' => $broadcasts,
+                'checks_passed' => $checksPassed,
+                'warnings' => $warnings,
+                'failures' => 0,
+                'observations' => $observations,
+                'success_rate' => $successRate,
+            ],
+            'top_problems' => array_slice($issues, 0, 4),
+            'activity' => [],
+            'drilldown' => array_slice($drilldown, 0, 12),
+            'last_success_at' => $lastBroadcastAt ?? ($checksPassed > 0 ? $generatedAt : null),
+            'last_failure_at' => null,
+        ], $issues];
+    }
+
+    /** @return array{0:int,1:int|null} */
+    private function getLiveBroadcastStats(Station $station, int $start, int $end): array
+    {
+        try {
+            $utc = new DateTimeZone('UTC');
+            $startDate = (new DateTimeImmutable('@' . $start))->setTimezone($utc);
+            $endDate = (new DateTimeImmutable('@' . $end))->setTimezone($utc);
+
+            /** @var array{count:mixed,last:mixed}|null $result */
+            $result = $this->em->createQuery(
+                <<<'DQL'
+                    SELECT COUNT(b.id) AS count, MAX(b.timestampStart) AS last
+                    FROM App\Entity\StationStreamerBroadcast b
+                    WHERE b.station = :station AND b.timestampStart BETWEEN :start AND :end
+                DQL
+            )
+                ->setParameter('station', $station)
+                ->setParameter('start', $startDate)
+                ->setParameter('end', $endDate)
+                ->getOneOrNullResult();
+
+            $last = $result['last'] ?? null;
+            $lastTimestamp = null;
+            if ($last instanceof DateTimeImmutable) {
+                $lastTimestamp = $last->getTimestamp();
+            } elseif (is_string($last) && '' !== $last) {
+                $lastTimestamp = (new DateTimeImmutable($last, $utc))->getTimestamp();
+            }
+
+            return [(int)($result['count'] ?? 0), $lastTimestamp];
+        } catch (Throwable) {
+            return [0, null];
+        }
     }
 
     /** @param array<string, mixed> $feature */
@@ -237,6 +453,36 @@ final readonly class StationDiagnosticsDashboardView
         }
 
         return 'healthy';
+    }
+
+    /** @param list<array<string,mixed>> $definitions @return list<array<string,mixed>> */
+    private function uniqueFeatureDefinitions(array $definitions): array
+    {
+        $seen = [];
+        $result = [];
+        foreach ($definitions as $definition) {
+            if (!is_array($definition)) {
+                continue;
+            }
+            $key = (string)($definition['key'] ?? '');
+            if ('' === $key || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $definition;
+        }
+        return $result;
+    }
+
+    /** @param list<array<string,mixed>> $issues @return list<array<string,mixed>> */
+    private function sortIssues(array $issues): array
+    {
+        usort($issues, static function (array $a, array $b): int {
+            $severity = ['critical' => 2, 'warning' => 1, 'success' => 0];
+            $cmp = ($severity[$b['severity'] ?? ''] ?? 0) <=> ($severity[$a['severity'] ?? ''] ?? 0);
+            return 0 !== $cmp ? $cmp : ((int)($b['timestamp'] ?? 0) <=> (int)($a['timestamp'] ?? 0));
+        });
+        return $issues;
     }
 
     /** @param array<string, mixed> $service */
