@@ -22,9 +22,23 @@ const props = defineProps<{
 const {$gettext} = useTranslate();
 const $canvas = useTemplateRef('$canvas');
 
+const effectiveWindowHours = computed(() => {
+    if (props.windowHours !== undefined) {
+        return props.windowHours;
+    }
+    if (props.points.length < 2) {
+        return 24;
+    }
+
+    return Math.max(
+        1,
+        Math.round((props.points[props.points.length - 1].timestamp - props.points[0].timestamp) / 3600),
+    );
+});
+
 const labels = computed(() => props.points.map((point) => {
     const date = new Date(point.timestamp * 1000);
-    if ((props.windowHours ?? 24) > 48) {
+    if (effectiveWindowHours.value > 48) {
         return date.toLocaleDateString([], {month: 'short', day: 'numeric'});
     }
 
