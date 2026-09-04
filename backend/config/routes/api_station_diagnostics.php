@@ -40,6 +40,13 @@ return static function (RouteCollectorProxy $group): void {
                 ->add(Middleware\RequireLogin::class);
 
             $group->get(
+                '/diagnostics/report',
+                Controller\Api\Stations\Diagnostics\ReportAction::class
+            )->setName('api:stations:diagnostics:report')
+                ->add(new Middleware\Permissions(StationPermissions::Logs, true))
+                ->add(Middleware\RequireLogin::class);
+
+            $group->get(
                 '/diagnostics/download',
                 Controller\Api\Stations\Diagnostics\DownloadAction::class
             )->setName('api:stations:diagnostics:download')

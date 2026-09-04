@@ -7,13 +7,13 @@ namespace App\Controller\Api\Stations\Diagnostics;
 use App\Controller\SingleActionInterface;
 use App\Http\Response;
 use App\Http\ServerRequest;
-use App\Service\StationDiagnostics;
+use App\Service\StationDiagnosticsReport;
 use Psr\Http\Message\ResponseInterface;
 
 final readonly class DownloadAction implements SingleActionInterface
 {
     public function __construct(
-        private StationDiagnostics $diagnostics,
+        private StationDiagnosticsReport $report,
     ) {
     }
 
@@ -23,11 +23,11 @@ final readonly class DownloadAction implements SingleActionInterface
         array $params
     ): ResponseInterface {
         $station = $request->getStation();
-        $path = $this->diagnostics->ensureLogFile($station);
-        $contents = file_get_contents($path) ?: '';
-        $contents = str_replace($station->getFilteredPasswords(), '(PASSWORD)', $contents);
+        [$start, $end, $feature] = SummaryAction::resolveFilters($request, $station);
+        $contents = $this->report->render($station, $start, $end, $feature);
+
         $filename = sprintf(
-            'custom-feature-diagnostics-%s-%s.log',
+            'station-diagnostics-%s-%s.txt',
             $station->short_name,
             date('Y-m-d')
         );

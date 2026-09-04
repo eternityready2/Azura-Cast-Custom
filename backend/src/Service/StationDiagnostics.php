@@ -57,8 +57,8 @@ final class StationDiagnostics
             return [];
         }
 
-        $windowHours = max(1, min(168, $windowHours));
-        $limit = max(1, min(5000, $limit));
+        $windowHours = max(1, min(2160, $windowHours));
+        $limit = max(1, min(20000, $limit));
         $minimumTimestamp = time() - ($windowHours * 3600);
         $events = [];
 

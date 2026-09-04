@@ -1,5 +1,10 @@
 <template>
     <loading :loading="isLoading">
+        <div v-if="logs === ''" class="alert alert-secondary log-empty-state">
+            <strong>{{ $gettext('This log is currently empty.') }}</strong>
+            <span>{{ $gettext('The log file exists, but the service has not written any entries to it yet. This is not the same as a diagnostics failure.') }}</span>
+        </div>
+
         <form-group-checkbox
             id="modal_scroll_to_bottom"
             v-model="scrollToBottom"
@@ -24,11 +29,13 @@ import {tryOnScopeDispose} from "@vueuse/core";
 import Loading from "~/components/Common/Loading.vue";
 import FormGroupCheckbox from "~/components/Form/FormGroupCheckbox.vue";
 import {ApiLogContents} from "~/entities/ApiInterfaces.ts";
+import {useTranslate} from "~/vendor/gettext";
 
 const props = defineProps<{
     logUrl: string
 }>();
 
+const {$gettext} = useTranslate();
 const isLoading = ref<boolean>(false);
 const logs = ref<string>('');
 const currentLogPosition = ref<number | null>(null);
@@ -43,6 +50,7 @@ let updateInterval: ReturnType<typeof setInterval> | null = null;
 const stop = () => {
     if (updateInterval) {
         clearInterval(updateInterval);
+        updateInterval = null;
     }
 };
 
@@ -89,11 +97,21 @@ watch(toRef(props, 'logUrl'), (newLogUrl) => {
     }
 }, {immediate: true});
 
-const getContents = () => {
-    return logs.value;
-};
+const getContents = () => logs.value;
 
 defineExpose({
     getContents
 });
 </script>
+
+<style scoped>
+.log-empty-state {
+    display: grid;
+    gap: 0.2rem;
+    margin-bottom: 0.75rem;
+}
+
+.log-empty-state span {
+    font-size: 0.85rem;
+}
+</style>

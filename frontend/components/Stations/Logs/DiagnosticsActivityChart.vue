@@ -15,14 +15,33 @@ interface ActivityPoint {
 }
 
 const props = defineProps<{
-    points: ActivityPoint[]
+    points: ActivityPoint[],
+    windowHours?: number,
 }>();
 
 const {$gettext} = useTranslate();
 const $canvas = useTemplateRef('$canvas');
 
+const effectiveWindowHours = computed(() => {
+    if (props.windowHours !== undefined) {
+        return props.windowHours;
+    }
+    if (props.points.length < 2) {
+        return 24;
+    }
+
+    return Math.max(
+        1,
+        Math.round((props.points[props.points.length - 1].timestamp - props.points[0].timestamp) / 3600),
+    );
+});
+
 const labels = computed(() => props.points.map((point) => {
     const date = new Date(point.timestamp * 1000);
+    if (effectiveWindowHours.value > 48) {
+        return date.toLocaleDateString([], {month: 'short', day: 'numeric'});
+    }
+
     return date.toLocaleTimeString([], {hour: 'numeric'});
 }));
 
@@ -42,7 +61,7 @@ const datasets = computed(() => [
         maxBarThickness: 18,
     },
     {
-        label: $gettext('Info'),
+        label: $gettext('Success / Info'),
         data: props.points.map((point) => point.info),
         backgroundColor: 'rgba(13, 202, 240, 0.38)',
         borderRadius: 4,
@@ -51,11 +70,7 @@ const datasets = computed(() => [
 ]);
 
 useChart<'bar'>(
-    {
-        labels: labels.value,
-        data: datasets.value,
-        aspectRatio: 2.35,
-    },
+    {},
     $canvas,
     computed(() => ({
         type: 'bar',
@@ -64,6 +79,7 @@ useChart<'bar'>(
             datasets: datasets.value,
         },
         options: {
+            aspectRatio: 2.35,
             responsive: true,
             maintainAspectRatio: true,
             interaction: {
@@ -88,7 +104,7 @@ useChart<'bar'>(
                 x: {
                     stacked: true,
                     grid: {display: false},
-                    ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 8},
+                    ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 10},
                 },
                 y: {
                     stacked: true,
