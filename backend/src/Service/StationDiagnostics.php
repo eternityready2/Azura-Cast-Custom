@@ -14,6 +14,17 @@ final class StationDiagnostics
     private const int MAX_LOG_BYTES = 5 * 1024 * 1024;
     private const int RETAIN_LOG_BYTES = 2 * 1024 * 1024;
 
+    /**
+     * These messages mirror persisted ClockWheelEvent rows. The database rows are
+     * authoritative for counts, feature attribution and execution timelines; feeding
+     * the log copies back into the dashboard would count the same operation twice.
+     */
+    private const array DATABASE_MIRRORED_CLOCK_MESSAGES = [
+        'Clock Wheel slot was deferred.',
+        'Clock Wheel used fallback behavior.',
+        'Top-of-hour legal ID used fallback behavior.',
+    ];
+
     public function getLogPath(Station $station): string
     {
         return $station->getRadioConfigDir() . '/' . self::LOG_FILE;
@@ -73,6 +84,10 @@ final class StationDiagnostics
             }
 
             if ($event['timestamp'] < $minimumTimestamp) {
+                continue;
+            }
+
+            if (in_array($event['message'], self::DATABASE_MIRRORED_CLOCK_MESSAGES, true)) {
                 continue;
             }
 

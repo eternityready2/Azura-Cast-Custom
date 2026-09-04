@@ -90,6 +90,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
                 App\Sync\Task\AiDjCleanupTask::class,
                 App\Sync\Task\BuildLinearLogTask::class,
                 App\Sync\Task\AirCheckTask::class,
+                App\Sync\Task\StationDiagnosticsRuntimeReconcileTask::class,
             ]);
         }
     );
@@ -156,7 +157,9 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Radio\AutoDJ\ClockWheelScheduler::class,
             App\Radio\AutoDJ\QueueBuilder::class,
             App\Radio\AutoDJ\StretchSqueezeQueueTiming::class,
+            App\Radio\AutoDJ\StationDiagnosticsRuntimeSubscriber::class,
             App\Radio\AutoDJ\Annotations::class,
+            App\Radio\AutoDJ\ContentTypeCrossfadeAnnotator::class,
             App\Radio\AutoDJ\ClockWheel\ClockWheelAnnotator::class,
             App\Radio\AutoDJ\HourBoundaryAnnotator::class,
             App\Radio\AutoDJ\TopOfHourIdScheduler::class,
