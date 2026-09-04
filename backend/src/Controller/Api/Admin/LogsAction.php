@@ -89,6 +89,7 @@ final class LogsAction extends StationLogsAction
 
             $globalLogs = array_map(
                 function (LogType $row) use ($router): LogType {
+                    $this->hydrateLogMetadata($row);
                     $row->links = [
                         'self' => $router->named(
                             'api:admin:log',
@@ -111,6 +112,7 @@ final class LogsAction extends StationLogsAction
 
                 $stationLogList = array_map(
                     function (LogType $row) use ($router, $station): LogType {
+                        $this->hydrateLogMetadata($row);
                         $row->links = [
                             'self' => $router->named(
                                 'api:stations:log',
