@@ -8,7 +8,7 @@ use App\Controller\SingleActionInterface;
 use App\Entity\Station;
 use App\Http\Response;
 use App\Http\ServerRequest;
-use App\Service\StationDiagnosticsDashboardView;
+use App\Service\StationDiagnosticsFinalizer;
 use DateTimeImmutable;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
@@ -16,7 +16,7 @@ use Throwable;
 final readonly class SummaryAction implements SingleActionInterface
 {
     public function __construct(
-        private StationDiagnosticsDashboardView $dashboard,
+        private StationDiagnosticsFinalizer $dashboard,
     ) {
     }
 
