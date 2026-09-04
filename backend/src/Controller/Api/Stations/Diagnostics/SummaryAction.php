@@ -8,7 +8,7 @@ use App\Controller\SingleActionInterface;
 use App\Entity\Station;
 use App\Http\Response;
 use App\Http\ServerRequest;
-use App\Service\StationDiagnosticsDashboard;
+use App\Service\StationDiagnosticsDashboardView;
 use DateTimeImmutable;
 use Psr\Http\Message\ResponseInterface;
 use Throwable;
@@ -16,7 +16,7 @@ use Throwable;
 final readonly class SummaryAction implements SingleActionInterface
 {
     public function __construct(
-        private StationDiagnosticsDashboard $dashboard,
+        private StationDiagnosticsDashboardView $dashboard,
     ) {
     }
 
@@ -59,6 +59,7 @@ final readonly class SummaryAction implements SingleActionInterface
                     'critical' => 1,
                     'warning' => 0,
                     'healthy' => 0,
+                    'monitoring' => 0,
                     'inactive' => 0,
                     'recent_events' => 0,
                     'active_issues' => 1,
@@ -71,6 +72,7 @@ final readonly class SummaryAction implements SingleActionInterface
                 'station' => [],
                 'distribution' => [
                     'healthy' => 0,
+                    'monitoring' => 0,
                     'warning' => 0,
                     'critical' => 1,
                     'inactive' => 0,
