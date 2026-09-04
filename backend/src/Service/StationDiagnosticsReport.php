@@ -11,7 +11,7 @@ use DateTimeZone;
 final readonly class StationDiagnosticsReport
 {
     public function __construct(
-        private StationDiagnosticsDashboard $dashboard,
+        private StationDiagnosticsDashboardView $dashboard,
     ) {
     }
 
@@ -86,6 +86,10 @@ final readonly class StationDiagnosticsReport
             if ('' !== $detail) {
                 $lines[] = '  ' . $detail;
             }
+            $confidence = trim((string)($featureRow['confidence_note'] ?? ''));
+            if ('' !== $confidence) {
+                $lines[] = '  Confidence: ' . $confidence;
+            }
             $lines[] = sprintf(
                 '  Results: %d success (%d execution + %d checks), %d warning, %d failure%s',
                 (int)($stats['successes'] ?? 0),
@@ -148,7 +152,7 @@ final readonly class StationDiagnosticsReport
                     strtoupper((string)($service['status'] ?? 'unknown')),
                     (string)($service['name'] ?? 'Service'),
                     (string)($service['scope'] ?? 'system'),
-                    (string)($service['description'] ?? ''),
+                    (string)($service['problem'] ?? $service['description'] ?? ''),
                 );
             }
             $lines[] = '';
