@@ -31,6 +31,9 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  */
 final class TopOfHourQueueSubscriber implements EventSubscriberInterface
 {
+    /** Whole-second queue projection may land just before a millisecond target. */
+    private const int HARD_TARGET_EARLY_TOLERANCE_MS = 999;
+
     public function __construct(
         private readonly TopOfHourClock $clock,
         private readonly EntityManagerInterface $em,
@@ -64,7 +67,11 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
             return;
         }
 
-        if ($expectedPlayTime < $plan->targetStartAt) {
+        $selectionOpensAt = $plan->isHard()
+            ? $plan->targetStartAt->modify('-' . self::HARD_TARGET_EARLY_TOLERANCE_MS . ' milliseconds')
+            : $plan->targetStartAt;
+
+        if ($expectedPlayTime < $selectionOpensAt) {
             return;
         }
 
@@ -77,7 +84,9 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
 
         // In HARD TOH the ID must fit completely before the rigid boundary. A
         // projection that has already moved beyond the calculated backtime may
-        // not insert a late ID that would push the :00 owner off clock.
+        // not insert a late ID that would push the :00 owner off clock. The
+        // narrow early tolerance above exists only because the shared queue
+        // projection is whole-second based while ID durations can be fractional.
         if ($plan->isHard() && $expectedPlayTime > $plan->targetStartAt) {
             $this->logger->warning('Top-of-hour HARD TOH target was missed; preserving rigid :00 priority.', [
                 'station_id' => $station->id,
@@ -120,6 +129,7 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
             'media_id' => $plan->media->id,
             'mode' => $plan->mode->value,
             'target_start_at' => $plan->targetStartAt->format(DateTimeImmutable::ATOM),
+            'projected_start_at' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
             'boundary_at' => $plan->boundaryAt->format(DateTimeImmutable::ATOM),
             'duration_seconds' => $plan->durationSeconds,
         ]);
