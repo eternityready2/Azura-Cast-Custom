@@ -47,7 +47,7 @@ final class TopOfHourClockTest extends Unit
         }
     }
 
-    public function testHardTohAlsoTargetsTheOpeningOfMinuteFiftyNine(): void
+    public function testHardTohBacktimesActualIdDurationToTheBoundary(): void
     {
         [$station, $media] = $this->persistStationWithId(37.825);
 
@@ -69,7 +69,7 @@ final class TopOfHourClockTest extends Unit
             self::assertNotNull($plan);
             self::assertSame(TopOfHourMode::HardToh, $plan->mode);
             self::assertSame('2026-09-06 10:00:00.000000', $plan->boundaryAt->format('Y-m-d H:i:s.u'));
-            self::assertSame('2026-09-06 09:59:00.000000', $plan->targetStartAt->format('Y-m-d H:i:s.u'));
+            self::assertSame('2026-09-06 09:59:22.175000', $plan->targetStartAt->format('Y-m-d H:i:s.u'));
             self::assertTrue($plan->isHard());
         } finally {
             $this->removeTestEntities($station, $media);
