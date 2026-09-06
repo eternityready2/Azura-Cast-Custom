@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Sync\Task;
 
+use App\Doctrine\ReadOnlyBatchIteratorAggregate;
 use App\Entity\AiDj;
 use App\Entity\AiDjSchedule;
 use App\Entity\Station;
@@ -43,7 +44,23 @@ final class AiDjShiftLifecycleRuntimeTask extends AbstractTask
 
     public function run(bool $force = false): void
     {
-        foreach ($this->iterateStations() as $station) {
+        // This heartbeat delegates to listeners that already own their persistence
+        // and may flush while generating a welcome/sign-off. AbstractTask's normal
+        // iterateStations() helper wraps each batch in an explicit write transaction;
+        // layering those listener operations inside that transaction can create nested
+        // Doctrine savepoints and leave the outer iterator trying to release a savepoint
+        // MySQL no longer has. Iterate read-only here instead: lifecycle writes remain
+        // owned and flushed by the existing listeners, with no synthetic outer transaction.
+        $stations = ReadOnlyBatchIteratorAggregate::fromQuery(
+            $this->em->createQuery(
+                <<<'DQL'
+                    SELECT s FROM App\Entity\Station s
+                DQL
+            ),
+            1,
+        );
+
+        foreach ($stations as $station) {
             $now = new DateTimeImmutable('now', $station->getTimezoneObject());
             $event = new BuildQueue($station, $now, $now);
 
