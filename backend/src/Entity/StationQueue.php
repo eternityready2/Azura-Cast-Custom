@@ -149,17 +149,6 @@ final class StationQueue implements
     public ?int $hour_boundary_max_play_seconds = null;
 
     /**
-     * Legacy compatibility field. The rebuilt Top-of-Hour engine never writes it;
-     * broadcast-clock timing now uses the shared hour_boundary_* controls.
-     */
-    #[ORM\Column]
-    public bool $top_of_hour_pre_id_fade = false;
-
-    /** Legacy compatibility field; no longer written by the rebuilt Top-of-Hour engine. */
-    #[ORM\Column(nullable: true)]
-    public ?int $top_of_hour_pre_id_fade_seconds = null;
-
-    /**
      * Ordered list of Playlist Group names (outermost to innermost) this track was played
      * through, e.g. ["Simple Group", "Sub Group 1"]. Null if played directly (not via a group).
      *
