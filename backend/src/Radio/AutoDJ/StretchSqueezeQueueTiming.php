@@ -14,7 +14,7 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 /**
  * Keeps projected queue timing aligned with pitch-preserving stretch/squeeze.
  *
- * QueueBuilder and Clock Wheel planning attach the legacy
+ * QueueBuilder and Clock Wheel planning attach the
  * `clock_wheel_stretch_ratio` field to rows that may be backtimed. This listener
  * freezes the final timing decision while the row is being planned, so later
  * runtime setting changes never make an already-queued row play for a different
@@ -125,8 +125,6 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
                 // pitch-preserving adjustment and a cue-out truncation.
                 $queueRow->clock_wheel_enforce_cap = false;
                 $queueRow->hour_boundary_enforce_cap = false;
-                $queueRow->top_of_hour_pre_id_fade = false;
-                $queueRow->top_of_hour_pre_id_fade_seconds = null;
                 return;
             }
 
@@ -184,14 +182,6 @@ final class StretchSqueezeQueueTiming implements EventSubscriberInterface
             && $queueRow->hour_boundary_max_play_seconds > 0
         ) {
             $targets[] = (float)$queueRow->hour_boundary_max_play_seconds;
-        }
-
-        if (
-            $queueRow->top_of_hour_pre_id_fade
-            && null !== $queueRow->duration
-            && $queueRow->duration > 0
-        ) {
-            $targets[] = (float)$queueRow->duration;
         }
 
         // More than one independent protection can apply to the same row. The
