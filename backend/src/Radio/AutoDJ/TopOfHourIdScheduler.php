@@ -149,17 +149,12 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
         $nextSong = $this->legalIdResolver->resolveMandatoryLegalId(
             $station,
             $recentHistory,
-            $expectedPlayTime,
         );
 
         if (null === $nextSong) {
-            $expectedAt = $this->hourBoundaryPlanner->resolveTopOfHourExpectedPlayAt(
-                $station,
-                $expectedPlayTime,
-            );
             $this->eventLogger->recordTopOfHourFallback(
                 $station,
-                $expectedAt,
+                $targetTop,
                 ClockWheelFallbackReason::NoMediaCandidates,
             );
             $this->em->flush();
@@ -168,15 +163,48 @@ final class TopOfHourIdScheduler implements EventSubscriberInterface
             return;
         }
 
+        // A resolver candidate is intentionally transient until BuildQueue accepts it.
+        // BuildQueue can reject a candidate when it equals last_song_id. Persisting
+        // before this point created orphaned legal-ID rows that were later protected
+        // from schedule cleanup and could occupy an entire programme boundary.
         if ($event->setNextSongs($nextSong)) {
+            $this->em->persist($nextSong);
+
+            $media = $nextSong->media;
+            if (null !== $media) {
+                $this->eventLogger->recordTopOfHourLegalIdQueued(
+                    $station,
+                    $media,
+                    $targetTop,
+                    $nextSong,
+                );
+            }
+
+            if ($nextSong->clock_wheel_legal_id_substitute) {
+                $this->eventLogger->recordTopOfHourFallback(
+                    $station,
+                    $targetTop,
+                    ClockWheelFallbackReason::LegalIdMissingUsedPromo,
+                );
+            }
+
             $this->em->flush();
+
+            $this->logger->info('Top-of-hour legal_id queued.', [
+                'station_id' => $station->id,
+                'media_id' => $media?->id,
+                'substitute' => $nextSong->clock_wheel_legal_id_substitute,
+                'expected_top_of_hour' => $targetTop->format(DateTimeImmutable::ATOM),
+            ]);
             $this->logger->info('[TOPH DEBUG] Top-of-hour ID resolved and selected.', [
-                'media_id' => $nextSong->media?->id,
+                'media_id' => $media?->id,
                 'song_id' => $nextSong->song_id,
                 'duration' => $nextSong->duration,
                 'target_top' => $targetTop->format(DateTimeImmutable::ATOM),
             ]);
         } else {
+            // Do not persist or audit a rejected candidate. It never entered the
+            // playable queue and therefore must not be seen later as a protected ID.
             $this->logger->warning('[TOPH DEBUG] Legal ID resolved but BuildQueue rejected it.', [
                 'song_id' => $nextSong->song_id,
                 'last_song_id' => $event->getLastPlayedSongId(),
