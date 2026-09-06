@@ -270,15 +270,18 @@ final class BroadcastClockPlanner
         CarbonImmutable $now,
     ): ?int {
         $config = $station->backend_config;
-        if (!($config->ai_news_enabled ?? false)) {
+        if (!$config->ai_news_enabled) {
             return null;
         }
 
         $minutes = [];
-        if ($config->ai_news_top_of_hour ?? true) {
-            $minutes[] = 59;
+        if ($config->ai_news_top_of_hour) {
+            // When automatic TOH ID is on, the ID owns minute :59 and
+            // backtimes into an exact :00 news handoff. Without TOH ID, retain
+            // the station's established :59 news behavior.
+            $minutes[] = $config->top_of_hour_id_enabled ? 0 : 59;
         }
-        if ($config->ai_news_bottom_of_hour ?? false) {
+        if ($config->ai_news_bottom_of_hour) {
             $minutes[] = 29;
         }
         if ([] === $minutes) {
@@ -310,10 +313,7 @@ final class BroadcastClockPlanner
     private function isAiNewsActiveAt(Station $station, CarbonImmutable $candidate): bool
     {
         $config = $station->backend_config;
-        $activeDays = array_map(
-            static fn(mixed $day): int => (int)$day,
-            $config->ai_news_active_days ?? [],
-        );
+        $activeDays = $config->ai_news_active_days;
 
         if ([] !== $activeDays && !in_array($candidate->dayOfWeekIso, $activeDays, true)) {
             return false;
