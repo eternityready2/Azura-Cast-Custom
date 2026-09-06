@@ -7,6 +7,7 @@ namespace App\Controller\Api\Stations\TopOfHour;
 use App\Container\EntityManagerAwareTrait;
 use App\Controller\SingleActionInterface;
 use App\Entity\Api\Status;
+use App\Entity\StationBackendConfiguration;
 use App\Exception\ValidationException;
 use App\Http\Response;
 use App\Http\ServerRequest;
@@ -75,7 +76,7 @@ final class PutAction implements SingleActionInterface
         return $response->withJson(Status::updated());
     }
 
-    private function validateRanges(object $backendConfig): void
+    private function validateRanges(StationBackendConfiguration $backendConfig): void
     {
         $this->validateRange(
             $backendConfig->top_of_hour_lookahead_minutes,
