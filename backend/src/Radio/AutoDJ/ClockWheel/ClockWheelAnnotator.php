@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ\ClockWheel;
 
 use App\Entity\Enums\StationMediaTypes;
+use App\Entity\Repository\ClockWheelEventRepository;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\AnnotateNextSong;
@@ -20,6 +21,12 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 final class ClockWheelAnnotator implements EventSubscriberInterface
 {
     private const float RATIO_ALIGNMENT_TOLERANCE = 0.000075;
+
+    public function __construct(
+        private readonly ClockWheelEventRepository $eventRepo,
+        private readonly ClockWheelEventLogger $eventLogger,
+    ) {
+    }
 
     public static function getSubscribedEvents(): array
     {
@@ -153,6 +160,11 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
      * Give Station ID / legal-ID rows a clean, predictable ending and a gentle
      * entrance. This applies equally to Clock Wheel IDs and the rebuilt
      * station-wide Top-of-Hour ID path.
+     *
+     * The station-wide compliance event is created here, after Queue::buildQueue
+     * has accepted and persisted the row. This avoids orphan audit records from
+     * rejected BuildQueue candidates and makes expected_play_at equal the actual
+     * projected ID start rather than the following :00 boundary.
      */
     public function applyLegalIdQuickCut(AnnotateNextSong $event): void
     {
@@ -172,6 +184,28 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
 
         if (!$isLegalId) {
             return;
+        }
+
+        if (
+            $queue->top_of_hour_legal_id
+            && $media instanceof StationMedia
+            && isset($queue->id)
+            && null === $this->eventRepo->findLatestUnplayedTopOfHourLegalIdQueued(
+                $event->getStation(),
+                $queue->id,
+            )
+        ) {
+            $expectedPlayAt = $queue->timestamp_played
+                ?? $queue->top_of_hour_boundary_at;
+
+            if (null !== $expectedPlayAt) {
+                $this->eventLogger->recordTopOfHourLegalIdQueued(
+                    $event->getStation(),
+                    $media,
+                    $expectedPlayAt,
+                    $queue,
+                );
+            }
         }
 
         $fadeInSeconds = 0.0;
