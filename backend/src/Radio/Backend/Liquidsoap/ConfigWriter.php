@@ -125,13 +125,13 @@ final class ConfigWriter implements EventSubscriberInterface
             $backendConfig->live_broadcast_text
         );
 
-        $topOfHourDuckEnabled = $backendConfig->top_of_hour_duck_enabled ? 'true' : 'false';
-        $topOfHourDuckAttenuation = self::toFloat($backendConfig->top_of_hour_duck_attenuation);
-        $topOfHourDuckDelay = self::toFloat($backendConfig->top_of_hour_duck_delay);
+        $smartDuckEnabled = $backendConfig->playout_smart_duck_enabled ? 'true' : 'false';
+        $smartDuckAttenuation = self::toFloat($backendConfig->playout_smart_duck_attenuation);
+        $smartDuckDelay = self::toFloat($backendConfig->playout_smart_duck_delay);
 
         // General interrupting-audio ducking. This is deliberately independent
         // from the Top-of-Hour ID master switch.
-        $duckEnabled = $backendConfig->top_of_hour_duck_enabled;
+        $duckEnabled = $backendConfig->playout_smart_duck_enabled;
 
         $fallbackPath = self::toRawString(
             $this->fallbackFile->getFallbackPathForStation($station)
@@ -176,9 +176,9 @@ final class ConfigWriter implements EventSubscriberInterface
 
         if ($duckEnabled) {
             $event->appendLines([
-                "settings.azuracast.top_of_hour_duck_enabled := {$topOfHourDuckEnabled}",
-                "settings.azuracast.top_of_hour_duck_attenuation := {$topOfHourDuckAttenuation}",
-                "settings.azuracast.top_of_hour_duck_delay := {$topOfHourDuckDelay}",
+                "settings.azuracast.smart_duck_enabled := {$smartDuckEnabled}",
+                "settings.azuracast.smart_duck_attenuation := {$smartDuckAttenuation}",
+                "settings.azuracast.smart_duck_delay := {$smartDuckDelay}",
             ]);
         }
 
@@ -210,7 +210,7 @@ final class ConfigWriter implements EventSubscriberInterface
         $station = $event->getStation();
         $backendConfig = $event->getBackendConfig();
 
-        $duckEnabled = $backendConfig->top_of_hour_duck_enabled;
+        $duckEnabled = $backendConfig->playout_smart_duck_enabled;
 
         $this->writeCustomConfigurationSection($event, StationBackendConfiguration::CUSTOM_PRE_PLAYLISTS);
 
@@ -973,7 +973,6 @@ LIQ;
         foreach ($encodables as $collection) {
             foreach ($collection as $encodable) {
                 $encoder = $encodable->getEncodingFormat();
-
                 if (null !== $encoder) {
                     $varName = $encoder->getVariableName('radio');
                     $encoders[$varName] = $encoder;
@@ -1736,7 +1735,7 @@ LIQ;
     }
 
     /**
-     * Given an array of values, convert them into a Liquidsoap annotation format.
+     * Apply an array of string keys/values into an annotations string.
      *
      * @param array<string, string|int|float|bool|null> $values
      */
