@@ -10,14 +10,16 @@ final class Version20260906170000 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return 'Give automatic Top-of-Hour Station IDs explicit per-hour ownership.';
+        return 'Rebuild automatic Top-of-Hour Station ID queue ownership and remove retired fade fields.';
     }
 
     public function up(Schema $schema): void
     {
         $this->addSql(
             'ALTER TABLE station_queue
-                ADD top_of_hour_boundary_at DATETIME(6) DEFAULT NULL'
+                ADD top_of_hour_boundary_at DATETIME(6) DEFAULT NULL,
+                DROP top_of_hour_pre_id_fade,
+                DROP top_of_hour_pre_id_fade_seconds'
         );
         $this->addSql(
             'CREATE UNIQUE INDEX uniq_station_toh_boundary
@@ -28,6 +30,11 @@ final class Version20260906170000 extends AbstractMigration
     public function down(Schema $schema): void
     {
         $this->addSql('DROP INDEX uniq_station_toh_boundary ON station_queue');
-        $this->addSql('ALTER TABLE station_queue DROP top_of_hour_boundary_at');
+        $this->addSql(
+            'ALTER TABLE station_queue
+                DROP top_of_hour_boundary_at,
+                ADD top_of_hour_pre_id_fade TINYINT(1) NOT NULL DEFAULT 0,
+                ADD top_of_hour_pre_id_fade_seconds INT DEFAULT NULL'
+        );
     }
 }
