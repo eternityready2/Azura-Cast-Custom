@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ\TopOfHour;
 
 use App\Entity\Enums\ClockWheelScheduleMode;
+use App\Entity\Enums\ClockWheelSlotTypes;
 use App\Entity\Station;
 use App\Entity\StationSchedule;
 use App\Utilities\ScheduleRecurrence;
@@ -122,6 +123,33 @@ final class TopOfHourClock
         );
     }
 
+    /**
+     * True when a Clock Wheel explicitly scheduled at this boundary contains a
+     * mandatory position-zero ID/legal-ID slot. In that case the wheel owns the
+     * ID for the hour and the station-wide producer must yield instead of
+     * creating a second identification immediately before it.
+     */
+    public function clockWheelOwnsBoundary(
+        Station $station,
+        DateTimeImmutable $boundaryAt,
+    ): bool {
+        $boundary = CarbonImmutable::instance($boundaryAt)->setTimezone($station->getTimezoneObject());
+
+        foreach ($station->clock_wheels as $wheel) {
+            if (!$wheel->is_active || !$this->wheelHasMandatoryId($wheel)) {
+                continue;
+            }
+
+            foreach ($wheel->schedule_items as $schedule) {
+                if ($this->scheduleStartsAt($schedule, $boundary)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public function secondsUntilPlayoutAnchor(
         Station $station,
         DateTimeImmutable $from,
@@ -131,7 +159,11 @@ final class TopOfHourClock
             return null;
         }
 
-        $seconds = $plan->targetStartAt->getTimestamp() - $from->getTimestamp();
+        // Floor toward the anchor. Existing AutoDJ clock timing is whole-second
+        // based; never round upward and accidentally permit a track to run long.
+        $seconds = (int)floor(
+            ((float)$plan->targetStartAt->format('U.u')) - ((float)$from->format('U.u'))
+        );
         if ($seconds <= 0) {
             return null;
         }
@@ -197,6 +229,17 @@ final class TopOfHourClock
         return false;
     }
 
+    private function wheelHasMandatoryId(object $wheel): bool
+    {
+        foreach ($wheel->slots as $slot) {
+            if (ClockWheelSlotTypes::isMandatoryTopOfHourSlot($slot->type, $slot->position_seconds)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function scheduleStartsAt(
         StationSchedule $schedule,
         CarbonImmutable $boundary,
@@ -231,7 +274,7 @@ final class TopOfHourClock
         }
 
         $days = $schedule->days;
-        if ([] !== $days && !in_array($boundary->dayOfWeekIso, $days, true)) {
+        if ([] !== $days && !in_array($boundary->dayOfWeekIso, $days, false)) {
             return false;
         }
 
