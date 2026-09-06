@@ -47,9 +47,7 @@ final class QueueBuilder implements EventSubscriberInterface
         private readonly Scheduler $scheduler,
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
         private readonly DuplicatePrevention $duplicatePrevention,
-        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
         private readonly BroadcastClockPlanner $broadcastClockPlanner,
-        private readonly ClockWheel\ClockWheelStretchCalculator $stretchCalculator,
         private readonly CacheInterface $cache,
         private readonly StationPlaylistRepository $playlistRepo,
         private readonly StationPlaylistMediaRepository $spmRepo,
@@ -564,33 +562,6 @@ final class QueueBuilder implements EventSubscriberInterface
             }
         }
 
-        $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
-            $playlist->station,
-            $expectedPlayTime,
-        );
-
-        if (null !== $topOfHourMaxDuration && $mediaToPlay->getCalculatedLength() > $topOfHourMaxDuration) {
-            $cappedSeconds = (int)floor($topOfHourMaxDuration);
-
-            $fadeOutSeconds = min(
-                $playlist->station->backend_config->getCrossfadeDuration(),
-                (float)$cappedSeconds
-            );
-
-            $stationQueueEntry->top_of_hour_pre_id_fade = true;
-            $stationQueueEntry->top_of_hour_pre_id_fade_seconds = (int)round(max(0.0, $fadeOutSeconds));
-            $stationQueueEntry->duration = (float)$cappedSeconds;
-        } elseif (null !== $topOfHourMaxDuration) {
-            $stretchRatio = $this->stretchCalculator->calculate(
-                $mediaToPlay->getCalculatedLength(),
-                (int)round($topOfHourMaxDuration),
-            );
-
-            if (null !== $stretchRatio) {
-                $stationQueueEntry->clock_wheel_stretch_ratio = $stretchRatio;
-            }
-        }
-
         if (!$deferQueuePersistence) {
             $this->em->persist($stationQueueEntry);
         }
@@ -682,41 +653,24 @@ final class QueueBuilder implements EventSubscriberInterface
         DateTimeImmutable $expectedPlayTime,
         bool $allowDuplicates,
     ): ?StationPlaylistQueue {
-        $targets = [];
-
-        // Keep the existing top-of-hour fitting behavior intact. The broadcast-clock
-        // work in this class is deliberately not a redesign of legal-ID handling.
-        $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
-            $playlist->station,
-            $expectedPlayTime,
-        );
-        if (null !== $topOfHourMaxDuration) {
-            $targets[] = $topOfHourMaxDuration;
-        }
-
-        // Soft schedule/news backtiming may choose a better-fitting song only from
-        // standalone general rotation. Never reorder a scheduled show or a playlist
-        // being played through a group; those retain their intended order and rely on
-        // stretch/squeeze or the normal graceful cue-out path at the clock boundary.
+        // Reordering is limited to standalone general rotation. Scheduled shows
+        // and playlist groups retain operator ordering and rely on the shared
+        // broadcast-clock stretch/squeeze/cue-out path at the anchor.
         if (
-            PlaylistTypes::Standard === $playlist->type
-            && 0 === $playlist->schedule_items->count()
-            && 0 === $playlist->playlist_groups->count()
+            PlaylistTypes::Standard !== $playlist->type
+            || 0 !== $playlist->schedule_items->count()
+            || 0 !== $playlist->playlist_groups->count()
         ) {
-            $softClockMaxDuration = $this->broadcastClockPlanner->maxContentDurationBeforeNextSoftAnchor(
-                $playlist->station,
-                $expectedPlayTime,
-            );
-            if (null !== $softClockMaxDuration) {
-                $targets[] = $softClockMaxDuration;
-            }
-        }
-
-        if ([] === $targets) {
             return $selectedTrack;
         }
 
-        $maxDuration = min($targets);
+        $maxDuration = $this->broadcastClockPlanner->maxContentDurationBeforeNextSoftAnchor(
+            $playlist->station,
+            $expectedPlayTime,
+        );
+        if (null === $maxDuration) {
+            return $selectedTrack;
+        }
 
         $media = $this->em->find(StationMedia::class, $selectedTrack->media_id);
         if ($media instanceof StationMedia && $media->getCalculatedLength() <= $maxDuration) {
