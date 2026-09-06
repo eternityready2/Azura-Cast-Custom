@@ -7,6 +7,7 @@ namespace App\Radio\AutoDJ\TopOfHour;
 use App\Entity\Enums\ClockWheelScheduleMode;
 use App\Entity\Enums\ClockWheelSlotTypes;
 use App\Entity\Station;
+use App\Entity\StationClockWheel;
 use App\Entity\StationSchedule;
 use App\Utilities\ScheduleRecurrence;
 use Carbon\CarbonImmutable;
@@ -159,8 +160,8 @@ final class TopOfHourClock
             return null;
         }
 
-        // Floor toward the anchor. Existing AutoDJ clock timing is whole-second
-        // based; never round upward and accidentally permit a track to run long.
+        // Existing AutoDJ clock timing is whole-second based. Floor toward the
+        // anchor so we never round upward and allow a track to run long.
         $seconds = (int)floor(
             ((float)$plan->targetStartAt->format('U.u')) - ((float)$from->format('U.u'))
         );
@@ -229,7 +230,7 @@ final class TopOfHourClock
         return false;
     }
 
-    private function wheelHasMandatoryId(object $wheel): bool
+    private function wheelHasMandatoryId(StationClockWheel $wheel): bool
     {
         foreach ($wheel->slots as $slot) {
             if (ClockWheelSlotTypes::isMandatoryTopOfHourSlot($slot->type, $slot->position_seconds)) {
