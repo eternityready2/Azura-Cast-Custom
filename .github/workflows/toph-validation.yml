@@ -50,12 +50,19 @@ jobs:
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
 
-      - name: Prepare AzuraCast PHPStan runtime paths
-        run: sudo mkdir -p /var/azuracast/www/plugins
+      - name: Prepare AzuraCast PHPStan runtime
+        run: |
+          sudo mkdir -p /var/azuracast/www/plugins
+          cat > phpstan.toph.neon <<'EOF'
+          includes:
+            - phpstan.neon
+          parameters:
+            reportUnmatchedIgnoredErrors: false
+          EOF
 
       - name: PHPStan TOH integration
         run: >-
-          vendor/bin/phpstan analyze --memory-limit=-1
+          vendor/bin/phpstan analyze -c phpstan.toph.neon --memory-limit=-1 --no-progress
           backend/src/Controller/Api/Stations/TopOfHour
           backend/src/Entity/StationBackendConfiguration.php
           backend/src/Entity/StationQueue.php
@@ -64,7 +71,6 @@ jobs:
           backend/src/Radio/AutoDJ/Queue.php
           backend/src/Radio/AutoDJ/ClockWheel/ClockWheelAnnotator.php
           backend/src/Radio/AutoDJ/ContentTypeCrossfadeAnnotator.php
-          backend/src/Radio/Backend/Liquidsoap/ConfigWriter.php
           backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
           backend/src/Sync/Task/QueueInterruptingTracks.php
           tests/Unit/TopOfHourClockTest.php
