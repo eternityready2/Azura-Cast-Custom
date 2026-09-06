@@ -51,6 +51,38 @@ final class TopOfHourIdSchedulerTest extends Unit
             $selected = $normalEvent->getNextSongs()[0];
             self::assertTrue($selected->top_of_hour_legal_id);
             self::assertSame($media->id, $selected->media?->id);
+            self::assertSame(1, $this->countLegalIdQueueRows($station));
+            self::assertSame(1, $this->countLegalIdAuditRows($station));
+        } finally {
+            $this->removeTestEntities($station, $media);
+        }
+    }
+
+    public function testRejectedSameSongLegalIdLeavesNoGhostQueueRowOrAuditEvent(): void
+    {
+        [$station, $media] = $this->persistStationWithId();
+
+        try {
+            // Reproduce the midnight failure mode from Sept. 6: the mandatory ID
+            // resolver returns the only legal ID, but BuildQueue rejects it because
+            // Liquidsoap reports that same song as the immediately previous item.
+            $atTop = CarbonImmutable::parse('2026-09-06 00:00:00', 'UTC');
+            $event = new BuildQueue(
+                $station,
+                $atTop,
+                $atTop,
+                $media->song_id,
+            );
+
+            $this->scheduler->buildTopOfHourId($event);
+
+            self::assertSame([], $event->getNextSongs());
+
+            // A rejected candidate never became playable, so it must not survive as
+            // a protected legal-ID row or a "queued" audit event. Ghost rows here can
+            // outrank/restrict a rigid scheduled programme at the same clock boundary.
+            self::assertSame(0, $this->countLegalIdQueueRows($station));
+            self::assertSame(0, $this->countLegalIdAuditRows($station));
         } finally {
             $this->removeTestEntities($station, $media);
         }
@@ -124,6 +156,33 @@ final class TopOfHourIdSchedulerTest extends Unit
         return [$station, $media];
     }
 
+    private function countLegalIdQueueRows(Station $station): int
+    {
+        return (int)$this->testsModule->em->createQuery(
+            <<<'DQL'
+                SELECT COUNT(q.id)
+                FROM App\Entity\StationQueue q
+                WHERE q.station = :station
+                AND q.top_of_hour_legal_id = true
+            DQL
+        )->setParameter('station', $station)
+            ->getSingleScalarResult();
+    }
+
+    private function countLegalIdAuditRows(Station $station): int
+    {
+        return (int)$this->testsModule->em->createQuery(
+            <<<'DQL'
+                SELECT COUNT(e.id)
+                FROM App\Entity\ClockWheelEvent e
+                WHERE e.station = :station
+                AND e.anchor_type = :anchor
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('anchor', 'legal_id')
+            ->getSingleScalarResult();
+    }
+
     private function removeTestEntities(Station $station, StationMedia $media): void
     {
         $em = $this->testsModule->em;
@@ -132,6 +191,9 @@ final class TopOfHourIdSchedulerTest extends Unit
         }
 
         $em->createQuery('DELETE FROM App\\Entity\\StationQueue sq WHERE sq.station = :station')
+            ->setParameter('station', $station)
+            ->execute();
+        $em->createQuery('DELETE FROM App\\Entity\\ClockWheelEvent e WHERE e.station = :station')
             ->setParameter('station', $station)
             ->execute();
 

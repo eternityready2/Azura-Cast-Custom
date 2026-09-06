@@ -43,7 +43,20 @@ final class AiDjShiftLifecycleRuntimeTask extends AbstractTask
 
     public function run(bool $force = false): void
     {
-        foreach ($this->iterateStations() as $station) {
+        // This heartbeat delegates to listeners that already own their persistence
+        // and may flush while generating a welcome/sign-off. AbstractTask's normal
+        // iterateStations() helper wraps each batch in an explicit write transaction,
+        // which is unnecessary here and can introduce nested Doctrine savepoints.
+        // Load stations normally so they remain managed while the listeners persist
+        // and flush their own queue/history changes.
+        /** @var Station[] $stations */
+        $stations = $this->em->createQuery(
+            <<<'DQL'
+                SELECT s FROM App\Entity\Station s
+            DQL
+        )->getResult();
+
+        foreach ($stations as $station) {
             $now = new DateTimeImmutable('now', $station->getTimezoneObject());
             $event = new BuildQueue($station, $now, $now);
 
