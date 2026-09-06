@@ -204,18 +204,18 @@ final class Queue
 
                 $nextSongs = $event->getNextSongs();
 
-                // Hard backstop against the exact same song playing twice in a row.
-                // Playlist-level duplicate prevention settings can still allow this
-                // when the eligible pool briefly narrows (e.g. right after a schedule
-                // change); this catches it unconditionally at the queue-build layer.
-                // Only enforced when a retry is actually possible (more attempts left)
-                // so a station with a single-song playlist doesn't get stuck refusing
-                // to queue anything.
+                // Hard backstop against the exact same ordinary song playing
+                // twice in a row. Mandatory broadcast IDs are exempt: a station
+                // with a one-ID library must still identify every hour, and a
+                // Clock Wheel legal-ID substitute is likewise not ordinary music.
+                // Only enforce this when a retry is actually possible so a
+                // single-song music playlist cannot deadlock the queue.
                 if (
                     !empty($nextSongs)
                     && $lastSongId !== null
                     && $attempts < $maxAttemptsPerSlot
                     && count($nextSongs) === 1
+                    && !$this->isMandatoryBoundaryContent($nextSongs[0])
                     && $nextSongs[0]->song_id === $lastSongId
                 ) {
                     $this->logger->debug(
@@ -413,15 +413,18 @@ final class Queue
             : $now;
     }
 
+    private function isMandatoryBoundaryContent(StationQueue $queueRow): bool
+    {
+        return $queueRow->top_of_hour_legal_id
+            || $queueRow->clock_wheel_legal_id_substitute;
+    }
+
     private function applyBroadcastClockCapToQueuedRow(
         Station $station,
         StationQueue $queueRow,
         DateTimeImmutable $expectedPlayTime,
     ): void {
-        if (
-            $queueRow->top_of_hour_legal_id
-            || $queueRow->clock_wheel_legal_id_substitute
-        ) {
+        if ($this->isMandatoryBoundaryContent($queueRow)) {
             return;
         }
 
@@ -455,9 +458,10 @@ final class Queue
         StationQueue $queueRow,
         DateTimeImmutable $expectedPlayTime
     ): bool {
-        // Mandatory top-of-hour content must never be invalidated by a programme
-        // ownership check; it remains the highest-priority broadcast boundary.
-        if ($queueRow->top_of_hour_legal_id || $queueRow->clock_wheel_legal_id_substitute) {
+        // Mandatory boundary content must never be invalidated by a programme
+        // ownership check. Its own planner decides whether the hour belongs to
+        // the station-wide ID or a Clock Wheel legal-ID substitute.
+        if ($this->isMandatoryBoundaryContent($queueRow)) {
             return true;
         }
 

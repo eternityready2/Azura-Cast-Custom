@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ\ClockWheel;
 
 use App\Entity\Enums\StationMediaTypes;
+use App\Entity\Repository\ClockWheelEventRepository;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\AnnotateNextSong;
@@ -20,6 +21,12 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 final class ClockWheelAnnotator implements EventSubscriberInterface
 {
     private const float RATIO_ALIGNMENT_TOLERANCE = 0.000075;
+
+    public function __construct(
+        private readonly ClockWheelEventRepository $eventRepo,
+        private readonly ClockWheelEventLogger $eventLogger,
+    ) {
+    }
 
     public static function getSubscribedEvents(): array
     {
@@ -57,13 +64,12 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
             return;
         }
 
-        // A row that still has a cap/fade requirement was intentionally left on
-        // the fallback path during queue planning. Never stack stretch metadata on
+        // A row that still has a cap requirement was intentionally left on the
+        // fallback path during queue planning. Never stack stretch metadata on
         // top of that cap at annotation time.
         if (
             $queue->clock_wheel_enforce_cap
             || $queue->hour_boundary_enforce_cap
-            || $queue->top_of_hour_pre_id_fade
         ) {
             return;
         }
@@ -151,11 +157,14 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
     }
 
     /**
-     * Mirrors HourBoundaryAnnotator::applyLegalIdQuickCut() -- see that method's
-     * docblock for the reasoning. Kept in sync so a legal ID delivered via a
-     * Clock Wheel slot gets the same gentle fade-in as one delivered via the
-     * station-wide top-of-hour path, instead of the wheel path alone still
-     * hard-cutting in.
+     * Give Station ID / legal-ID rows a clean, predictable ending and a gentle
+     * entrance. This applies equally to Clock Wheel IDs and the rebuilt
+     * station-wide Top-of-Hour ID path.
+     *
+     * The station-wide compliance event is created here, after Queue::buildQueue
+     * has accepted and persisted the row. This avoids orphan audit records from
+     * rejected BuildQueue candidates and makes expected_play_at equal the actual
+     * projected ID start rather than the following :00 boundary.
      */
     public function applyLegalIdQuickCut(AnnotateNextSong $event): void
     {
@@ -175,6 +184,28 @@ final class ClockWheelAnnotator implements EventSubscriberInterface
 
         if (!$isLegalId) {
             return;
+        }
+
+        if (
+            $queue->top_of_hour_legal_id
+            && $media instanceof StationMedia
+            && isset($queue->id)
+            && null === $this->eventRepo->findLatestUnplayedTopOfHourLegalIdQueued(
+                $event->getStation(),
+                $queue->id,
+            )
+        ) {
+            $expectedPlayAt = $queue->timestamp_played
+                ?? $queue->top_of_hour_boundary_at;
+
+            if (null !== $expectedPlayAt) {
+                $this->eventLogger->recordTopOfHourLegalIdQueued(
+                    $event->getStation(),
+                    $media,
+                    $expectedPlayAt,
+                    $queue,
+                );
+            }
         }
 
         $fadeInSeconds = 0.0;
