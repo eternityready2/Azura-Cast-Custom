@@ -7,7 +7,6 @@ namespace App\Sync\Task;
 use App\Entity\Station;
 use App\Event\Radio\AnnotateNextSong;
 use App\Radio\Adapters;
-use App\Radio\AutoDJ\HourBoundaryPlanner;
 use App\Radio\AutoDJ\Queue;
 use App\Radio\AutoDJ\Scheduler;
 use App\Radio\AutoDJ\SponsorGuaranteedPlayoutService;
@@ -25,7 +24,6 @@ final class QueueInterruptingTracks extends AbstractTask
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly Scheduler $scheduler,
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
-        private readonly HourBoundaryPlanner $hourBoundaryPlanner,
     ) {
     }
 
@@ -73,38 +71,21 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // Real-time last-resort backstop for scheduled playlist/clock-wheel/
-        // smart-block starts (e.g. a talk show at 5:01pm, a midnight program
-        // change). Runs BEFORE the interrupting-queue logic below and is
-        // deliberately independent of it.
+        // Real-time last-resort backstop for rigid scheduled starts. Normal
+        // queue planning, broadcast-clock timing, and stretch/squeeze handle
+        // the common case. This check only protects the operator's explicit
+        // wall-clock schedule when real playout would otherwise overrun it.
         //
-        // Every other mechanism that tries to keep a track from running past a
-        // scheduled boundary -- QueueBuilder's cap at build time,
-        // HourBoundaryAnnotator's safety net at annotation time -- depends on
-        // knowing the boundary is close *before* the track starts playing. Both
-        // are computed against Liquidsoap's own internal prefetch timing for
-        // when it requests the next track, which this codebase does not
-        // control and cannot fully predict (it's compiled into the base
-        // Liquidsoap image, not this application). If that prefetch happens
-        // further ahead than expected, a track can be selected and annotated
-        // while the boundary genuinely was far away, then actually air right
-        // up against it with nothing left to re-check.
-        //
-        // This check is different in kind, not just another attempt at the
-        // same idea: it runs once a minute against real wall-clock time and
-        // the station's actual `current_song` (what is ACTUALLY playing right
-        // now, not a projection), so it cannot be fooled by prefetch timing.
-        // If the currently playing track would still be running after the
-        // next scheduled start, it calls the station's existing skip()
-        // mechanism (the same one behind the admin "Skip Song" button) to
-        // retire it early. The whole AutoDJ chain is wrapped in
-        // azuracast.apply_crossfade() after this point in config generation,
-        // so the skip still gets the station's normal crossfade treatment
-        // rather than being a bare cut.
+        // Top-of-Hour Station IDs do not own a separate interrupt queue and do
+        // not disable this rule. In HARD TOH the ID is planned to end exactly
+        // at :00, so the guard naturally does nothing when the clock plan is on
+        // time. If playout ever drifts, the rigid :00 event still remains the
+        // final authority.
         $this->enforceScheduledBoundary($station, $backend);
 
-        // Top-of-hour IDs are intentionally excluded here. They are queued only
-        // by TopOfHourIdScheduler through the normal AutoDJ path.
+        // Automatic Top-of-Hour IDs are deliberately excluded here. The rebuilt
+        // feature creates them only through TopOfHourQueueSubscriber and the
+        // normal AutoDJ queue, so this task cannot race it with a second source.
         $hasInterruptingPlaylist = false;
         $tz = $station->getTimezoneObject();
         foreach ($station->playlists as $playlist) {
@@ -125,7 +106,7 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // Do not stack interrupting audio. Top-of-hour IDs never use this queue.
+        // Do not stack interrupting audio. Top-of-Hour IDs never use this queue.
         if (!$backend->isQueueEmpty($station, LiquidsoapQueues::Interrupting)) {
             $this->logger->info('Interrupting queue: Queue is not empty.');
             return;
@@ -156,12 +137,11 @@ final class QueueInterruptingTracks extends AbstractTask
     }
 
     /**
-     * Last-resort, real-wall-clock-time backstop -- see the call site in
-     * queueForStation() for the full reasoning. Only acts inside a short
-     * window right before a scheduled boundary, and only when the currently
-     * playing track would genuinely still be running once that boundary
-     * hits; this is not a substitute for the normal, smoother build-time and
-     * annotation-time capping, which still handles the common case.
+     * Last-resort real-wall-clock backstop for rigid scheduled starts.
+     *
+     * Only acts inside a short pre-boundary window, and only when the current
+     * on-air item would genuinely still be running after the scheduled start.
+     * This does not replace normal broadcast-clock queue planning.
      */
     private function enforceScheduledBoundary(Station $station, Liquidsoap $backend): void
     {
@@ -181,28 +161,10 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // Only act inside a short pre-boundary window. Wide enough to
-        // guarantee at least one once-a-minute tick lands inside it
-        // regardless of exact cron alignment, narrow enough that this never
-        // fires as an early/aggressive cutoff far ahead of the actual
-        // boundary.
+        // Wide enough to guarantee at least one once-a-minute task tick lands
+        // inside the protection window, but narrow enough to avoid early cuts.
         if ($secondsToScheduled > 90) {
             return;
-        }
-
-        // Don't let generic scheduled-boundary enforcement skip a song on
-        // behalf of a :00 playlist that the enabled station-wide TOH feature
-        // suppresses. TOH itself is non-interrupting; this guard keeps the
-        // generic skip backstop from reintroducing a cut at the same boundary.
-        if ($this->hourBoundaryPlanner->isTopOfHourProtectionEnabled($station)) {
-            $secondsUntilTop = $this->hourBoundaryPlanner->secondsUntilNextTopOfHour(
-                $now->toDateTimeImmutable(),
-                $station->getTimezoneObject(),
-            );
-
-            if (abs($secondsUntilTop - $secondsToScheduled) <= 3) {
-                return;
-            }
         }
 
         $currentSong = $station->current_song;
@@ -211,17 +173,13 @@ final class QueueInterruptingTracks extends AbstractTask
         }
 
         $currentSongDuration = $currentSong->duration ?? 0.0;
-
-        // timestamp_start is a DateTimeImmutable, not a raw integer -- modify()
-        // rather than arithmetic on the object itself.
         $currentSongEndsAt = $currentSong->timestamp_start
             ->modify('+' . (int)round($currentSongDuration) . ' seconds')
             ->getTimestamp();
         $scheduledBoundaryAt = $now->getTimestamp() + $secondsToScheduled;
 
-        // Small grace margin: if the current track was already going to end
-        // within a couple seconds of the boundary anyway, there's nothing to
-        // fix here and skipping would be needless.
+        // Small grace margin: if the item is already ending essentially on the
+        // boundary, let the normal transition complete instead of forcing one.
         if ($currentSongEndsAt <= $scheduledBoundaryAt + 2) {
             return;
         }
