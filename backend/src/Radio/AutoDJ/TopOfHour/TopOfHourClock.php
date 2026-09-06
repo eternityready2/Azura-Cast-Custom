@@ -16,11 +16,12 @@ use DateTimeImmutable;
 /**
  * Single source of truth for station-wide Top-of-Hour ID clock math.
  *
- * HARD TOH: a rigid event starts at :00. The actual selected ID duration is
- * backtimed so the ID ends at exactly :00.
+ * When enabled, the automatic Station ID always targets the opening of minute
+ * :59. HARD TOH and SOFT ETM describe what owns :00; they do not move the ID.
  *
- * SOFT ETM: no rigid event starts at :00. The ID targets :59:00, then ordinary
- * AutoDJ continuity may resume after the ID. No ad/promo is inserted as filler.
+ * HARD TOH: a rigid event owns :00 and keeps exact wall-clock priority.
+ * SOFT ETM: no rigid event owns :00 and ordinary AutoDJ continuity may resume
+ * after the ID. No promo/ad is silently substituted by this engine.
  */
 final class TopOfHourClock
 {
@@ -111,9 +112,9 @@ final class TopOfHourClock
         $hard = $this->hasRigidStartAtBoundary($station, $boundary);
         $mode = $hard ? TopOfHourMode::HardToh : TopOfHourMode::SoftEtm;
 
-        $targetStart = $hard
-            ? $boundary->subMilliseconds((int)round($duration * 1000))
-            : $boundary->subMinute();
+        // The station ID owns :59 whenever this feature is enabled. HARD/SOFT
+        // only changes the :00 ownership semantics; it never shifts this anchor.
+        $targetStart = $boundary->subMinute();
 
         return new TopOfHourPlan(
             mode: $mode,
@@ -191,13 +192,6 @@ final class TopOfHourClock
         Station $station,
         CarbonImmutable $boundary,
     ): bool {
-        // With automatic TOH identification enabled, an active top-of-hour AI
-        // News bulletin is treated as the rigid :00 programme. The ID therefore
-        // backtimes into it instead of racing the bulletin at :59.
-        if ($this->hasTopOfHourAiNewsAtBoundary($station, $boundary)) {
-            return true;
-        }
-
         foreach ($station->playlists as $playlist) {
             if (!$playlist->is_enabled) {
                 continue;
@@ -235,40 +229,6 @@ final class TopOfHourClock
         }
 
         return false;
-    }
-
-    private function hasTopOfHourAiNewsAtBoundary(
-        Station $station,
-        CarbonImmutable $boundary,
-    ): bool {
-        $config = $station->backend_config;
-        if (!$config->ai_news_enabled || !$config->ai_news_top_of_hour) {
-            return false;
-        }
-
-        $activeDays = $config->ai_news_active_days;
-        if ([] !== $activeDays && !in_array($boundary->dayOfWeekIso, $activeDays, true)) {
-            return false;
-        }
-
-        $activeHours = trim((string)($config->ai_news_active_hours ?? ''));
-        if ('' === $activeHours) {
-            return true;
-        }
-
-        if (!preg_match('/^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/', $activeHours, $matches)) {
-            return true;
-        }
-
-        $start = ((int)$matches[1] * 60) + (int)$matches[2];
-        $end = ((int)$matches[3] * 60) + (int)$matches[4];
-        $current = ($boundary->hour * 60) + $boundary->minute;
-
-        if ($start <= $end) {
-            return $current >= $start && $current < $end;
-        }
-
-        return $current >= $start || $current < $end;
     }
 
     private function wheelHasMandatoryId(StationClockWheel $wheel): bool
