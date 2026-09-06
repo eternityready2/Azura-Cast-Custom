@@ -295,6 +295,11 @@ final class StationPlaylist implements
         return in_array(self::OPTION_PRIORITIZE_OVER_REQUESTS, $this->backend_options, true);
     }
 
+    public function backendAllowOverrun(): bool
+    {
+        return in_array(self::OPTION_ALLOW_OVERRUN, $this->backend_options, true);
+    }
+
     #[OA\Property(example: true), ORM\Column]
     public bool $avoid_duplicates = true;
 

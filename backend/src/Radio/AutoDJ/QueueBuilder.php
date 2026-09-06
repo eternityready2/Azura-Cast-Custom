@@ -48,6 +48,7 @@ final class QueueBuilder implements EventSubscriberInterface
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
         private readonly DuplicatePrevention $duplicatePrevention,
         private readonly HourBoundaryPlanner $hourBoundaryPlanner,
+        private readonly BroadcastClockPlanner $broadcastClockPlanner,
         private readonly ClockWheel\ClockWheelStretchCalculator $stretchCalculator,
         private readonly CacheInterface $cache,
         private readonly StationPlaylistRepository $playlistRepo,
@@ -338,7 +339,7 @@ final class QueueBuilder implements EventSubscriberInterface
             };
 
             if (null !== $validTrack) {
-                $validTrack = $this->applyHourBoundarySelection(
+                $validTrack = $this->applyProtectedBoundarySelection(
                     $playlist,
                     $validTrack,
                     $recentSongHistory,
@@ -541,17 +542,13 @@ final class QueueBuilder implements EventSubscriberInterface
         $maxDuration = null;
 
         try {
-            $secondsToNextScheduledStart = $this->scheduler->secondsUntilNextScheduledStart(
+            $maxDuration = $this->broadcastClockPlanner->maxContentDurationBeforeNextSoftAnchor(
                 $playlist->station,
                 $expectedPlayTime,
             );
-
-            if (null !== $secondsToNextScheduledStart) {
-                $maxDuration = (float)$secondsToNextScheduledStart;
-            }
         } catch (\Throwable $e) {
             $this->logger->warning(
-                'Scheduled boundary calculation failed; falling back to no boundary cap for this track.',
+                'Broadcast clock boundary calculation failed; falling back to no schedule cap for this track.',
                 ['exception' => $e->getMessage()]
             );
             $maxDuration = null;
@@ -606,7 +603,7 @@ final class QueueBuilder implements EventSubscriberInterface
         DateTimeImmutable $expectedPlayTime,
         bool $deferQueuePersistence = false,
     ): ?StationQueue {
-        $mediaToPlay = $this->getMediaFromRemoteUrl($playlist);
+        $mediaToPlay = $this->getMediaFromRemoteUrl($playlist, $expectedPlayTime);
 
         if (is_array($mediaToPlay)) {
             [$mediaUri, $mediaDuration] = $mediaToPlay;
@@ -634,12 +631,14 @@ final class QueueBuilder implements EventSubscriberInterface
     }
 
     /** @return array{string|null, int}|null */
-    private function getMediaFromRemoteUrl(StationPlaylist $playlist): ?array
-    {
+    private function getMediaFromRemoteUrl(
+        StationPlaylist $playlist,
+        DateTimeImmutable $expectedPlayTime,
+    ): ?array {
         $remoteType = $playlist->remote_type ?? PlaylistRemoteTypes::Stream;
 
         if (PlaylistRemoteTypes::Stream === $remoteType) {
-            $duration = $this->scheduler->getPlaylistScheduleDuration($playlist);
+            $duration = $this->scheduler->getPlaylistScheduleDuration($playlist, $expectedPlayTime);
             return [$playlist->remote_url, $duration];
         }
 
@@ -676,21 +675,48 @@ final class QueueBuilder implements EventSubscriberInterface
         return ($mediaId) ? [$mediaId, 0] : null;
     }
 
-    private function applyHourBoundarySelection(
+    private function applyProtectedBoundarySelection(
         StationPlaylist $playlist,
         StationPlaylistQueue $selectedTrack,
         array $recentSongHistory,
         DateTimeImmutable $expectedPlayTime,
         bool $allowDuplicates,
     ): ?StationPlaylistQueue {
-        $maxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
+        $targets = [];
+
+        // Keep the existing top-of-hour fitting behavior intact. The broadcast-clock
+        // work in this class is deliberately not a redesign of legal-ID handling.
+        $topOfHourMaxDuration = $this->hourBoundaryPlanner->maxMusicDurationBeforeTopOfHour(
             $playlist->station,
             $expectedPlayTime,
         );
+        if (null !== $topOfHourMaxDuration) {
+            $targets[] = $topOfHourMaxDuration;
+        }
 
-        if (null === $maxDuration) {
+        // Soft schedule/news backtiming may choose a better-fitting song only from
+        // standalone general rotation. Never reorder a scheduled show or a playlist
+        // being played through a group; those retain their intended order and rely on
+        // stretch/squeeze or the normal graceful cue-out path at the clock boundary.
+        if (
+            PlaylistTypes::Standard === $playlist->type
+            && 0 === $playlist->schedule_items->count()
+            && 0 === $playlist->playlist_groups->count()
+        ) {
+            $softClockMaxDuration = $this->broadcastClockPlanner->maxContentDurationBeforeNextSoftAnchor(
+                $playlist->station,
+                $expectedPlayTime,
+            );
+            if (null !== $softClockMaxDuration) {
+                $targets[] = $softClockMaxDuration;
+            }
+        }
+
+        if ([] === $targets) {
             return $selectedTrack;
         }
+
+        $maxDuration = min($targets);
 
         $media = $this->em->find(StationMedia::class, $selectedTrack->media_id);
         if ($media instanceof StationMedia && $media->getCalculatedLength() <= $maxDuration) {
@@ -742,7 +768,7 @@ final class QueueBuilder implements EventSubscriberInterface
         }
 
         $this->logger->warning(
-            'Hour boundary: NO track fits before top of hour (check finish buffer / ID max seconds vs shortest track length). Falling back to shortest non-recent track.',
+            'Protected boundary: no track fits before the upcoming broadcast-clock anchor. Falling back to the shortest non-recent track.',
             [
                 'playlist_id' => $playlist->id,
                 'max_duration_seconds' => $maxDuration,

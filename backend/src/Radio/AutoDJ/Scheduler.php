@@ -244,14 +244,24 @@ final class Scheduler
     }
 
     /**
-     * Get the duration of scheduled play time in seconds (used for remote URLs of indeterminate length).
+     * Get the remaining scheduled play time in seconds for a remote stream.
      *
-     * @param StationPlaylist $playlist
+     * A late-starting remote programme must not receive its original full window
+     * again or every later clock event inherits the same lateness. By default we
+     * return only the time left until the active schedule ends, plus the normal
+     * crossfade overlap so Queue::addDurationToTime() projects the following item
+     * at the actual wall-clock boundary. Operators can explicitly opt out with
+     * Allow Overrun, in which case the original full schedule duration is kept.
+     *
+     * The optional time is the queue's projected airtime. Supplying it keeps live
+     * queue building and Linear Log projection on the same broadcast clock.
      */
-    public function getPlaylistScheduleDuration(StationPlaylist $playlist): int
-    {
+    public function getPlaylistScheduleDuration(
+        StationPlaylist $playlist,
+        ?DateTimeImmutable $now = null,
+    ): int {
         $stationTz = $playlist->station->getTimezoneObject();
-        $now = CarbonImmutable::now($stationTz);
+        $now = CarbonImmutable::instance(Time::nowInTimezone($stationTz, $now));
 
         $scheduleItem = $this->getActiveScheduleFromCollection(
             $playlist->schedule_items,
@@ -259,9 +269,35 @@ final class Scheduler
             $now
         );
 
-        return $scheduleItem instanceof StationSchedule
-            ? $scheduleItem->getDuration($stationTz)
-            : 0;
+        if (!$scheduleItem instanceof StationSchedule) {
+            return 0;
+        }
+
+        $fullDuration = $scheduleItem->getDuration($stationTz);
+        if (
+            $fullDuration <= 0
+            || $playlist->backendAllowOverrun()
+        ) {
+            return $fullDuration;
+        }
+
+        $end = StationSchedule::getDateTime($scheduleItem->end_time, $stationTz, $now);
+
+        if ($scheduleItem->start_time > $scheduleItem->end_time) {
+            $nowCode = ($now->hour * 100) + $now->minute;
+            if ($nowCode >= $scheduleItem->start_time) {
+                $end = $end->addDay();
+            }
+        }
+
+        $remainingSeconds = $end->getTimestamp() - $now->getTimestamp();
+        if ($remainingSeconds <= 0) {
+            return 0;
+        }
+
+        $crossfadeOverlap = max(0.0, $playlist->station->backend_config->getCrossfadeDuration());
+
+        return max(1, (int)ceil($remainingSeconds + $crossfadeOverlap));
     }
 
     public function canStreamerStreamNow(

@@ -9,6 +9,7 @@ use App\Container\EntityManagerAwareTrait;
 use App\Container\LoggerAwareTrait;
 use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
+use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
 use App\Utilities\Time;
@@ -31,6 +32,7 @@ final class Queue
         private readonly EventDispatcherInterface $dispatcher,
         private readonly StationQueueRepository $queueRepo,
         private readonly Scheduler $scheduler,
+        private readonly BroadcastClockPlanner $broadcastClockPlanner,
         private readonly QueueLogCache $queueLogCache
     ) {
     }
@@ -99,6 +101,20 @@ final class Queue
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
+            if (!$queueRow->sent_to_autodj) {
+                if (!$this->isQueueRowStillValid($queueRow, $expectedPlayTime)) {
+                    $this->em->remove($queueRow);
+                    continue;
+                }
+
+                // Re-apply a soft anchor to rows that were planned before the
+                // latest live timing correction. This is especially important
+                // when the actual air clock drifts relative to projected queue
+                // timestamps: the last song before a programme/news boundary can
+                // still be given a graceful cue-out before it is handed to Liquidsoap.
+                $this->applyBroadcastClockCapToQueuedRow($station, $queueRow, $expectedPlayTime);
+            }
+
             // Same duration-floor guard as the build loop below -- applies here too
             // since this loop re-times already-queued rows on every build cycle and
             // is just as capable of collapsing timestamps if a row's duration is bad.
@@ -118,11 +134,6 @@ final class Queue
                     $queueLength = 1;
                 }
             } else {
-                if (!$this->isQueueRowStillValid($queueRow, $expectedPlayTime)) {
-                    $this->em->remove($queueRow);
-                    continue;
-                }
-
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $expectedCueTime = $this->addDurationToTime($station, $expectedCueTime, $effectiveDuration);
 
@@ -402,20 +413,93 @@ final class Queue
             : $now;
     }
 
+    private function applyBroadcastClockCapToQueuedRow(
+        Station $station,
+        StationQueue $queueRow,
+        DateTimeImmutable $expectedPlayTime,
+    ): void {
+        if (
+            $queueRow->top_of_hour_legal_id
+            || $queueRow->clock_wheel_legal_id_substitute
+        ) {
+            return;
+        }
+
+        $media = $queueRow->media;
+        if (!$media instanceof StationMedia) {
+            return;
+        }
+
+        $maxDuration = $this->broadcastClockPlanner->maxContentDurationBeforeNextSoftAnchor(
+            $station,
+            $expectedPlayTime,
+        );
+        if (null === $maxDuration || $maxDuration <= 0) {
+            return;
+        }
+
+        $targetSeconds = max(1, (int)floor($maxDuration));
+        $queueRow->hour_boundary_max_play_seconds = $targetSeconds;
+
+        if ($media->getCalculatedLength() <= $targetSeconds) {
+            return;
+        }
+
+        $queueRow->hour_boundary_enforce_cap = true;
+        $queueRow->duration = null === $queueRow->duration
+            ? (float)$targetSeconds
+            : min($queueRow->duration, (float)$targetSeconds);
+    }
+
     private function isQueueRowStillValid(
         StationQueue $queueRow,
         DateTimeImmutable $expectedPlayTime
     ): bool {
+        // Mandatory top-of-hour content must never be invalidated by a programme
+        // ownership check; it remains the highest-priority broadcast boundary.
+        if ($queueRow->top_of_hour_legal_id || $queueRow->clock_wheel_legal_id_substitute) {
+            return true;
+        }
+
+        if (
+            null !== $queueRow->request
+            && $this->broadcastClockPlanner->areRequestsBlockedBySchedule(
+                $queueRow->station,
+                $expectedPlayTime,
+            )
+        ) {
+            return false;
+        }
+
+        if (
+            null !== $queueRow->clock_wheel
+            && $this->broadcastClockPlanner->isProgramWindowActive(
+                $queueRow->station,
+                $expectedPlayTime,
+            )
+        ) {
+            return false;
+        }
+
         $playlist = $queueRow->playlist;
         if (null === $playlist) {
             return true;
         }
 
-        return $playlist->is_enabled &&
-            $this->scheduler->isPlaylistScheduledToPlayNow(
+        if (
+            !$playlist->is_enabled
+            || !$this->scheduler->isPlaylistScheduledToPlayNow(
                 $playlist,
                 $expectedPlayTime,
                 true
-            );
+            )
+        ) {
+            return false;
+        }
+
+        return !$this->broadcastClockPlanner->isPlaylistPreemptedByProgram(
+            $playlist,
+            $expectedPlayTime,
+        );
     }
 }
