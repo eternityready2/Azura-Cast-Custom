@@ -45,6 +45,9 @@ jobs:
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
 
+      - name: Prepare AzuraCast PHPStan runtime paths
+        run: sudo mkdir -p /var/azuracast/www/plugins
+
       - name: PHPStan TOH integration
         run: >-
           vendor/bin/phpstan analyze --memory-limit=-1
