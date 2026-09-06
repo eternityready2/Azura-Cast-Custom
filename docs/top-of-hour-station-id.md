@@ -11,12 +11,16 @@ When it is disabled, no automatic Top-of-Hour ID timing rule is applied. Music,
 Clock Wheels, scheduled programming, internet-radio operation, stretch/squeeze,
 and the Linear Log continue under their normal rules.
 
-When it is enabled, the automatic ID uses the same broadcast-clock timeline as
-scheduled programming and the 24-hour Linear Log. It does not create a second
-Liquidsoap source, interrupt queue, delayed `source.skip()`, or wall-clock retry.
+When it is enabled, the automatic Station ID targets the opening of minute `:59`
+every hour. HARD TOH and SOFT ETM describe what owns the following `:00`
+boundary; they never move the ID away from `:59`.
+
+The automatic ID uses the same broadcast-clock timeline as scheduled programming
+and the 24-hour Linear Log. It does not create a second Liquidsoap source,
+interrupt queue, delayed `source.skip()`, or wall-clock retry.
 
 Only media explicitly tagged as Station ID is eligible. Promos, liners,
-commercials, and generic filler are never substituted for a missing ID.
+commercials, and generic filler are never silently substituted for a missing ID.
 
 ## Operating modes
 
@@ -27,29 +31,32 @@ HARD TOH is selected automatically when a rigid event owns `:00`.
 Examples include a strict-start playlist, emergency/interrupting scheduled
 program, or strict Clock Wheel scheduled on the boundary.
 
-The selected Station ID is backtimed using its actual audio duration:
+The Station ID still targets `:59:00` exactly. The shared broadcast-clock timing
+layer plans preceding music around that anchor. The rigid `:00` event remains
+authoritative and must still start on time.
+
+For example, with a 37.825-second ID:
 
 ```text
-boundary:       10:00:00.000
-ID duration:       00:37.825
-ID target:      09:59:22.175
+ID target:      09:59:00.000
+ID natural end: 09:59:37.825
 program target: 10:00:00.000
 ```
 
-The rigid `:00` event remains authoritative. An automatic ID is never inserted
-after the boundary if doing so would delay that event.
+This engine does not invent an ad, promo, or commercial to fill the remainder of
+the minute. Any dedicated filler policy is a separate programming decision.
 
 ### SOFT ETM
 
 SOFT ETM applies when no rigid event owns `:00`.
 
-The Station ID targets `:59:00`. After it finishes, normal AutoDJ continuity
+The Station ID also targets `:59:00`. After it finishes, normal AutoDJ continuity
 continues. The engine does not insert an ad or promo merely to fill the remainder
 of minute `:59`.
 
 ## Timing and stretch/squeeze
 
-`TopOfHourClock` exposes the selected ID's target start to
+`TopOfHourClock` exposes the exact `:59:00` target to
 `BroadcastClockPlanner`. That means the existing broadcast-clock timing layer,
 including `BroadcastClockQueueTimingSubscriber`, `StretchSqueezeQueueTiming`,
 queue projection, and the 24-hour Linear Log, all plan against the same anchor.
@@ -77,10 +84,10 @@ the target boundary. This prevents back-to-back duplicate IDs.
 
 ## Priority rules
 
-1. Rigid scheduled `:00` programming keeps its exact wall-clock priority.
-2. An explicit Clock Wheel position-zero mandatory ID may own the boundary.
-3. Otherwise the station-wide automatic Station ID owns its planned HARD TOH or
-   SOFT ETM target.
+1. When enabled, the automatic Station ID owns the `:59:00` target.
+2. Rigid scheduled `:00` programming keeps its exact wall-clock priority.
+3. An explicit Clock Wheel position-zero mandatory ID may own the boundary and
+   suppress the duplicate station-wide ID for that hour.
 4. Ordinary music, Smart Blocks, requests, and rotation content are planned
    around the shared broadcast-clock anchor according to their existing rules.
 
