@@ -16,12 +16,12 @@ use DateTimeImmutable;
 /**
  * Single source of truth for station-wide Top-of-Hour ID clock math.
  *
- * When enabled, the automatic Station ID always targets the opening of minute
- * :59. HARD TOH and SOFT ETM describe what owns :00; they do not move the ID.
+ * HARD TOH: a rigid event owns :00. The selected Station ID is backtimed by
+ * its actual duration so it ends exactly at the boundary.
  *
- * HARD TOH: a rigid event owns :00 and keeps exact wall-clock priority.
- * SOFT ETM: no rigid event owns :00 and ordinary AutoDJ continuity may resume
- * after the ID. No promo/ad is silently substituted by this engine.
+ * SOFT ETM: no rigid event owns :00. The ID opens minute :59 at :59:00 and
+ * ordinary AutoDJ continuity may resume after it. No promo/ad is silently
+ * substituted by this engine.
  */
 final class TopOfHourClock
 {
@@ -112,9 +112,12 @@ final class TopOfHourClock
         $hard = $this->hasRigidStartAtBoundary($station, $boundary);
         $mode = $hard ? TopOfHourMode::HardToh : TopOfHourMode::SoftEtm;
 
-        // The station ID owns :59 whenever this feature is enabled. HARD/SOFT
-        // only changes the :00 ownership semantics; it never shifts this anchor.
-        $targetStart = $boundary->subMinute();
+        // HARD TOH eliminates filler between the ID and a rigid :00 event by
+        // backtiming the actual selected ID. SOFT ETM deliberately opens at
+        // :59:00 because no rigid handoff owns the boundary.
+        $targetStart = $hard
+            ? $boundary->subMilliseconds((int)round($duration * 1000))
+            : $boundary->subMinute();
 
         return new TopOfHourPlan(
             mode: $mode,
