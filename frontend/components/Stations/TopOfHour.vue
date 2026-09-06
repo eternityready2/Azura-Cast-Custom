@@ -261,12 +261,14 @@ import type {
     TopOfHourSettings,
 } from '~/entities/TopOfHour.ts';
 import {useApiRouter} from '~/functions/useApiRouter.ts';
+import useStationDateTimeFormatter from '~/functions/useStationDateTimeFormatter.ts';
 import {useAxios} from '~/vendor/axios.ts';
 import {computed, onMounted, ref} from 'vue';
 
 const {axios} = useAxios();
 const {getStationApiUrl} = useApiRouter();
 const {notifySuccess, notifyError} = useNotify();
+const {formatIsoAsTime} = useStationDateTimeFormatter();
 
 const apiUrl = getStationApiUrl('/top-of-hour');
 const isLoading = ref(true);
@@ -314,13 +316,7 @@ const nextModeTitle = computed(() => {
         : 'Open-hour :59 identification';
 });
 
-const formatClock = (value: string): string => {
-    return new Date(value).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    });
-};
+const formatClock = (value: string): string => formatIsoAsTime(value);
 
 const formatDuration = (seconds: number): string => `${seconds.toFixed(1)}s`;
 
