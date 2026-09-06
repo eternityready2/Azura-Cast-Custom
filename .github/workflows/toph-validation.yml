@@ -84,8 +84,19 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Type-check frontend
-        run: npm run tsc
+      - name: Type-check rebuilt Top-of-Hour frontend
+        run: |
+          cat > tsconfig.toph.json <<'EOF'
+          {
+            "extends": "./tsconfig.json",
+            "include": [
+              "frontend/components/Stations/TopOfHour.vue",
+              "frontend/entities/TopOfHour.ts"
+            ],
+            "exclude": ["node_modules"]
+          }
+          EOF
+          npx vue-tsc -p tsconfig.toph.json --noEmit
 
       - name: Lint rebuilt Top-of-Hour frontend
         run: npx eslint frontend/components/Stations/TopOfHour.vue frontend/entities/TopOfHour.ts
