@@ -157,6 +157,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Nginx\ConfigWriter::class,
             App\Radio\AutoDJ\ClockWheelScheduler::class,
             App\Radio\AutoDJ\QueueBuilder::class,
+            App\Radio\AutoDJ\BroadcastClockQueueTimingSubscriber::class,
             App\Radio\AutoDJ\StretchSqueezeQueueTiming::class,
             App\Radio\AutoDJ\StationDiagnosticsRuntimeSubscriber::class,
             App\Radio\AutoDJ\Annotations::class,
