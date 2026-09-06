@@ -19,6 +19,41 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(schema: "StationBackendConfiguration", type: "object")]
 final class StationBackendConfiguration extends AbstractArrayEntity
 {
+    /**
+     * Migrate legacy Top-of-Hour-named playout controls into their generic homes
+     * while loading station JSON. Old keys are intentionally not serialized back.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function __construct(array $data = [])
+    {
+        $legacyPlayoutMap = [
+            'top_of_hour_hard_trigger_enabled' => 'playout_hard_clock_enabled',
+            'top_of_hour_hard_trigger_seconds' => 'playout_hard_clock_trigger_seconds',
+            'top_of_hour_hard_trigger_fade' => 'playout_hard_clock_fade_seconds',
+            'top_of_hour_duck_enabled' => 'playout_smart_duck_enabled',
+            'top_of_hour_duck_attenuation' => 'playout_smart_duck_attenuation',
+            'top_of_hour_duck_delay' => 'playout_smart_duck_delay',
+        ];
+
+        foreach ($legacyPlayoutMap as $legacyKey => $newKey) {
+            if (!array_key_exists($newKey, $data) && array_key_exists($legacyKey, $data)) {
+                $data[$newKey] = $data[$legacyKey];
+            }
+            unset($data[$legacyKey]);
+        }
+
+        // Removed implementation switches from the retired TOH engine.
+        unset(
+            $data['top_of_hour_id_mode'],
+            $data['top_of_hour_finish_buffer_seconds'],
+            $data['top_of_hour_pre_id_fade'],
+            $data['top_of_hour_pre_id_fade_seconds'],
+        );
+
+        parent::__construct($data);
+    }
+
     #[OA\Property]
     public bool $aircheck_enabled = false {
         set (bool|string|null $value) => Types::bool($value);
@@ -149,56 +184,71 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         }
     }
 
-    // Liquidsoap wall-clock safety trigger for top-of-hour station IDs.
+    // Generic rigid-clock playout controls. These are deliberately independent
+    // from the Top-of-Hour Station ID feature and remain useful when TOH is off.
     #[OA\Property]
-    public bool $top_of_hour_hard_trigger_enabled = false {
-        set(bool|null $value) => Types::bool($value);
+    public bool $playout_hard_clock_enabled = false {
+        set(bool|string|null $value) => Types::bool($value, false, true);
     }
 
-    protected const float DEFAULT_HARD_TRIGGER_SECONDS = 3.0;
+    protected const float DEFAULT_HARD_CLOCK_TRIGGER_SECONDS = 3.0;
 
     #[OA\Property]
-    public float $top_of_hour_hard_trigger_seconds = self::DEFAULT_HARD_TRIGGER_SECONDS {
+    public float $playout_hard_clock_trigger_seconds = self::DEFAULT_HARD_CLOCK_TRIGGER_SECONDS {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_SECONDS);
-            $this->top_of_hour_hard_trigger_seconds = max(1.0, min($floatVal, 30.0));
+            $floatVal = Types::float($value, self::DEFAULT_HARD_CLOCK_TRIGGER_SECONDS);
+            $this->playout_hard_clock_trigger_seconds = max(1.0, min($floatVal, 30.0));
         }
     }
 
-    protected const float DEFAULT_HARD_TRIGGER_FADE = 3.0;
+    protected const float DEFAULT_HARD_CLOCK_FADE_SECONDS = 3.0;
 
     #[OA\Property]
-    public float $top_of_hour_hard_trigger_fade = self::DEFAULT_HARD_TRIGGER_FADE {
+    public float $playout_hard_clock_fade_seconds = self::DEFAULT_HARD_CLOCK_FADE_SECONDS {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_HARD_TRIGGER_FADE);
-            $this->top_of_hour_hard_trigger_fade = max(0.0, min($floatVal, 10.0));
+            $floatVal = Types::float($value, self::DEFAULT_HARD_CLOCK_FADE_SECONDS);
+            $this->playout_hard_clock_fade_seconds = max(0.0, min($floatVal, 10.0));
         }
     }
 
-    // Smart ducking (Liquidsoap smooth_add) for the interrupting queue --
-    // legal IDs/promos lower the music bed instead of hard-replacing it.
     #[OA\Property]
-    public bool $top_of_hour_duck_enabled = false {
-        set(bool|null $value) => Types::bool($value);
+    public bool $playout_stretch_squeeze_enabled = true {
+        set(bool|string|null $value) => Types::bool($value, true, true);
     }
 
-    protected const float DEFAULT_DUCK_ATTENUATION = 0.2;
+    protected const float DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT = 5.0;
 
     #[OA\Property]
-    public float $top_of_hour_duck_attenuation = self::DEFAULT_DUCK_ATTENUATION {
+    public float $playout_stretch_squeeze_max_percent = self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_DUCK_ATTENUATION);
-            $this->top_of_hour_duck_attenuation = max(0.0, min($floatVal, 1.0));
+            $floatVal = Types::float($value, self::DEFAULT_STRETCH_SQUEEZE_MAX_PERCENT);
+            $this->playout_stretch_squeeze_max_percent = max(0.5, min($floatVal, 5.0));
         }
     }
 
-    protected const float DEFAULT_DUCK_DELAY = 3.0;
+    // Generic smart ducking for the interrupting queue.
+    #[OA\Property]
+    public bool $playout_smart_duck_enabled = false {
+        set(bool|string|null $value) => Types::bool($value, false, true);
+    }
+
+    protected const float DEFAULT_SMART_DUCK_ATTENUATION = 0.2;
 
     #[OA\Property]
-    public float $top_of_hour_duck_delay = self::DEFAULT_DUCK_DELAY {
+    public float $playout_smart_duck_attenuation = self::DEFAULT_SMART_DUCK_ATTENUATION {
         set(float|int|string|null $value) {
-            $floatVal = Types::float($value, self::DEFAULT_DUCK_DELAY);
-            $this->top_of_hour_duck_delay = max(0.5, min($floatVal, 15.0));
+            $floatVal = Types::float($value, self::DEFAULT_SMART_DUCK_ATTENUATION);
+            $this->playout_smart_duck_attenuation = max(0.0, min($floatVal, 1.0));
+        }
+    }
+
+    protected const float DEFAULT_SMART_DUCK_DELAY = 3.0;
+
+    #[OA\Property]
+    public float $playout_smart_duck_delay = self::DEFAULT_SMART_DUCK_DELAY {
+        set(float|int|string|null $value) {
+            $floatVal = Types::float($value, self::DEFAULT_SMART_DUCK_DELAY);
+            $this->playout_smart_duck_delay = max(0.5, min($floatVal, 15.0));
         }
     }
 
@@ -524,19 +574,10 @@ final class StationBackendConfiguration extends AbstractArrayEntity
         set (bool|string|null $value) => Types::bool($value, false, true);
     }
 
+    // Rebuilt automatic station-wide Top-of-Hour Station ID controls.
     #[OA\Property]
     public bool $top_of_hour_id_enabled = false {
         set (bool|string|null $value) => Types::bool($value, false, true);
-    }
-
-    #[OA\Property]
-    public string $top_of_hour_id_mode = 'strict' {
-        set (string|null $value) {
-            $value = Types::string($value, 'strict', true);
-            $this->top_of_hour_id_mode = in_array($value, ['strict', 'interrupt'], true)
-                ? $value
-                : 'strict';
-        }
     }
 
     #[OA\Property]
@@ -547,11 +588,6 @@ final class StationBackendConfiguration extends AbstractArrayEntity
     #[OA\Property]
     public int $top_of_hour_compliance_tolerance_seconds = 10 {
         set (int|string|null $value) => Types::int($value, 10);
-    }
-
-    #[OA\Property]
-    public int $top_of_hour_finish_buffer_seconds = 15 {
-        set (int|string|null $value) => Types::int($value, 15);
     }
 
     #[OA\Property]
