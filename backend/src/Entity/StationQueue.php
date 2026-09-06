@@ -14,7 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
     ORM\Index(name: 'idx_is_played', columns: ['is_played']),
     ORM\Index(name: 'idx_timestamp_played', columns: ['timestamp_played']),
     ORM\Index(name: 'idx_sent_to_autodj', columns: ['sent_to_autodj']),
-    ORM\Index(name: 'idx_timestamp_cued', columns: ['timestamp_cued'])
+    ORM\Index(name: 'idx_timestamp_cued', columns: ['timestamp_cued']),
+    ORM\UniqueConstraint(name: 'uniq_station_toh_boundary', columns: ['station_id', 'top_of_hour_boundary_at'])
 ]
 final class StationQueue implements
     Interfaces\SongInterface,
@@ -129,9 +130,15 @@ final class StationQueue implements
     #[ORM\Column]
     public bool $clock_wheel_legal_id_substitute = false;
 
-    /** True when queued by station-wide top-of-hour protection (v0.29). */
+    /** True when this row is the automatic station-wide Top-of-Hour Station ID. */
     #[ORM\Column]
     public bool $top_of_hour_legal_id = false;
+
+    /** Exact station-local hour boundary this automatic ID owns. */
+    #[ORM\Column(type: 'datetime_immutable', precision: 6, nullable: true)]
+    public ?DateTimeImmutable $top_of_hour_boundary_at = null {
+        set (DateTimeImmutable|string|null $value) => Time::toNullableUtcCarbonImmutable($value);
+    }
 
     /** Whether AnnotateNextSong should apply a cue_out cap for hour-boundary protection. */
     #[ORM\Column]
@@ -142,15 +149,13 @@ final class StationQueue implements
     public ?int $hour_boundary_max_play_seconds = null;
 
     /**
-     * True when this row is the track selected immediately before a due
-     * top-of-hour legal ID and should be faded out early (rather than
-     * simply hard-cut) so the ID starts cleanly at :58/:59. Only ever set
-     * when station-wide top-of-hour ID protection is enabled.
+     * Legacy compatibility field. The rebuilt Top-of-Hour engine never writes it;
+     * broadcast-clock timing now uses the shared hour_boundary_* controls.
      */
     #[ORM\Column]
     public bool $top_of_hour_pre_id_fade = false;
 
-    /** Seconds before this track's capped end where the early fade-out should begin. */
+    /** Legacy compatibility field; no longer written by the rebuilt Top-of-Hour engine. */
     #[ORM\Column(nullable: true)]
     public ?int $top_of_hour_pre_id_fade_seconds = null;
 
@@ -200,4 +205,3 @@ final class StationQueue implements
         return $sq;
     }
 }
-
