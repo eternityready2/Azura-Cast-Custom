@@ -10,7 +10,6 @@ use App\Entity\Station;
 use App\Entity\StationSchedule;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
-use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\AutoDJ\Scheduler;
 use App\Utilities\Time;
 use DateTimeImmutable;
@@ -24,6 +23,11 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * It participates only in normal AutoDJ queue construction. There is no second
  * interrupting queue, wall-clock skip, ducking path or after-the-fact retry that
  * can race this producer.
+ *
+ * Selection deliberately does not persist the row. Lower-priority BuildQueue
+ * validators must be able to reject a candidate without leaving an orphan row
+ * that falsely claims the hour. Queue::buildQueue() persists the final accepted
+ * selection after every validator and queue-level guard has completed.
  */
 final class TopOfHourQueueSubscriber implements EventSubscriberInterface
 {
@@ -32,7 +36,6 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
         private readonly EntityManagerInterface $em,
         private readonly StationScheduleRepository $scheduleRepo,
         private readonly Scheduler $scheduler,
-        private readonly ClockWheelEventLogger $eventLogger,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -72,6 +75,19 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
             return;
         }
 
+        // In HARD TOH the ID must fit completely before the rigid boundary. A
+        // projection that has already moved beyond the calculated backtime may
+        // not insert a late ID that would push the :00 owner off clock.
+        if ($plan->isHard() && $expectedPlayTime > $plan->targetStartAt) {
+            $this->logger->warning('Top-of-hour HARD TOH target was missed; preserving rigid :00 priority.', [
+                'station_id' => $station->id,
+                'target_start_at' => $plan->targetStartAt->format(DateTimeImmutable::ATOM),
+                'expected_play_time' => $expectedPlayTime->format(DateTimeImmutable::ATOM),
+                'boundary_at' => $plan->boundaryAt->format(DateTimeImmutable::ATOM),
+            ]);
+            return;
+        }
+
         // An already-active wheel or a wheel explicitly beginning at the target
         // boundary may own its own position-zero ID. In either case the
         // station-wide producer yields so two IDs cannot stack around :00.
@@ -91,24 +107,15 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
         $queueEntry->top_of_hour_boundary_at = $plan->boundaryAt;
         $queueEntry->duration = $plan->durationSeconds;
 
-        // Mandatory station IDs deliberately use the array form. BuildQueue's
-        // scalar setter rejects a row whose song_id matches the immediately
-        // previous song; an hourly station ID must not be skipped by that music
-        // duplicate guard. Persistence still happens only after acceptance.
+        // Mandatory IDs use the array setter so BuildQueue's ordinary music
+        // consecutive-song check does not reject a station with a one-ID library.
+        // Queue::buildQueue() has a matching mandatory-content exemption before
+        // it performs its final same-song retry guard.
         if (!$event->setNextSongs([$queueEntry])) {
             return;
         }
 
-        $this->em->persist($queueEntry);
-        $this->eventLogger->recordTopOfHourLegalIdQueued(
-            $station,
-            $plan->media,
-            $plan->boundaryAt,
-            $queueEntry,
-        );
-        $this->em->flush();
-
-        $this->logger->info('Top-of-hour station ID queued.', [
+        $this->logger->debug('Top-of-hour station ID selected for queue validation.', [
             'station_id' => $station->id,
             'media_id' => $plan->media->id,
             'mode' => $plan->mode->value,
