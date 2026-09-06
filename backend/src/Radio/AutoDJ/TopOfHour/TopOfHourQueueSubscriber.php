@@ -65,13 +65,19 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
         }
 
         // Once the boundary itself has arrived, a late automatic ID would delay
-        // the new hour. Record the miss through normal compliance reporting and
-        // protect the rigid :00 item instead of inserting a stale ID after it.
+        // the new hour. Protect the rigid :00 item instead of inserting a stale
+        // station ID after the boundary.
         if ($expectedPlayTime >= $plan->boundaryAt) {
             return;
         }
 
-        if ($this->clockWheelHandlesStationId($station, $expectedPlayTime)) {
+        // An already-active wheel or a wheel explicitly beginning at the target
+        // boundary may own its own position-zero ID. In either case the
+        // station-wide producer yields so two IDs cannot stack around :00.
+        if (
+            $this->clockWheelHandlesStationId($station, $expectedPlayTime)
+            || $this->clock->clockWheelOwnsBoundary($station, $plan->boundaryAt)
+        ) {
             return;
         }
 
