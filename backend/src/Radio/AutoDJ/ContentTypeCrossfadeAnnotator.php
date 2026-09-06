@@ -52,18 +52,14 @@ final class ContentTypeCrossfadeAnnotator implements EventSubscriberInterface
             return;
         }
 
-        // Legal ID quick-cut (priority 9) overrides this for legal_id rows.
-        if (($queue->top_of_hour_legal_id ?? false)
-            || ($queue->clock_wheel_legal_id_substitute ?? false)
+        // Station IDs and legal-ID substitutes are protected content. The
+        // ClockWheelAnnotator legal-ID handler at priority 9 owns their fade
+        // annotations, including station-wide Top-of-Hour IDs.
+        if (
+            $queue->top_of_hour_legal_id
+            || $queue->clock_wheel_legal_id_substitute
             || StationMediaTypes::isStationId($media->type)
         ) {
-            return;
-        }
-
-        // HourBoundaryAnnotator::applyTopOfHourPreIdFade (priority 10) already set
-        // a deliberate fade_out for this row so it ends cleanly before a due
-        // top-of-hour ID -- don't let the generic content-type matrix clobber it.
-        if ($queue->top_of_hour_pre_id_fade ?? false) {
             return;
         }
 
