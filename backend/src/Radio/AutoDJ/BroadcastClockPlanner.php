@@ -39,9 +39,9 @@ final class BroadcastClockPlanner
         $best = null;
 
         // The rebuilt station ID is a first-class broadcast-clock anchor. HARD
-        // and SOFT modes both anchor at :59:00; the mode only describes who owns
-        // the following :00 boundary. This puts normal music, Smart Blocks and
-        // the 24-hour Linear Log on the exact same timing calculation as the ID.
+        // mode backtimes the actual ID duration to :00; SOFT mode anchors at
+        // :59:00. Music, Smart Blocks and the 24-hour Linear Log all use this
+        // same target instead of maintaining a second TOH clock.
         $topOfHourDelta = $this->topOfHourClock->secondsUntilPlayoutAnchor($station, $now);
         if (null !== $topOfHourDelta) {
             $best = $topOfHourDelta;
@@ -270,19 +270,25 @@ final class BroadcastClockPlanner
         CarbonImmutable $now,
     ): ?int {
         $config = $station->backend_config;
-        if (!($config->ai_news_enabled ?? false)) {
+        if (!$config->ai_news_enabled) {
             return null;
         }
 
         $minutes = [];
-        if ($config->ai_news_top_of_hour ?? true) {
+
+        // The legacy Liquidsoap top-of-hour bulletin is a direct request-queue
+        // injection at :59. When the automatic Station ID is enabled, that would
+        // race the mandatory ID for the same track boundary. The matching
+        // Liquidsoap configuration guard suppresses that :59 bulletin, so it
+        // must not remain as a phantom broadcast-clock anchor here either.
+        if ($config->ai_news_top_of_hour && !$config->top_of_hour_id_enabled) {
             $minutes[] = 59;
         }
-        if ($config->ai_news_bottom_of_hour ?? false) {
+        if ($config->ai_news_bottom_of_hour) {
             $minutes[] = 29;
         }
         if ([] === $minutes) {
-            $minutes[] = 59;
+            return null;
         }
 
         $best = null;
@@ -312,14 +318,14 @@ final class BroadcastClockPlanner
         $config = $station->backend_config;
         $activeDays = array_map(
             static fn(mixed $day): int => (int)$day,
-            $config->ai_news_active_days ?? [],
+            $config->ai_news_active_days,
         );
 
         if ([] !== $activeDays && !in_array($candidate->dayOfWeekIso, $activeDays, true)) {
             return false;
         }
 
-        $activeHours = trim((string)($config->ai_news_active_hours ?? ''));
+        $activeHours = trim((string)$config->ai_news_active_hours);
         if ('' === $activeHours) {
             return true;
         }
