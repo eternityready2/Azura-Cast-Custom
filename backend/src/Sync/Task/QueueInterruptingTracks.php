@@ -168,7 +168,7 @@ final class QueueInterruptingTracks extends AbstractTask
         }
 
         $currentSong = $station->current_song;
-        if (null === $currentSong || null === $currentSong->timestamp_start) {
+        if (null === $currentSong) {
             return;
         }
 
