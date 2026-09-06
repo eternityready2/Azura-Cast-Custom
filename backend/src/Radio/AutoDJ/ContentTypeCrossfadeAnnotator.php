@@ -65,7 +65,7 @@ final class ContentTypeCrossfadeAnnotator implements EventSubscriberInterface
 
         $station = $event->getStation();
         $fromType = $this->historyRepo->getLastPlayedMediaType($station) ?? 'music';
-        $toType = $media->type ?? 'music';
+        $toType = $media->type;
 
         $fades = $this->crossfadeService->resolveTransitionFades(
             $station,
