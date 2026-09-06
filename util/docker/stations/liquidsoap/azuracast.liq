@@ -359,7 +359,7 @@ def azuracast.autocue(
         )
 
         # Save cache back to AzuraCast.
-        if list.assoc.mem("azuracast_cache_key", request_metadata) then
+        if list.assoc(default="", "azuracast_cache_key", request_metadata) != "" then
             cache_key = list.assoc("azuracast_cache_key", request_metadata);
             log(
                 level=2,
