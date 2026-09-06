@@ -39,9 +39,9 @@ final class BroadcastClockPlanner
         $best = null;
 
         // The rebuilt station ID is a first-class broadcast-clock anchor. HARD
-        // mode backtimes to boundary minus the actual selected ID length; SOFT
-        // mode anchors at :59:00. This puts normal music, Smart Blocks and the
-        // 24-hour Linear Log on the exact same timing calculation as the ID.
+        // and SOFT modes both anchor at :59:00; the mode only describes who owns
+        // the following :00 boundary. This puts normal music, Smart Blocks and
+        // the 24-hour Linear Log on the exact same timing calculation as the ID.
         $topOfHourDelta = $this->topOfHourClock->secondsUntilPlayoutAnchor($station, $now);
         if (null !== $topOfHourDelta) {
             $best = $topOfHourDelta;
@@ -270,18 +270,15 @@ final class BroadcastClockPlanner
         CarbonImmutable $now,
     ): ?int {
         $config = $station->backend_config;
-        if (!$config->ai_news_enabled) {
+        if (!($config->ai_news_enabled ?? false)) {
             return null;
         }
 
         $minutes = [];
-        if ($config->ai_news_top_of_hour) {
-            // When automatic TOH ID is on, the ID owns minute :59 and
-            // backtimes into an exact :00 news handoff. Without TOH ID, retain
-            // the station's established :59 news behavior.
-            $minutes[] = $config->top_of_hour_id_enabled ? 0 : 59;
+        if ($config->ai_news_top_of_hour ?? true) {
+            $minutes[] = 59;
         }
-        if ($config->ai_news_bottom_of_hour) {
+        if ($config->ai_news_bottom_of_hour ?? false) {
             $minutes[] = 29;
         }
         if ([] === $minutes) {
@@ -313,7 +310,10 @@ final class BroadcastClockPlanner
     private function isAiNewsActiveAt(Station $station, CarbonImmutable $candidate): bool
     {
         $config = $station->backend_config;
-        $activeDays = $config->ai_news_active_days;
+        $activeDays = array_map(
+            static fn(mixed $day): int => (int)$day,
+            $config->ai_news_active_days ?? [],
+        );
 
         if ([] !== $activeDays && !in_array($candidate->dayOfWeekIso, $activeDays, true)) {
             return false;
