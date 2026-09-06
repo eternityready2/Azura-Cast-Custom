@@ -169,6 +169,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Radio\AutoDJ\AiDjQueueListener::class,
             App\Radio\AutoDJ\DmcaComplianceListener::class,
             App\Radio\Backend\Liquidsoap\ConfigWriter::class,
+            App\Radio\Backend\Liquidsoap\TopOfHourAiNewsConfigurationGuard::class,
             App\Radio\Backend\Liquidsoap\PlaylistFileWriter::class,
             App\Sync\NowPlaying\Task\NowPlayingTask::class,
         ]
