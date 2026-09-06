@@ -90,6 +90,7 @@ jobs:
           {
             "extends": "./tsconfig.json",
             "include": [
+              "frontend/**/*.d.ts",
               "frontend/components/Stations/TopOfHour.vue",
               "frontend/entities/TopOfHour.ts"
             ],
