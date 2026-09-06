@@ -12,6 +12,7 @@ use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
 use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\AutoDJ\Scheduler;
+use App\Utilities\Time;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -128,7 +129,10 @@ final class TopOfHourQueueSubscriber implements EventSubscriberInterface
             DQL
         )->setParameters([
             'station' => $station,
-            'boundary' => $boundary,
+            // StationQueue normalizes this field to UTC on write. Normalize the
+            // query parameter the same way so non-UTC stations get the same
+            // exactly-once behavior as UTC stations.
+            'boundary' => Time::toUtcCarbonImmutable($boundary),
         ])->getSingleScalarResult();
 
         return $count > 0;
