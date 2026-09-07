@@ -10,6 +10,7 @@ use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Radio\AutoDJ\BroadcastClockPlanner;
+use App\Radio\AutoDJ\Scheduler;
 use App\Tests\Module;
 use Codeception\Test\Unit;
 use DateTimeImmutable;
@@ -22,6 +23,18 @@ final class BroadcastClockPlannerTest extends Unit
     protected function _inject(Module $testsModule): void
     {
         $this->planner = $testsModule->container->get(BroadcastClockPlanner::class);
+    }
+
+    public function testTopOfHourRuntimeIsNotASoftAnchorDependency(): void
+    {
+        $constructor = (new \ReflectionClass(BroadcastClockPlanner::class))->getConstructor();
+
+        self::assertNotNull($constructor);
+        self::assertCount(1, $constructor->getParameters());
+        self::assertSame(
+            Scheduler::class,
+            (string)$constructor->getParameters()[0]->getType(),
+        );
     }
 
     public function testScheduledProgramStartIsSoftAnchor(): void
