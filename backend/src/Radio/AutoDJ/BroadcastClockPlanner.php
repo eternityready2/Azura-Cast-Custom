@@ -8,7 +8,6 @@ use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
-use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
 use App\Utilities\ScheduleRecurrence;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -19,6 +18,12 @@ use DateTimeImmutable;
  * Unlike a hard interrupt, a soft anchor gives queue planning enough notice to
  * backtime the preceding audio. Stretch/squeeze can then close a small timing
  * gap and the normal cue-out/fade path is only used when a track cannot fit.
+ *
+ * Automatic Top-of-Hour Station ID and rigid schedule starts are deliberately
+ * NOT soft AutoDJ anchors. Dedicated Liquidsoap wall-clock switches own those
+ * deadlines and interrupt whatever ordinary music is actually on air. Making a
+ * hard deadline a soft queue anchor manufactures tiny synthetic song slots just
+ * before the deadline and leaves those rows available to air afterwards.
  */
 final class BroadcastClockPlanner
 {
@@ -26,7 +31,6 @@ final class BroadcastClockPlanner
 
     public function __construct(
         private readonly Scheduler $scheduler,
-        private readonly TopOfHourClock $topOfHourClock,
     ) {
     }
 
@@ -37,15 +41,6 @@ final class BroadcastClockPlanner
         $tz = $station->getTimezoneObject();
         $nowLocal = CarbonImmutable::instance($now)->setTimezone($tz);
         $best = null;
-
-        // The rebuilt station ID is a first-class broadcast-clock anchor. HARD
-        // mode backtimes the actual ID duration to :00; SOFT mode anchors at
-        // :59:00. Music, Smart Blocks and the 24-hour Linear Log all use this
-        // same target instead of maintaining a second TOH clock.
-        $topOfHourDelta = $this->topOfHourClock->secondsUntilPlayoutAnchor($station, $now);
-        if (null !== $topOfHourDelta) {
-            $best = $topOfHourDelta;
-        }
 
         foreach ($station->playlists as $playlist) {
             if (!$playlist->is_enabled || !$this->isClockAnchoredPlaylist($playlist)) {
@@ -189,8 +184,11 @@ final class BroadcastClockPlanner
             return true;
         }
 
+        // Non-standard strict schedules no longer need a soft start anchor, but
+        // they can still have a meaningful strict-end boundary. Keep them in the
+        // scan so getScheduleBoundaries() can return that end when appropriate.
         foreach ($playlist->schedule_items as $schedule) {
-            if ($schedule->strict_start) {
+            if ($schedule->strict_start || $schedule->is_emergency) {
                 return true;
             }
         }
@@ -215,6 +213,7 @@ final class BroadcastClockPlanner
             $playlist->backend_options,
             true,
         );
+        $rigidStart = $this->isRigidStart($playlist, $schedule);
 
         if (ScheduleRecurrence::hasRecurrence($schedule)) {
             $occurrences = ScheduleRecurrence::getOccurrencesInRange(
@@ -226,7 +225,9 @@ final class BroadcastClockPlanner
             );
 
             foreach ($occurrences as $occurrence) {
-                $boundaries[] = CarbonImmutable::instance($occurrence->start)->setTimezone($tz);
+                if (!$rigidStart) {
+                    $boundaries[] = CarbonImmutable::instance($occurrence->start)->setTimezone($tz);
+                }
 
                 if ($schedule->start_time !== $schedule->end_time && !$allowOverrun) {
                     $boundaries[] = CarbonImmutable::instance($occurrence->end)->setTimezone($tz);
@@ -249,7 +250,9 @@ final class BroadcastClockPlanner
                 continue;
             }
 
-            $boundaries[] = $start;
+            if (!$rigidStart) {
+                $boundaries[] = $start;
+            }
 
             if ($schedule->start_time === $schedule->end_time || $allowOverrun) {
                 continue;
@@ -263,6 +266,15 @@ final class BroadcastClockPlanner
         }
 
         return $boundaries;
+    }
+
+    private function isRigidStart(
+        StationPlaylist $playlist,
+        StationSchedule $schedule,
+    ): bool {
+        return $schedule->strict_start
+            || $schedule->is_emergency
+            || $playlist->backendInterruptOtherSongs();
     }
 
     private function secondsUntilNextAiNewsAnchor(
