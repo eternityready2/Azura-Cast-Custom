@@ -90,8 +90,6 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             return;
         }
 
-        // If a strict Clock Wheel already has a mandatory position-zero legal ID,
-        // it owns this boundary. Never stack a second station-wide ID on top of it.
         if ($this->clock->clockWheelOwnsBoundary($station, $plan->boundaryAt)) {
             $this->removeBoundaryRow($station, $plan->boundaryAt);
             $this->clearRuntimeQueueIfNeeded($station, $backend);
@@ -171,8 +169,6 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             'autocue_fade_out' => 0.0,
         ]);
 
-        // AnnotateNextSong normally stamps delivery time. Restore the real clock
-        // target for this pre-staged external lane so Upcoming/feedback stay true.
         $queueRow->sent_to_autodj = true;
         $queueRow->timestamp_cued = $plan->targetStartAt;
         $queueRow->timestamp_played = $plan->targetStartAt;
@@ -293,6 +289,7 @@ final class StageTopOfHourStationIdTask extends AbstractTask
 
     private function removeAllUnplayedStationWideIds(Station $station): void
     {
+        /** @var list<StationQueue> $rows */
         $rows = $this->em->createQuery(
             <<<'DQL'
                 SELECT q FROM App\Entity\StationQueue q
@@ -304,10 +301,8 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             ->getResult();
 
         foreach ($rows as $row) {
-            if ($row instanceof StationQueue) {
-                $this->removeComplianceEventForRow($station, $row);
-                $this->em->remove($row);
-            }
+            $this->removeComplianceEventForRow($station, $row);
+            $this->em->remove($row);
         }
 
         if ([] !== $rows) {
