@@ -28,7 +28,7 @@ final class TopOfHourClockTest extends Unit
         $this->clock = $testsModule->container->get(TopOfHourClock::class);
     }
 
-    public function testSoftEtmTargetsTheOpeningOfMinuteFiftyNine(): void
+    public function testOpenHourTargetsConfiguredMinuteFiftyNineDeadline(): void
     {
         [$station, $media] = $this->persistStationWithId(37.825);
 
@@ -47,7 +47,7 @@ final class TopOfHourClockTest extends Unit
         }
     }
 
-    public function testHardTohBacktimesActualIdDurationToTheBoundary(): void
+    public function testRigidZeroEventDoesNotMoveIdStartLater(): void
     {
         [$station, $media] = $this->persistStationWithId(37.825);
 
@@ -69,8 +69,32 @@ final class TopOfHourClockTest extends Unit
             self::assertNotNull($plan);
             self::assertSame(TopOfHourMode::HardToh, $plan->mode);
             self::assertSame('2026-09-06 10:00:00.000000', $plan->boundaryAt->format('Y-m-d H:i:s.u'));
-            self::assertSame('2026-09-06 09:59:22.175000', $plan->targetStartAt->format('Y-m-d H:i:s.u'));
+            self::assertSame('2026-09-06 09:59:00.000000', $plan->targetStartAt->format('Y-m-d H:i:s.u'));
             self::assertTrue($plan->isHard());
+        } finally {
+            $this->removeTestEntities($station, $media);
+        }
+    }
+
+    public function testOperatorCanMoveIdStartWithinMinuteFiftyNine(): void
+    {
+        [$station, $media] = $this->persistStationWithId(37.825);
+
+        try {
+            $config = $station->backend_config;
+            $config->fromArray([
+                TopOfHourClock::CONFIG_ID_START_SECOND => 22,
+                TopOfHourClock::CONFIG_ID_FADE_SECONDS => 7.5,
+            ]);
+            $station->backend_config = $config;
+
+            $from = CarbonImmutable::parse('2026-09-06 09:50:00', 'UTC');
+            $plan = $this->clock->plan($station, $from);
+
+            self::assertNotNull($plan);
+            self::assertSame('2026-09-06 09:59:22.000000', $plan->targetStartAt->format('Y-m-d H:i:s.u'));
+            self::assertSame(22, $this->clock->getIdStartSecond($station));
+            self::assertSame(7.5, $this->clock->getIdFadeSeconds($station));
         } finally {
             $this->removeTestEntities($station, $media);
         }
@@ -98,7 +122,7 @@ final class TopOfHourClockTest extends Unit
         $em = $this->testsModule->em;
 
         $station = new Station();
-        $station->name = 'TOPH Broadcast Clock Test';
+        $station->name = 'TOH Wall Clock Test';
         $station->short_name = 'toph_clock_' . substr(uniqid('', true), -8);
         $station->timezone = 'UTC';
         $station->ensureDirectoriesExist();
@@ -109,7 +133,7 @@ final class TopOfHourClockTest extends Unit
         $config->top_of_hour_id_max_seconds = 60;
         $station->backend_config = $config;
 
-        $media = new StationMedia($station->media_storage_location, '/broadcast-clock-id-' . uniqid() . '.mp3');
+        $media = new StationMedia($station->media_storage_location, '/wall-clock-id-' . uniqid() . '.mp3');
         $media->title = 'Station ID';
         $media->artist = 'Station';
         $media->type = StationMediaTypes::ID;
