@@ -31,8 +31,13 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('mode="randomize"', $config);
         self::assertStringContainsString('11h0m-12h0m', $config);
         self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
-        self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
-        self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
+        self::assertStringContainsString('def rigid_schedule_enter(old, new)', $config);
+        self::assertStringContainsString('source.skip(old)', $config);
+        self::assertStringContainsString(
+            'Rigid Schedule: discarded complete outgoing AutoDJ playout track and crossfade buffer.',
+            $config,
+        );
+        self::assertStringNotContainsString('azuracast.discard_autodj_current()', $config);
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
