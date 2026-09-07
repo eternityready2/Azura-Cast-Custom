@@ -10,6 +10,7 @@ use App\Radio\Adapters;
 use App\Radio\AutoDJ\Queue;
 use App\Radio\AutoDJ\Scheduler;
 use App\Radio\AutoDJ\SponsorGuaranteedPlayoutService;
+use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
 use App\Radio\Backend\Liquidsoap;
 use App\Radio\Enums\LiquidsoapQueues;
 use App\Utilities\Time;
@@ -24,6 +25,7 @@ final class QueueInterruptingTracks extends AbstractTask
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly Scheduler $scheduler,
         private readonly SponsorGuaranteedPlayoutService $sponsorGuarantee,
+        private readonly TopOfHourClock $topOfHourClock,
     ) {
     }
 
@@ -64,28 +66,18 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // This feature only works on Liquidsoap.
         $backend = $this->adapters->getBackendAdapter($station);
-
         if (!($backend instanceof Liquidsoap)) {
             return;
         }
 
-        // Real-time last-resort backstop for rigid scheduled starts. Normal
-        // queue planning, broadcast-clock timing, and stretch/squeeze handle
-        // the common case. This check only protects the operator's explicit
-        // wall-clock schedule when real playout would otherwise overrun it.
-        //
-        // Top-of-Hour Station IDs do not own a separate interrupt queue and do
-        // not disable this rule. In HARD TOH the ID is planned to end exactly
-        // at :00, so the guard naturally does nothing when the clock plan is on
-        // time. If playout ever drifts, the rigid :00 event still remains the
-        // final authority.
+        // Last-resort protection for ordinary rigid schedule boundaries. During
+        // minute :59, however, an enabled automatic TOH ID owns the pre-boundary
+        // transition and performs its own slow fade. Do not issue an abrupt
+        // radio.skip() underneath that fade; the rigid :00 switch still keeps
+        // absolute authority when the boundary actually arrives.
         $this->enforceScheduledBoundary($station, $backend);
 
-        // Automatic Top-of-Hour IDs are deliberately excluded here. The rebuilt
-        // feature creates them only through TopOfHourQueueSubscriber and the
-        // normal AutoDJ queue, so this task cannot race it with a second source.
         $hasInterruptingPlaylist = false;
         $tz = $station->getTimezoneObject();
         foreach ($station->playlists as $playlist) {
@@ -106,15 +98,12 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        // Do not stack interrupting audio. Top-of-Hour IDs never use this queue.
         if (!$backend->isQueueEmpty($station, LiquidsoapQueues::Interrupting)) {
             $this->logger->info('Interrupting queue: Queue is not empty.');
             return;
         }
 
-        // Build a queue of interrupting songs to queue up.
         $songsToPlay = $this->queue->getInterruptingQueue($station);
-
         if (empty($songsToPlay)) {
             return;
         }
@@ -124,7 +113,6 @@ final class QueueInterruptingTracks extends AbstractTask
             $this->eventDispatcher->dispatch($event);
 
             $track = $event->buildAnnotations();
-
             $queueName = LiquidsoapQueues::Interrupting;
 
             $this->logger->debug('Submitting request to AutoDJ.', [
@@ -138,10 +126,6 @@ final class QueueInterruptingTracks extends AbstractTask
 
     /**
      * Last-resort real-wall-clock backstop for rigid scheduled starts.
-     *
-     * Only acts inside a short pre-boundary window, and only when the current
-     * on-air item would genuinely still be running after the scheduled start.
-     * This does not replace normal broadcast-clock queue planning.
      */
     private function enforceScheduledBoundary(Station $station, Liquidsoap $backend): void
     {
@@ -157,14 +141,31 @@ final class QueueInterruptingTracks extends AbstractTask
             return;
         }
 
-        if (null === $secondsToScheduled) {
+        if (null === $secondsToScheduled || $secondsToScheduled > 90) {
             return;
         }
 
-        // Wide enough to guarantee at least one once-a-minute task tick lands
-        // inside the protection window, but narrow enough to avoid early cuts.
-        if ($secondsToScheduled > 90) {
-            return;
+        // When the next rigid start is exactly the top of the hour and TOH is
+        // enabled, minute :59 belongs to the ID runtime. It has already planned
+        // a smooth pre-fade and will release the underlying source exactly at
+        // :00. An early backend skip here would destroy that smooth transition.
+        if ($this->topOfHourClock->isEnabled($station) && $secondsToScheduled > 0) {
+            $tz = $station->getTimezoneObject();
+            $localNow = $now->setTimezone($tz);
+            $scheduledLocal = $now
+                ->modify('+' . $secondsToScheduled . ' seconds')
+                ->setTimezone($tz);
+
+            if (
+                '59' === $localNow->format('i')
+                && '00:00' === $scheduledLocal->format('i:s')
+            ) {
+                $this->logger->debug(
+                    'Scheduled boundary enforcement delegated to TOH runtime for the :59 pre-fade.',
+                    ['seconds_to_scheduled' => $secondsToScheduled]
+                );
+                return;
+            }
         }
 
         $currentSong = $station->current_song;
@@ -178,8 +179,6 @@ final class QueueInterruptingTracks extends AbstractTask
             ->getTimestamp();
         $scheduledBoundaryAt = $now->getTimestamp() + $secondsToScheduled;
 
-        // Small grace margin: if the item is already ending essentially on the
-        // boundary, let the normal transition complete instead of forcing one.
         if ($currentSongEndsAt <= $scheduledBoundaryAt + 2) {
             return;
         }

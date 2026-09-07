@@ -54,6 +54,10 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     public function getNextVisible(Station $station): ?StationQueue
     {
         return $this->getUnplayedBaseQuery($station)
+            // Station-wide TOH IDs are pre-staged into a dedicated Liquidsoap
+            // lane and are visible in Upcoming Queue, but they are not the next
+            // ordinary AutoDJ item until the wall-clock lane actually takes air.
+            ->andWhere('sq.top_of_hour_legal_id = 0')
             ->andWhere('sq.is_visible = 1')
             ->getQuery()
             ->setMaxResults(1)
@@ -233,12 +237,18 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     }
 
     /**
-     * @param Station $station
+     * Ordinary AutoDJ queue only. Externally pre-staged station-wide TOH IDs
+     * remain visible through getUnplayedBaseQuery()/QueueController but must not
+     * advance or reorder the normal music cursor.
+     *
      * @return StationQueue[]
      */
     public function getUnplayedQueue(Station $station): array
     {
-        return $this->getUnplayedBaseQuery($station)->getQuery()->execute();
+        return $this->getUnplayedBaseQuery($station)
+            ->andWhere('sq.top_of_hour_legal_id = 0')
+            ->getQuery()
+            ->execute();
     }
 
     public function hasUnplayedQueue(Station $station): bool
@@ -249,6 +259,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 FROM App\Entity\StationQueue sq
                 WHERE sq.station = :station
                 AND sq.is_played = 0
+                AND sq.top_of_hour_legal_id = 0
             DQL
         )->setParameter('station', $station)
             ->setMaxResults(1)
@@ -283,16 +294,6 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     /**
      * Timestamps of already-AIRED (is_played = 1) mandatory legal IDs whose
      * timestamp_played falls within the given window.
-     *
-     * hasTopOfHourIdQueued() in HourBoundaryPlanner only scans the unplayed queue, so
-     * once an hour's ID has actually played it drops out of that scan entirely -- a
-     * later BuildQueue evaluation (e.g. the once-a-minute interrupt-fallback tick
-     * re-firing, or a slot whose expected-play-time still resolves to the same
-     * boundary) can then see "nothing queued for this hour" and queue a second,
-     * duplicate ID. The caller re-applies the same boundary-rollover math used for
-     * unplayed rows (a track played at :58/:59 serves the *next* hour's boundary),
-     * so the window here is intentionally wider than the hour itself -- it must
-     * include the tail of the preceding hour where an on-time ID would actually air.
      *
      * @return DateTimeImmutable[]
      */
@@ -417,6 +418,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
                 DELETE FROM App\Entity\StationQueue sq
                 WHERE sq.station = :station
                 AND sq.sent_to_autodj = 0
+                AND sq.top_of_hour_legal_id = 0
             DQL
         )->setParameter('station', $station)
             ->execute();
@@ -426,6 +428,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     {
         return $this->getBaseQuery($station)
             ->andWhere('sq.sent_to_autodj = 0')
+            ->andWhere('sq.top_of_hour_legal_id = 0')
             ->orderBy('sq.timestamp_cued', 'ASC')
             ->getQuery()
             ->setMaxResults(1)
@@ -438,6 +441,7 @@ final class StationQueueRepository extends AbstractStationBasedRepository
     ): ?StationQueue {
         return $this->getUnplayedBaseQuery($station)
             ->andWhere('sq.sent_to_autodj = 1')
+            ->andWhere('sq.top_of_hour_legal_id = 0')
             ->andWhere('sq.song_id = :song_id')
             ->setParameter('song_id', $song->song_id)
             ->getQuery()

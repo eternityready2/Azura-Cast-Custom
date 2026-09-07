@@ -16,12 +16,15 @@ use DateTimeImmutable;
 /**
  * Single source of truth for station-wide Top-of-Hour ID clock math.
  *
- * HARD TOH: a rigid event owns :00. The selected Station ID is backtimed by
- * its actual duration so it ends exactly at the boundary.
+ * The ID always targets an operator-selected second inside minute :59. Queue
+ * planning uses the same target as a soft broadcast-clock anchor, while the
+ * Liquidsoap runtime guard is the final authority that can interrupt whatever
+ * is on air at that exact wall-clock time.
  *
- * SOFT ETM: no rigid event owns :00. The ID opens minute :59 at :59:00 and
- * ordinary AutoDJ continuity may resume after it. No promo/ad is silently
- * substituted by this engine.
+ * HARD TOH means a rigid event owns :00. The ID still starts at the configured
+ * :59:ss target, but the rigid event is allowed to take control exactly at :00.
+ * SOFT ETM means the new hour is open; the ID may finish naturally before normal
+ * AutoDJ/news continuity resumes.
  */
 final class TopOfHourClock
 {
@@ -36,6 +39,17 @@ final class TopOfHourClock
     public const int DEFAULT_ID_MAX_SECONDS = 60;
     public const int MIN_ID_MAX_SECONDS = 15;
     public const int MAX_ID_MAX_SECONDS = 60;
+
+    public const int DEFAULT_ID_START_SECOND = 0;
+    public const int MIN_ID_START_SECOND = 0;
+    public const int MAX_ID_START_SECOND = 59;
+
+    public const float DEFAULT_ID_FADE_SECONDS = 5.0;
+    public const float MIN_ID_FADE_SECONDS = 1.0;
+    public const float MAX_ID_FADE_SECONDS = 10.0;
+
+    public const string CONFIG_ID_START_SECOND = 'top_of_hour_id_start_second';
+    public const string CONFIG_ID_FADE_SECONDS = 'top_of_hour_id_fade_seconds';
 
     public function __construct(
         private readonly StationIdSelector $stationIdSelector,
@@ -77,6 +91,30 @@ final class TopOfHourClock
         );
     }
 
+    public function getIdStartSecond(Station $station): int
+    {
+        $raw = $station->backend_config->toArray(true) ?? [];
+
+        return $this->clamp(
+            (int)($raw[self::CONFIG_ID_START_SECOND] ?? self::DEFAULT_ID_START_SECOND),
+            self::MIN_ID_START_SECOND,
+            self::MAX_ID_START_SECOND,
+            self::DEFAULT_ID_START_SECOND,
+        );
+    }
+
+    public function getIdFadeSeconds(Station $station): float
+    {
+        $raw = $station->backend_config->toArray(true) ?? [];
+        $value = (float)($raw[self::CONFIG_ID_FADE_SECONDS] ?? self::DEFAULT_ID_FADE_SECONDS);
+
+        if ($value < self::MIN_ID_FADE_SECONDS || $value > self::MAX_ID_FADE_SECONDS) {
+            return self::DEFAULT_ID_FADE_SECONDS;
+        }
+
+        return round($value, 1);
+    }
+
     public function getNextBoundary(
         Station $station,
         DateTimeImmutable $from,
@@ -112,12 +150,13 @@ final class TopOfHourClock
         $hard = $this->hasRigidStartAtBoundary($station, $boundary);
         $mode = $hard ? TopOfHourMode::HardToh : TopOfHourMode::SoftEtm;
 
-        // HARD TOH eliminates filler between the ID and a rigid :00 event by
-        // backtiming the actual selected ID. SOFT ETM deliberately opens at
-        // :59:00 because no rigid handoff owns the boundary.
-        $targetStart = $hard
-            ? $boundary->subMilliseconds((int)round($duration * 1000))
-            : $boundary->subMinute();
+        // The operator owns the exact ID start. HARD/SOFT changes what happens
+        // at :00, not when the ID begins. This keeps :59:ss a true station clock
+        // event and lets operators place IDs according to their real duration.
+        $targetStart = $boundary
+            ->subMinute()
+            ->startOfMinute()
+            ->addSeconds($this->getIdStartSecond($station));
 
         return new TopOfHourPlan(
             mode: $mode,
@@ -130,9 +169,9 @@ final class TopOfHourClock
 
     /**
      * True when a Clock Wheel explicitly scheduled at this boundary contains a
-     * mandatory position-zero ID/legal-ID slot. In that case the wheel owns the
-     * ID for the hour and the station-wide producer must yield instead of
-     * creating a second identification immediately before it.
+     * mandatory position-zero ID/legal-ID slot. In that special case the wheel
+     * already supplies identification and the station-wide producer yields so
+     * two IDs are not stacked back-to-back.
      */
     public function clockWheelOwnsBoundary(
         Station $station,
@@ -164,8 +203,6 @@ final class TopOfHourClock
             return null;
         }
 
-        // Existing AutoDJ clock timing is whole-second based. Floor toward the
-        // anchor so we never round upward and allow a track to run long.
         $seconds = (int)floor(
             ((float)$plan->targetStartAt->format('U.u')) - ((float)$from->format('U.u'))
         );
@@ -185,10 +222,19 @@ final class TopOfHourClock
             return false;
         }
 
-        $boundary = $this->getNextBoundary($station, $from);
-        $seconds = $boundary->getTimestamp() - $from->getTimestamp();
+        $plan = $this->plan($station, $from);
+        if (null === $plan) {
+            return false;
+        }
 
-        return $seconds > 0 && $seconds <= ($this->getLookaheadMinutes($station) * 60);
+        $seconds = (float)$plan->targetStartAt->format('U.u') - (float)$from->format('U.u');
+        if ($seconds <= 0) {
+            // A late recovery is still inside the current :59 minute, but it is
+            // no longer an advance-planning lookahead condition.
+            return false;
+        }
+
+        return $seconds <= ($this->getLookaheadMinutes($station) * 60);
     }
 
     private function hasRigidStartAtBoundary(
