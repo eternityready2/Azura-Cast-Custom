@@ -44,7 +44,9 @@ jobs:
           grep -q 'priority 20' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q "WriteLiquidsoapConfiguration::class => \['writeRuntime', 16\]" backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'rigid_schedule_runtime' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
-          grep -q 'azuracast.discard_autodj_current()' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'def rigid_schedule_enter(old, new)' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'source.skip(old)' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'azuracast.discard_autodj_current()' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'source.skip(source.effective(' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'Dedicated native source for an AutoDJ-only rigid scheduled programme' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'PlaylistFileWriter::getPlaylistFilePath' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
@@ -71,8 +73,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Parse the real common AzuraCast Liquidsoap runtime. This catches type
-          # errors in the direct request.dynamic transport reference itself.
+          # Parse the real common AzuraCast Liquidsoap runtime.
           docker run --rm --entrypoint liquidsoap \
             -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
             -w /liq \
@@ -86,25 +87,14 @@ jobs:
           top_of_hour_id = request.queue(id="top_of_hour_id", timeout=20.)
           live_enabled = ref(false)
 
-          autodj_transport = ref(blank(id="autodj_transport_placeholder", duration=0.))
-          autodj_transport_ready = ref(false)
           autodj_dynamic = request.queue(id="autodj_dynamic", timeout=20.)
-          autodj_transport := autodj_dynamic
-          autodj_transport_ready := true
-
-          def discard_autodj_current() =
-            if autodj_transport_ready() then
-              source.skip(autodj_transport())
-            end
-          end
-
           underlying = fallback(track_sensitive=false, [autodj_dynamic, blank()])
           rigid_a = blank(id="rigid_a")
           rigid_b = blank(id="rigid_b")
 
-          def take_rigid(_, new) =
+          def take_rigid(old, new) =
             if not live_enabled() then
-              discard_autodj_current()
+              source.skip(old)
             end
             interrupting_queue.skip()
             interrupting_queue.set_queue([])
@@ -239,8 +229,13 @@ jobs:
           $check(str_contains($config, '11h0m-12h0m'), 'Strict schedule predicate is missing or incorrect.');
           $check(str_contains($config, 'id="rigid_schedule_runtime"'), 'Rigid wall-clock switch is missing.');
           $check(
-              str_contains($config, 'azuracast.discard_autodj_current()'),
-              'Rigid takeover does not call the direct AutoDJ transport discard.',
+              str_contains($config, 'def rigid_schedule_enter(old, new)')
+              && str_contains($config, 'source.skip(old)'),
+              'Rigid takeover does not flush the complete outgoing playout source.',
+          );
+          $check(
+              !str_contains($config, 'azuracast.discard_autodj_current()'),
+              'Rigid runtime still skips only the request.dynamic leaf.',
           );
           $check(
               !str_contains($config, 'source.skip(source.effective('),
