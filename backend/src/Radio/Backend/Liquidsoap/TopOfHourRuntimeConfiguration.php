@@ -139,7 +139,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 # it cannot briefly resume from the middle after the ID finishes.
                 # Live audio is never skipped and can resume after the ID.
                 if not azuracast.live_enabled() then
-                    old.skip()
+                    source.skip(old)
                 end
                 new
             end
