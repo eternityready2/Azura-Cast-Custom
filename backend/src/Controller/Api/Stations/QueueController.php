@@ -145,6 +145,18 @@ final class QueueController extends AbstractStationApiCrudController
             $qb->andWhere('sq.playlist_chain IS NOT NULL');
         }
 
+        // The repository's operational queue order intentionally puts rows that
+        // have already been handed to Liquidsoap before rows still waiting in PHP.
+        // That is correct for AutoDJ transport, but it is wrong for this screen:
+        // the Upcoming Song Queue displays `timestamp_played` as "Expected to Play at".
+        // A pre-staged TOH ID can therefore be marked sent_to_autodj before an
+        // earlier ordinary song, which previously made the UI show e.g. 1:59
+        // above 1:56. Override the transport order here and sort the display by
+        // the exact timestamp the user sees, with stable tie-breakers.
+        $qb->orderBy('sq.timestamp_played', 'ASC')
+            ->addOrderBy('sq.timestamp_cued', 'ASC')
+            ->addOrderBy('sq.id', 'ASC');
+
         return $this->listPaginatedFromQuery(
             $request,
             $response,
@@ -199,4 +211,3 @@ final class QueueController extends AbstractStationApiCrudController
         return $response->withJson(Status::deleted());
     }
 }
-
