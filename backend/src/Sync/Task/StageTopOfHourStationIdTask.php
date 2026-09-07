@@ -10,6 +10,7 @@ use App\Entity\Station;
 use App\Entity\StationQueue;
 use App\Event\Radio\AnnotateNextSong;
 use App\Radio\Adapters;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelEventLogger;
 use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
 use App\Radio\AutoDJ\TopOfHour\TopOfHourPlan;
 use App\Radio\Backend\Liquidsoap;
@@ -33,6 +34,7 @@ final class StageTopOfHourStationIdTask extends AbstractTask
         private readonly Adapters $adapters,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ClockWheelEventRepository $eventRepo,
+        private readonly ClockWheelEventLogger $eventLogger,
     ) {
     }
 
@@ -69,8 +71,6 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             return;
         }
 
-        // These runtime controls are cheap and make page/config changes converge
-        // without requiring the once-per-hour request to be rebuilt.
         $this->syncRuntimeControls($station, $backend);
 
         if (!$this->clock->isEnabled($station)) {
@@ -90,12 +90,16 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             return;
         }
 
+        // If a strict Clock Wheel already has a mandatory position-zero legal ID,
+        // it owns this boundary. Never stack a second station-wide ID on top of it.
+        if ($this->clock->clockWheelOwnsBoundary($station, $plan->boundaryAt)) {
+            $this->removeBoundaryRow($station, $plan->boundaryAt);
+            $this->clearRuntimeQueueIfNeeded($station, $backend);
+            return;
+        }
+
         $secondsToTarget = (float)$plan->targetStartAt->format('U.u') - (float)$now->format('U.u');
         $lookaheadSeconds = $this->clock->getLookaheadMinutes($station) * 60;
-
-        // Resolve early enough that the request is already ready when the fade
-        // starts. If the task recovers late during :59, still stage immediately;
-        // Liquidsoap will take it as soon as it is ready, but HARD :00 still wins.
         if ($secondsToTarget > $lookaheadSeconds) {
             return;
         }
@@ -109,20 +113,11 @@ final class StageTopOfHourStationIdTask extends AbstractTask
 
         $isNew = false;
 
-        // If ID-library/settings changes select a different ID before airtime,
-        // replace the staged row and its not-yet-aired compliance event cleanly.
         if (
             $queueRow instanceof StationQueue
             && $queueRow->media?->id !== $plan->media->id
         ) {
-            $existingEvent = $this->eventRepo->findLatestUnplayedTopOfHourLegalIdQueued(
-                $station,
-                $queueRow->id,
-            );
-            if ($existingEvent instanceof ClockWheelEvent) {
-                $this->em->remove($existingEvent);
-            }
-
+            $this->removeComplianceEventForRow($station, $queueRow);
             $this->em->remove($queueRow);
             $this->em->flush();
             $this->clearRuntimeQueue($station, $backend);
@@ -138,9 +133,6 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             $isNew = true;
         }
 
-        // The staged row deliberately carries its real playout target so the
-        // Upcoming Queue and compliance layer display the station clock, not the
-        // minute when PHP happened to pre-stage the request.
         $queueRow->duration = $plan->durationSeconds;
         $queueRow->timestamp_cued = $plan->targetStartAt;
         $queueRow->timestamp_played = $plan->targetStartAt;
@@ -148,48 +140,50 @@ final class StageTopOfHourStationIdTask extends AbstractTask
         $this->em->persist($queueRow);
         $this->em->flush();
 
-        if (!$isNew) {
-            $existingEvent = $this->eventRepo->findLatestUnplayedTopOfHourLegalIdQueued(
+        $existingEvent = $this->eventRepo->findLatestUnplayedTopOfHourLegalIdQueued(
+            $station,
+            $queueRow->id,
+        );
+
+        if ($existingEvent instanceof ClockWheelEvent) {
+            $existingEvent->expected_play_at = $plan->targetStartAt;
+            $this->em->persist($existingEvent);
+        } else {
+            $this->eventLogger->recordTopOfHourLegalIdQueued(
                 $station,
-                $queueRow->id,
+                $plan->media,
+                $plan->targetStartAt,
+                $queueRow,
             );
-            if ($existingEvent instanceof ClockWheelEvent) {
-                $existingEvent->expected_play_at = $plan->targetStartAt;
-                $this->em->persist($existingEvent);
-                $this->em->flush();
-            }
         }
+        $this->em->flush();
 
         if ($isNew) {
-            // Never allow a stale unresolved request from the previous hour to
-            // sit ahead of the newly selected boundary ID.
             $this->clearRuntimeQueue($station, $backend);
         } elseif (!$backend->isQueueEmpty($station, LiquidsoapQueues::TopOfHour)) {
-            // Request is already resolved and waiting. Runtime target may have
-            // changed above; no need to resolve/push the same audio twice.
             return;
         }
 
         $event = AnnotateNextSong::fromStationQueue($queueRow, true);
         $this->eventDispatcher->dispatch($event);
-
-        // The outgoing source receives the slow pre-fade. The ID itself starts
-        // immediately at full level on the exact target.
         $event->addAnnotations([
             'autocue_fade_in' => 0.0,
             'autocue_fade_out' => 0.0,
         ]);
 
-        // AnnotateNextSong normally records API-send time. Restore the actual
-        // planned station-clock target after annotation for this external lane.
+        // AnnotateNextSong normally stamps delivery time. Restore the real clock
+        // target for this pre-staged external lane so Upcoming/feedback stay true.
         $queueRow->sent_to_autodj = true;
         $queueRow->timestamp_cued = $plan->targetStartAt;
         $queueRow->timestamp_played = $plan->targetStartAt;
         $this->em->persist($queueRow);
         $this->em->flush();
 
-        $track = $event->buildAnnotations();
-        $backend->enqueue($station, LiquidsoapQueues::TopOfHour, $track);
+        $backend->enqueue(
+            $station,
+            LiquidsoapQueues::TopOfHour,
+            $event->buildAnnotations(),
+        );
 
         $this->logger->info(
             'Top-of-Hour Station ID staged for exact wall-clock playout.',
@@ -206,11 +200,15 @@ final class StageTopOfHourStationIdTask extends AbstractTask
 
     private function syncRuntimeControls(Station $station, Liquidsoap $backend): void
     {
-        $enabled = $this->clock->isEnabled($station) ? 'true' : 'false';
-        $fadeSeconds = number_format($this->clock->getIdFadeSeconds($station), 1, '.', '');
-
-        $backend->command($station, 'top_of_hour_id_control.enabled ' . $enabled);
-        $backend->command($station, 'top_of_hour_id_control.fade_seconds ' . $fadeSeconds);
+        $backend->command(
+            $station,
+            'top_of_hour_id_control.enabled ' . ($this->clock->isEnabled($station) ? 'true' : 'false')
+        );
+        $backend->command(
+            $station,
+            'top_of_hour_id_control.fade_seconds '
+            . number_format($this->clock->getIdFadeSeconds($station), 1, '.', '')
+        );
     }
 
     private function setRuntimePlan(
@@ -218,11 +216,16 @@ final class StageTopOfHourStationIdTask extends AbstractTask
         Liquidsoap $backend,
         TopOfHourPlan $plan,
     ): void {
-        $targetEpoch = number_format((float)$plan->targetStartAt->format('U.u'), 3, '.', '');
-        $boundaryEpoch = number_format((float)$plan->boundaryAt->format('U.u'), 3, '.', '');
-
-        $backend->command($station, 'top_of_hour_id_control.target_epoch ' . $targetEpoch);
-        $backend->command($station, 'top_of_hour_id_control.boundary_epoch ' . $boundaryEpoch);
+        $backend->command(
+            $station,
+            'top_of_hour_id_control.target_epoch '
+            . number_format((float)$plan->targetStartAt->format('U.u'), 3, '.', '')
+        );
+        $backend->command(
+            $station,
+            'top_of_hour_id_control.boundary_epoch '
+            . number_format((float)$plan->boundaryAt->format('U.u'), 3, '.', '')
+        );
         $backend->command(
             $station,
             'top_of_hour_id_control.hard ' . ($plan->isHard() ? 'true' : 'false')
@@ -236,7 +239,6 @@ final class StageTopOfHourStationIdTask extends AbstractTask
                 $this->clearRuntimeQueue($station, $backend);
             }
         } catch (Throwable $e) {
-            // A station may be stopped/restarting while the minute task runs.
             $this->logger->debug(
                 'Top-of-Hour runtime queue status unavailable.',
                 ['station_id' => $station->id, 'exception' => $e->getMessage()]
@@ -267,6 +269,28 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             ->getOneOrNullResult();
     }
 
+    private function removeBoundaryRow(
+        Station $station,
+        DateTimeImmutable $boundary,
+    ): void {
+        $row = $this->findBoundaryRow($station, $boundary);
+        if (!$row instanceof StationQueue || $row->is_played) {
+            return;
+        }
+
+        $this->removeComplianceEventForRow($station, $row);
+        $this->em->remove($row);
+        $this->em->flush();
+    }
+
+    private function removeComplianceEventForRow(Station $station, StationQueue $row): void
+    {
+        $event = $this->eventRepo->findLatestUnplayedTopOfHourLegalIdQueued($station, $row->id);
+        if ($event instanceof ClockWheelEvent) {
+            $this->em->remove($event);
+        }
+    }
+
     private function removeAllUnplayedStationWideIds(Station $station): void
     {
         $rows = $this->em->createQuery(
@@ -281,6 +305,7 @@ final class StageTopOfHourStationIdTask extends AbstractTask
 
         foreach ($rows as $row) {
             if ($row instanceof StationQueue) {
+                $this->removeComplianceEventForRow($station, $row);
                 $this->em->remove($row);
             }
         }
