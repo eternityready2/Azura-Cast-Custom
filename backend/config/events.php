@@ -22,7 +22,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
 
             // Load app-specific route configuration.
             $container = $event->getContainer();
-
             /** @var Environment $environment */
             $environment = $container->get(Environment::class);
 
@@ -41,7 +40,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             $app->add(Middleware\InjectRouter::class);
             $app->add(Middleware\InjectRateLimit::class);
 
-            // System middleware for routing and body parsing.
             $app->addBodyParsingMiddleware();
             $app->addRoutingMiddleware();
 
@@ -50,7 +48,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             $app->add(new Middleware\RemoveSlashes());
             $app->add(new Middleware\ApplyXForwarded());
 
-            // Add an error handler for most in-controller/task situations.
             $errorMiddleware = $app->addErrorMiddleware(
                 $environment->showDetailedErrors(),
                 true,
@@ -79,6 +76,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
                 App\Sync\Task\CleanupStorageTask::class,
                 App\Sync\Task\EnforceBroadcastTimesTask::class,
                 App\Sync\Task\MoveBroadcastsTask::class,
+                App\Sync\Task\StageTopOfHourStationIdTask::class,
                 App\Sync\Task\QueueInterruptingTracks::class,
                 App\Sync\Task\ReactivateStreamerTask::class,
                 App\Sync\Task\RenewAcmeCertTask::class,
@@ -156,7 +154,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Console\ErrorHandler::class,
             App\Nginx\ConfigWriter::class,
             App\Radio\AutoDJ\ClockWheelScheduler::class,
-            App\Radio\AutoDJ\TopOfHour\TopOfHourQueueSubscriber::class,
             App\Radio\AutoDJ\QueueBuilder::class,
             App\Radio\AutoDJ\BroadcastClockQueueTimingSubscriber::class,
             App\Radio\AutoDJ\StretchSqueezeQueueTiming::class,
@@ -169,7 +166,7 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Radio\AutoDJ\AiDjQueueListener::class,
             App\Radio\AutoDJ\DmcaComplianceListener::class,
             App\Radio\Backend\Liquidsoap\ConfigWriter::class,
-            App\Radio\Backend\Liquidsoap\TopOfHourAiNewsConfigurationGuard::class,
+            App\Radio\Backend\Liquidsoap\TopOfHourRuntimeConfiguration::class,
             App\Radio\Backend\Liquidsoap\PlaylistFileWriter::class,
             App\Sync\NowPlaying\Task\NowPlayingTask::class,
         ]
