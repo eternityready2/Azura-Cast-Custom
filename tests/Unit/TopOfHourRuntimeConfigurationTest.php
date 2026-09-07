@@ -13,7 +13,7 @@ use ReflectionClass;
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohTakeoverPermanentlyDiscardsTheRealAutoDjTransport(): void
+    public function testTohTakeoverSkipsTheCompleteOutgoingPlayoutSource(): void
     {
         $station = new Station();
         $station->name = 'TOH Runtime Test';
@@ -30,12 +30,13 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
         $config = $event->buildConfiguration();
 
-        self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
-        self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
+        self::assertStringContainsString('def top_of_hour_id_enter(old, new)', $config);
+        self::assertStringContainsString('source.skip(old)', $config);
         self::assertStringContainsString(
-            'Top-of-Hour ID: permanently discarded interrupted AutoDJ track.',
+            'Top-of-Hour ID: discarded complete outgoing AutoDJ playout track and crossfade buffer.',
             $config,
         );
+        self::assertStringNotContainsString('azuracast.discard_autodj_current()', $config);
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
