@@ -121,17 +121,18 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             radio_before_rigid_schedule = radio
             rigid_schedule_active = ref(false)
 
-            def rigid_schedule_enter(_, new) =
+            def rigid_schedule_enter(old, new) =
                 rigid_schedule_active := true
 
-                # The common runtime exposes the real request.dynamic AutoDJ
-                # transport. Destroy that request directly at takeover so the
-                # song interrupted by this rigid programme cannot remain parked
-                # under a switch/crossfade and resume when the programme ends.
+                # Skip the COMPLETE outgoing playout source at takeover. The
+                # cross() operator can already own buffered audio even after the
+                # underlying request.dynamic request has been killed. Skipping
+                # `old` flushes that composed/buffered track and advances it once,
+                # preventing interrupted music from returning after the programme.
                 # A live DJ is allowed to stay connected and resume afterwards.
                 if not azuracast.live_enabled() then
-                    azuracast.discard_autodj_current()
-                    log("Rigid Schedule: permanently discarded interrupted AutoDJ track.")
+                    source.skip(old)
+                    log("Rigid Schedule: discarded complete outgoing AutoDJ playout track and crossfade buffer.")
                 end
 
                 # The old PHP strict-start path can have queued a duplicate copy
