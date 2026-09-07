@@ -135,11 +135,13 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 
             def top_of_hour_id_enter(old, new) =
                 # The old source has already reached zero gain at the deadline.
-                # Discard interrupted AutoDJ/music here, before the ID plays, so
-                # it cannot briefly resume from the middle after the ID finishes.
+                # `old` is a composed station graph (amplify/switch/fallback), so
+                # skipping that wrapper is not enough: request.dynamic can remain
+                # parked on the same song and resume it after the ID. Resolve the
+                # currently effective leaf and skip that actual file/request source.
                 # Live audio is never skipped and can resume after the ID.
                 if not azuracast.live_enabled() then
-                    source.skip(old)
+                    source.skip(source.effective(old))
                 end
                 new
             end
