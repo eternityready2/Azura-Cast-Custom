@@ -31,7 +31,10 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('mode="randomize"', $config);
         self::assertStringContainsString('11h0m-12h0m', $config);
         self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
-        self::assertStringContainsString('source.skip(source.effective(old))', $config);
+        self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
+        self::assertStringContainsString('def rigid_schedule_exit(_, new)', $config);
+        self::assertStringContainsString('source.skip(source.effective(new))', $config);
+        self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
     }
 
     public function testFlexibleAutoDjOnlyScheduleDoesNotCreateRigidRuntime(): void
