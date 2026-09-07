@@ -41,6 +41,8 @@ jobs:
           grep -q 'priority 20' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q "WriteLiquidsoapConfiguration::class => \['writeRuntime', 16\]" backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'rigid_schedule_runtime' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'Dedicated native source for an AutoDJ-only rigid scheduled programme' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'PlaylistFileWriter::getPlaylistFilePath' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'secondsUntilPlayoutAnchor' backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
           grep -q 'StageTopOfHourStationIdTask' backend/config/events.php
           grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
@@ -139,6 +141,81 @@ jobs:
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
 
+      - name: Execute TOH handoff regression assertions
+        shell: bash
+        run: |
+          php <<'PHP'
+          <?php
+          declare(strict_types=1);
+
+          require getcwd() . '/vendor/autoload.php';
+
+          use App\Entity\Enums\PlaylistSources;
+          use App\Entity\Enums\PlaylistTypes;
+          use App\Entity\Station;
+          use App\Entity\StationPlaylist;
+          use App\Entity\StationSchedule;
+          use App\Event\Radio\WriteLiquidsoapConfiguration;
+          use App\Radio\AutoDJ\BroadcastClockPlanner;
+          use App\Radio\AutoDJ\Scheduler;
+          use App\Radio\Backend\Liquidsoap\RigidScheduleRuntimeConfiguration;
+
+          $check = static function (bool $condition, string $message): void {
+              if (!$condition) {
+                  fwrite(STDERR, "Regression assertion failed: {$message}\n");
+                  exit(1);
+              }
+          };
+
+          $constructor = (new ReflectionClass(BroadcastClockPlanner::class))->getConstructor();
+          $check(null !== $constructor, 'BroadcastClockPlanner constructor is missing.');
+          $parameters = $constructor->getParameters();
+          $check(1 === count($parameters), 'BroadcastClockPlanner regained a TOH/rigid timing dependency.');
+          $check(Scheduler::class === (string)$parameters[0]->getType(), 'BroadcastClockPlanner dependency is not Scheduler only.');
+
+          $station = new Station();
+          $station->name = 'TOH CI Runtime';
+          $station->short_name = 'toh_ci_runtime';
+          $station->timezone = 'UTC';
+          $station->radio_base_dir = '/tmp/toh_ci_runtime';
+          $station->backend_config->write_playlists_to_liquidsoap = false;
+          $station->backend_config->use_manual_autodj = false;
+
+          $playlist = new StationPlaylist($station);
+          $playlist->name = 'Scheduled Program';
+          $playlist->source = PlaylistSources::Songs;
+          $playlist->type = PlaylistTypes::Standard;
+          $playlist->is_enabled = true;
+
+          $schedule = new StationSchedule($playlist);
+          $schedule->start_time = 1100;
+          $schedule->end_time = 1200;
+          $schedule->days = [];
+          $schedule->strict_start = true;
+
+          $station->playlists->add($playlist);
+          $playlist->schedule_items->add($schedule);
+
+          $event = new WriteLiquidsoapConfiguration($station, false, false);
+          (new RigidScheduleRuntimeConfiguration())->writeRuntime($event);
+          $config = $event->buildConfiguration();
+
+          $check(
+              str_contains($config, '# Dedicated native source for an AutoDJ-only rigid scheduled programme.'),
+              'AutoDJ-only strict playlist has no native wall-clock source.',
+          );
+          $check(str_contains($config, 'rigid_playlist_scheduled_program_'), 'Dedicated rigid source variable is missing.');
+          $check(str_contains($config, 'mode="randomize"'), 'Dedicated rigid source did not preserve playlist order.');
+          $check(str_contains($config, '11h0m-12h0m'), 'Strict schedule predicate is missing or incorrect.');
+          $check(str_contains($config, 'id="rigid_schedule_runtime"'), 'Rigid wall-clock switch is missing.');
+          $check(
+              str_contains($config, 'source.skip(source.effective(old))'),
+              'Rigid handoff does not discard the interrupted AutoDJ leaf.',
+          );
+
+          fwrite(STDOUT, "TOH handoff regression assertions passed.\n");
+          PHP
+
       - name: Prepare AzuraCast PHPStan runtime
         run: |
           sudo mkdir -p /var/azuracast/www/plugins
@@ -162,6 +239,8 @@ jobs:
           backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           backend/src/Sync/Task/QueueInterruptingTracks.php
           backend/src/Sync/Task/StageTopOfHourStationIdTask.php
+          tests/Unit/BroadcastClockPlannerTest.php
+          tests/Unit/RigidScheduleRuntimeConfigurationTest.php
           tests/Unit/TopOfHourClockTest.php
 
       - name: Set up Node
