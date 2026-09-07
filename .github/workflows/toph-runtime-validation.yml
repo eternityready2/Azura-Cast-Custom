@@ -119,21 +119,15 @@ jobs:
           output.dummy(radio)
           EOF
 
-          docker run --rm \
+          docker run --rm --entrypoint liquidsoap \
             -v /tmp/toh-rigid-smoke.liq:/tmp/toh-rigid-smoke.liq:ro \
-            debian:trixie-slim \
-            bash -lc '
-              set -e
-              apt-get update >/dev/null
-              apt-get install -y --no-install-recommends ca-certificates wget >/dev/null
-              wget -q -O /tmp/liquidsoap.deb "https://github.com/savonet/liquidsoap-release-assets/releases/download/v2.4.5/liquidsoap_2.4.5-debian-trixie-ocaml4.14.2-1_amd64.deb"
-              dpkg -i /tmp/liquidsoap.deb >/tmp/dpkg.log 2>&1 || {
-                apt-get install -f -y >/dev/null
-                dpkg -i /tmp/liquidsoap.deb >/dev/null
-              }
-              liquidsoap --version
-              liquidsoap --check /tmp/toh-rigid-smoke.liq
-            '
+            savonet/liquidsoap:v2.4.5 \
+            --version
+
+          docker run --rm --entrypoint liquidsoap \
+            -v /tmp/toh-rigid-smoke.liq:/tmp/toh-rigid-smoke.liq:ro \
+            savonet/liquidsoap:v2.4.5 \
+            --check /tmp/toh-rigid-smoke.liq
 
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
