@@ -10,12 +10,14 @@ use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Event\Radio\WriteLiquidsoapConfiguration;
-use App\Radio\Backend\Liquidsoap\RigidScheduleRuntimeConfiguration;
 use Codeception\Test\Unit;
+use Plugin\TopOfHour\RigidScheduleRuntimeConfiguration;
+
+require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php';
 
 final class RigidScheduleRuntimeConfigurationTest extends Unit
 {
-    public function testAutoDjOnlyStrictSongPlaylistGetsDedicatedNativeSource(): void
+    public function testAutoDjOnlyStrictSongPlaylistGetsDedicatedNativeSourceAndTransportGate(): void
     {
         [$station] = $this->makeScheduledProgram(true);
 
@@ -30,21 +32,31 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('rigid_playlist_scheduled_program_', $config);
         self::assertStringContainsString('mode="randomize"', $config);
         self::assertStringContainsString('11h0m-12h0m', $config);
-        self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
-        self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
+        self::assertStringContainsString('id="broadcast_clock_autodj_gate"', $config);
+        self::assertStringContainsString('broadcast_clock_autodj_blocked = ref(false)', $config);
+        self::assertStringContainsString('def broadcast_clock_block_autodj()', $config);
         self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
+        self::assertStringContainsString('predicate.activates({broadcast_clock_base_available()})', $config);
+        self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
+        self::assertStringContainsString('Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin)', $config);
+        self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
+        self::assertStringContainsString('broadcast_clock_block_autodj()', $config);
+        self::assertStringContainsString('broadcast_clock_release_autodj()', $config);
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
 
-    public function testFlexibleAutoDjOnlyScheduleDoesNotCreateRigidRuntime(): void
+    public function testFlexibleAutoDjOnlyScheduleStillGetsSharedGateButNoRigidRuntime(): void
     {
         [$station] = $this->makeScheduledProgram(false);
 
         $event = new WriteLiquidsoapConfiguration($station, false, false);
         (new RigidScheduleRuntimeConfiguration())->writeRuntime($event);
+        $config = $event->buildConfiguration();
 
-        self::assertSame('', $event->buildConfiguration());
+        self::assertStringContainsString('id="broadcast_clock_autodj_gate"', $config);
+        self::assertStringContainsString('rigid_schedule_active = ref(false)', $config);
+        self::assertStringNotContainsString('id="rigid_schedule_runtime"', $config);
     }
 
     /** @return array{Station, StationPlaylist, StationSchedule} */
