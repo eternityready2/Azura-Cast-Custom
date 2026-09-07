@@ -11,11 +11,11 @@ use App\Radio\Enums\LiquidsoapQueues;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Broadcast-clock owner for the automatic Top-of-Hour station ID.
+ * Exact on-air enforcement for automatic Top-of-Hour Station IDs.
  *
- * The PHP side resolves station-local time to absolute epochs and stages the
- * request. Liquidsoap owns the final frame-level handoff. The plugin deliberately
- * sits above the rigid programme lane, which in turn sits above live/AutoDJ.
+ * PHP resolves the station-local :59:ss target into an absolute epoch and
+ * pre-stages the request. Liquidsoap then owns the final deadline at frame
+ * resolution. The plugin is the sole owner of this final playout wrapper.
  */
 final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 {
@@ -65,17 +65,16 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 
             def top_of_hour_id_on_track(_) =
                 top_of_hour_id_active := true
-                # A request.queue removes the current request from its waiting
-                # queue as soon as playout starts. Purge anything still waiting
-                # so one wall-clock deadline can never produce two IDs in a row.
+                # request.queue removes the active request from its waiting queue;
+                # purge any remaining staged tail so one deadline cannot double-ID.
                 top_of_hour_id.set_queue([])
-                log("Top-of-Hour ID: Station ID is on air; cleared any duplicate staged tail.")
+                log("Top-of-Hour ID: Station ID is on air; cleared duplicate staged tail.")
             end
             source.methods(top_of_hour_id).on_track(synchronous=false, top_of_hour_id_on_track)
 
-            # Fade the complete underlying station source before the deadline.
-            # At the target it has reached zero, so the ID starts exactly on time
-            # without a hard chop and without delaying the ID by fade length.
+            # Fade the complete underlying station graph before the deadline.
+            # At the target it has reached zero, so the ID itself starts exactly
+            # on time rather than waiting for a fade or normal track boundary.
             def top_of_hour_underlying_gain() =
                 now = time()
                 target = top_of_hour_id_target_epoch()
@@ -134,14 +133,14 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             end
 
             def top_of_hour_id_enter(_, new) =
-                # The fade has already reached zero at the deadline. Hold the
-                # exact request.dynamic transport and destroy its current request
-                # before the ID owns the air. The gate prevents AutoDJ from
-                # immediately loading back onto the station graph during the ID.
-                # Live audio remains connected underneath and is never skipped.
+                # The fade has already reached zero. Destroy the exact
+                # request.dynamic(id="next_song") transport, not a wrapper or an
+                # effective-source guess. The interrupted song is gone before the
+                # ID owns the air and therefore cannot resume afterwards.
+                # Live audio is never discarded.
                 if not azuracast.live_enabled() then
-                    azuracast.autodj_clock_hold()
-                    log("Top-of-Hour ID: held AutoDJ and permanently discarded interrupted track.")
+                    azuracast.discard_autodj_current()
+                    log("Top-of-Hour ID: permanently discarded interrupted AutoDJ track.")
                 end
                 new
             end
@@ -160,14 +159,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
                 top_of_hour_id_boundary_epoch := 0.0
-
-                # If the rigid programme has taken :00, it keeps the transport
-                # held until that programme ends. Otherwise this was a SOFT/open
-                # hour and AutoDJ is released for a fresh request immediately.
-                if azuracast.autodj_clock_is_held() and not rigid_schedule_active() then
-                    azuracast.autodj_clock_release()
-                    log("Top-of-Hour ID: released AutoDJ for fresh programming.")
-                end
                 new
             end
 
@@ -251,9 +242,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
                 top_of_hour_id_boundary_epoch := 0.0
-                if azuracast.autodj_clock_is_held() and not rigid_schedule_active() then
-                    azuracast.autodj_clock_release()
-                end
                 "Done!"
             end
             server.register(
