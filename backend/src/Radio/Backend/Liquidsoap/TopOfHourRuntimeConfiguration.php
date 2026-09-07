@@ -134,15 +134,13 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             end
 
             def top_of_hour_id_enter(_, new) =
-                # The fade has already reached zero at the clock deadline. Kill
-                # the actual request.dynamic AutoDJ transport directly now. This
-                # is not a wrapper/effective-source guess: the common runtime
-                # publishes the real `next_song` source specifically for clock
-                # events. The interrupted song is therefore gone before the ID
-                # owns the air and cannot resume when the ID releases.
+                # Close the automated-playout airlock for the entire ID. The
+                # shared helper also destroys the exact request.dynamic transport
+                # when no live DJ is on air, so the faded song cannot be parked
+                # underneath and resume when this switch releases.
+                broadcast_clock_hold_toh()
                 if not azuracast.live_enabled() then
-                    azuracast.discard_autodj_current()
-                    log("Top-of-Hour ID: permanently discarded interrupted AutoDJ track.")
+                    log("Top-of-Hour ID: permanently discarded interrupted AutoDJ track and closed AutoDJ airlock.")
                 end
                 new
             end
@@ -161,6 +159,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
                 top_of_hour_id_boundary_epoch := 0.0
+                broadcast_clock_release_toh()
                 new
             end
 
@@ -244,6 +243,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
                 top_of_hour_id_boundary_epoch := 0.0
+                broadcast_clock_release_toh()
                 "Done!"
             end
             server.register(
