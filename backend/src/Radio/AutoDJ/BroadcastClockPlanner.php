@@ -19,12 +19,11 @@ use DateTimeImmutable;
  * backtime the preceding audio. Stretch/squeeze can then close a small timing
  * gap and the normal cue-out/fade path is only used when a track cannot fit.
  *
- * Automatic Top-of-Hour Station ID is deliberately NOT a soft AutoDJ anchor.
- * The dedicated Liquidsoap wall-clock lane owns that deadline and interrupts
- * whatever ordinary music is actually on air. Making TOH a queue-planning
- * anchor manufactures tiny synthetic song slots immediately before :59:ss and
- * leaves those rows available to air after the ID, which is exactly the wrong
- * behavior for a broadcast station ID.
+ * Automatic Top-of-Hour Station ID and rigid schedule starts are deliberately
+ * NOT soft AutoDJ anchors. Dedicated Liquidsoap wall-clock switches own those
+ * deadlines and interrupt whatever ordinary music is actually on air. Making a
+ * hard deadline a soft queue anchor manufactures tiny synthetic song slots just
+ * before the deadline and leaves those rows available to air afterwards.
  */
 final class BroadcastClockPlanner
 {
@@ -185,8 +184,11 @@ final class BroadcastClockPlanner
             return true;
         }
 
+        // Non-standard strict schedules no longer need a soft start anchor, but
+        // they can still have a meaningful strict-end boundary. Keep them in the
+        // scan so getScheduleBoundaries() can return that end when appropriate.
         foreach ($playlist->schedule_items as $schedule) {
-            if ($schedule->strict_start) {
+            if ($schedule->strict_start || $schedule->is_emergency) {
                 return true;
             }
         }
@@ -211,6 +213,7 @@ final class BroadcastClockPlanner
             $playlist->backend_options,
             true,
         );
+        $rigidStart = $this->isRigidStart($playlist, $schedule);
 
         if (ScheduleRecurrence::hasRecurrence($schedule)) {
             $occurrences = ScheduleRecurrence::getOccurrencesInRange(
@@ -222,7 +225,9 @@ final class BroadcastClockPlanner
             );
 
             foreach ($occurrences as $occurrence) {
-                $boundaries[] = CarbonImmutable::instance($occurrence->start)->setTimezone($tz);
+                if (!$rigidStart) {
+                    $boundaries[] = CarbonImmutable::instance($occurrence->start)->setTimezone($tz);
+                }
 
                 if ($schedule->start_time !== $schedule->end_time && !$allowOverrun) {
                     $boundaries[] = CarbonImmutable::instance($occurrence->end)->setTimezone($tz);
@@ -245,7 +250,9 @@ final class BroadcastClockPlanner
                 continue;
             }
 
-            $boundaries[] = $start;
+            if (!$rigidStart) {
+                $boundaries[] = $start;
+            }
 
             if ($schedule->start_time === $schedule->end_time || $allowOverrun) {
                 continue;
@@ -259,6 +266,15 @@ final class BroadcastClockPlanner
         }
 
         return $boundaries;
+    }
+
+    private function isRigidStart(
+        StationPlaylist $playlist,
+        StationSchedule $schedule,
+    ): bool {
+        return $schedule->strict_start
+            || $schedule->is_emergency
+            || $playlist->backendInterruptOtherSongs();
     }
 
     private function secondsUntilNextAiNewsAnchor(
