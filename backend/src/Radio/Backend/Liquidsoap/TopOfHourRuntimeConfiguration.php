@@ -133,16 +133,19 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 end
             end
 
-            def top_of_hour_id_enter(_, new) =
-                # The fade has already reached zero at the clock deadline. Kill
-                # the actual request.dynamic AutoDJ transport directly now. This
-                # is not a wrapper/effective-source guess: the common runtime
-                # publishes the real `next_song` source specifically for clock
-                # events. The interrupted song is therefore gone before the ID
-                # owns the air and cannot resume when the ID releases.
+            def top_of_hour_id_enter(old, new) =
+                # The fade has already reached zero at the clock deadline. Skip
+                # the COMPLETE outgoing playout source, not only the underlying
+                # request.dynamic leaf. Liquidsoap's cross() operator buffers the
+                # tail of the current song (and can buffer the next head) while
+                # preparing transitions. Killing only request.dynamic can leave
+                # that buffered audio alive and allow the old song to reappear
+                # when this switch releases. Skipping `old` flushes the composed
+                # crossfade/playout track itself and advances it exactly once.
+                # A connected live DJ is never skipped here.
                 if not azuracast.live_enabled() then
-                    azuracast.discard_autodj_current()
-                    log("Top-of-Hour ID: permanently discarded interrupted AutoDJ track.")
+                    source.skip(old)
+                    log("Top-of-Hour ID: discarded complete outgoing AutoDJ playout track and crossfade buffer.")
                 end
                 new
             end
