@@ -124,11 +124,15 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             def rigid_schedule_enter(_, new) =
                 rigid_schedule_active := true
 
-                # Do not skip the underlying AutoDJ source at takeover time. The
-                # composed source can still be represented by a transition/fade
-                # wrapper here. Keep it parked and inaudible while the rigid
-                # programme owns the wall clock, then discard exactly what would
-                # resume when the programme releases.
+                # The common runtime exposes the real request.dynamic AutoDJ
+                # transport. Destroy that request directly at takeover so the
+                # song interrupted by this rigid programme cannot remain parked
+                # under a switch/crossfade and resume when the programme ends.
+                # A live DJ is allowed to stay connected and resume afterwards.
+                if not azuracast.live_enabled() then
+                    azuracast.discard_autodj_current()
+                    log("Rigid Schedule: permanently discarded interrupted AutoDJ track.")
+                end
 
                 # The old PHP strict-start path can have queued a duplicate copy
                 # of this programme in the interrupting lane. The native rigid
@@ -145,16 +149,6 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 # rigid source was on air is stale and must not play afterwards.
                 interrupting_queue.skip()
                 interrupting_queue.set_queue([])
-
-                # `new` is the exact source graph about to regain the air. Skip
-                # its effective automated leaf once, immediately before release,
-                # so a song interrupted by the rigid programme can never resume.
-                # Live DJs remain untouched and may resume after the programme.
-                if not azuracast.live_enabled() then
-                    source.skip(source.effective(new))
-                    log("Rigid Schedule: discarded interrupted automated track before release.")
-                end
-
                 rigid_schedule_active := false
                 log("Rigid Schedule: scheduled programme released wall-clock authority.")
                 new
