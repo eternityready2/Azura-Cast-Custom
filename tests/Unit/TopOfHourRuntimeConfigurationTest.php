@@ -13,7 +13,7 @@ use ReflectionClass;
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testSoftReleaseDiscardsWhatWouldResumeInsteadOfSkippingAtTakeover(): void
+    public function testTohTakeoverPermanentlyDiscardsTheRealAutoDjTransport(): void
     {
         $station = new Station();
         $station->name = 'TOH Runtime Test';
@@ -31,16 +31,12 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         $config = $event->buildConfiguration();
 
         self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
-        self::assertStringContainsString('def top_of_hour_id_exit(_, new)', $config);
+        self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
         self::assertStringContainsString(
-            'if not was_hard and not azuracast.live_enabled() then',
-            $config,
-        );
-        self::assertStringContainsString('source.skip(source.effective(new))', $config);
-        self::assertStringContainsString(
-            'Top-of-Hour ID: discarded interrupted automated track before release.',
+            'Top-of-Hour ID: permanently discarded interrupted AutoDJ track.',
             $config,
         );
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
+        self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
 }
