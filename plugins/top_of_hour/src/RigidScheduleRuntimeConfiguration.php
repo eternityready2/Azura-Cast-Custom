@@ -96,6 +96,52 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             }
         }
 
+        // Shared broadcast-clock transport gate. The direct request.dynamic
+        // transport skip permanently retires the playing request; this gate also
+        // makes the ordinary underlying graph unavailable while a clock lane owns
+        // air, so wrappers/fallbacks cannot surface the interrupted request again.
+        // A live DJ is never gated and can remain connected underneath the clock
+        // lane until that lane releases authority.
+        $event->appendBlock(
+            <<<'LIQ'
+            # Broadcast-clock AutoDJ transport gate (Top-of-Hour plugin).
+            broadcast_clock_autodj_blocked = ref(false)
+            rigid_schedule_active = ref(false)
+            radio_before_broadcast_clock_gate = radio
+
+            def broadcast_clock_block_autodj() =
+                if not azuracast.live_enabled() then
+                    broadcast_clock_autodj_blocked := true
+                    azuracast.discard_autodj_current()
+                    log("Broadcast Clock: blocked AutoDJ and discarded its active request.")
+                end
+            end
+
+            def broadcast_clock_release_autodj() =
+                broadcast_clock_autodj_blocked := false
+                log("Broadcast Clock: released AutoDJ transport gate.")
+            end
+
+            def broadcast_clock_base_available() =
+                azuracast.live_enabled() or not broadcast_clock_autodj_blocked()
+            end
+
+            broadcast_clock_base = source.available(
+                radio_before_broadcast_clock_gate,
+                predicate.activates({broadcast_clock_base_available()})
+            )
+
+            radio = fallback(
+                id="broadcast_clock_autodj_gate",
+                track_sensitive=false,
+                [
+                    broadcast_clock_base,
+                    blank(id="broadcast_clock_hold")
+                ]
+            )
+            LIQ
+        );
+
         if ([] === $rigidBranches) {
             return;
         }
@@ -110,20 +156,14 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             <<<LIQ
             # Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin).
             radio_before_rigid_schedule = radio
-            rigid_schedule_active = ref(false)
 
             def rigid_schedule_enter(_, new) =
                 rigid_schedule_active := true
 
-                # Destroy the exact request.dynamic AutoDJ request at takeover.
-                # The rigid source is above AutoDJ in the final graph, so a fresh
-                # AutoDJ request may prepare underneath but cannot race the
-                # scheduled programme while its wall-clock predicate is active.
-                # A live DJ stays connected and is never discarded.
-                if not azuracast.live_enabled() then
-                    azuracast.discard_autodj_current()
-                    log("Rigid Schedule: permanently discarded interrupted AutoDJ track.")
-                end
+                # Destroy the exact request.dynamic AutoDJ request and hold the
+                # ordinary graph unavailable for the entire rigid programme.
+                # A live DJ stays connected and is never discarded or gated.
+                broadcast_clock_block_autodj()
 
                 # The PHP strict-start path may have staged a duplicate copy in
                 # the interrupting queue. This native rigid lane is authoritative.
@@ -140,6 +180,7 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 interrupting_queue.skip()
                 interrupting_queue.set_queue([])
                 rigid_schedule_active := false
+                broadcast_clock_release_autodj()
                 log("Rigid Schedule: scheduled programme released wall-clock authority.")
                 new
             end
