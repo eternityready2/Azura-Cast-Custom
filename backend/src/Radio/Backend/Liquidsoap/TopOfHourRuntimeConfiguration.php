@@ -27,9 +27,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            // ConfigWriter has already built requests, schedules, crossfade and
-            // live input at this point. Wrap that complete source before the
-            // final pre-broadcast/output sections are attached.
             WriteLiquidsoapConfiguration::class => ['writeRuntime', 15],
         ];
     }
@@ -39,7 +36,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
         $station = $event->getStation();
         $config = $event->getBackendConfig();
         $queueName = LiquidsoapQueues::TopOfHour->value;
-        $enabled = $this->clock->isEnabled($station) ? 'true' : 'false';
         $fadeSeconds = ConfigWriter::toFloat($this->clock->getIdFadeSeconds($station), 1);
 
         $newsAfterId = ($config->ai_news_enabled && $config->ai_news_top_of_hour)
@@ -54,14 +50,13 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
         $event->appendBlock(
             <<<LIQ
             # Top-of-Hour Station ID exact wall-clock lane.
-            # This request queue is populated in advance by PHP and is not part
-            # of the ordinary AutoDJ queue cursor.
+            # `top_of_hour_id_enabled` is created earlier by the AI News/TOH
+            # coordination subscriber so both systems share one live runtime ref.
             top_of_hour_id = request.queue(
                 id="{$queueName}",
                 timeout=settings.azuracast.request_timeout()
             )
 
-            top_of_hour_id_enabled = ref({$enabled})
             top_of_hour_id_fade_seconds = ref({$fadeSeconds})
             top_of_hour_id_target_epoch = ref(0.0)
             top_of_hour_id_boundary_epoch = ref(0.0)
@@ -74,9 +69,9 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             end
             source.methods(top_of_hour_id).on_track(synchronous=false, top_of_hour_id_on_track)
 
-            # Fade the complete underlying station source *before* the ID target.
-            # At the target it has reached zero, so the ID can start exactly on
-            # time without a hard chop and without delaying the ID by fade length.
+            # Fade the complete underlying station source before the deadline.
+            # At the target it has reached zero, so the ID starts exactly on time
+            # without a hard chop and without delaying the ID by fade length.
             def top_of_hour_underlying_gain() =
                 now = time()
                 target = top_of_hour_id_target_epoch()
@@ -126,8 +121,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                         top_of_hour_id.is_ready()
                     end
                 else
-                    # Before activation a pre-staged request waits for the exact
-                    # absolute deadline calculated in the station timezone by PHP.
                     target > 0.0
                     and boundary > target
                     and now >= target
@@ -137,8 +130,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             end
 
             def top_of_hour_id_enter(_, new) =
-                # The old source has already been faded to zero by the dynamic
-                # gain above; switch to the ID immediately at the deadline.
+                # The old source has already reached zero gain at the deadline.
                 new
             end
 
@@ -149,15 +141,15 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 
                 # Music interrupted for the ID must not resume from the middle.
                 # A live DJ is only faded under the ID and resumes afterward.
-                # At a HARD :00 boundary do not skip the newly-due programme.
+                # At HARD :00 do not skip the newly-due rigid programme.
                 if not azuracast.live_enabled() then
                     if not was_hard or now < boundary then
                         radio_before_top_of_hour.skip()
                     end
                 end
 
-                # A HARD boundary may cut the tail of a long/mis-timed ID at :00.
-                # Discard any remaining request so it cannot reappear later.
+                # HARD :00 may cut a long/mis-timed ID. Discard any tail so it
+                # cannot reappear after the rigid programme takes control.
                 top_of_hour_id.skip()
 
                 {$newsAfterId}
@@ -181,8 +173,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 ]
             )
 
-            # Runtime controls. The exact target/boundary are absolute epochs,
-            # avoiding server-timezone and DST ambiguity.
+            # Runtime controls use absolute epochs to avoid timezone/DST ambiguity.
             def top_of_hour_set_enabled(value) =
                 top_of_hour_id_enabled := string.trim(value) == "true"
                 "Done!"
