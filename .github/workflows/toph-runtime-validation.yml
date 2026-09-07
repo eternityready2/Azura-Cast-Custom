@@ -1,0 +1,103 @@
+name: TOH Runtime Validation
+
+on:
+  push:
+    branches:
+      - fix/toh-runtime-59-enforcement
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Validate diff and TOH architecture
+        run: |
+          git diff --check origin/dev...HEAD
+          test ! -e backend/src/Radio/AutoDJ/TopOfHour/TopOfHourQueueSubscriber.php
+          grep -q 'case TopOfHour' backend/src/Radio/Enums/LiquidsoapQueues.php
+          grep -q 'top_of_hour_id_target_epoch' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'track_sensitive=false' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'top_of_hour_underlying_gain' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'StageTopOfHourStationIdTask' backend/config/events.php
+          grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
+          grep -q 'queue_top_hour_news_bulletin' backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
+
+      - name: PHP syntax check changed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only origin/dev...HEAD -- '*.php' | while read -r f; do test -f "$f" && echo "$f"; done)
+          for file in "${files[@]}"; do
+            php -l "$file"
+          done
+
+      - name: Install PHP analysis dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
+
+      - name: Prepare AzuraCast PHPStan runtime
+        run: |
+          sudo mkdir -p /var/azuracast/www/plugins
+          cat > phpstan.toph.neon <<'EOF'
+          includes:
+            - phpstan.neon
+          parameters:
+            reportUnmatchedIgnoredErrors: false
+          EOF
+
+      - name: PHPStan TOH runtime integration
+        run: >-
+          vendor/bin/phpstan analyze -c phpstan.toph.neon --memory-limit=-1 --no-progress
+          backend/src/Controller/Api/Stations/TopOfHour
+          backend/src/Entity/Repository/StationQueueRepository.php
+          backend/src/Radio/AutoDJ/TopOfHour
+          backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
+          backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
+          backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          backend/src/Sync/Task/QueueInterruptingTracks.php
+          backend/src/Sync/Task/StageTopOfHourStationIdTask.php
+          tests/Unit/TopOfHourClockTest.php
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check TOH frontend
+        run: |
+          cat > tsconfig.toph.json <<'EOF'
+          {
+            "extends": "./tsconfig.json",
+            "include": [
+              "frontend/**/*.d.ts",
+              "frontend/components/Stations/TopOfHour.vue",
+              "frontend/entities/TopOfHour.ts"
+            ],
+            "exclude": ["node_modules"]
+          }
+          EOF
+          npx vue-tsc -p tsconfig.toph.json --noEmit
+
+      - name: Lint TOH frontend
+        run: npx eslint frontend/components/Stations/TopOfHour.vue frontend/entities/TopOfHour.ts
