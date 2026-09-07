@@ -8,33 +8,38 @@ use App\Event\Radio\WriteLiquidsoapConfiguration;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
- * Prevents Liquidsoap's legacy :59 AI News cron from competing with the
- * station-wide automatic Station ID.
+ * Runtime-gates top-hour AI News so it never races the Station ID.
  *
- * The Station ID owns the protected end-of-hour handoff whenever TOH is
- * enabled. Bottom-of-hour AI News remains untouched. Top-of-hour AI News is
- * therefore omitted from Liquidsoap's direct request queue while automatic TOH
- * is enabled instead of racing the mandatory ID for the same track boundary.
+ * The shared `top_of_hour_id_enabled` ref is created here before the TOH runtime
+ * wrapper is appended. If TOH is enabled at :59, the cron defers; the TOH runtime
+ * queues news after the ID on an open hour. If TOH is disabled, the same cron
+ * immediately returns to normal behavior without a station restart.
  */
 final class TopOfHourAiNewsConfigurationGuard implements EventSubscriberInterface
 {
     public static function getSubscribedEvents(): array
     {
         return [
-            // ConfigWriter writes the AI News block at priority 28. Run directly
-            // afterwards, before crossfade configuration at priority 25.
-            WriteLiquidsoapConfiguration::class => ['removeConflictingTopOfHourCron', 27],
+            // ConfigWriter writes AI News at 28. Run immediately after it and
+            // before the TOH runtime source wrapper at priority 15.
+            WriteLiquidsoapConfiguration::class => ['gateTopOfHourNews', 27],
         ];
     }
 
-    public function removeConflictingTopOfHourCron(WriteLiquidsoapConfiguration $event): void
+    public function gateTopOfHourNews(WriteLiquidsoapConfiguration $event): void
     {
         $config = $event->getBackendConfig();
-        if (
-            !$config->top_of_hour_id_enabled
-            || !$config->ai_news_enabled
-            || !$config->ai_news_top_of_hour
-        ) {
+        $enabled = $config->top_of_hour_id_enabled ? 'true' : 'false';
+
+        // This ref is intentionally always emitted because the TOH runtime/API
+        // changes it live even when AI News itself is disabled.
+        $event->appendBlock(
+            <<<LIQ
+            top_of_hour_id_enabled = ref({$enabled})
+            LIQ
+        );
+
+        if (!$config->ai_news_enabled || !$config->ai_news_top_of_hour) {
             return;
         }
 
@@ -57,25 +62,51 @@ final class TopOfHourAiNewsConfigurationGuard implements EventSubscriberInterfac
                 continue;
             }
 
-            $minutes = array_values(array_filter(
-                explode(',', $parts[0]),
-                static fn(string $minute): bool => trim($minute) !== '59'
-            ));
-
-            if ([] === $minutes) {
-                $event->replaceLine(
-                    $index,
-                    '# AI News top-of-hour cron suppressed: automatic Station ID owns the protected :59 handoff.'
-                );
+            $minutes = array_values(array_map('trim', explode(',', $parts[0])));
+            if (!in_array('59', $minutes, true)) {
                 continue;
             }
 
-            $parts[0] = implode(',', $minutes);
-            $newExpression = implode(' ', $parts);
-            $event->replaceLine(
-                $index,
-                str_replace($expression, $newExpression, $line)
+            // Keep every non-top-hour minute exactly as ConfigWriter generated it.
+            $otherMinutes = array_values(array_filter(
+                $minutes,
+                static fn(string $minute): bool => '59' !== $minute
+            ));
+
+            if ([] === $otherMinutes) {
+                $event->replaceLine(
+                    $index,
+                    '# AI News :59 cron is dynamically gated by automatic TOH ID.'
+                );
+            } else {
+                $otherParts = $parts;
+                $otherParts[0] = implode(',', $otherMinutes);
+                $otherExpression = implode(' ', $otherParts);
+                $event->replaceLine(
+                    $index,
+                    str_replace($expression, $otherExpression, $line)
+                );
+            }
+
+            $topHourParts = $parts;
+            $topHourParts[0] = '59';
+            $topHourExpression = implode(' ', $topHourParts);
+
+            $event->appendBlock(
+                <<<LIQ
+                def queue_top_hour_news_bulletin() =
+                    if top_of_hour_id_enabled() then
+                        log("AI News: deferred until after Top-of-Hour Station ID.")
+                    else
+                        queue_news_bulletin()
+                    end
+                end
+                cron.add("{$topHourExpression}", {queue_top_hour_news_bulletin()})
+                LIQ
             );
+
+            // There is only one AI News cron block per station.
+            break;
         }
     }
 }
