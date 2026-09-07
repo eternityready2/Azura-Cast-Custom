@@ -36,16 +36,20 @@ jobs:
           grep -q 'top_of_hour_id_target_epoch' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'track_sensitive=false' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'top_of_hour_underlying_gain' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
-          grep -q 'source.skip(source.effective(new))' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
-          ! grep -q 'source.skip(source.effective(old))' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'azuracast.discard_autodj_current()' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'source.skip(source.effective(' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'RigidScheduleRuntimeConfiguration' backend/config/events.php
           grep -q 'priority 20' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q "WriteLiquidsoapConfiguration::class => \['writeRuntime', 16\]" backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'rigid_schedule_runtime' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
-          grep -q 'source.skip(source.effective(new))' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
-          ! grep -q 'source.skip(source.effective(old))' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'azuracast.discard_autodj_current()' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'source.skip(source.effective(' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'Dedicated native source for an AutoDJ-only rigid scheduled programme' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'PlaylistFileWriter::getPlaylistFilePath' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'let azuracast.autodj_transport = ref(blank' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'azuracast.autodj_transport := dynamic' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'def azuracast.discard_autodj_current()' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'source.skip(azuracast.autodj_transport())' util/docker/stations/liquidsoap/azuracast.liq
           ! grep -q 'secondsUntilPlayoutAnchor' backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
           grep -q 'StageTopOfHourStationIdTask' backend/config/events.php
           grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
@@ -64,6 +68,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          # Parse the real common AzuraCast Liquidsoap runtime. This catches type
+          # errors in the direct request.dynamic transport reference itself.
+          docker run --rm --entrypoint liquidsoap \
+            -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
+            -w /liq \
+            savonet/liquidsoap:v2.4.5 \
+            --check azuracast.liq
+
           cat > /tmp/toh-rigid-smoke.liq <<'EOF'
           init.daemon := false
 
@@ -71,11 +84,26 @@ jobs:
           top_of_hour_id = request.queue(id="top_of_hour_id", timeout=20.)
           live_enabled = ref(false)
 
-          underlying = blank(id="underlying")
+          autodj_transport = ref(blank(id="autodj_transport_placeholder", duration=0.))
+          autodj_transport_ready = ref(false)
+          autodj_dynamic = request.queue(id="autodj_dynamic", timeout=20.)
+          autodj_transport := autodj_dynamic
+          autodj_transport_ready := true
+
+          def discard_autodj_current() =
+            if autodj_transport_ready() then
+              source.skip(autodj_transport())
+            end
+          end
+
+          underlying = fallback(track_sensitive=false, [autodj_dynamic, blank()])
           rigid_a = blank(id="rigid_a")
           rigid_b = blank(id="rigid_b")
 
           def take_rigid(_, new) =
+            if not live_enabled() then
+              discard_autodj_current()
+            end
             interrupting_queue.skip()
             interrupting_queue.set_queue([])
             new
@@ -84,9 +112,6 @@ jobs:
           def release_rigid(_, new) =
             interrupting_queue.skip()
             interrupting_queue.set_queue([])
-            if not live_enabled() then
-              source.skip(source.effective(new))
-            end
             new
           end
 
@@ -104,15 +129,15 @@ jobs:
           )
 
           def toh_enter(_, new) =
+            if not live_enabled() then
+              discard_autodj_current()
+            end
             new
           end
 
           def toh_exit(_, new) =
             top_of_hour_id.skip()
             top_of_hour_id.set_queue([])
-            if not live_enabled() then
-              source.skip(source.effective(new))
-            end
             new
           end
 
@@ -212,12 +237,12 @@ jobs:
           $check(str_contains($config, '11h0m-12h0m'), 'Strict schedule predicate is missing or incorrect.');
           $check(str_contains($config, 'id="rigid_schedule_runtime"'), 'Rigid wall-clock switch is missing.');
           $check(
-              str_contains($config, 'source.skip(source.effective(new))'),
-              'Rigid release does not discard the interrupted AutoDJ leaf before it can resume.',
+              str_contains($config, 'azuracast.discard_autodj_current()'),
+              'Rigid takeover does not call the direct AutoDJ transport discard.',
           );
           $check(
-              !str_contains($config, 'source.skip(source.effective(old))'),
-              'Rigid takeover still tries to skip the transition wrapper instead of the release source.',
+              !str_contains($config, 'source.skip(source.effective('),
+              'Rigid runtime still relies on an effective-source wrapper guess.',
           );
 
           fwrite(STDOUT, "TOH handoff regression assertions passed.\n");
