@@ -63,6 +63,8 @@ tmp/cache/*---*
 /plugins/*
 /plugins/**/*
 !/plugins/.gitkeep
+!/plugins/top_of_hour/
+!/plugins/top_of_hour/**
 
 /bin
 
