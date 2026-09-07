@@ -20,8 +20,6 @@ final class TopOfHourAiNewsConfigurationGuard implements EventSubscriberInterfac
     public static function getSubscribedEvents(): array
     {
         return [
-            // ConfigWriter writes AI News at 28. Run immediately after it and
-            // before the TOH runtime source wrapper at priority 15.
             WriteLiquidsoapConfiguration::class => ['gateTopOfHourNews', 27],
         ];
     }
@@ -31,8 +29,6 @@ final class TopOfHourAiNewsConfigurationGuard implements EventSubscriberInterfac
         $config = $event->getBackendConfig();
         $enabled = $config->top_of_hour_id_enabled ? 'true' : 'false';
 
-        // This ref is intentionally always emitted because the TOH runtime/API
-        // changes it live even when AI News itself is disabled.
         $event->appendBlock(
             <<<LIQ
             top_of_hour_id_enabled = ref({$enabled})
@@ -62,12 +58,11 @@ final class TopOfHourAiNewsConfigurationGuard implements EventSubscriberInterfac
                 continue;
             }
 
-            $minutes = array_values(array_map('trim', explode(',', $parts[0])));
+            $minutes = array_map('trim', explode(',', $parts[0]));
             if (!in_array('59', $minutes, true)) {
                 continue;
             }
 
-            // Keep every non-top-hour minute exactly as ConfigWriter generated it.
             $otherMinutes = array_values(array_filter(
                 $minutes,
                 static fn(string $minute): bool => '59' !== $minute
@@ -105,7 +100,6 @@ final class TopOfHourAiNewsConfigurationGuard implements EventSubscriberInterfac
                 LIQ
             );
 
-            // There is only one AI News cron block per station.
             break;
         }
     }
