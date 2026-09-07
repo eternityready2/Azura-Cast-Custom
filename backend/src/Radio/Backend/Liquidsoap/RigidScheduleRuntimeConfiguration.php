@@ -90,21 +90,15 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             return;
         }
 
-        $branches = implode(",\n        ", $rigidBranches);
+        $branches = implode(",\n                    ", $rigidBranches);
+        $transitions = implode(
+            ', ',
+            [...array_fill(0, count($rigidBranches), 'rigid_schedule_enter'), 'rigid_schedule_exit'],
+        );
 
         $event->appendBlock(
             <<<LIQ
             # Rigid scheduled-programme wall-clock lane.
-            # This source is fallible outside all rigid schedule windows.
-            rigid_schedule_source = switch(
-                id="rigid_schedule_sources",
-                track_sensitive=false,
-                replay_metadata=true,
-                [
-                    {$branches}
-                ]
-            )
-
             radio_before_rigid_schedule = radio
             rigid_schedule_active = ref(false)
 
@@ -145,9 +139,9 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 track_sensitive=false,
                 replay_metadata=true,
                 transition_length=0.0,
-                transitions=[rigid_schedule_enter, rigid_schedule_exit],
+                transitions=[{$transitions}],
                 [
-                    ({rigid_schedule_source.is_ready()}, rigid_schedule_source),
+                    {$branches},
                     ({true}, radio_before_rigid_schedule)
                 ]
             )
