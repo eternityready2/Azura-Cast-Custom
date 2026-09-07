@@ -76,7 +76,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
                 App\Sync\Task\CleanupStorageTask::class,
                 App\Sync\Task\EnforceBroadcastTimesTask::class,
                 App\Sync\Task\MoveBroadcastsTask::class,
-                App\Sync\Task\StageTopOfHourStationIdTask::class,
                 App\Sync\Task\QueueInterruptingTracks::class,
                 App\Sync\Task\ReactivateStreamerTask::class,
                 App\Sync\Task\RenewAcmeCertTask::class,
@@ -167,8 +166,6 @@ return static function (CallableEventDispatcherInterface $dispatcher) {
             App\Radio\AutoDJ\DmcaComplianceListener::class,
             App\Radio\Backend\Liquidsoap\ConfigWriter::class,
             App\Radio\Backend\Liquidsoap\TopOfHourAiNewsConfigurationGuard::class,
-            App\Radio\Backend\Liquidsoap\RigidScheduleRuntimeConfiguration::class,
-            App\Radio\Backend\Liquidsoap\TopOfHourRuntimeConfiguration::class,
             App\Radio\Backend\Liquidsoap\PlaylistFileWriter::class,
             App\Sync\NowPlaying\Task\NowPlayingTask::class,
         ]
