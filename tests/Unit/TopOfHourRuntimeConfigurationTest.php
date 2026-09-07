@@ -7,9 +7,11 @@ namespace Unit;
 use App\Entity\Station;
 use App\Event\Radio\WriteLiquidsoapConfiguration;
 use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
-use App\Radio\Backend\Liquidsoap\TopOfHourRuntimeConfiguration;
 use Codeception\Test\Unit;
+use Plugin\TopOfHour\TopOfHourRuntimeConfiguration;
 use ReflectionClass;
+
+require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php';
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
@@ -30,6 +32,7 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
         $config = $event->buildConfiguration();
 
+        self::assertStringContainsString('Top-of-Hour Station ID exact wall-clock lane (plugin owned)', $config);
         self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
         self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
         self::assertStringContainsString(
