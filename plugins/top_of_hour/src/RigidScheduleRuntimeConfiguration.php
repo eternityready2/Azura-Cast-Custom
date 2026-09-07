@@ -17,9 +17,10 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 /**
  * Gives rigid scheduled playlists real wall-clock authority over the final
- * station graph and owns the hard handoff beneath the TOH ID lane.
+ * station source graph.
  *
- * Authority order:
+ * The plugin writes this wrapper immediately below the TOH ID wrapper. The
+ * resulting authority order is:
  *
  *     Top-of-Hour ID -> rigid scheduled programme -> live/AutoDJ
  */
@@ -66,19 +67,16 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
 
             if ($usesConfiguredNativeSource) {
                 // Mirror ConfigWriter's native-variable collision handling across
-                // every playlist it writes, not only the rigid ones, so references
-                // here always point at the exact source created at priority 30.
+                // every playlist it writes, not only the rigid ones.
                 $playlistVarName = ConfigWriter::getPlaylistVariableName($playlist);
                 if (in_array($playlistVarName, $playlistVarNames, true)) {
                     $playlistVarName .= '_' . $playlist->id;
                 }
                 $playlistVarNames[] = $playlistVarName;
             } elseif ([] !== $rigidSchedules && PlaylistSources::Songs === $playlist->source) {
-                // A strict-start Songs playlist may deliberately be AutoDJ-only
-                // under the station's normal settings. The outer rigid lane still
-                // needs a native source to own the wall clock, so create a private
-                // source from the playlist file that PlaylistFileWriter already
-                // maintains for every enabled Songs playlist.
+                // A strict-start Songs playlist may be AutoDJ-only. The outer
+                // rigid lane still needs a native source to own the wall clock,
+                // so create one from the playlist file maintained for Songs.
                 $playlistId = isset($playlist->id) ? $playlist->id : spl_object_id($playlist);
                 $playlistVarName = 'rigid_' . ConfigWriter::getPlaylistVariableName($playlist) . '_' . $playlistId;
                 $this->writeDedicatedSongSource($event, $playlist, $playlistVarName);
@@ -98,14 +96,6 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             }
         }
 
-        // Always publish this shared state before the TOH wrapper is generated.
-        // The TOH release transition can therefore tell whether a HARD :00 owner
-        // has actually taken the air instead of blindly reopening AutoDJ.
-        $event->appendLines([
-            '# Shared broadcast-clock ownership state (Top-of-Hour plugin).',
-            'rigid_schedule_active = ref(false)',
-        ]);
-
         if ([] === $rigidBranches) {
             return;
         }
@@ -120,22 +110,23 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             <<<LIQ
             # Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin).
             radio_before_rigid_schedule = radio
+            rigid_schedule_active = ref(false)
 
             def rigid_schedule_enter(_, new) =
                 rigid_schedule_active := true
 
-                # Hold and destroy the exact request.dynamic AutoDJ transport.
-                # Keeping the gate closed for the entire rigid programme prevents
-                # a fresh AutoDJ request from racing the scheduled source at :00.
-                # A live DJ remains connected underneath and is never skipped.
+                # Destroy the exact request.dynamic AutoDJ request at takeover.
+                # The rigid source is above AutoDJ in the final graph, so a fresh
+                # AutoDJ request may prepare underneath but cannot race the
+                # scheduled programme while its wall-clock predicate is active.
+                # A live DJ stays connected and is never discarded.
                 if not azuracast.live_enabled() then
-                    azuracast.autodj_clock_hold()
-                    log("Rigid Schedule: held AutoDJ and discarded interrupted track.")
+                    azuracast.discard_autodj_current()
+                    log("Rigid Schedule: permanently discarded interrupted AutoDJ track.")
                 end
 
-                # The old PHP strict-start path can have queued a duplicate copy
-                # of this programme in the interrupting lane. The native rigid
-                # source is authoritative now; purge that stale tail.
+                # The PHP strict-start path may have staged a duplicate copy in
+                # the interrupting queue. This native rigid lane is authoritative.
                 interrupting_queue.skip()
                 interrupting_queue.set_queue([])
 
@@ -144,17 +135,11 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             end
 
             def rigid_schedule_exit(_, new) =
-                # Anything the legacy interrupting task staged while this native
-                # rigid source was on air is stale and must not play afterwards.
+                # Anything staged into the legacy interrupting lane while the
+                # rigid source was on air is stale and must not follow it.
                 interrupting_queue.skip()
                 interrupting_queue.set_queue([])
                 rigid_schedule_active := false
-
-                if azuracast.autodj_clock_is_held() then
-                    azuracast.autodj_clock_release()
-                    log("Rigid Schedule: released AutoDJ for fresh programming.")
-                end
-
                 log("Rigid Schedule: scheduled programme released wall-clock authority.")
                 new
             end
@@ -216,7 +201,7 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
 
     /**
      * Mirrors ConfigWriter's schedule predicate generation so the outer rigid
-     * runtime uses the same station-local schedule windows as playlist config.
+     * runtime uses the exact same station-local schedule windows.
      */
     private function getScheduledPlaylistPlayTime(
         WriteLiquidsoapConfiguration $event,
