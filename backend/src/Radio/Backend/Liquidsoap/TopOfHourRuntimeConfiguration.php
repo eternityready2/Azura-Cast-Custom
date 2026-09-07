@@ -65,7 +65,11 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 
             def top_of_hour_id_on_track(_) =
                 top_of_hour_id_active := true
-                log("Top-of-Hour ID: Station ID is on air.")
+                # A request.queue removes the current request from its waiting
+                # queue as soon as playout starts. Purge anything still waiting
+                # so one wall-clock deadline can never produce two IDs in a row.
+                top_of_hour_id.set_queue([])
+                log("Top-of-Hour ID: Station ID is on air; cleared any duplicate staged tail.")
             end
             source.methods(top_of_hour_id).on_track(synchronous=false, top_of_hour_id_on_track)
 
@@ -117,7 +121,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                         # A rigid programme owns :00. The ID may never delay it.
                         now < boundary and top_of_hour_id.is_ready()
                     else
-                        # Open hour: once started, allow the ID to finish naturally.
+                        # Open hour: once started, allow the single ID to finish naturally.
                         top_of_hour_id.is_ready()
                     end
                 else
@@ -129,28 +133,24 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 end
             end
 
-            def top_of_hour_id_enter(_, new) =
+            def top_of_hour_id_enter(old, new) =
                 # The old source has already reached zero gain at the deadline.
+                # Discard interrupted AutoDJ/music here, before the ID plays, so
+                # it cannot briefly resume from the middle after the ID finishes.
+                # Live audio is never skipped and can resume after the ID.
+                if not azuracast.live_enabled() then
+                    old.skip()
+                end
                 new
             end
 
             def top_of_hour_id_exit(_, new) =
-                now = time()
-                boundary = top_of_hour_id_boundary_epoch()
                 was_hard = top_of_hour_id_hard_boundary()
 
-                # Music interrupted for the ID must not resume from the middle.
-                # A live DJ is only faded under the ID and resumes afterward.
-                # At HARD :00 do not skip the newly-due rigid programme.
-                if not azuracast.live_enabled() then
-                    if not was_hard or now < boundary then
-                        radio_before_top_of_hour.skip()
-                    end
-                end
-
-                # HARD :00 may cut a long/mis-timed ID. Discard any tail so it
-                # cannot reappear after the rigid programme takes control.
+                # HARD :00 may cut a long/mis-timed ID. Discard any current/tail
+                # request and empty the waiting queue so it cannot reappear.
                 top_of_hour_id.skip()
+                top_of_hour_id.set_queue([])
 
                 {$newsAfterId}
 
