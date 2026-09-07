@@ -36,11 +36,14 @@ jobs:
           grep -q 'top_of_hour_id_target_epoch' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'track_sensitive=false' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'top_of_hour_underlying_gain' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
-          grep -q 'source.skip(source.effective(old))' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'source.skip(source.effective(new))' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'source.skip(source.effective(old))' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'RigidScheduleRuntimeConfiguration' backend/config/events.php
           grep -q 'priority 20' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q "WriteLiquidsoapConfiguration::class => \['writeRuntime', 16\]" backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'rigid_schedule_runtime' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'source.skip(source.effective(new))' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'source.skip(source.effective(old))' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'Dedicated native source for an AutoDJ-only rigid scheduled programme' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           grep -q 'PlaylistFileWriter::getPlaylistFilePath' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'secondsUntilPlayoutAnchor' backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
@@ -72,18 +75,18 @@ jobs:
           rigid_a = blank(id="rigid_a")
           rigid_b = blank(id="rigid_b")
 
-          def discard_underlying(old, new) =
-            if not live_enabled() then
-              source.skip(source.effective(old))
-            end
+          def take_rigid(_, new) =
             interrupting_queue.skip()
             interrupting_queue.set_queue([])
             new
           end
 
-          def release(_, new) =
+          def release_rigid(_, new) =
             interrupting_queue.skip()
             interrupting_queue.set_queue([])
+            if not live_enabled() then
+              source.skip(source.effective(new))
+            end
             new
           end
 
@@ -92,7 +95,7 @@ jobs:
             track_sensitive=false,
             replay_metadata=true,
             transition_length=0.0,
-            transitions=[discard_underlying, discard_underlying, release],
+            transitions=[take_rigid, take_rigid, release_rigid],
             [
               ({false}, rigid_a),
               ({false}, rigid_b),
@@ -100,16 +103,16 @@ jobs:
             ]
           )
 
-          def toh_enter(old, new) =
-            if not live_enabled() then
-              source.skip(source.effective(old))
-            end
+          def toh_enter(_, new) =
             new
           end
 
           def toh_exit(_, new) =
             top_of_hour_id.skip()
             top_of_hour_id.set_queue([])
+            if not live_enabled() then
+              source.skip(source.effective(new))
+            end
             new
           end
 
@@ -209,8 +212,12 @@ jobs:
           $check(str_contains($config, '11h0m-12h0m'), 'Strict schedule predicate is missing or incorrect.');
           $check(str_contains($config, 'id="rigid_schedule_runtime"'), 'Rigid wall-clock switch is missing.');
           $check(
-              str_contains($config, 'source.skip(source.effective(old))'),
-              'Rigid handoff does not discard the interrupted AutoDJ leaf.',
+              str_contains($config, 'source.skip(source.effective(new))'),
+              'Rigid release does not discard the interrupted AutoDJ leaf before it can resume.',
+          );
+          $check(
+              !str_contains($config, 'source.skip(source.effective(old))'),
+              'Rigid takeover still tries to skip the transition wrapper instead of the release source.',
           );
 
           fwrite(STDOUT, "TOH handoff regression assertions passed.\n");
@@ -242,6 +249,7 @@ jobs:
           tests/Unit/BroadcastClockPlannerTest.php
           tests/Unit/RigidScheduleRuntimeConfigurationTest.php
           tests/Unit/TopOfHourClockTest.php
+          tests/Unit/TopOfHourRuntimeConfigurationTest.php
 
       - name: Set up Node
         uses: actions/setup-node@v4
