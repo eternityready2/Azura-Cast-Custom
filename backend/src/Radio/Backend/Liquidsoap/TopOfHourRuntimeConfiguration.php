@@ -134,12 +134,16 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             end
 
             def top_of_hour_id_enter(_, new) =
-                # Do not skip the underlying automated source here. During the
-                # switch transition it may be represented by a temporary
-                # amplify/crossfade wrapper, and skipping that object can leave
-                # request.dynamic parked on the same song. Keep it muted while
-                # the ID owns the air, then discard exactly what would resume at
-                # release time instead.
+                # The fade has already reached zero at the clock deadline. Kill
+                # the actual request.dynamic AutoDJ transport directly now. This
+                # is not a wrapper/effective-source guess: the common runtime
+                # publishes the real `next_song` source specifically for clock
+                # events. The interrupted song is therefore gone before the ID
+                # owns the air and cannot resume when the ID releases.
+                if not azuracast.live_enabled() then
+                    azuracast.discard_autodj_current()
+                    log("Top-of-Hour ID: permanently discarded interrupted AutoDJ track.")
+                end
                 new
             end
 
@@ -150,18 +154,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 # request and empty the waiting queue so it cannot reappear.
                 top_of_hour_id.skip()
                 top_of_hour_id.set_queue([])
-
-                # SOFT/open-hour release: the source represented by `new` is the
-                # exact underlying station graph that would return to air now.
-                # Resolve its effective leaf at release time and skip it once so
-                # the song that was faded for the ID is destroyed instead of
-                # resuming from its old position. A live DJ is intentionally not
-                # skipped. HARD release is owned by the rigid-schedule lane, which
-                # performs the same discard when that programme eventually exits.
-                if not was_hard and not azuracast.live_enabled() then
-                    source.skip(source.effective(new))
-                    log("Top-of-Hour ID: discarded interrupted automated track before release.")
-                end
 
                 {$newsAfterId}
 
