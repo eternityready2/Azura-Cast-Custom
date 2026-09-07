@@ -16,9 +16,9 @@ use DateTimeZone;
  * Compatibility facade for shared hour math used by Clock Wheels, reporting and
  * scheduled-boundary protection.
  *
- * Automatic Top-of-Hour Station ID selection/delivery is intentionally NOT
- * implemented here anymore. The rebuilt feature is owned by TopOfHourClock and
- * TopOfHourQueueSubscriber, while broadcast-clock timing owns music backtiming.
+ * Automatic Top-of-Hour Station ID planning remains in TopOfHourClock, while
+ * operational staging and exact wall-clock playout are owned by the top_of_hour
+ * plugin. This compatibility class has no TOH delivery or runtime authority.
  */
 final class HourBoundaryPlanner
 {
@@ -141,9 +141,9 @@ final class HourBoundaryPlanner
      * Retired TOH-specific music-cap hook.
      *
      * QueueBuilder still calls this compatibility method, but it intentionally
-     * returns null so no old pre-ID fade/cap code can execute. The shared
-     * BroadcastClockPlanner now supplies the single authoritative ID anchor to
-     * StretchSqueezeQueueTiming / BroadcastClockQueueTimingSubscriber instead.
+     * returns null so no legacy pre-ID music cap can execute. TOH and rigid
+     * deadlines are intentionally not ordinary AutoDJ squeeze anchors; the
+     * top_of_hour plugin owns the final fade, takeover and hard-boundary handoff.
      */
     public function maxMusicDurationBeforeTopOfHour(
         Station $station,
