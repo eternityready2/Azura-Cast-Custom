@@ -3,7 +3,7 @@ name: TOH Runtime Validation
 on:
   push:
     branches:
-      - fix/toh-runtime-59-enforcement
+      - 'fix/toh-*'
 
 permissions:
   contents: read
@@ -21,13 +21,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up PHP 8.4
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          tools: composer:v2
-          coverage: none
-
       - name: Validate diff and TOH architecture
         run: |
           git diff --check origin/dev...HEAD
@@ -36,6 +29,12 @@ jobs:
           grep -q 'top_of_hour_id_target_epoch' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'track_sensitive=false' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'top_of_hour_underlying_gain' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'source.skip(source.effective(old))' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'RigidScheduleRuntimeConfiguration' backend/config/events.php
+          grep -q 'priority 20' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q "WriteLiquidsoapConfiguration::class => \['writeRuntime', 16\]" backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          grep -q 'rigid_schedule_runtime' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'secondsUntilPlayoutAnchor' backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
           grep -q 'StageTopOfHourStationIdTask' backend/config/events.php
           grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
           grep -q 'queue_top_hour_news_bulletin' backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
@@ -48,6 +47,93 @@ jobs:
           for file in "${files[@]}"; do
             php -l "$file"
           done
+
+      - name: Liquidsoap 2.4.5 runtime syntax smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/toh-rigid-smoke.liq <<'EOF'
+          init.daemon := false
+
+          interrupting_queue = request.queue(id="interrupting_queue", timeout=20.)
+          top_of_hour_id = request.queue(id="top_of_hour_id", timeout=20.)
+          live_enabled = ref(false)
+
+          underlying = blank(id="underlying")
+          rigid_a = blank(id="rigid_a")
+          rigid_b = blank(id="rigid_b")
+
+          def discard_underlying(old, new) =
+            if not live_enabled() then
+              source.skip(source.effective(old))
+            end
+            interrupting_queue.skip()
+            interrupting_queue.set_queue([])
+            new
+          end
+
+          def release(_, new) =
+            interrupting_queue.skip()
+            interrupting_queue.set_queue([])
+            new
+          end
+
+          rigid = switch(
+            id="rigid_schedule_runtime",
+            track_sensitive=false,
+            replay_metadata=true,
+            transition_length=0.0,
+            transitions=[discard_underlying, discard_underlying, release],
+            [
+              ({false}, rigid_a),
+              ({false}, rigid_b),
+              ({true}, underlying)
+            ]
+          )
+
+          def toh_enter(old, new) =
+            if not live_enabled() then
+              source.skip(source.effective(old))
+            end
+            new
+          end
+
+          def toh_exit(_, new) =
+            top_of_hour_id.skip()
+            top_of_hour_id.set_queue([])
+            new
+          end
+
+          radio = switch(
+            id="top_of_hour_station_id",
+            track_sensitive=false,
+            replay_metadata=true,
+            transition_length=0.0,
+            transitions=[toh_enter, toh_exit],
+            [
+              ({false}, top_of_hour_id),
+              ({true}, rigid)
+            ]
+          )
+
+          output.dummy(radio)
+          EOF
+
+          docker run --rm \
+            -v /tmp/toh-rigid-smoke.liq:/tmp/toh-rigid-smoke.liq:ro \
+            debian:trixie-slim \
+            bash -lc '
+              set -e
+              apt-get update >/dev/null
+              apt-get install -y --no-install-recommends ca-certificates wget >/dev/null
+              wget -q -O /tmp/liquidsoap.deb "https://github.com/savonet/liquidsoap-release-assets/releases/download/v2.4.5/liquidsoap_2.4.5-debian-trixie-ocaml4.14.2-1_amd64.deb"
+              dpkg -i /tmp/liquidsoap.deb >/tmp/dpkg.log 2>&1 || {
+                apt-get install -f -y >/dev/null
+                dpkg -i /tmp/liquidsoap.deb >/dev/null
+              }
+              liquidsoap --version
+              liquidsoap --check /tmp/toh-rigid-smoke.liq
+            '
 
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
@@ -65,10 +151,12 @@ jobs:
       - name: PHPStan TOH runtime integration
         run: >-
           vendor/bin/phpstan analyze -c phpstan.toph.neon --memory-limit=-1 --no-progress
+          backend/config/events.php
           backend/src/Controller/Api/Stations/TopOfHour
           backend/src/Entity/Repository/StationQueueRepository.php
           backend/src/Radio/AutoDJ/TopOfHour
           backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
+          backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
           backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           backend/src/Sync/Task/QueueInterruptingTracks.php
