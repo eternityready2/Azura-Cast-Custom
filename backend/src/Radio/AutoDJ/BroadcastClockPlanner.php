@@ -8,7 +8,6 @@ use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
-use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
 use App\Utilities\ScheduleRecurrence;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -19,6 +18,12 @@ use DateTimeImmutable;
  * Unlike a hard interrupt, a soft anchor gives queue planning enough notice to
  * backtime the preceding audio. Stretch/squeeze can then close a small timing
  * gap and the normal cue-out/fade path is only used when a track cannot fit.
+ *
+ * The automatic Top-of-Hour Station ID is deliberately NOT a soft AutoDJ
+ * anchor. Its dedicated Liquidsoap wall-clock lane fades whatever is actually
+ * on air and takes control at the operator-selected :59:ss deadline. Treating
+ * that deadline as an AutoDJ anchor causes the queue builder to manufacture
+ * tiny 1-10 second song slots immediately before the ID.
  */
 final class BroadcastClockPlanner
 {
@@ -26,7 +31,6 @@ final class BroadcastClockPlanner
 
     public function __construct(
         private readonly Scheduler $scheduler,
-        private readonly TopOfHourClock $topOfHourClock,
     ) {
     }
 
@@ -37,15 +41,6 @@ final class BroadcastClockPlanner
         $tz = $station->getTimezoneObject();
         $nowLocal = CarbonImmutable::instance($now)->setTimezone($tz);
         $best = null;
-
-        // The rebuilt station ID is a first-class broadcast-clock anchor. HARD
-        // mode backtimes the actual ID duration to :00; SOFT mode anchors at
-        // :59:00. Music, Smart Blocks and the 24-hour Linear Log all use this
-        // same target instead of maintaining a second TOH clock.
-        $topOfHourDelta = $this->topOfHourClock->secondsUntilPlayoutAnchor($station, $now);
-        if (null !== $topOfHourDelta) {
-            $best = $topOfHourDelta;
-        }
 
         foreach ($station->playlists as $playlist) {
             if (!$playlist->is_enabled || !$this->isClockAnchoredPlaylist($playlist)) {
