@@ -10,8 +10,10 @@ use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
 use App\Event\Radio\WriteLiquidsoapConfiguration;
-use App\Radio\Backend\Liquidsoap\RigidScheduleRuntimeConfiguration;
 use Codeception\Test\Unit;
+use Plugin\TopOfHour\RigidScheduleRuntimeConfiguration;
+
+require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php';
 
 final class RigidScheduleRuntimeConfigurationTest extends Unit
 {
@@ -31,6 +33,7 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('mode="randomize"', $config);
         self::assertStringContainsString('11h0m-12h0m', $config);
         self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
+        self::assertStringContainsString('Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin)', $config);
         self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
         self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
