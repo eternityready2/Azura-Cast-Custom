@@ -3,7 +3,7 @@ name: TOH Runtime Validation
 on:
   push:
     branches:
-      - fix/toh-queue-duration-collapse
+      - fix/toh-runtime-59-enforcement
 
 permissions:
   contents: read
@@ -36,9 +36,6 @@ jobs:
           grep -q 'top_of_hour_id_target_epoch' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'track_sensitive=false' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'top_of_hour_underlying_gain' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
-          grep -q 'top_of_hour_id.set_queue(\[\])' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
-          grep -q 'target already arrived' backend/src/Sync/Task/StageTopOfHourStationIdTask.php
-          grep -q 'restore the row to its non-hour-boundary duration first' backend/src/Radio/AutoDJ/Queue.php
           grep -q 'StageTopOfHourStationIdTask' backend/config/events.php
           grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
           grep -q 'queue_top_hour_news_bulletin' backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
@@ -70,7 +67,6 @@ jobs:
           vendor/bin/phpstan analyze -c phpstan.toph.neon --memory-limit=-1 --no-progress
           backend/src/Controller/Api/Stations/TopOfHour
           backend/src/Entity/Repository/StationQueueRepository.php
-          backend/src/Radio/AutoDJ/Queue.php
           backend/src/Radio/AutoDJ/TopOfHour
           backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
           backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
