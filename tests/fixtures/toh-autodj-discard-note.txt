@@ -1,7 +1,0 @@
-Top-of-Hour live discard invariant
-
-When automatic TOH interrupts ordinary AutoDJ music, the current request.dynamic(id="next_song") request is permanently skipped through azuracast.discard_autodj_current(). The interrupted request must never be allowed to resume after the ID or after a rigid scheduled programme.
-
-Expected playout:
-- Open hour: current song fades -> current AutoDJ request is discarded -> TOH ID -> scheduled AI News only if its own active schedule permits -> fresh AutoDJ request.
-- Rigid :00 hour: current song fades -> current AutoDJ request is discarded -> TOH ID -> rigid scheduled programme at :00 -> fresh AutoDJ after the programme.
