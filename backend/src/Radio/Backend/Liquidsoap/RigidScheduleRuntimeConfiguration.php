@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Radio\Backend\Liquidsoap;
 
+use App\Entity\Enums\PlaylistOrders;
 use App\Entity\Enums\PlaylistSources;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
@@ -49,12 +50,8 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             }
 
             // These sources are resolved through the PHP AutoDJ queue and do not
-            // have a native Liquidsoap playlist variable to switch to directly.
+            // have a static media file that a native wall-clock source can read.
             if (in_array($playlist->source, [PlaylistSources::Playlists, PlaylistSources::Requests], true)) {
-                continue;
-            }
-
-            if (!ConfigWriter::shouldWritePlaylist($event, $playlist)) {
                 continue;
             }
 
@@ -64,21 +61,43 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 continue;
             }
 
-            $playlistVarName = ConfigWriter::getPlaylistVariableName($playlist);
-            if (in_array($playlistVarName, $playlistVarNames, true)) {
-                $playlistVarName .= '_' . $playlist->id;
+            $rigidSchedules = [];
+            foreach ($playlist->schedule_items as $scheduleItem) {
+                if ($this->isRigidSchedule($playlist, $scheduleItem)) {
+                    $rigidSchedules[] = $scheduleItem;
+                }
             }
-            $playlistVarNames[] = $playlistVarName;
 
-            if (0 === $playlist->schedule_items->count()) {
+            $usesConfiguredNativeSource = ConfigWriter::shouldWritePlaylist($event, $playlist);
+
+            if ($usesConfiguredNativeSource) {
+                // Mirror ConfigWriter's native-variable collision handling across
+                // every playlist it writes, not only the rigid ones, so references
+                // here always point at the exact source created at priority 30.
+                $playlistVarName = ConfigWriter::getPlaylistVariableName($playlist);
+                if (in_array($playlistVarName, $playlistVarNames, true)) {
+                    $playlistVarName .= '_' . $playlist->id;
+                }
+                $playlistVarNames[] = $playlistVarName;
+            } elseif ([] !== $rigidSchedules && PlaylistSources::Songs === $playlist->source) {
+                // A strict-start Songs playlist may deliberately be AutoDJ-only
+                // under the station's normal settings. The outer rigid lane still
+                // needs a native source to own the wall clock, so create a private
+                // source from the playlist file that PlaylistFileWriter already
+                // maintains for every enabled Songs playlist. The dedicated name
+                // cannot collide with ConfigWriter's normal `playlist_*` variables.
+                $playlistId = isset($playlist->id) ? $playlist->id : spl_object_id($playlist);
+                $playlistVarName = 'rigid_' . ConfigWriter::getPlaylistVariableName($playlist) . '_' . $playlistId;
+                $this->writeDedicatedSongSource($event, $playlist, $playlistVarName);
+            } else {
                 continue;
             }
 
-            foreach ($playlist->schedule_items as $scheduleItem) {
-                if (!$this->isRigidSchedule($playlist, $scheduleItem)) {
-                    continue;
-                }
+            if ([] === $rigidSchedules) {
+                continue;
+            }
 
+            foreach ($rigidSchedules as $scheduleItem) {
                 $playTime = $this->getScheduledPlaylistPlayTime($event, $scheduleItem);
                 $rigidBranches[] = $playlist->backendPlaySingleTrack()
                     ? '(predicate.at_most(1, {' . $playTime . '}), ' . $playlistVarName . ')'
@@ -147,6 +166,37 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             )
             LIQ
         );
+    }
+
+    private function writeDedicatedSongSource(
+        WriteLiquidsoapConfiguration $event,
+        StationPlaylist $playlist,
+        string $playlistVarName,
+    ): void {
+        $playlistMode = match ($playlist->order) {
+            PlaylistOrders::Sequential => 'normal',
+            PlaylistOrders::Shuffle, PlaylistOrders::SmartShuffle => 'randomize',
+            PlaylistOrders::Random => 'random',
+        };
+
+        $playlistParams = [
+            'id=' . ConfigWriter::toRawString($playlistVarName),
+            'mime_type="audio/x-mpegurl"',
+            'mode="' . $playlistMode . '"',
+            'reload_mode="watch"',
+            ConfigWriter::toRawString(PlaylistFileWriter::getPlaylistFilePath($playlist)),
+        ];
+
+        $event->appendLines([
+            '# Dedicated native source for an AutoDJ-only rigid scheduled programme.',
+            $playlistVarName . ' = playlist(' . implode(',', $playlistParams) . ')',
+        ]);
+
+        if ($playlist->is_jingle) {
+            $event->appendLines([
+                $playlistVarName . ' = azuracast.utilities.drop_metadata(' . $playlistVarName . ')',
+            ]);
+        }
     }
 
     private function isRigidSchedule(
