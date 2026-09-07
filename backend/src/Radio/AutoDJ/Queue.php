@@ -115,12 +115,22 @@ final class Queue
                 $this->applyBroadcastClockCapToQueuedRow($station, $queueRow, $expectedPlayTime);
             }
 
-            // Same duration-floor guard as the build loop below -- applies here too
-            // since this loop re-times already-queued rows on every build cycle and
-            // is just as capable of collapsing timestamps if a row's duration is bad.
+            // Only use the five-second safety floor for genuinely missing/bad
+            // durations. A deliberate wall-clock/clock-wheel cap may validly be
+            // shorter than five seconds and must remain exact.
             $effectiveDuration = $queueRow->duration ?? 0.0;
-            if ($effectiveDuration < 5.0) {
-                $effectiveDuration = 5.0;
+            if (
+                $effectiveDuration < 5.0
+                && !$queueRow->hour_boundary_enforce_cap
+                && !$queueRow->clock_wheel_enforce_cap
+            ) {
+                $naturalDuration = $queueRow->media?->getCalculatedLength() ?? 0.0;
+                if ($naturalDuration >= 5.0) {
+                    $queueRow->duration = $naturalDuration;
+                    $effectiveDuration = $naturalDuration;
+                } else {
+                    $effectiveDuration = 5.0;
+                }
             }
 
             if ($queueRow->sent_to_autodj) {
@@ -281,22 +291,38 @@ final class Queue
             $consecutivePreviewGapSeconds = 0;
 
             foreach ($nextSongs as $queueRow) {
-                // Guard against a corrupt or not-yet-analyzed media duration (0, null,
-                // or an implausibly tiny value) collapsing the play-time progression --
-                // this is what produces queue entries a few seconds apart instead of
-                // minutes apart, and looks like "the same song repeating constantly"
-                // even though duplicate prevention is working correctly.
+                // Guard against a corrupt or not-yet-analyzed media duration while
+                // preserving intentional sub-five-second wall-clock caps.
                 $effectiveDuration = $queueRow->duration ?? 0.0;
-                if ($effectiveDuration < 5.0) {
-                    $this->logger->warning(
-                        'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
-                        [
-                            'song_id' => $queueRow->song_id,
-                            'media_id' => $queueRow->media?->id,
-                            'duration' => $queueRow->duration,
-                        ]
-                    );
-                    $effectiveDuration = 5.0;
+                if (
+                    $effectiveDuration < 5.0
+                    && !$queueRow->hour_boundary_enforce_cap
+                    && !$queueRow->clock_wheel_enforce_cap
+                ) {
+                    $naturalDuration = $queueRow->media?->getCalculatedLength() ?? 0.0;
+                    if ($naturalDuration >= 5.0) {
+                        $this->logger->warning(
+                            'Queue: restoring natural media duration instead of collapsing the projected timeline.',
+                            [
+                                'song_id' => $queueRow->song_id,
+                                'media_id' => $queueRow->media?->id,
+                                'stored_duration' => $queueRow->duration,
+                                'natural_duration' => $naturalDuration,
+                            ]
+                        );
+                        $queueRow->duration = $naturalDuration;
+                        $effectiveDuration = $naturalDuration;
+                    } else {
+                        $this->logger->warning(
+                            'Queue: song has an implausibly short or missing duration; using a floor value to prevent queue timestamp collapse.',
+                            [
+                                'song_id' => $queueRow->song_id,
+                                'media_id' => $queueRow->media?->id,
+                                'duration' => $queueRow->duration,
+                            ]
+                        );
+                        $effectiveDuration = 5.0;
+                    }
                 }
 
                 $queueRow->timestamp_cued = $expectedCueTime;
@@ -432,6 +458,36 @@ final class Queue
         if (!$media instanceof StationMedia) {
             return;
         }
+
+        // Hour-boundary caps are projections for one particular expected start.
+        // If the queue is recalculated (clock correction, restart, previous track
+        // changed, etc.), restore the row to its non-hour-boundary duration first.
+        // Otherwise a former 1-5 second cap becomes permanent and every later row
+        // appears only a few seconds apart in Upcoming Queue.
+        if ($queueRow->hour_boundary_enforce_cap) {
+            $naturalDuration = $media->getCalculatedLength();
+
+            if (
+                $queueRow->clock_wheel_enforce_cap
+                && null !== $queueRow->clock_wheel_max_play_seconds
+                && $queueRow->clock_wheel_max_play_seconds > 0
+            ) {
+                $queueRow->duration = min(
+                    $naturalDuration,
+                    (float)$queueRow->clock_wheel_max_play_seconds,
+                );
+            } elseif (
+                null !== $queueRow->clock_wheel_stretch_ratio
+                && $queueRow->clock_wheel_stretch_ratio > 0.0
+            ) {
+                $queueRow->duration = $naturalDuration / $queueRow->clock_wheel_stretch_ratio;
+            } else {
+                $queueRow->duration = $naturalDuration;
+            }
+        }
+
+        $queueRow->hour_boundary_enforce_cap = false;
+        $queueRow->hour_boundary_max_play_seconds = null;
 
         $maxDuration = $this->broadcastClockPlanner->maxContentDurationBeforeNextSoftAnchor(
             $station,
