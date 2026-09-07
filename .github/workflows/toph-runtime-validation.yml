@@ -36,7 +36,9 @@ jobs:
           grep -q 'top_of_hour_id_target_epoch' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'track_sensitive=false' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'top_of_hour_underlying_gain' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
-          grep -q 'azuracast.discard_autodj_current()' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'def top_of_hour_id_enter(old, new)' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          grep -q 'source.skip(old)' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'azuracast.discard_autodj_current()' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           ! grep -q 'source.skip(source.effective(' backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           grep -q 'RigidScheduleRuntimeConfiguration' backend/config/events.php
           grep -q 'priority 20' backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
@@ -128,9 +130,9 @@ jobs:
             ]
           )
 
-          def toh_enter(_, new) =
+          def toh_enter(old, new) =
             if not live_enabled() then
-              discard_autodj_current()
+              source.skip(old)
             end
             new
           end
