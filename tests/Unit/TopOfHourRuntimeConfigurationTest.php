@@ -15,7 +15,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeCon
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohTakeoverPermanentlyDiscardsTheRealAutoDjTransport(): void
+    public function testTohTakeoverDiscardsAndGatesAutoDjTransport(): void
     {
         $station = new Station();
         $station->name = 'TOH Runtime Test';
@@ -34,11 +34,18 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
 
         self::assertStringContainsString('Top-of-Hour Station ID exact wall-clock lane (plugin owned)', $config);
         self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
-        self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
+        self::assertStringContainsString('broadcast_clock_block_autodj()', $config);
         self::assertStringContainsString(
-            'Top-of-Hour ID: permanently discarded interrupted AutoDJ track.',
+            'Top-of-Hour ID: discarded and gated interrupted AutoDJ track.',
             $config,
         );
+        self::assertStringContainsString('def top_of_hour_release_gate_if_no_rigid()', $config);
+        self::assertStringContainsString('exited_at_hard_boundary', $config);
+        self::assertStringContainsString(
+            'thread.run.recurrent(delay=1.0, top_of_hour_release_gate_if_no_rigid)',
+            $config,
+        );
+        self::assertStringContainsString('broadcast_clock_release_autodj()', $config);
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
