@@ -102,6 +102,7 @@ final class StageTopOfHourStationIdTask extends AbstractTask
             return;
         }
 
+        $targetHasArrived = $now >= $plan->targetStartAt;
         $this->setRuntimePlan($station, $backend, $plan);
 
         $queueRow = $this->findBoundaryRow($station, $plan->boundaryAt);
@@ -158,6 +159,20 @@ final class StageTopOfHourStationIdTask extends AbstractTask
 
         if ($isNew) {
             $this->clearRuntimeQueue($station, $backend);
+        } elseif ($targetHasArrived) {
+            // request.queue removes the currently-playing request from its waiting
+            // queue. During minute :59 that makes queue() look empty while the ID
+            // is already on air. Never interpret that as permission to enqueue the
+            // same boundary row a second time.
+            $this->logger->debug(
+                'Top-of-Hour Station ID target already arrived; refusing to restage an existing boundary row.',
+                [
+                    'station_id' => $station->id,
+                    'queue_id' => $queueRow->id,
+                    'target_start_at' => $plan->targetStartAt->format(DateTimeImmutable::ATOM),
+                ]
+            );
+            return;
         } elseif (!$backend->isQueueEmpty($station, LiquidsoapQueues::TopOfHour)) {
             return;
         }
