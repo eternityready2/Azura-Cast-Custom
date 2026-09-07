@@ -8,7 +8,6 @@ use App\Entity\Enums\PlaylistTypes;
 use App\Entity\Station;
 use App\Entity\StationPlaylist;
 use App\Entity\StationSchedule;
-use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
 use App\Utilities\ScheduleRecurrence;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -19,6 +18,13 @@ use DateTimeImmutable;
  * Unlike a hard interrupt, a soft anchor gives queue planning enough notice to
  * backtime the preceding audio. Stretch/squeeze can then close a small timing
  * gap and the normal cue-out/fade path is only used when a track cannot fit.
+ *
+ * Automatic Top-of-Hour Station ID is deliberately NOT a soft AutoDJ anchor.
+ * The dedicated Liquidsoap wall-clock lane owns that deadline and interrupts
+ * whatever ordinary music is actually on air. Making TOH a queue-planning
+ * anchor manufactures tiny synthetic song slots immediately before :59:ss and
+ * leaves those rows available to air after the ID, which is exactly the wrong
+ * behavior for a broadcast station ID.
  */
 final class BroadcastClockPlanner
 {
@@ -26,7 +32,6 @@ final class BroadcastClockPlanner
 
     public function __construct(
         private readonly Scheduler $scheduler,
-        private readonly TopOfHourClock $topOfHourClock,
     ) {
     }
 
@@ -37,15 +42,6 @@ final class BroadcastClockPlanner
         $tz = $station->getTimezoneObject();
         $nowLocal = CarbonImmutable::instance($now)->setTimezone($tz);
         $best = null;
-
-        // The rebuilt station ID is a first-class broadcast-clock anchor. HARD
-        // mode backtimes the actual ID duration to :00; SOFT mode anchors at
-        // :59:00. Music, Smart Blocks and the 24-hour Linear Log all use this
-        // same target instead of maintaining a second TOH clock.
-        $topOfHourDelta = $this->topOfHourClock->secondsUntilPlayoutAnchor($station, $now);
-        if (null !== $topOfHourDelta) {
-            $best = $topOfHourDelta;
-        }
 
         foreach ($station->playlists as $playlist) {
             if (!$playlist->is_enabled || !$this->isClockAnchoredPlaylist($playlist)) {
