@@ -45,7 +45,7 @@ let settings.azuracast.fallback_path = settings.make(
 )
 
 let settings.azuracast.temp_path = settings.make(
-    description="A temporary path to write ephemeral files (like recordings and HLS segments).",
+    description="The path to write temporary files.",
     "/tmp"
 )
 
@@ -138,6 +138,12 @@ let azuracast.autodj_ping_attempts = ref(0)
 
 # Whether the AzuraCast AutoDJ queue currently contains at least one unplayed item.
 let azuracast.autodj_queue_ready = ref(false)
+
+# Direct handle to the request.dynamic source that owns ordinary AutoDJ music.
+# TOH/rigid clock events use this instead of trying to discover the source
+# through temporary switch/crossfade wrappers. The placeholder is never aired.
+let azuracast.autodj_transport = ref(blank(id="autodj_transport_placeholder", duration=0.))
+let azuracast.autodj_transport_ready = ref(false)
 
 # The username/display name of the last authenticated DJ.
 let azuracast.last_authenticated_dj = ref("")
@@ -487,6 +493,17 @@ def azuracast.wait_for_next_song(autodj) =
     end
 end
 
+# Permanently discard the ordinary AutoDJ request that is currently playing.
+# This direct handle is deliberately below fallbacks, switches and crossfades,
+# so a broadcast-clock interruption cannot accidentally skip only a wrapper and
+# leave the same request parked to resume later.
+def azuracast.discard_autodj_current() =
+    if azuracast.autodj_transport_ready() then
+        source.skip(azuracast.autodj_transport())
+        log(level=2, label="azuracast.autodj", "Discarded current AutoDJ transport request.")
+    end
+end
+
 def azuracast.enable_autodj(s) =
     dynamic = request.dynamic(
         id="next_song", 
@@ -494,6 +511,12 @@ def azuracast.enable_autodj(s) =
         retry_delay=10., 
         azuracast.autodj_next_song
     )
+
+    # Publish the real request.dynamic transport for broadcast-clock controls.
+    # Anything faded/cut by TOH or a rigid programme can now be destroyed at
+    # the source instead of relying on source.effective() through wrappers.
+    azuracast.autodj_transport := dynamic
+    azuracast.autodj_transport_ready := true
 
     dynamic_startup = fallback(
         id = "dynamic_startup",
