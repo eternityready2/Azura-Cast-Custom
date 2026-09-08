@@ -24,7 +24,6 @@ jobs:
           python3 - <<'PY'
           import hashlib
           import json
-          import os
           import pathlib
           import subprocess
           from collections import Counter
@@ -39,9 +38,13 @@ jobs:
           hashes = []
 
           text_suffixes = {
-              '.php', '.vue', '.ts', '.js', '.mjs', '.cjs', '.json', '.yml', '.yaml',
-              '.xml', '.md', '.txt', '.sh', '.liq', '.css', '.scss', '.html', '.twig',
-              '.neon', '.env', '.ini', '.conf', '.sql', '.py', '.rb', '.toml'
+              '.php', '.phtml', '.vue', '.ts', '.js', '.mjs', '.cjs', '.json', '.yml', '.yaml',
+              '.xml', '.svg', '.md', '.txt', '.sh', '.liq', '.css', '.scss', '.html', '.twig',
+              '.neon', '.env', '.ini', '.conf', '.sql', '.py', '.rb', '.toml', '.tmpl', '.po',
+              '.pot', '.stub'
+          }
+          binary_suffixes = {
+              '.png', '.webp', '.jpg', '.jpeg', '.pdf', '.mp3', '.ico'
           }
 
           for name in files:
@@ -53,11 +56,14 @@ jobs:
                   continue
 
               total_bytes += len(data)
-              suffixes[path.suffix.lower() or '<none>'] += 1
+              suffix = path.suffix.lower()
+              suffixes[suffix or '<none>'] += 1
               digest = hashlib.sha256(data).hexdigest()
               hashes.append(f'{digest}  {name}')
 
-              looks_text = path.suffix.lower() in text_suffixes or b'\0' not in data[:8192]
+              looks_text = suffix in text_suffixes or (
+                  suffix not in binary_suffixes and b'\0' not in data[:8192]
+              )
               if looks_text:
                   text += 1
                   try:
@@ -84,7 +90,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, pathlib, subprocess
+          import json, subprocess
           files = subprocess.check_output(['git','ls-files','*.json']).decode().splitlines()
           for name in files:
               with open(name, encoding='utf-8') as fh:
@@ -92,16 +98,30 @@ jobs:
           print(f'Validated {len(files)} JSON files.')
           PY
 
-      - name: Validate XML files
+      - name: Validate YAML files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import subprocess, yaml
+          files = subprocess.check_output(['git','ls-files','*.yml','*.yaml']).decode().splitlines()
+          for name in files:
+              with open(name, encoding='utf-8') as fh:
+                  yaml.safe_load(fh)
+          print(f'Validated {len(files)} YAML files.')
+          PY
+
+      - name: Validate XML and SVG files
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import subprocess, xml.etree.ElementTree as ET
-          files = subprocess.check_output(['git','ls-files','*.xml']).decode().splitlines()
+          files = subprocess.check_output(['git','ls-files','*.xml','*.svg']).decode().splitlines()
           for name in files:
               ET.parse(name)
-          print(f'Validated {len(files)} XML files.')
+          print(f'Validated {len(files)} XML/SVG files.')
           PY
 
       - name: Bash syntax check all tracked shell scripts
@@ -116,7 +136,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -n -I -E '^(<<<<<<< |=======|>>>>>>> )' -- '*.php' '*.ts' '*.vue' '*.js' '*.mjs' '*.cjs' '*.liq' '*.sh' '*.yml' '*.yaml'; then
+          if git grep -n -I -E '^(<<<<<<< |=======|>>>>>>> )' -- '*.php' '*.phtml' '*.ts' '*.vue' '*.js' '*.mjs' '*.cjs' '*.liq' '*.sh' '*.yml' '*.yaml'; then
             echo 'Unresolved merge marker found.' >&2
             exit 1
           fi
@@ -147,6 +167,14 @@ jobs:
 
       - name: PHP syntax across repository
         run: composer phplint
+
+      - name: PHP template syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            php -l "$file"
+          done < <(git ls-files '*.phtml')
 
       - name: PHPStan full configured codebase
         run: composer phpstan
