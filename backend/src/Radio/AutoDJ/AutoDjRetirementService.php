@@ -39,8 +39,12 @@ final class AutoDjRetirementService
     }
 
     /**
-     * @param int[] $resetQueueIds Queue rows that Liquidsoap had prefetched but
-     *        explicitly destroyed during the retirement transaction.
+     * @param int[] $resetQueueIds Queue IDs reported by Liquidsoap for diagnostic
+     *        traceability. Reconciliation intentionally resets every unplayed row
+     *        already sent to the ordinary AutoDJ transport, because the retirement
+     *        transaction flushes the complete request.dynamic prefetch queue and
+     *        the processed fallback above it, including requests whose metadata
+     *        may not have exposed an sq_id yet.
      */
     public function activate(
         Station $station,
@@ -58,24 +62,29 @@ final class AutoDjRetirementService
             self::CACHE_TTL_SECONDS,
         );
 
+        // Normalize the transport report even though the safety reconciliation
+        // below is deliberately broader than the reported list.
         $resetQueueIds = array_values(array_unique(array_filter(
             array_map('intval', $resetQueueIds),
             static fn (int $id): bool => $id > 0,
         )));
+        unset($resetQueueIds);
 
-        if ([] !== $resetQueueIds) {
-            $this->em->createQuery(
-                <<<'DQL'
-                    UPDATE App\Entity\StationQueue sq
-                    SET sq.sent_to_autodj = 0
-                    WHERE sq.station = :station
-                    AND sq.is_played = 0
-                    AND sq.id IN (:ids)
-                DQL
-            )->setParameter('station', $station)
-                ->setParameter('ids', $resetQueueIds)
-                ->execute();
-        }
+        // Every unplayed ordinary row previously marked sent_to_autodj belongs to
+        // transport state that has just been purged. Reset all of them, not only
+        // IDs observed in request.metadata(), so an unresolved/prefetched request
+        // can never become a ghost row that blocks a clean post-clock rebuild.
+        $this->em->createQuery(
+            <<<'DQL'
+                UPDATE App\Entity\StationQueue sq
+                SET sq.sent_to_autodj = 0
+                WHERE sq.station = :station
+                AND sq.is_played = 0
+                AND sq.top_of_hour_legal_id = 0
+                AND sq.sent_to_autodj = 1
+            DQL
+        )->setParameter('station', $station)
+            ->execute();
 
         // Rows for the interrupted song must not continue counting toward queue
         // depth while the quarantine is active. Listener requests are deferred,
@@ -124,6 +133,7 @@ final class AutoDjRetirementService
             ->leftJoin('sq.playlist', 'sp')
             ->leftJoin('sq.clock_wheel', 'scw')
             ->where('sq.station = :station')
+            ->andWhere('sq.is_played = 0')
             ->andWhere('sq.sent_to_autodj = 0')
             ->andWhere('sq.top_of_hour_legal_id = 0')
             ->andWhere('sq.song_id != :excludedSongId')
