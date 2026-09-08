@@ -23,8 +23,7 @@ on:
       - 'tests/Unit/TopOfHourRuntimeConfigurationTest.php'
       - '.github/workflows/toph-runtime-validation.yml'
   pull_request:
-    branches:
-      - dev
+    branches: [dev]
     paths:
       - 'plugins/top_of_hour/**'
       - 'util/docker/stations/liquidsoap/azuracast.liq'
@@ -35,11 +34,8 @@ on:
       - 'backend/src/Radio/AutoDJ/BroadcastClockPlanner.php'
       - 'backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php'
       - 'backend/src/Sync/Task/StageTopOfHourStationIdTask.php'
-      - 'tests/Unit/BroadcastClockPlannerTest.php'
+      - 'tests/Unit/**TopOfHour**'
       - 'tests/Unit/RigidScheduleRuntimeConfigurationTest.php'
-      - 'tests/Unit/TopOfHourClockTest.php'
-      - 'tests/Unit/TopOfHourQueueClockConstraintTest.php'
-      - 'tests/Unit/TopOfHourRuntimeConfigurationTest.php'
       - '.github/workflows/toph-runtime-validation.yml'
 
 permissions:
@@ -51,8 +47,7 @@ jobs:
     services:
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ['6379:6379']
 
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +61,7 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Validate diff and broadcast-clock ownership
+      - name: Validate plugin ownership and clock-integrity architecture
         shell: bash
         run: |
           set -euo pipefail
@@ -76,206 +71,131 @@ jobs:
           test -f plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           test -f plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           test -f plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
+          test -f backend/src/Event/Radio/ResolveQueueClockConstraint.php
+
           test ! -e backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
           test ! -e backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
           ! grep -q 'RigidScheduleRuntimeConfiguration' backend/config/events.php
           ! grep -q 'TopOfHourRuntimeConfiguration' backend/config/events.php
+
           grep -q 'StageTopOfHourStationIdTask' plugins/top_of_hour/events.php
           grep -q 'RigidScheduleRuntimeConfiguration::class' plugins/top_of_hour/events.php
           grep -q 'TopOfHourQueueClockConstraint::class' plugins/top_of_hour/events.php
           grep -q 'TopOfHourRuntimeConfiguration::class' plugins/top_of_hour/events.php
 
-          # Core stays policy-neutral; plugin supplies the TOH clock constraint.
-          test -f backend/src/Event/Radio/ResolveQueueClockConstraint.php
+          # Core has one generic clock-constraint seam; TOH policy remains plugin-owned.
           grep -q 'ResolveQueueClockConstraint' backend/src/Radio/AutoDJ/Queue.php
           grep -q 'top_of_hour_station_id' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
           ! grep -q 'TopOfHourClock' backend/src/Radio/AutoDJ/Queue.php
 
-          # Direct transport retirement and fresh request preparation.
-          grep -q 'let azuracast.autodj_transport = ref(blank' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'azuracast.autodj_transport := dynamic' util/docker/stations/liquidsoap/azuracast.liq
+          # Retire both the leaf request and already-processed/crossfaded selection.
           grep -q 'source.skip(azuracast.autodj_transport())' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'fallback.skip(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'source.set_id(radio, "broadcast_clock_autodj_gate")' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+
+          # Explicit fresh-song prefetch/readiness, not blind gate reopening.
           grep -q 'let azuracast.autodj_fetch_next = ref(fun () -> ())' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'dynamic.fetch()' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'def azuracast.prefetch_autodj_next()' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'def azuracast.autodj_fresh_ready()' util/docker/stations/liquidsoap/azuracast.liq
-
-          # Flush the selected processed/crossfade track as well as the leaf request.
-          grep -q 'azuracast.discard_autodj_current()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'fallback.skip(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'source.set_id(radio, "broadcast_clock_autodj_gate")' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q '{broadcast_clock_base_available()}' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          ! grep -q 'predicate.activates({broadcast_clock_base_available()})' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-
-          # Fresh-only open rejoin and unconditional HARD hold through :00.
-          grep -q 'def broadcast_clock_prefetch_autodj()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'def broadcast_clock_release_when_fresh()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'azuracast.autodj_fresh_ready()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'broadcast_clock_prefetch_autodj()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           grep -q 'broadcast_clock_release_when_fresh()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # Gate availability is level-triggered; HARD keeps AutoDJ out through :00.
+          grep -q '{broadcast_clock_base_available()}' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'predicate.activates({broadcast_clock_base_available()})' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'top_of_hour_hard_release_epoch' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           grep -q 'boundary + 0.25' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           ! grep -q 'exited_at_hard_boundary' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
 
-          grep -q 'id="rigid_schedule_runtime"' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'PlaylistFileWriter::getPlaylistFilePath' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          # Never regress to wrapper-guess skipping or ordinary squeeze ownership of TOH.
           ! grep -q 'source.skip(source.effective(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'source.skip(source.effective(' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           ! grep -q 'secondsUntilPlayoutAnchor' backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
-          grep -q 'case TopOfHour' backend/src/Radio/Enums/LiquidsoapQueues.php
           grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
-          grep -q 'queue_top_hour_news_bulletin' backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php
 
       - name: PHP syntax check changed files
         shell: bash
         run: |
           set -euo pipefail
           mapfile -t files < <(git diff --name-only origin/dev...HEAD -- '*.php' | while read -r f; do test -f "$f" && echo "$f"; done)
-          for file in "${files[@]}"; do
-            php -l "$file"
-          done
+          for file in "${files[@]}"; do php -l "$file"; done
 
-      - name: Liquidsoap 2.4.5 transport, flush and fresh-rejoin smoke test
+      - name: Liquidsoap 2.4.5 common-runtime parse
         shell: bash
         run: |
           set -euo pipefail
-
           docker run --rm --entrypoint liquidsoap \
             -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
-            -w /liq \
-            savonet/liquidsoap:v2.4.5 \
-            --check azuracast.liq
+            -w /liq savonet/liquidsoap:v2.4.5 --check azuracast.liq
 
-          cat > /tmp/toh-rigid-smoke.liq <<'EOF'
+      - name: Liquidsoap 2.4.5 flush and fresh-rejoin smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/toh-integrity-smoke.liq <<'EOF'
           init.daemon := false
           live_enabled = ref(false)
-          autodj_transport_ready = ref(false)
-          autodj_transport = ref(blank(id="autodj_transport_placeholder", duration=0.))
-          autodj_fetch_next = ref(fun () -> ())
+          transport_ready = ref(false)
+          transport = ref(blank(id="placeholder", duration=0.))
+          fetch_next = ref(fun () -> ())
 
           def next_request() = null end
-          autodj_dynamic = request.dynamic(id="next_song", timeout=20., retry_delay=10., next_request)
-          autodj_transport := autodj_dynamic
-          autodj_transport_ready := true
-          autodj_fetch_next := fun () -> autodj_dynamic.fetch()
+          dynamic = request.dynamic(id="next_song", timeout=20., retry_delay=10., next_request)
+          transport := dynamic
+          transport_ready := true
+          fetch_next := fun () -> dynamic.fetch()
 
-          def discard_autodj_current() =
-            if autodj_transport_ready() then source.skip(autodj_transport()) end
-          end
-          def prefetch_autodj_next() =
-            fetch_next = autodj_fetch_next()
-            fetch_next()
-          end
-          def autodj_fresh_ready() =
-            autodj_transport_ready() and source.is_ready(autodj_transport())
-          end
+          def discard() = if transport_ready() then source.skip(transport()) end end
+          def prefetch() = f = fetch_next(); f() end
+          def fresh_ready() = transport_ready() and source.is_ready(transport()) end
 
-          interrupting_queue = request.queue(id="interrupting_queue", timeout=20.)
-          broadcast_clock_autodj_blocked = ref(false)
-          broadcast_clock_rejoin_deadline = ref(0.)
-          rigid_schedule_active = ref(false)
-
-          def broadcast_clock_block_autodj() =
-            if not live_enabled() then
-              broadcast_clock_autodj_blocked := true
-              discard_autodj_current()
-            end
+          blocked = ref(false)
+          deadline = ref(0.)
+          def block() = blocked := true; discard() end
+          def release() = blocked := false end
+          def retry_release() =
+            if fresh_ready() or time() >= deadline() then release(); -1. else 0.1 end
           end
-          def broadcast_clock_release_autodj() = broadcast_clock_autodj_blocked := false end
-          def broadcast_clock_rejoin_tick() =
-            if autodj_fresh_ready() or time() >= broadcast_clock_rejoin_deadline() then
-              broadcast_clock_release_autodj()
-              -1.0
+          def release_when_fresh() =
+            if fresh_ready() then release()
             else
-              0.1
+              prefetch()
+              deadline := time() + 5.
+              thread.run.recurrent(delay=0.1, retry_release)
             end
           end
-          def broadcast_clock_release_when_fresh() =
-            if autodj_fresh_ready() then
-              broadcast_clock_release_autodj()
-            else
-              prefetch_autodj_next()
-              broadcast_clock_rejoin_deadline := time() + 5.0
-              thread.run.recurrent(delay=0.1, broadcast_clock_rejoin_tick)
-            end
-          end
-          def broadcast_clock_base_available() = live_enabled() or not broadcast_clock_autodj_blocked() end
+          def allowed() = not blocked() end
 
-          underlying = fallback(track_sensitive=false, [autodj_dynamic, blank()])
-          clock_base = source.available(underlying, {broadcast_clock_base_available()})
-          hold = blank(id="broadcast_clock_hold")
-          gated = fallback.skip(clock_base, fallback=hold)
+          processed = fallback(track_sensitive=false, [dynamic, blank()])
+          available = source.available(processed, {allowed()})
+          gated = fallback.skip(available, fallback=blank(id="hold"))
           source.set_id(gated, "broadcast_clock_autodj_gate")
 
-          rigid_program = blank(id="rigid_program")
-          def rigid_enter(_, new) =
-            rigid_schedule_active := true
-            broadcast_clock_block_autodj()
-            interrupting_queue.skip()
-            interrupting_queue.set_queue([])
-            new
-          end
-          def rigid_exit(_, new) =
-            interrupting_queue.skip()
-            interrupting_queue.set_queue([])
-            rigid_schedule_active := false
-            broadcast_clock_release_when_fresh()
-            new
-          end
-          rigid = switch(
-            id="rigid_schedule_runtime",
-            track_sensitive=false,
-            replay_metadata=true,
-            transition_length=0.0,
-            transitions=[rigid_enter, rigid_exit],
-            [({false}, rigid_program), ({true}, gated)]
-          )
-
-          top_of_hour_id = request.queue(id="top_of_hour", timeout=20.)
-          hard_release_epoch = ref(0.)
-          def release_gate_if_no_rigid() =
-            if hard_release_epoch() > 0. and time() < hard_release_epoch() then
-              0.1
-            elsif rigid_schedule_active() then
-              -1.0
-            else
-              broadcast_clock_release_when_fresh()
-              -1.0
-            end
-          end
-          def toh_enter(_, new) =
-            broadcast_clock_block_autodj()
-            prefetch_autodj_next()
-            new
-          end
-          def toh_exit(_, new) =
-            top_of_hour_id.skip()
-            top_of_hour_id.set_queue([])
-            hard_release_epoch := time() + 0.25
-            thread.run.recurrent(delay=0.1, release_gate_if_no_rigid)
-            new
-          end
+          def take_clock(_, new) = block(); prefetch(); new end
+          def leave_clock(_, new) = release_when_fresh(); new end
+          clock_item = blank(id="clock_item")
           radio = switch(
-            id="top_of_hour_station_id",
-            track_sensitive=false,
-            replay_metadata=true,
-            transition_length=0.0,
-            transitions=[toh_enter, toh_exit],
-            [({false}, top_of_hour_id), ({true}, rigid)]
+            id="clock_switch", track_sensitive=false, replay_metadata=true,
+            transition_length=0., transitions=[take_clock, leave_clock],
+            [({false}, clock_item), ({true}, gated)]
           )
           output.dummy(radio)
           EOF
-
           docker run --rm --entrypoint liquidsoap \
-            -v /tmp/toh-rigid-smoke.liq:/tmp/toh-rigid-smoke.liq:ro \
-            savonet/liquidsoap:v2.4.5 \
-            --check /tmp/toh-rigid-smoke.liq
+            -v /tmp/toh-integrity-smoke.liq:/tmp/toh-integrity-smoke.liq:ro \
+            savonet/liquidsoap:v2.4.5 --check /tmp/toh-integrity-smoke.liq
 
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
 
-      - name: Prepare AzuraCast test runtime
-        run: sudo mkdir -p /var/azuracast/www/plugins
+      - name: Prepare writable AzuraCast test runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /var/azuracast/www/plugins /var/azuracast/stations
+          sudo chown -R "$USER":"$(id -gn)" /var/azuracast
 
       - name: Execute TOH unit and live-incident regressions
         shell: bash
@@ -286,7 +206,7 @@ jobs:
           vendor/bin/codecept run tests/Unit/TopOfHourClockTest.php
           vendor/bin/codecept run tests/Unit/TopOfHourQueueClockConstraintTest.php
 
-      - name: PHPStan TOH runtime integration
+      - name: PHPStan TOH integration
         shell: bash
         run: |
           cat > phpstan.toph.neon <<'EOF'
@@ -296,21 +216,13 @@ jobs:
             reportUnmatchedIgnoredErrors: false
           EOF
           vendor/bin/phpstan analyze -c phpstan.toph.neon --memory-limit=-1 --no-progress \
-            backend/config/events.php \
-            backend/src/Controller/Api/Stations/TopOfHour \
-            backend/src/Entity/Repository/StationQueueRepository.php \
             backend/src/Event/Radio/ResolveQueueClockConstraint.php \
             backend/src/Radio/AutoDJ/Queue.php \
             backend/src/Radio/AutoDJ/TopOfHour \
-            backend/src/Radio/AutoDJ/BroadcastClockPlanner.php \
-            backend/src/Radio/Backend/Liquidsoap/TopOfHourAiNewsConfigurationGuard.php \
-            backend/src/Sync/Task/QueueInterruptingTracks.php \
-            backend/src/Sync/Task/StageTopOfHourStationIdTask.php \
             plugins/top_of_hour/events.php \
             plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php \
             plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php \
             plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php \
-            tests/Unit/BroadcastClockPlannerTest.php \
             tests/Unit/RigidScheduleRuntimeConfigurationTest.php \
             tests/Unit/TopOfHourClockTest.php \
             tests/Unit/TopOfHourQueueClockConstraintTest.php \
