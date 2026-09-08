@@ -53,8 +53,17 @@ jobs:
           grep -q 'RetiredSongQueueGuard::class' plugins/top_of_hour/events.php
           grep -q "BuildQueue::class => \['guardSelection', -1000\]" plugins/top_of_hour/src/RetiredSongQueueGuard.php
 
+          # The exact audible processed song is captured before the leaf transport
+          # is destroyed. request.dynamic current metadata is fallback identity only.
+          grep -q 'autodj_retirement_song_hint' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          grep -q 'set_autodj_retirement_song_hint' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          grep -q 'if hinted_song_id != "" then' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          grep -q 'radio_before_broadcast_clock_gate.last_metadata()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'broadcast_clock_capture_retirement_song()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'set_autodj_retirement_song_hint(audible_song_id)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+
           grep -q 'dynamic.current()' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
-          grep -q 'request.destroy(force=true, current_request)' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          grep -q 'request.destroy(force=true, null.get(current))' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'dynamic.queue()' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'request.destroy(force=true, req)' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'dynamic.set_queue(\[\])' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
@@ -105,13 +114,14 @@ jobs:
           vendor/bin/codecept run tests/Unit/RigidScheduleRuntimeConfigurationTest.php
           vendor/bin/codecept run tests/Unit/TopOfHourRuntimeConfigurationTest.php
 
-      - name: Parse plugin retirement runtime with Liquidsoap 2.4.5
+      - name: Parse retirement and audible gate runtime with Liquidsoap 2.4.5
         shell: bash
         run: |
           set -euo pipefail
           php -r '
             require "vendor/autoload.php";
             require "plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php";
+            require "plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php";
             $station = new App\Entity\Station();
             $station->name = "CI Retirement";
             $station->short_name = "ci_retirement";
@@ -119,9 +129,10 @@ jobs:
             $station->radio_base_dir = "/tmp/ci_retirement";
             $event = new App\Event\Radio\WriteLiquidsoapConfiguration($station, false, false);
             (new Plugin\TopOfHour\AutoDjRetirementRuntimeConfiguration())->writeRuntime($event);
+            (new Plugin\TopOfHour\RigidScheduleRuntimeConfiguration())->writeRuntime($event);
             file_put_contents(
               "/tmp/toh-retirement-runtime.liq",
-              "%include \"/liq/azuracast.liq\"\n" . $event->buildConfiguration()
+              "%include \"/liq/azuracast.liq\"\nradio = blank(id=\"ci_radio\")\n" . $event->buildConfiguration()
             );
           '
           docker run --rm --entrypoint liquidsoap \
