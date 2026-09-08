@@ -61,7 +61,7 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Validate plugin ownership and clock-integrity architecture
+      - name: Validate plugin ownership and single-authority handoff architecture
         shell: bash
         run: |
           set -euo pipefail
@@ -83,39 +83,51 @@ jobs:
           grep -q 'TopOfHourQueueClockConstraint::class' plugins/top_of_hour/events.php
           grep -q 'TopOfHourRuntimeConfiguration::class' plugins/top_of_hour/events.php
 
-          # Core has one generic clock-constraint seam; TOH policy remains plugin-owned.
+          # The failed quarantine architecture is gone. It created a competing
+          # state machine and could recycle freshly sent rows back to unsent.
+          test ! -e plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          test ! -e plugins/top_of_hour/src/RetiredSongQueueGuard.php
+          test ! -e backend/src/Radio/AutoDJ/AutoDjRetirementService.php
+          ! grep -q 'AutoDjRetirementRuntimeConfiguration' plugins/top_of_hour/events.php
+          ! grep -q 'RetiredSongQueueGuard' plugins/top_of_hour/events.php
+          ! grep -q 'AutoDjRetirementService' backend/src/Radio/AutoDJ/Annotations.php
+          ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
+          ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php
+
+          # One wall-clock authority: the outer switch synchronously skips the
+          # exact processed outgoing source while it is still clocked.
+          grep -q 'def broadcast_clock_retire_outgoing(source_to_retire)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'source.skip(source_to_retire)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'def top_of_hour_id_enter(old, new)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'broadcast_clock_retire_outgoing(old)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'def rigid_schedule_enter(old, new)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'broadcast_clock_retire_outgoing(old)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+
+          # The delayed inner gate seen in the live log must never return.
+          ! grep -q 'broadcast_clock_autodj_gate' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'broadcast_clock_autodj_blocked' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'fallback.skip(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'source.available(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'broadcast_clock_release_when_fresh' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'broadcast_clock_prefetch_autodj' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # HARD TOH keeps the same authoritative lane selected through :00.
+          grep -q 'top_of_hour_hard_hold = blank' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q '\[top_of_hour_id, top_of_hour_hard_hold\]' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'boundary > 0.0 and now < boundary' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'top_of_hour_hard_release_epoch' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # Core has one generic forecast seam. TOH policy remains plugin-owned,
+          # and TOH must never hard-cap a future ordinary queue row.
           grep -q 'ResolveQueueClockConstraint' backend/src/Radio/AutoDJ/Queue.php
           grep -q 'top_of_hour_station_id' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
           grep -q 'if (!\$this->clock->isEnabled(\$station))' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
-          grep -q 'public static function applyPlan' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
+          grep -q 'if (null !== \$event->getQueueRow())' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
           ! grep -q 'TopOfHourClock' backend/src/Radio/AutoDJ/Queue.php
 
-          # Retire both the leaf request and already-processed/crossfaded selection.
-          grep -q 'source.skip(azuracast.autodj_transport())' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'fallback.skip(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'source.set_id(radio, "broadcast_clock_autodj_gate")' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-
-          # Explicit fresh-song prefetch/readiness, not blind gate reopening.
-          grep -q 'let azuracast.autodj_fetch_next = ref(fun () -> ())' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'dynamic.fetch()' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'def azuracast.prefetch_autodj_next()' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'def azuracast.autodj_fresh_ready()' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'def broadcast_clock_release_when_fresh()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'broadcast_clock_prefetch_autodj()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'broadcast_clock_release_when_fresh()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-
-          # Gate availability is level-triggered; HARD keeps AutoDJ out through :00.
-          grep -q '{broadcast_clock_base_available()}' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          ! grep -q 'predicate.activates({broadcast_clock_base_available()})' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'top_of_hour_hard_release_epoch' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'boundary + 0.25' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          ! grep -q 'exited_at_hard_boundary' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-
-          # Never regress to wrapper-guess skipping or ordinary squeeze ownership of TOH.
-          ! grep -q 'source.skip(source.effective(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          ! grep -q 'source.skip(source.effective(' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          ! grep -q 'secondsUntilPlayoutAnchor' backend/src/Radio/AutoDJ/BroadcastClockPlanner.php
-          grep -q 'top_of_hour_legal_id = 0' backend/src/Entity/Repository/StationQueueRepository.php
+          # Existing duplicate prevention from the normal queue remains intact.
+          grep -q 'getPlayedMusicHistoryByTimeRange' backend/src/Radio/AutoDJ/Queue.php
+          grep -q '\$nextSongs\[0\]->song_id === \$lastSongId' backend/src/Radio/AutoDJ/Queue.php
 
       - name: PHP syntax check changed files
         shell: bash
@@ -132,62 +144,62 @@ jobs:
             -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
             -w /liq savonet/liquidsoap:v2.4.5 --check azuracast.liq
 
-      - name: Liquidsoap 2.4.5 flush and fresh-rejoin smoke
+      - name: Liquidsoap 2.4.5 synchronous handoff smoke
         shell: bash
         run: |
           set -euo pipefail
-          cat > /tmp/toh-integrity-smoke.liq <<'EOF'
+          cat > /tmp/toh-handoff-smoke.liq <<'EOF'
           init.daemon := false
+
           live_enabled = ref(false)
-          transport_ready = ref(false)
-          transport = ref(blank(id="placeholder", duration=0.))
-          fetch_next = ref(fun () -> ())
+          hard = ref(true)
+          active = ref(false)
+          boundary = ref(time() + 60.)
 
-          def next_request() = null end
-          dynamic = request.dynamic(id="next_song", timeout=20., retry_delay=10., next_request)
-          transport := dynamic
-          transport_ready := true
-          fetch_next := fun () -> dynamic.fetch()
+          music = blank(id="processed_music")
+          id_source = blank(id="legal_id", duration=1.)
+          hard_hold = blank(id="hard_hold")
+          id_lane = fallback(
+            id="id_lane",
+            track_sensitive=false,
+            transition_length=0.,
+            [id_source, hard_hold]
+          )
 
-          def discard() = if transport_ready() then source.skip(transport()) end end
-          def prefetch() = f = fetch_next(); f() end
-          def fresh_ready() = transport_ready() and source.is_ready(transport()) end
-
-          blocked = ref(false)
-          deadline = ref(0.)
-          def block() = blocked := true; discard() end
-          def release() = blocked := false end
-          def retry_release() =
-            if fresh_ready() or time() >= deadline() then release(); -1. else 0.1 end
+          def retire_outgoing(s) =
+            if not live_enabled() then source.skip(s) end
           end
-          def release_when_fresh() =
-            if fresh_ready() then release()
-            else
-              prefetch()
-              deadline := time() + 5.
-              thread.run.recurrent(delay=0.1, retry_release)
+
+          def should_play() =
+            if active() and hard() then time() < boundary()
+            else false
             end
           end
-          def allowed() = not blocked() end
 
-          processed = fallback(track_sensitive=false, [dynamic, blank()])
-          available = source.available(processed, {allowed()})
-          gated = fallback.skip(available, fallback=blank(id="hold"))
-          source.set_id(gated, "broadcast_clock_autodj_gate")
+          def enter(old, new) =
+            active := true
+            retire_outgoing(old)
+            new
+          end
 
-          def take_clock(_, new) = block(); prefetch(); new end
-          def leave_clock(_, new) = release_when_fresh(); new end
-          clock_item = blank(id="clock_item")
+          def leave(_, new) =
+            active := false
+            new
+          end
+
           radio = switch(
-            id="clock_switch", track_sensitive=false, replay_metadata=true,
-            transition_length=0., transitions=[take_clock, leave_clock],
-            [({false}, clock_item), ({true}, gated)]
+            id="toh_switch",
+            track_sensitive=false,
+            replay_metadata=true,
+            transition_length=0.,
+            transitions=[enter, leave],
+            [({should_play()}, id_lane), ({true}, music)]
           )
           output.dummy(radio)
           EOF
           docker run --rm --entrypoint liquidsoap \
-            -v /tmp/toh-integrity-smoke.liq:/tmp/toh-integrity-smoke.liq:ro \
-            savonet/liquidsoap:v2.4.5 --check /tmp/toh-integrity-smoke.liq
+            -v /tmp/toh-handoff-smoke.liq:/tmp/toh-handoff-smoke.liq:ro \
+            savonet/liquidsoap:v2.4.5 --check /tmp/toh-handoff-smoke.liq
 
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
