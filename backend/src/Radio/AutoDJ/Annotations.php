@@ -29,7 +29,6 @@ final class Annotations implements EventSubscriberInterface
         private readonly CustomFieldRepository $customFieldRepo,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly AutoCueCache $autoCueCache,
-        private readonly AutoDjRetirementService $retirement,
     ) {
     }
 
@@ -57,9 +56,7 @@ final class Annotations implements EventSubscriberInterface
         Station $station,
         bool $asAutoDj = false,
     ): string {
-        $queueRow = null !== $this->retirement->getExcludedSongId($station)
-            ? $this->retirement->getNextToSendToAutoDj($station)
-            : $this->queueRepo->getNextToSendToAutoDj($station);
+        $queueRow = $this->queueRepo->getNextToSendToAutoDj($station);
 
         if (null === $queueRow) {
             throw new RuntimeException('Queue is empty!');
