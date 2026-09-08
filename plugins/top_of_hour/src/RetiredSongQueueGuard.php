@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugin\TopOfHour;
 
+use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
 use App\Radio\AutoDJ\AutoDjRetirementService;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -43,7 +44,7 @@ final readonly class RetiredSongQueueGuard implements EventSubscriberInterface
 
         $filtered = array_values(array_filter(
             $nextSongs,
-            static fn ($queueRow): bool => !hash_equals($excludedSongId, $queueRow->song_id),
+            static fn (StationQueue $queueRow): bool => !hash_equals($excludedSongId, $queueRow->song_id),
         ));
 
         if (count($filtered) === count($nextSongs)) {
