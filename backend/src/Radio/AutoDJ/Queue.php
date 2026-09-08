@@ -101,15 +101,21 @@ final class Queue
 
         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
 
-        // The on-air song is already marked played when its feedback arrives, so
-        // it is normally absent from getUnplayedQueue(). Starting this cursor at
-        // null forgets the exact song AutoDJ is currently airing and lets a
-        // depleted/rebuilt queue select it again as the first "fresh" request.
-        // This is especially visible at TOH: the transport correctly discards
-        // the interrupted request, then prefetch can receive the same song as a
-        // brand-new request. Carry the actual on-air identity into BuildQueue so
-        // the existing immediate-repeat guard can reject it and choose another.
-        $lastSongId = $currentSong?->song_id;
+        // Feedback marks an AutoDJ row played as soon as it takes air, so the
+        // current/interrupted music row is normally absent from getUnplayedQueue().
+        // During TOH, current SongHistory then becomes the ID itself; seeding this
+        // cursor from current_song would therefore forget the exact music that was
+        // interrupted and allow it to be fetched again as a supposedly fresh
+        // request. Use actual played MUSIC history instead. The minimum lookback
+        // is deliberately independent of a station disabling broad duplicate
+        // prevention: immediate-repeat protection is a separate liveness/continuity
+        // invariant, while the final retry still fails open for a one-song library.
+        $recentPlayedMusic = $this->queueRepo->getPlayedMusicHistoryByTimeRange(
+            $station,
+            Time::nowUtc(),
+            max(30, $station->backend_config->duplicate_prevention_time_range),
+        );
+        $lastSongId = $recentPlayedMusic[0]['song_id'] ?? null;
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
