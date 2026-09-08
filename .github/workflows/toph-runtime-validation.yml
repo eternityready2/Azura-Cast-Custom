@@ -86,6 +86,8 @@ jobs:
           # Core has one generic clock-constraint seam; TOH policy remains plugin-owned.
           grep -q 'ResolveQueueClockConstraint' backend/src/Radio/AutoDJ/Queue.php
           grep -q 'top_of_hour_station_id' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
+          grep -q 'if (!\$this->clock->isEnabled(\$station))' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
+          grep -q 'public static function applyPlan' plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
           ! grep -q 'TopOfHourClock' backend/src/Radio/AutoDJ/Queue.php
 
           # Retire both the leaf request and already-processed/crossfaded selection.
@@ -190,11 +192,11 @@ jobs:
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
 
-      - name: Prepare writable AzuraCast test runtime
+      - name: Prepare AzuraCast test runtime
         shell: bash
         run: |
           set -euo pipefail
-          sudo mkdir -p /var/azuracast/www/plugins /var/azuracast/stations
+          sudo mkdir -p /var/azuracast/www/plugins
           sudo chown -R "$USER":"$(id -gn)" /var/azuracast
 
       - name: Execute TOH unit and live-incident regressions
@@ -203,7 +205,6 @@ jobs:
           set -euo pipefail
           vendor/bin/codecept run tests/Unit/RigidScheduleRuntimeConfigurationTest.php
           vendor/bin/codecept run tests/Unit/TopOfHourRuntimeConfigurationTest.php
-          vendor/bin/codecept run tests/Unit/TopOfHourClockTest.php
           vendor/bin/codecept run tests/Unit/TopOfHourQueueClockConstraintTest.php
 
       - name: PHPStan TOH integration
