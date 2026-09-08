@@ -26,12 +26,13 @@ final class TopOfHourRetirementInvariantTest extends Unit
         $config = $event->buildConfiguration();
 
         self::assertStringContainsString('dynamic.current()', $config);
+        self::assertStringContainsString('request.destroy(force=true, current_request)', $config);
         self::assertStringContainsString('queued = dynamic.queue()', $config);
         self::assertStringContainsString('request.destroy(force=true, req)', $config);
         self::assertStringContainsString('dynamic.set_queue([])', $config);
         self::assertStringContainsString('dynamic.skip()', $config);
         self::assertStringContainsString('exclude_song_id', $config);
-        self::assertStringContainsString('reset_sq_ids', $config);
+        self::assertStringNotContainsString('reset_sq_ids', $config);
         self::assertStringContainsString('azuracast.autodj_retirement_generation', $config);
         self::assertStringContainsString(
             'azuracast.autodj_generation() > azuracast.autodj_retirement_generation()',
@@ -53,15 +54,18 @@ final class TopOfHourRetirementInvariantTest extends Unit
         self::assertIsString($service);
         self::assertStringContainsString('sq.song_id != :excludedSongId', $service);
         self::assertStringContainsString('SET sq.sent_to_autodj = 0', $service);
+        self::assertStringContainsString('AND sq.sent_to_autodj = 1', $service);
+        self::assertStringContainsString("->andWhere('sq.is_played = 0')", $service);
         self::assertStringContainsString('$queueRow->request->played_at = null;', $service);
 
         self::assertIsString($annotations);
         self::assertStringContainsString('$this->retirement->getNextToSendToAutoDj($station)', $annotations);
 
         self::assertIsString($nextSong);
+        self::assertStringContainsString('if ($asAutoDj) {', $nextSong);
         self::assertStringContainsString("\$payload['exclude_song_id']", $nextSong);
-        self::assertStringContainsString("\$payload['reset_sq_ids']", $nextSong);
         self::assertStringContainsString('$this->retirement->activate(', $nextSong);
+        self::assertStringContainsString('$activeExcludedSongId = $this->retirement->getExcludedSongId($station);', $nextSong);
         self::assertStringContainsString('$this->queue->buildQueue($station);', $nextSong);
 
         self::assertIsString($requests);
