@@ -32,20 +32,31 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('rigid_playlist_scheduled_program_', $config);
         self::assertStringContainsString('mode="randomize"', $config);
         self::assertStringContainsString('11h0m-12h0m', $config);
-        self::assertStringContainsString('id="broadcast_clock_autodj_gate"', $config);
+
+        // Two-layer retirement is intentional: request.dynamic is killed at the
+        // transport and fallback.skip flushes the selected post-crossfade track.
         self::assertStringContainsString('broadcast_clock_autodj_blocked = ref(false)', $config);
         self::assertStringContainsString('def broadcast_clock_block_autodj()', $config);
         self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
+        self::assertStringContainsString('fallback.skip(', $config);
+        self::assertStringContainsString('source.set_id(radio, "broadcast_clock_autodj_gate")', $config);
+
         self::assertStringContainsString('source.available(', $config);
         self::assertStringContainsString('{broadcast_clock_base_available()}', $config);
         self::assertStringNotContainsString('predicate.activates({broadcast_clock_base_available()})', $config);
-        self::assertStringContainsString('blank(id="broadcast_clock_hold")', $config);
-        self::assertStringContainsString('transition_length=0.0', $config);
+
+        // Rejoin must be a fresh request, never a blind gate reopen.
+        self::assertStringContainsString('def broadcast_clock_prefetch_autodj()', $config);
+        self::assertStringContainsString('azuracast.prefetch_autodj_next()', $config);
+        self::assertStringContainsString('azuracast.autodj_fresh_ready()', $config);
+        self::assertStringContainsString('def broadcast_clock_release_when_fresh()', $config);
+        self::assertStringContainsString('holding rejoin until a fresh AutoDJ request is ready', $config);
+
         self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
         self::assertStringContainsString('Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin)', $config);
         self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
         self::assertStringContainsString('broadcast_clock_block_autodj()', $config);
-        self::assertStringContainsString('broadcast_clock_release_autodj()', $config);
+        self::assertStringContainsString('broadcast_clock_release_when_fresh()', $config);
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
@@ -58,9 +69,11 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         (new RigidScheduleRuntimeConfiguration())->writeRuntime($event);
         $config = $event->buildConfiguration();
 
-        self::assertStringContainsString('id="broadcast_clock_autodj_gate"', $config);
+        self::assertStringContainsString('source.set_id(radio, "broadcast_clock_autodj_gate")', $config);
+        self::assertStringContainsString('fallback.skip(', $config);
         self::assertStringContainsString('rigid_schedule_active = ref(false)', $config);
         self::assertStringContainsString('{broadcast_clock_base_available()}', $config);
+        self::assertStringContainsString('def broadcast_clock_release_when_fresh()', $config);
         self::assertStringNotContainsString('predicate.activates({broadcast_clock_base_available()})', $config);
         self::assertStringNotContainsString('id="rigid_schedule_runtime"', $config);
     }
