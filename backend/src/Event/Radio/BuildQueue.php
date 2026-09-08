@@ -78,10 +78,12 @@ final class BuildQueue extends Event
         }
 
         if (!is_array($nextSongs)) {
-            if ($this->lastPlayedSongId === $nextSongs->song_id) {
-                return false;
-            }
-
+            // Immediate-repeat policy belongs to Queue::buildQueue(), where the
+            // retry budget is known. Rejecting it here as well made the final
+            // liveness attempt impossible: a selector could keep returning the
+            // interrupted song, this event would reject every attempt, and the
+            // queue would stop instead of either finding an alternative or
+            // deliberately failing open for a one-song library.
             $this->nextSongs = [$nextSongs];
         } else {
             $this->nextSongs = $nextSongs;
