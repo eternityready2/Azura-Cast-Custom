@@ -1,0 +1,233 @@
+name: Full Repository Audit
+
+on:
+  push:
+    branches:
+      - 'fix/toh-current-song-repeat-guard'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read and inventory every tracked file
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check origin/dev...HEAD
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import subprocess
+          from collections import Counter
+
+          raw = subprocess.check_output(['git', 'ls-files', '-z'])
+          files = [p for p in raw.decode('utf-8').split('\0') if p]
+          suffixes = Counter()
+          total_bytes = 0
+          binary = 0
+          text = 0
+          failures = []
+          hashes = []
+
+          text_suffixes = {
+              '.php', '.vue', '.ts', '.js', '.mjs', '.cjs', '.json', '.yml', '.yaml',
+              '.xml', '.md', '.txt', '.sh', '.liq', '.css', '.scss', '.html', '.twig',
+              '.neon', '.env', '.ini', '.conf', '.sql', '.py', '.rb', '.toml'
+          }
+
+          for name in files:
+              path = pathlib.Path(name)
+              try:
+                  data = path.read_bytes()
+              except Exception as exc:
+                  failures.append(f'{name}: unreadable: {exc}')
+                  continue
+
+              total_bytes += len(data)
+              suffixes[path.suffix.lower() or '<none>'] += 1
+              digest = hashlib.sha256(data).hexdigest()
+              hashes.append(f'{digest}  {name}')
+
+              looks_text = path.suffix.lower() in text_suffixes or b'\0' not in data[:8192]
+              if looks_text:
+                  text += 1
+                  try:
+                      data.decode('utf-8')
+                  except UnicodeDecodeError as exc:
+                      failures.append(f'{name}: invalid UTF-8 text: {exc}')
+              else:
+                  binary += 1
+
+          pathlib.Path('/tmp/tracked-files.sha256').write_text('\n'.join(hashes) + '\n')
+          print(f'TRACKED_FILES={len(files)}')
+          print(f'TOTAL_BYTES={total_bytes}')
+          print(f'TEXT_FILES={text}')
+          print(f'BINARY_FILES={binary}')
+          print('TOP_SUFFIX_COUNTS=' + json.dumps(suffixes.most_common(40)))
+
+          if failures:
+              print('\n'.join(failures))
+              raise SystemExit(1)
+          PY
+
+      - name: Validate JSON files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, subprocess
+          files = subprocess.check_output(['git','ls-files','*.json']).decode().splitlines()
+          for name in files:
+              with open(name, encoding='utf-8') as fh:
+                  json.load(fh)
+          print(f'Validated {len(files)} JSON files.')
+          PY
+
+      - name: Validate XML files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, xml.etree.ElementTree as ET
+          files = subprocess.check_output(['git','ls-files','*.xml']).decode().splitlines()
+          for name in files:
+              ET.parse(name)
+          print(f'Validated {len(files)} XML files.')
+          PY
+
+      - name: Bash syntax check all tracked shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r file; do
+            bash -n "$file"
+          done < <(git ls-files '*.sh')
+
+      - name: Check code files for unresolved merge markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -I -E '^(<<<<<<< |=======|>>>>>>> )' -- '*.php' '*.ts' '*.vue' '*.js' '*.mjs' '*.cjs' '*.liq' '*.sh' '*.yml' '*.yaml'; then
+            echo 'Unresolved merge marker found.' >&2
+            exit 1
+          fi
+
+  php:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
+
+      - name: Composer validation
+        run: composer validate --no-interaction
+
+      - name: PHP syntax across repository
+        run: composer phplint
+
+      - name: PHPStan full configured codebase
+        run: composer phpstan
+
+      - name: PHPCS full configured codebase
+        run: composer phpcs
+
+      - name: Prepare AzuraCast test runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /var/azuracast/www/plugins
+          sudo chown -R "$USER":"$(id -gn)" /var/azuracast
+
+      - name: Run complete Unit suite
+        run: vendor/bin/codecept run Unit --no-interaction
+
+      - name: Run PureUnit directory
+        run: vendor/bin/codecept run tests/PureUnit --no-interaction
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check entire frontend
+        run: npm run tsc -- --noEmit
+
+      - name: Lint entire frontend
+        run: npm run lint
+
+      - name: Build entire frontend
+        run: npm run build
+
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse shared Liquidsoap runtime with production version
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint liquidsoap \
+            -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
+            -w /liq savonet/liquidsoap:v2.4.5 --check azuracast.liq
+
+      - name: Validate Docker Compose manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --env-file azuracast.dev.env -f docker-compose.dev.yml config --quiet
+          docker compose --env-file azuracast.sample.env -f docker-compose.sample.yml config --quiet
+          docker compose -f docker-compose.testing.yml config --quiet
+          docker compose -f docker-compose.installer.yml config --quiet
+
+      - name: TOH ownership and retired implementation scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f plugins/top_of_hour/events.php
+          test -f plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          test -f plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          test -f plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
+          test ! -e backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          test ! -e backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          test ! -e backend/src/Radio/AutoDJ/TopOfHour/TopOfHourQueueSubscriber.php
+          test ! -e backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          ! git grep -n 'source.skip(source.effective(' -- plugins/top_of_hour util/docker/stations/liquidsoap
+          git grep -n 'StageTopOfHourStationIdTask' -- plugins/top_of_hour/events.php
+          git grep -n 'top_of_hour_legal_id = 0' -- backend/src/Entity/Repository/StationQueueRepository.php
