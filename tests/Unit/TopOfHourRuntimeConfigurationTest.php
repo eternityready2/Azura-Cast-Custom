@@ -15,7 +15,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeCon
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohTakeoverDiscardsAndGatesAutoDjTransport(): void
+    public function testTohTakeoverPermanentlyRetiresOldAudioAndRejoinsFreshOnly(): void
     {
         $station = new Station();
         $station->name = 'TOH Runtime Test';
@@ -39,13 +39,27 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
             'Top-of-Hour ID: discarded and gated interrupted AutoDJ track.',
             $config,
         );
+
+        // Open hours fetch the post-ID song while the ID owns air, and never
+        // blindly reopen the processed graph before that fresh request is ready.
+        self::assertStringContainsString('broadcast_clock_prefetch_autodj()', $config);
+        self::assertStringContainsString('broadcast_clock_release_when_fresh()', $config);
+
+        // HARD hours hold AutoDJ through :00 even if the ID ends fractionally
+        // early. The old exited-at-boundary-only behavior must not return.
+        self::assertStringContainsString('top_of_hour_hard_release_epoch = ref(0.0)', $config);
         self::assertStringContainsString('def top_of_hour_release_gate_if_no_rigid()', $config);
-        self::assertStringContainsString('exited_at_hard_boundary', $config);
+        self::assertStringContainsString('top_of_hour_hard_release_epoch := boundary + 0.25', $config);
         self::assertStringContainsString(
-            'thread.run.recurrent(delay=1.0, top_of_hour_release_gate_if_no_rigid)',
+            'thread.run.recurrent(delay=0.1, top_of_hour_release_gate_if_no_rigid)',
             $config,
         );
-        self::assertStringContainsString('broadcast_clock_release_autodj()', $config);
+        self::assertStringContainsString(
+            'HARD handoff is holding AutoDJ through the :00 boundary.',
+            $config,
+        );
+        self::assertStringNotContainsString('exited_at_hard_boundary', $config);
+
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
