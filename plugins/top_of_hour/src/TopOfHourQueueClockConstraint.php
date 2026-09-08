@@ -64,7 +64,24 @@ final class TopOfHourQueueClockConstraint implements EventSubscriberInterface
             return;
         }
 
+        self::applyPlan($event, $plan);
+    }
+
+    /**
+     * Apply an already-resolved TOH plan to one projected AutoDJ row.
+     *
+     * Kept policy-local to the plugin so the core queue only understands a
+     * generic wall-clock interruption/resume constraint. This method is also a
+     * deterministic test seam for the exact live incident timeline.
+     */
+    public static function applyPlan(
+        ResolveQueueClockConstraint $event,
+        TopOfHourPlan $plan,
+    ): void {
+        $start = CarbonImmutable::instance($event->getExpectedPlayAt());
+        $projectedEnd = CarbonImmutable::instance($event->getProjectedEndAt());
         $target = CarbonImmutable::instance($plan->targetStartAt);
+
         if ($target <= $start || $target > $projectedEnd) {
             return;
         }
