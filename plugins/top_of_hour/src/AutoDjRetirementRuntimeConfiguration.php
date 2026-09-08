@@ -145,12 +145,12 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                 azuracast.autodj_fetch_next := fun () -> dynamic.fetch()
 
                 def retire_dynamic_request() =
-                    ids = ""
+                    ids = ref("")
                     current = dynamic.current()
 
                     if null.defined(current) then
                         current_request = null.get(current)
-                        ids = azuracast.autodj_retirement_append_sq_id(ids, current_request)
+                        ids := azuracast.autodj_retirement_append_sq_id(ids(), current_request)
                         current_song_id = list.assoc(
                             default=azuracast.autodj_current_song_id(),
                             "song_id",
@@ -168,13 +168,13 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
 
                     queued = dynamic.queue()
                     def destroy_queued(req) =
-                        ids := azuracast.autodj_retirement_append_sq_id(ids, req)
+                        ids := azuracast.autodj_retirement_append_sq_id(ids(), req)
                         request.destroy(force=true, req)
                     end
                     list.iter(destroy_queued, queued)
                     dynamic.set_queue([])
 
-                    azuracast.autodj_retired_queue_ids := ids
+                    azuracast.autodj_retired_queue_ids := ids()
                     dynamic.skip()
                     log(
                         level=2,
