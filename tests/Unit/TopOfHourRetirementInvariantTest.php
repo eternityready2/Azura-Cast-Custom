@@ -26,7 +26,7 @@ final class TopOfHourRetirementInvariantTest extends Unit
         $config = $event->buildConfiguration();
 
         self::assertStringContainsString('dynamic.current()', $config);
-        self::assertStringContainsString('request.destroy(force=true, current_request)', $config);
+        self::assertStringContainsString('request.destroy(force=true, null.get(current))', $config);
         self::assertStringContainsString('queued = dynamic.queue()', $config);
         self::assertStringContainsString('request.destroy(force=true, req)', $config);
         self::assertStringContainsString('dynamic.set_queue([])', $config);
@@ -39,6 +39,37 @@ final class TopOfHourRetirementInvariantTest extends Unit
             $config,
         );
         self::assertStringContainsString('Different AutoDJ song is on air; local retirement quarantine cleared.', $config);
+    }
+
+    public function testAudibleProcessedSongIdentityWinsOverAdvancedLeafTransport(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $runtime = file_get_contents($root . '/plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php');
+        $gate = file_get_contents($root . '/plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php');
+
+        self::assertIsString($runtime);
+        self::assertStringContainsString('azuracast.autodj_retirement_song_hint', $runtime);
+        self::assertStringContainsString('def azuracast.set_autodj_retirement_song_hint(song_id)', $runtime);
+        self::assertStringContainsString('hinted_song_id = azuracast.autodj_retirement_song_hint()', $runtime);
+        self::assertStringContainsString('if hinted_song_id != "" then', $runtime);
+        self::assertStringContainsString('elsif null.defined(current) then', $runtime);
+
+        $hintBranch = strpos($runtime, 'if hinted_song_id != "" then');
+        $leafFallback = strpos($runtime, 'elsif null.defined(current) then');
+        self::assertIsInt($hintBranch);
+        self::assertIsInt($leafFallback);
+        self::assertTrue($hintBranch < $leafFallback, 'Audible hint must be evaluated before request.dynamic current metadata.');
+
+        self::assertIsString($gate);
+        self::assertStringContainsString('radio_before_broadcast_clock_gate.last_metadata()', $gate);
+        self::assertStringContainsString('azuracast.set_autodj_retirement_song_hint(audible_song_id)', $gate);
+        self::assertStringContainsString('broadcast_clock_capture_retirement_song()', $gate);
+
+        $capture = strpos($gate, 'broadcast_clock_capture_retirement_song()');
+        $discard = strpos($gate, 'azuracast.discard_autodj_current()');
+        self::assertIsInt($capture);
+        self::assertIsInt($discard);
+        self::assertTrue($capture < $discard, 'Audible metadata must be captured before the leaf transport is destroyed.');
     }
 
     public function testBackendFinalHandoffAndEverySelectorAttemptExcludeRetiredSong(): void
