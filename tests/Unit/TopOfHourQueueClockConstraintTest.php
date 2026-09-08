@@ -47,7 +47,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
         self::assertSame('top_of_hour_station_id', $event->getReason());
         self::assertNotSame(
             $naturalEnd->format('Y-m-d H:i:s.u'),
-            $event->getResumeAt()?->format('Y-m-d H:i:s.u'),
+            $event->getResumeAt()->format('Y-m-d H:i:s.u'),
         );
     }
 
