@@ -63,4 +63,45 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
+
+    public function testQueueRepeatGuardPreservesInterruptedMusicAcrossTohMetadata(): void
+    {
+        $queueSource = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/Queue.php',
+        );
+
+        self::assertIsString($queueSource);
+
+        // Once the interrupted queue row is marked played and the TOH ID becomes
+        // current metadata, neither current_song nor getUnplayedQueue() identifies
+        // the music predecessor. Seed from actual played music history instead.
+        self::assertStringContainsString(
+            '$recentPlayedMusic = $this->queueRepo->getPlayedMusicHistoryByTimeRange(',
+            $queueSource,
+        );
+        self::assertStringContainsString(
+            "$lastSongId = $recentPlayedMusic[0]['song_id'] ?? null;",
+            $queueSource,
+        );
+        self::assertStringNotContainsString(
+            '$lastSongId = $currentSong?->song_id;',
+            $queueSource,
+        );
+        self::assertStringNotContainsString(
+            "$upcomingQueue = \$this->queueRepo->getUnplayedQueue(\$station);\n\n        \$lastSongId = null;",
+            $queueSource,
+        );
+
+        // The preserved music identity is passed into the selector path and the
+        // retry-budget-aware guard, rather than being rejected unconditionally by
+        // BuildQueue itself.
+        self::assertStringContainsString(
+            "\$event = new BuildQueue(\n                    \$station,\n                    \$expectedCueTime,\n                    \$expectedPlayTime,\n                    \$lastSongId",
+            $queueSource,
+        );
+        self::assertStringContainsString(
+            '$nextSongs[0]->song_id === $lastSongId',
+            $queueSource,
+        );
+    }
 }

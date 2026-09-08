@@ -1,0 +1,301 @@
+name: Full Repository Audit
+
+on:
+  push:
+    branches:
+      - 'fix/toh-current-song-repeat-guard'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read and inventory every tracked file
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check origin/dev...HEAD
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import subprocess
+          from collections import Counter
+
+          raw = subprocess.check_output(['git', 'ls-files', '-z'])
+          files = [p for p in raw.decode('utf-8').split('\0') if p]
+          suffixes = Counter()
+          total_bytes = 0
+          binary = 0
+          text = 0
+          failures = []
+          hashes = []
+
+          text_suffixes = {
+              '.php', '.phtml', '.vue', '.ts', '.js', '.mjs', '.cjs', '.json', '.yml', '.yaml',
+              '.xml', '.svg', '.md', '.txt', '.sh', '.liq', '.css', '.scss', '.html', '.twig',
+              '.neon', '.env', '.ini', '.conf', '.sql', '.py', '.rb', '.toml', '.tmpl', '.po',
+              '.pot', '.stub'
+          }
+          binary_suffixes = {'.png', '.webp', '.jpg', '.jpeg', '.pdf', '.mp3', '.ico'}
+
+          for name in files:
+              path = pathlib.Path(name)
+              try:
+                  data = path.read_bytes()
+              except Exception as exc:
+                  failures.append(f'{name}: unreadable: {exc}')
+                  continue
+
+              total_bytes += len(data)
+              suffix = path.suffix.lower()
+              suffixes[suffix or '<none>'] += 1
+              hashes.append(f'{hashlib.sha256(data).hexdigest()}  {name}')
+
+              looks_text = suffix in text_suffixes or (
+                  suffix not in binary_suffixes and b'\0' not in data[:8192]
+              )
+              if looks_text:
+                  text += 1
+                  try:
+                      data.decode('utf-8')
+                  except UnicodeDecodeError as exc:
+                      failures.append(f'{name}: invalid UTF-8 text: {exc}')
+              else:
+                  binary += 1
+
+          pathlib.Path('/tmp/tracked-files.sha256').write_text('\n'.join(hashes) + '\n')
+          print(f'TRACKED_FILES={len(files)}')
+          print(f'TOTAL_BYTES={total_bytes}')
+          print(f'TEXT_FILES={text}')
+          print(f'BINARY_FILES={binary}')
+          print('TOP_SUFFIX_COUNTS=' + json.dumps(suffixes.most_common(50)))
+
+          if failures:
+              print('\n'.join(failures))
+              raise SystemExit(1)
+          PY
+
+      - name: Classify strict and JSON-with-comments files
+        shell: bash
+        run: |
+          set -u
+          python3 - <<'PY'
+          import json, subprocess
+          files = subprocess.check_output(['git','ls-files','*.json']).decode().splitlines()
+          failures = []
+          valid = 0
+          for name in files:
+              try:
+                  with open(name, encoding='utf-8') as fh:
+                      json.load(fh)
+                  valid += 1
+              except Exception as exc:
+                  failures.append((name, str(exc)))
+          print(f'STRICT_JSON_VALID={valid}')
+          print(f'JSON_NON_STRICT_OR_INVALID={len(failures)}')
+          for name, exc in failures:
+              print(f'NON_STRICT_JSON {name}: {exc}')
+          PY
+
+      - name: Validate YAML files
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import subprocess, yaml
+          files = subprocess.check_output(['git','ls-files','*.yml','*.yaml']).decode().splitlines()
+          for name in files:
+              try:
+                  with open(name, encoding='utf-8') as fh:
+                      yaml.safe_load(fh)
+              except Exception as exc:
+                  print(f'YAML_ERROR {name}: {exc}')
+                  raise
+          print(f'Validated {len(files)} YAML files.')
+          PY
+
+      - name: Validate XML and SVG files
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, xml.etree.ElementTree as ET
+          files = subprocess.check_output(['git','ls-files','*.xml','*.svg']).decode().splitlines()
+          for name in files:
+              try:
+                  ET.parse(name)
+              except Exception as exc:
+                  print(f'XML_ERROR {name}: {exc}')
+                  raise
+          print(f'Validated {len(files)} XML/SVG files.')
+          PY
+
+      - name: Bash syntax check all tracked shell scripts
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r file; do
+            if ! bash -n "$file"; then
+              echo "BASH_SYNTAX_ERROR $file"
+              failed=1
+            fi
+          done < <(git ls-files '*.sh')
+          exit "$failed"
+
+      - name: Check code files for unresolved merge markers
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if git grep -n -I -E '^(<<<<<<< |=======|>>>>>>> )' -- '*.php' '*.phtml' '*.ts' '*.vue' '*.js' '*.mjs' '*.cjs' '*.liq' '*.sh' '*.yml' '*.yaml'; then
+            echo 'Unresolved merge marker found.' >&2
+            exit 1
+          fi
+
+  php:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
+
+      - name: Prepare AzuraCast analysis runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /var/azuracast/www
+          sudo ln -sfn "$PWD/plugins" /var/azuracast/www/plugins
+          sudo chown -h "$USER":"$(id -gn)" /var/azuracast/www/plugins || true
+
+      - name: Composer validation
+        continue-on-error: true
+        run: composer validate --no-interaction
+
+      - name: PHP syntax across repository
+        continue-on-error: true
+        run: composer phplint
+
+      - name: PHP template syntax
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r file; do
+            if ! php -l "$file"; then failed=1; fi
+          done < <(git ls-files '*.phtml')
+          exit "$failed"
+
+      - name: PHPStan full configured codebase
+        continue-on-error: true
+        run: composer phpstan
+
+      - name: PHPCS full configured codebase
+        continue-on-error: true
+        run: composer phpcs
+
+      - name: Run complete Unit suite
+        continue-on-error: true
+        run: vendor/bin/codecept run Unit --no-interaction
+
+      - name: Run PureUnit suite
+        continue-on-error: true
+        run: vendor/bin/codecept run PureUnit --no-interaction
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check entire frontend
+        continue-on-error: true
+        run: npm run tsc -- --noEmit
+
+      - name: Lint entire frontend
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build entire frontend
+        continue-on-error: true
+        run: npm run build
+
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse shared Liquidsoap runtime with production version
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint liquidsoap \
+            -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
+            -w /liq savonet/liquidsoap:v2.4.5 --check azuracast.liq
+
+      - name: Validate Docker Compose manifests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp azuracast.sample.env azuracast.env
+          docker compose --env-file azuracast.dev.env -f docker-compose.dev.yml config --quiet
+          docker compose --env-file azuracast.sample.env -f docker-compose.sample.yml config --quiet
+          docker compose --env-file azuracast.sample.env -f docker-compose.testing.yml config --quiet
+          docker compose --env-file azuracast.sample.env -f docker-compose.installer.yml config --quiet
+
+      - name: TOH ownership and retired implementation scan
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f plugins/top_of_hour/events.php
+          test -f plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          test -f plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          test -f plugins/top_of_hour/src/TopOfHourQueueClockConstraint.php
+          test ! -e backend/src/Radio/Backend/Liquidsoap/RigidScheduleRuntimeConfiguration.php
+          test ! -e backend/src/Radio/Backend/Liquidsoap/TopOfHourRuntimeConfiguration.php
+          test ! -e backend/src/Radio/AutoDJ/TopOfHour/TopOfHourQueueSubscriber.php
+          test ! -e backend/src/Radio/AutoDJ/TopOfHourIdScheduler.php
+          ! git grep -n 'source.skip(source.effective(' -- plugins/top_of_hour util/docker/stations/liquidsoap
+          git grep -n 'StageTopOfHourStationIdTask' -- plugins/top_of_hour/events.php
+          git grep -n 'top_of_hour_legal_id = 0' -- backend/src/Entity/Repository/StationQueueRepository.php
