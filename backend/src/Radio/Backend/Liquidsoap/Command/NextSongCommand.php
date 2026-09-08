@@ -23,17 +23,31 @@ final class NextSongCommand extends AbstractCommand
         bool $asAutoDj = false,
         array $payload = []
     ): array {
-        $excludedSongId = trim((string)($payload['exclude_song_id'] ?? ''));
-        $resetQueueIds = array_values(array_unique(array_filter(
-            array_map(
-                'intval',
-                preg_split('/\s*,\s*/', (string)($payload['reset_sq_ids'] ?? ''), -1, PREG_SPLIT_NO_EMPTY) ?: [],
-            ),
-            static fn (int $id): bool => $id > 0,
-        )));
+        // Retirement is a transport-authority operation and may only be activated
+        // by the authenticated Liquidsoap AutoDJ, never by an ordinary API caller.
+        if ($asAutoDj) {
+            $excludedSongId = trim((string)($payload['exclude_song_id'] ?? ''));
+            $resetQueueIds = array_values(array_unique(array_filter(
+                array_map(
+                    'intval',
+                    preg_split('/\s*,\s*/', (string)($payload['reset_sq_ids'] ?? ''), -1, PREG_SPLIT_NO_EMPTY) ?: [],
+                ),
+                static fn (int $id): bool => $id > 0,
+            )));
 
-        if ('' !== $excludedSongId) {
-            $this->retirement->activate($station, $excludedSongId, $resetQueueIds);
+            if ('' !== $excludedSongId) {
+                $this->retirement->activate($station, $excludedSongId, $resetQueueIds);
+            } else {
+                // Between Liquidsoap's on_track callback and PHP feedback there is
+                // a short window where the local payload may stop carrying the
+                // exclusion while the backend quarantine is still authoritative.
+                // Reconcile again here so any row inserted concurrently during that
+                // window cannot survive as a stale/sent queue entry.
+                $activeExcludedSongId = $this->retirement->getExcludedSongId($station);
+                if (null !== $activeExcludedSongId) {
+                    $this->retirement->activate($station, $activeExcludedSongId);
+                }
+            }
         }
 
         // Rebuild immediately after retirement reconciliation. The plugin-owned
