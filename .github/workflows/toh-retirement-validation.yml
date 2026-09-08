@@ -54,19 +54,24 @@ jobs:
           grep -q "BuildQueue::class => \['guardSelection', -1000\]" plugins/top_of_hour/src/RetiredSongQueueGuard.php
 
           grep -q 'dynamic.current()' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          grep -q 'request.destroy(force=true, current_request)' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'dynamic.queue()' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'request.destroy(force=true, req)' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'dynamic.set_queue(\[\])' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'dynamic.skip()' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'exclude_song_id' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
-          grep -q 'reset_sq_ids' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
+          ! grep -q 'reset_sq_ids' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
           grep -q 'autodj_generation() > azuracast.autodj_retirement_generation()' plugins/top_of_hour/src/AutoDjRetirementRuntimeConfiguration.php
 
           grep -q 'sq.song_id != :excludedSongId' backend/src/Radio/AutoDJ/AutoDjRetirementService.php
           grep -q 'SET sq.sent_to_autodj = 0' backend/src/Radio/AutoDJ/AutoDjRetirementService.php
+          grep -q 'AND sq.sent_to_autodj = 1' backend/src/Radio/AutoDJ/AutoDjRetirementService.php
+          grep -q "andWhere('sq.is_played = 0')" backend/src/Radio/AutoDJ/AutoDjRetirementService.php
           grep -q '\$queueRow->request->played_at = null' backend/src/Radio/AutoDJ/AutoDjRetirementService.php
           grep -q '\$this->retirement->getNextToSendToAutoDj' backend/src/Radio/AutoDJ/Annotations.php
+          grep -q 'if (\$asAutoDj)' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
           grep -q '\$this->retirement->activate' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
+          grep -q '\$activeExcludedSongId = \$this->retirement->getExcludedSongId' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
           grep -q '\$this->queue->buildQueue' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
 
           grep -q 'broadcast_clock_rejoin_waiting = ref(false)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
