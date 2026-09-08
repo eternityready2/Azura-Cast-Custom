@@ -131,12 +131,24 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 predicate.activates({broadcast_clock_base_available()})
             )
 
+            # Do not use an infinite blank here. A direct AutoDJ discard can leave
+            # the normal graph briefly unavailable while request.dynamic fetches
+            # and resolves a fresh request. If fallback enters an infinite blank
+            # during that readiness gap, some composed graphs can remain parked on
+            # it even after AutoDJ becomes ready. Short hold tracks force a regular
+            # readiness re-selection without allowing the discarded song back.
+            broadcast_clock_hold = blank(
+                id="broadcast_clock_hold",
+                duration=0.25
+            )
+
             radio = fallback(
                 id="broadcast_clock_autodj_gate",
                 track_sensitive=false,
+                transition_length=0.0,
                 [
                     broadcast_clock_base,
-                    blank(id="broadcast_clock_hold")
+                    broadcast_clock_hold
                 ]
             )
             LIQ
@@ -175,8 +187,8 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             end
 
             def rigid_schedule_exit(_, new) =
-                # Anything staged into the legacy interrupting lane while the
-                # rigid source was on air is stale and must not follow it.
+                // Anything staged into the legacy interrupting lane while the
+                // rigid source was on air is stale and must not follow it.
                 interrupting_queue.skip()
                 interrupting_queue.set_queue([])
                 rigid_schedule_active := false
