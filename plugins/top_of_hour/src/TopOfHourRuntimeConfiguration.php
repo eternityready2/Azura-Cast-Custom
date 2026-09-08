@@ -153,16 +153,23 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 end
             end
 
-            def top_of_hour_id_enter(_, new) =
-                # The fade has already reached zero. Destroy the exact
-                # request.dynamic(id="next_song") transport and gate the ordinary
-                # underlying graph for the takeover. The interrupted request is
-                # gone before the ID owns air and cannot resume afterwards.
-                # Live audio is never discarded or gated.
+            def top_of_hour_id_enter(old, new) =
+                # The fade has already reached zero. Retire the exact source branch
+                # that was feeding the TOH switch *while it is still the active old
+                # source*. This is intentionally synchronous: an inner gate may be
+                # dormant while the ID is on air and cannot be trusted to flush the
+                # processed/crossfade tail later. Live audio is never skipped.
+                if not azuracast.live_enabled() then
+                    source.skip(old)
+                end
+
+                # Also retire/gate the direct AutoDJ transport underneath the
+                # processed graph so the interrupted request cannot survive below
+                # the synchronous old-source retirement.
                 broadcast_clock_block_autodj()
 
                 if not azuracast.live_enabled() then
-                    log("Top-of-Hour ID: discarded and gated interrupted AutoDJ track.")
+                    log("Top-of-Hour ID: synchronously retired old processed source and gated interrupted AutoDJ track.")
 
                     # Open hour: prepare the post-ID request while the ID is on air.
                     # HARD hours deliberately do not reserve music across a rigid
