@@ -15,15 +15,9 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeCon
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohTakeoverPermanentlyRetiresOldAudioAndRejoinsFreshOnly(): void
+    public function testTohSwitchSynchronouslyRetiresProcessedOutgoingTrack(): void
     {
-        $station = new Station();
-        $station->name = 'TOH Runtime Test';
-        $station->short_name = 'toh_runtime_test';
-        $station->timezone = 'UTC';
-        $station->radio_base_dir = '/tmp/toh_runtime_test';
-        $station->backend_config->ai_news_enabled = false;
-        $station->backend_config->ai_news_top_of_hour = false;
+        $station = $this->makeStation();
 
         /** @var TopOfHourClock $clock */
         $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
@@ -33,35 +27,68 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         $config = $event->buildConfiguration();
 
         self::assertStringContainsString('Top-of-Hour Station ID exact wall-clock lane (plugin owned)', $config);
-        self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
-        self::assertStringContainsString('broadcast_clock_block_autodj()', $config);
+        self::assertStringContainsString('def top_of_hour_id_enter(old, new)', $config);
+        self::assertStringContainsString('top_of_hour_id_active := true', $config);
+        self::assertStringContainsString('broadcast_clock_retire_outgoing(old)', $config);
         self::assertStringContainsString(
-            'Top-of-Hour ID: discarded and gated interrupted AutoDJ track.',
+            'permanently retired interrupted processed AutoDJ track at takeover.',
             $config,
         );
 
-        // Open hours fetch the post-ID song while the ID owns air, and never
-        // blindly reopen the processed graph before that fresh request is ready.
-        self::assertStringContainsString('broadcast_clock_prefetch_autodj()', $config);
-        self::assertStringContainsString('broadcast_clock_release_when_fresh()', $config);
+        // The old delayed inner gate was the live failure: it did not switch to
+        // hold until the ID ended, allowing the parked processed track to wake up.
+        self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
+        self::assertStringNotContainsString('broadcast_clock_block_autodj()', $config);
+        self::assertStringNotContainsString('broadcast_clock_prefetch_autodj()', $config);
+        self::assertStringNotContainsString('broadcast_clock_release_when_fresh()', $config);
+        self::assertStringNotContainsString('top_of_hour_hard_release_epoch', $config);
+        self::assertStringNotContainsString('source.skip(source.effective(', $config);
+    }
 
-        // HARD hours hold AutoDJ through :00 even if the ID ends fractionally
-        // early. The old exited-at-boundary-only behavior must not return.
-        self::assertStringContainsString('top_of_hour_hard_release_epoch = ref(0.0)', $config);
-        self::assertStringContainsString('def top_of_hour_release_gate_if_no_rigid()', $config);
-        self::assertStringContainsString('top_of_hour_hard_release_epoch := boundary + 0.25', $config);
+    public function testHardTohOwnsEveryFrameUntilExactBoundary(): void
+    {
+        $station = $this->makeStation();
+
+        /** @var TopOfHourClock $clock */
+        $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
+
+        $event = new WriteLiquidsoapConfiguration($station, false, false);
+        (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
+        $config = $event->buildConfiguration();
+
+        // The ID source falls through to a blank within the SAME authoritative
+        // TOH lane. If a short HARD ID ends before :00, ordinary AutoDJ never
+        // becomes the selected branch during the gap.
+        self::assertStringContainsString('top_of_hour_hard_hold = blank(id="top_of_hour_hard_hold")', $config);
+        self::assertStringContainsString('top_of_hour_lane = fallback(', $config);
+        self::assertStringContainsString('[top_of_hour_id, top_of_hour_hard_hold]', $config);
+        self::assertStringContainsString('boundary > 0.0 and now < boundary', $config);
         self::assertStringContainsString(
-            'thread.run.recurrent(delay=0.1, top_of_hour_release_gate_if_no_rigid)',
+            'HARD lane released exactly at the :00 boundary to rigid authority.',
             $config,
         );
-        self::assertStringContainsString(
-            'HARD handoff is holding AutoDJ through the :00 boundary.',
-            $config,
-        );
-        self::assertStringNotContainsString('exited_at_hard_boundary', $config);
+    }
 
-        self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
-        self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
+    public function testDisabledPredicateLeavesNormalSourceSelected(): void
+    {
+        $station = $this->makeStation();
+        $station->backend_config->top_of_hour_id_enabled = false;
+
+        /** @var TopOfHourClock $clock */
+        $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
+
+        $event = new WriteLiquidsoapConfiguration($station, false, false);
+        (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
+        $config = $event->buildConfiguration();
+
+        self::assertStringContainsString('if not top_of_hour_id_enabled() then', $config);
+        self::assertStringContainsString('false', $config);
+        self::assertStringContainsString('({true}, radio_before_top_of_hour)', $config);
+
+        // Disabled TOH must not install the old AutoDJ transport gate/quarantine.
+        self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
+        self::assertStringNotContainsString('autodj_retired_song_id', $config);
+        self::assertStringNotContainsString('exclude_song_id', $config);
     }
 
     public function testQueueRepeatGuardPreservesInterruptedMusicAcrossTohMetadata(): void
@@ -72,9 +99,8 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
 
         self::assertIsString($queueSource);
 
-        // Once the interrupted queue row is marked played and the TOH ID becomes
-        // current metadata, neither current_song nor getUnplayedQueue() identifies
-        // the music predecessor. Seed from actual played music history instead.
+        // PR #155's normal queue repeat guard remains the single backend owner of
+        // immediate-repeat rejection. No TOH-specific quarantine is needed.
         self::assertStringContainsString(
             '$recentPlayedMusic = $this->queueRepo->getPlayedMusicHistoryByTimeRange(',
             $queueSource,
@@ -83,25 +109,22 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
             "\$lastSongId = \$recentPlayedMusic[0]['song_id'] ?? null;",
             $queueSource,
         );
-        self::assertStringNotContainsString(
-            '$lastSongId = $currentSong?->song_id;',
-            $queueSource,
-        );
-        self::assertStringNotContainsString(
-            "\$upcomingQueue = \$this->queueRepo->getUnplayedQueue(\$station);\n\n        \$lastSongId = null;",
-            $queueSource,
-        );
-
-        // The preserved music identity is passed into the selector path and the
-        // retry-budget-aware guard, rather than being rejected unconditionally by
-        // BuildQueue itself.
-        self::assertStringContainsString(
-            "\$event = new BuildQueue(\n                    \$station,\n                    \$expectedCueTime,\n                    \$expectedPlayTime,\n                    \$lastSongId",
-            $queueSource,
-        );
         self::assertStringContainsString(
             '$nextSongs[0]->song_id === $lastSongId',
             $queueSource,
         );
+    }
+
+    private function makeStation(): Station
+    {
+        $station = new Station();
+        $station->name = 'TOH Runtime Test';
+        $station->short_name = 'toh_runtime_test';
+        $station->timezone = 'UTC';
+        $station->radio_base_dir = '/tmp/toh_runtime_test';
+        $station->backend_config->ai_news_enabled = false;
+        $station->backend_config->ai_news_top_of_hour = false;
+
+        return $station;
     }
 }
