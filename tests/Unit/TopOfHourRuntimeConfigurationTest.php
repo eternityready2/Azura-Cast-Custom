@@ -80,7 +80,7 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
             $queueSource,
         );
         self::assertStringContainsString(
-            "\$lastSongId = \$recentPlayedMusic[0]['song_id'] ?? null;",
+            "$lastSongId = $recentPlayedMusic[0]['song_id'] ?? null;",
             $queueSource,
         );
         self::assertStringNotContainsString(
@@ -88,7 +88,7 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
             $queueSource,
         );
         self::assertStringNotContainsString(
-            "\$upcomingQueue = \$this->queueRepo->getUnplayedQueue(\$station);\n\n        \$lastSongId = null;",
+            "$upcomingQueue = \$this->queueRepo->getUnplayedQueue(\$station);\n\n        \$lastSongId = null;",
             $queueSource,
         );
 
