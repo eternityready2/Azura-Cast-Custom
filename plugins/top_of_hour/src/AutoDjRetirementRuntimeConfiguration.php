@@ -33,35 +33,20 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
             # normal AutoDJ path is unchanged until a clock lane explicitly
             # retires the currently playing request.
             let azuracast.autodj_retired_song_id = ref("")
-            let azuracast.autodj_retired_queue_ids = ref("")
             let azuracast.autodj_generation = ref(0)
             let azuracast.autodj_retirement_generation = ref(0)
             let azuracast.autodj_current_song_id = ref("")
             let azuracast.autodj_retire_current = ref(fun () -> ())
 
-            def azuracast.autodj_retirement_append_sq_id(ids, req) =
-                sq_id = list.assoc(default="", "sq_id", request.metadata(req))
-                if sq_id == "" then
-                    ids
-                elsif ids == "" then
-                    sq_id
-                else
-                    "#{ids},#{sq_id}"
-                end
-            end
-
             # Replacement next-song callback. During a retirement transaction it
-            # carries the exact excluded song plus IDs of prefetched requests that
-            # were destroyed locally so PHP can reconcile sent_to_autodj state
-            # before selecting the post-clock request.
+            # carries the exact excluded song. PHP resets all unplayed rows already
+            # sent to AutoDJ because this transaction purges the entire transport
+            # prefetch queue and the processed fallback above it.
             def azuracast.autodj_next_song() =
                 try
                     j = json()
                     if azuracast.autodj_retired_song_id() != "" then
                         j.add("exclude_song_id", azuracast.autodj_retired_song_id())
-                    end
-                    if azuracast.autodj_retired_queue_ids() != "" then
-                        j.add("reset_sq_ids", azuracast.autodj_retired_queue_ids())
                     end
 
                     api_response = azuracast.api_call(
@@ -79,7 +64,6 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                         ) = null.get(api_response)
 
                         azuracast.autodj_generation := azuracast.autodj_generation() + 1
-                        azuracast.autodj_retired_queue_ids := ""
                         request.create(uri)
                     else
                         null
@@ -145,12 +129,10 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                 azuracast.autodj_fetch_next := fun () -> dynamic.fetch()
 
                 def retire_dynamic_request() =
-                    ids = ref("")
                     current = dynamic.current()
 
                     if null.defined(current) then
                         current_request = null.get(current)
-                        ids := azuracast.autodj_retirement_append_sq_id(ids(), current_request)
                         current_song_id = list.assoc(
                             default=azuracast.autodj_current_song_id(),
                             "song_id",
@@ -160,9 +142,8 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                             azuracast.autodj_retired_song_id := current_song_id
                         end
 
-                        # Destroy the exact active request object as well as
-                        # skipping the source below. This releases the request RID
-                        # and any temporary resources; it cannot be reused later.
+                        # Destroy the exact active request object. This releases
+                        # its RID and temporary resources; it cannot be reused.
                         request.destroy(force=true, current_request)
                     elsif azuracast.autodj_current_song_id() != "" then
                         azuracast.autodj_retired_song_id := azuracast.autodj_current_song_id()
@@ -173,13 +154,13 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
 
                     queued = dynamic.queue()
                     def destroy_queued(req) =
-                        ids := azuracast.autodj_retirement_append_sq_id(ids(), req)
                         request.destroy(force=true, req)
                     end
                     list.iter(destroy_queued, queued)
                     dynamic.set_queue([])
 
-                    azuracast.autodj_retired_queue_ids := ids()
+                    # Skip the dynamic source after every queued request has been
+                    # destroyed so it cannot advance into a stale prefetched item.
                     dynamic.skip()
                     log(
                         level=2,
@@ -197,7 +178,6 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                         retired = azuracast.autodj_retired_song_id()
                         if retired != "" and song_id != retired then
                             azuracast.autodj_retired_song_id := ""
-                            azuracast.autodj_retired_queue_ids := ""
                             log(
                                 level=2,
                                 label="azuracast.autodj",
