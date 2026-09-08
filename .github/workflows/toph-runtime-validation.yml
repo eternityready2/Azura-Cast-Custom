@@ -87,7 +87,8 @@ jobs:
           # gates the ordinary graph while TOH/rigid content owns the air.
           grep -q 'id="broadcast_clock_autodj_gate"' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'def broadcast_clock_block_autodj()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'predicate.activates({broadcast_clock_base_available()})' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q '{broadcast_clock_base_available()}' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'predicate.activates({broadcast_clock_base_available()})' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'broadcast_clock_release_autodj()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'id="rigid_schedule_runtime"' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'Dedicated native source for an AutoDJ-only rigid scheduled programme' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
@@ -175,7 +176,7 @@ jobs:
           underlying = fallback(track_sensitive=false, [autodj_dynamic, blank()])
           clock_base = source.available(
             underlying,
-            predicate.activates({broadcast_clock_base_available()})
+            {broadcast_clock_base_available()}
           )
           gated = fallback(
             id="broadcast_clock_autodj_gate",
@@ -316,6 +317,11 @@ jobs:
           $check(str_contains($config, 'id="broadcast_clock_autodj_gate"'), 'Broadcast-clock AutoDJ gate is missing.');
           $check(str_contains($config, 'def broadcast_clock_block_autodj()'), 'Broadcast-clock block control is missing.');
           $check(str_contains($config, 'azuracast.discard_autodj_current()'), 'Gate does not discard the direct AutoDJ transport.');
+          $check(str_contains($config, '{broadcast_clock_base_available()}'), 'Gate availability is not level-triggered.');
+          $check(
+              !str_contains($config, 'predicate.activates({broadcast_clock_base_available()})'),
+              'Gate availability regressed to edge-triggered predicate.activates().',
+          );
           $check(str_contains($config, 'id="rigid_schedule_runtime"'), 'Rigid wall-clock switch is missing.');
           $check(str_contains($config, 'broadcast_clock_release_autodj()'), 'Rigid runtime never releases AutoDJ.');
           $check(
