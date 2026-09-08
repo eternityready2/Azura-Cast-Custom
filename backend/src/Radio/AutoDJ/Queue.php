@@ -12,6 +12,7 @@ use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationQueue;
 use App\Event\Radio\BuildQueue;
+use App\Event\Radio\ResolveQueueClockConstraint;
 use App\Utilities\Time;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -61,13 +62,16 @@ final class Queue
         // Adjust "expectedCueTime" time from current queue.
         $expectedCueTime = Time::nowUtc();
 
-        // Get expected play time of each item.
+        // Get expected play time of each item. A plugin-owned absolute clock
+        // event may interrupt the song that is already on air, so the initial
+        // projection must pass through the same generic constraint seam as
+        // future queue rows.
         $currentSong = $station->current_song;
         if (null !== $currentSong) {
-            $expectedPlayTime = $this->addDurationToTime(
+            [, $expectedPlayTime] = $this->resolveQueueClockConstraint(
                 $station,
-                $currentSong->timestamp_start,
-                $currentSong->duration
+                CarbonImmutable::instance($currentSong->timestamp_start),
+                (float)($currentSong->duration ?? 1.0),
             );
 
             if ($expectedPlayTime < $expectedCueTime) {
@@ -133,6 +137,13 @@ final class Queue
                 }
             }
 
+            [$effectiveDuration, $nextExpectedPlayTime] = $this->resolveQueueClockConstraint(
+                $station,
+                CarbonImmutable::instance($expectedPlayTime),
+                $effectiveDuration,
+                $queueRow,
+            );
+
             if ($queueRow->sent_to_autodj) {
                 $expectedCueTime = $this->addDurationToTime(
                     $station,
@@ -154,7 +165,7 @@ final class Queue
             $queueRow->timestamp_played = $expectedPlayTime;
             $this->em->persist($queueRow);
 
-            $expectedPlayTime = $this->addDurationToTime($station, $expectedPlayTime, $effectiveDuration);
+            $expectedPlayTime = $nextExpectedPlayTime;
 
             $lastSongId = $queueRow->song_id;
         }
@@ -325,6 +336,13 @@ final class Queue
                     }
                 }
 
+                [$effectiveDuration, $nextExpectedPlayTime] = $this->resolveQueueClockConstraint(
+                    $station,
+                    CarbonImmutable::instance($expectedPlayTime),
+                    $effectiveDuration,
+                    $queueRow,
+                );
+
                 $queueRow->timestamp_cued = $expectedCueTime;
                 $queueRow->timestamp_played = $expectedPlayTime;
                 $queueRow->updateVisibility();
@@ -342,11 +360,7 @@ final class Queue
                     $expectedCueTime,
                     $effectiveDuration
                 );
-                $expectedPlayTime = $this->addDurationToTime(
-                    $station,
-                    $expectedPlayTime,
-                    $effectiveDuration
-                );
+                $expectedPlayTime = $nextExpectedPlayTime;
 
                 $queueLength++;
                 $tracksBuiltThisRun++;
@@ -422,6 +436,81 @@ final class Queue
         }
 
         return $nextSongs;
+    }
+
+    /**
+     * Resolve a generic absolute clock interruption without teaching core AutoDJ
+     * what produced it. The queue row is capped at the interruption point for
+     * actual playout, while the projected next-play cursor can jump over content
+     * that lives in an external/plugin-owned clock lane.
+     *
+     * @return array{0:float,1:CarbonImmutable}
+     */
+    private function resolveQueueClockConstraint(
+        Station $station,
+        DateTimeImmutable $expectedPlayTime,
+        float $effectiveDuration,
+        ?StationQueue $queueRow = null,
+    ): array {
+        // Clock ownership is about actual on-air extent, not the normal crossfade
+        // overlap used to predict the following music start. This also lets a row
+        // that was previously capped exactly at the clock boundary retain the
+        // external occupancy jump on later queue rebuilds.
+        $projectedEndAt = CarbonImmutable::instance($expectedPlayTime)->addMilliseconds(
+            (int)round(max(0.0, $effectiveDuration) * 1000)
+        );
+
+        $event = new ResolveQueueClockConstraint(
+            $station,
+            $expectedPlayTime,
+            $projectedEndAt->toDateTimeImmutable(),
+            $queueRow,
+        );
+        $this->dispatcher->dispatch($event);
+
+        if (!$event->hasConstraint()) {
+            return [
+                $effectiveDuration,
+                $this->addDurationToTime($station, $expectedPlayTime, $effectiveDuration),
+            ];
+        }
+
+        $interruptAt = $event->getInterruptAt();
+        $resumeAt = $event->getResumeAt();
+        if (null === $interruptAt || null === $resumeAt) {
+            return [
+                $effectiveDuration,
+                $this->addDurationToTime($station, $expectedPlayTime, $effectiveDuration),
+            ];
+        }
+
+        $capSeconds = max(
+            1,
+            $interruptAt->getTimestamp() - $expectedPlayTime->getTimestamp(),
+        );
+
+        if (null !== $queueRow && !$this->isMandatoryBoundaryContent($queueRow)) {
+            $queueRow->hour_boundary_enforce_cap = true;
+            $queueRow->hour_boundary_max_play_seconds = $capSeconds;
+            $queueRow->duration = (float)$capSeconds;
+            $effectiveDuration = (float)$capSeconds;
+        }
+
+        $this->logger->debug(
+            'Applied external broadcast-clock constraint to AutoDJ projection.',
+            [
+                'reason' => $event->getReason(),
+                'expected_play_at' => $expectedPlayTime->format(DateTimeInterface::ATOM),
+                'interrupt_at' => $interruptAt->format(DateTimeInterface::ATOM),
+                'resume_at' => $resumeAt->format(DateTimeInterface::ATOM),
+                'queue_id' => $queueRow?->id,
+            ]
+        );
+
+        return [
+            $effectiveDuration,
+            CarbonImmutable::instance($resumeAt),
+        ];
     }
 
     private function addDurationToTime(
