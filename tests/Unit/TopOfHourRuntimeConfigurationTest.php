@@ -64,7 +64,7 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
 
-    public function testQueueRepeatGuardStartsWithTheSongActuallyOnAir(): void
+    public function testQueueRepeatGuardPreservesInterruptedMusicAcrossTohMetadata(): void
     {
         $queueSource = file_get_contents(
             dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/Queue.php',
@@ -72,11 +72,18 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
 
         self::assertIsString($queueSource);
 
-        // Regression for the live TOH incident: once the current queue row has
-        // been marked played it is absent from getUnplayedQueue(). If the cursor
-        // starts at null, the replacement queue may choose that exact song again
-        // and hand it back to request.dynamic as a supposedly fresh request.
+        // Once the interrupted queue row is marked played and the TOH ID becomes
+        // current metadata, neither current_song nor getUnplayedQueue() identifies
+        // the music predecessor. Seed from actual played music history instead.
         self::assertStringContainsString(
+            '$recentPlayedMusic = $this->queueRepo->getPlayedMusicHistoryByTimeRange(',
+            $queueSource,
+        );
+        self::assertStringContainsString(
+            "$lastSongId = $recentPlayedMusic[0]['song_id'] ?? null;",
+            $queueSource,
+        );
+        self::assertStringNotContainsString(
             '$lastSongId = $currentSong?->song_id;',
             $queueSource,
         );
@@ -85,8 +92,9 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
             $queueSource,
         );
 
-        // The seeded identity must still be passed into the normal BuildQueue
-        // selector path where the existing immediate-repeat protections act.
+        // The preserved music identity is passed into the selector path and the
+        // retry-budget-aware guard, rather than being rejected unconditionally by
+        // BuildQueue itself.
         self::assertStringContainsString(
             "\$event = new BuildQueue(\n                    \$station,\n                    \$expectedCueTime,\n                    \$expectedPlayTime,\n                    \$lastSongId",
             $queueSource,
