@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Radio\AutoDJ;
 
 use App\Container\EntityManagerAwareTrait;
-use App\Entity\Repository\StationQueueRepository;
 use App\Entity\Station;
+use App\Entity\StationQueue;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -24,7 +24,6 @@ final class AutoDjRetirementService
 
     public function __construct(
         private readonly CacheInterface $cache,
-        private readonly StationQueueRepository $queueRepo,
     ) {
     }
 
@@ -65,13 +64,41 @@ final class AutoDjRetirementService
         )));
 
         if ([] !== $resetQueueIds) {
-            $this->queueRepo->resetUnplayedSentToAutoDjByIds($station, $resetQueueIds);
+            $this->em->createQuery(
+                <<<'DQL'
+                    UPDATE App\Entity\StationQueue sq
+                    SET sq.sent_to_autodj = 0
+                    WHERE sq.station = :station
+                    AND sq.is_played = 0
+                    AND sq.id IN (:ids)
+                DQL
+            )->setParameter('station', $station)
+                ->setParameter('ids', $resetQueueIds)
+                ->execute();
         }
 
         // Rows for the interrupted song must not continue counting toward queue
         // depth while the quarantine is active. Listener requests are deferred,
         // not lost: make them pending again before removing their stale queue row.
-        foreach ($this->queueRepo->getUnplayedBySongId($station, $songId) as $queueRow) {
+        $retiredRows = $this->em->createQuery(
+            <<<'DQL'
+                SELECT sq, sr
+                FROM App\Entity\StationQueue sq
+                LEFT JOIN sq.request sr
+                WHERE sq.station = :station
+                AND sq.is_played = 0
+                AND sq.top_of_hour_legal_id = 0
+                AND sq.song_id = :songId
+            DQL
+        )->setParameter('station', $station)
+            ->setParameter('songId', $songId)
+            ->getResult();
+
+        foreach ($retiredRows as $queueRow) {
+            if (!$queueRow instanceof StationQueue) {
+                continue;
+            }
+
             if (null !== $queueRow->request) {
                 $queueRow->request->played_at = null;
                 $this->em->persist($queueRow->request);
@@ -81,6 +108,34 @@ final class AutoDjRetirementService
         }
 
         $this->em->flush();
+    }
+
+    /**
+     * Absolute last handoff guard before an ordinary AutoDJ request is annotated.
+     */
+    public function getNextToSendToAutoDj(Station $station): ?StationQueue
+    {
+        $excludedSongId = $this->getExcludedSongId($station);
+        if (null === $excludedSongId) {
+            return null;
+        }
+
+        return $this->em->createQueryBuilder()
+            ->select('sq, sm, sp, scw')
+            ->from(StationQueue::class, 'sq')
+            ->leftJoin('sq.media', 'sm')
+            ->leftJoin('sq.playlist', 'sp')
+            ->leftJoin('sq.clock_wheel', 'scw')
+            ->where('sq.station = :station')
+            ->andWhere('sq.sent_to_autodj = 0')
+            ->andWhere('sq.top_of_hour_legal_id = 0')
+            ->andWhere('sq.song_id != :excludedSongId')
+            ->setParameter('station', $station)
+            ->setParameter('excludedSongId', $excludedSongId)
+            ->orderBy('sq.timestamp_cued', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     public function clear(Station $station): void
