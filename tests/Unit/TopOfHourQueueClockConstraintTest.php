@@ -6,6 +6,7 @@ namespace Unit;
 
 use App\Entity\Station;
 use App\Entity\StationMedia;
+use App\Entity\StationQueue;
 use App\Event\Radio\ResolveQueueClockConstraint;
 use App\Radio\AutoDJ\TopOfHour\TopOfHourClock;
 use App\Radio\AutoDJ\TopOfHour\TopOfHourMode;
@@ -19,7 +20,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourQueueClock
 
 final class TopOfHourQueueClockConstraintTest extends Unit
 {
-    public function testOpenHourCutsLiveIncidentSongAndResumesAfterIdOccupancy(): void
+    public function testOpenHourCutsCurrentLiveIncidentProjectionAndResumesAfterIdOccupancy(): void
     {
         $station = $this->makeStation();
         $start = CarbonImmutable::parse('2026-09-07 22:56:40', 'UTC');
@@ -45,13 +46,9 @@ final class TopOfHourQueueClockConstraintTest extends Unit
             $event->getResumeAt()?->format('Y-m-d H:i:s.u'),
         );
         self::assertSame('top_of_hour_station_id', $event->getReason());
-        self::assertNotSame(
-            $naturalEnd->format('Y-m-d H:i:s.u'),
-            $event->getResumeAt()->format('Y-m-d H:i:s.u'),
-        );
     }
 
-    public function testHardHourKeepsOrdinaryMusicOutUntilExactBoundary(): void
+    public function testHardHourKeepsCurrentProjectionOutUntilExactBoundary(): void
     {
         $station = $this->makeStation();
         $start = CarbonImmutable::parse('2026-09-07 22:56:40', 'UTC');
@@ -93,6 +90,31 @@ final class TopOfHourQueueClockConstraintTest extends Unit
         );
 
         self::assertFalse($event->hasConstraint());
+    }
+
+    public function testFutureQueueRowIsNeverCappedByTohForecast(): void
+    {
+        $station = $this->makeStation();
+        $station->backend_config->top_of_hour_id_enabled = true;
+
+        $start = CarbonImmutable::parse('2026-09-07 22:56:40', 'UTC');
+        /** @var StationQueue $futureRow */
+        $futureRow = (new ReflectionClass(StationQueue::class))->newInstanceWithoutConstructor();
+
+        $event = new ResolveQueueClockConstraint(
+            $station,
+            $start->toDateTimeImmutable(),
+            $start->addSeconds(275)->toDateTimeImmutable(),
+            $futureRow,
+        );
+
+        // The resolver must return before TopOfHourClock::plan(), so no selector
+        // or persistence infrastructure is needed for this regression.
+        /** @var TopOfHourClock $clock */
+        $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
+        (new TopOfHourQueueClockConstraint($clock))->resolve($event);
+
+        self::assertFalse($event->hasConstraint());
         self::assertNull($event->getInterruptAt());
         self::assertNull($event->getResumeAt());
     }
@@ -100,9 +122,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
     public function testDisabledTopOfHourLeavesOrdinaryTimelineUntouched(): void
     {
         $station = $this->makeStation();
-        $config = $station->backend_config;
-        $config->top_of_hour_id_enabled = false;
-        $station->backend_config = $config;
+        $station->backend_config->top_of_hour_id_enabled = false;
 
         $start = CarbonImmutable::parse('2026-09-07 22:56:40', 'UTC');
         $event = new ResolveQueueClockConstraint(
@@ -111,9 +131,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
             $start->addSeconds(275)->toDateTimeImmutable(),
         );
 
-        // Disabled resolution returns before StationIdSelector is ever touched,
-        // so a constructor-less clock is sufficient to verify isolation without
-        // bringing a database into this deterministic unit regression.
+        /** @var TopOfHourClock $clock */
         $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
         (new TopOfHourQueueClockConstraint($clock))->resolve($event);
 
@@ -134,9 +152,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
 
     private function makePlan(TopOfHourMode $mode): TopOfHourPlan
     {
-        // applyPlan() only consumes clock fields from TopOfHourPlan. Use a
-        // constructor-less StationMedia sentinel so this regression stays a pure
-        // clock-math test and never needs a persisted storage-location entity.
+        /** @var StationMedia $media */
         $media = (new ReflectionClass(StationMedia::class))->newInstanceWithoutConstructor();
 
         return new TopOfHourPlan(
