@@ -63,4 +63,37 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         self::assertStringNotContainsString('source.skip(source.effective(old))', $config);
         self::assertStringNotContainsString('source.skip(source.effective(new))', $config);
     }
+
+    public function testQueueRepeatGuardStartsWithTheSongActuallyOnAir(): void
+    {
+        $queueSource = file_get_contents(
+            dirname(__DIR__, 2) . '/backend/src/Radio/AutoDJ/Queue.php',
+        );
+
+        self::assertIsString($queueSource);
+
+        // Regression for the live TOH incident: once the current queue row has
+        // been marked played it is absent from getUnplayedQueue(). If the cursor
+        // starts at null, the replacement queue may choose that exact song again
+        // and hand it back to request.dynamic as a supposedly fresh request.
+        self::assertStringContainsString(
+            '$lastSongId = $currentSong?->song_id;',
+            $queueSource,
+        );
+        self::assertStringNotContainsString(
+            "$upcomingQueue = \$this->queueRepo->getUnplayedQueue(\$station);\n\n        \$lastSongId = null;",
+            $queueSource,
+        );
+
+        // The seeded identity must still be passed into the normal BuildQueue
+        // selector path where the existing immediate-repeat protections act.
+        self::assertStringContainsString(
+            "\$event = new BuildQueue(\n                    \$station,\n                    \$expectedCueTime,\n                    \$expectedPlayTime,\n                    \$lastSongId",
+            $queueSource,
+        );
+        self::assertStringContainsString(
+            '$nextSongs[0]->song_id === $lastSongId',
+            $queueSource,
+        );
+    }
 }
