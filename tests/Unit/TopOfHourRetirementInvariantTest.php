@@ -59,8 +59,8 @@ final class TopOfHourRetirementInvariantTest extends Unit
         self::assertStringContainsString('$this->retirement->getNextToSendToAutoDj($station)', $annotations);
 
         self::assertIsString($nextSong);
-        self::assertStringContainsString("$payload['exclude_song_id']", $nextSong);
-        self::assertStringContainsString("$payload['reset_sq_ids']", $nextSong);
+        self::assertStringContainsString("\$payload['exclude_song_id']", $nextSong);
+        self::assertStringContainsString("\$payload['reset_sq_ids']", $nextSong);
         self::assertStringContainsString('$this->retirement->activate(', $nextSong);
         self::assertStringContainsString('$this->queue->buildQueue($station);', $nextSong);
 
