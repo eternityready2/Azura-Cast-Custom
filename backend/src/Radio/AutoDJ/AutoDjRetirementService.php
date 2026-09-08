@@ -80,6 +80,7 @@ final class AutoDjRetirementService
         // Rows for the interrupted song must not continue counting toward queue
         // depth while the quarantine is active. Listener requests are deferred,
         // not lost: make them pending again before removing their stale queue row.
+        /** @var StationQueue[] $retiredRows */
         $retiredRows = $this->em->createQuery(
             <<<'DQL'
                 SELECT sq, sr
@@ -95,10 +96,6 @@ final class AutoDjRetirementService
             ->getResult();
 
         foreach ($retiredRows as $queueRow) {
-            if (!$queueRow instanceof StationQueue) {
-                continue;
-            }
-
             if (null !== $queueRow->request) {
                 $queueRow->request->played_at = null;
                 $this->em->persist($queueRow->request);
