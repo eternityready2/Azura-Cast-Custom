@@ -33,10 +33,19 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
             # normal AutoDJ path is unchanged until a clock lane explicitly
             # retires the currently playing request.
             let azuracast.autodj_retired_song_id = ref("")
+            let azuracast.autodj_retirement_song_hint = ref("")
             let azuracast.autodj_generation = ref(0)
             let azuracast.autodj_retirement_generation = ref(0)
             let azuracast.autodj_current_song_id = ref("")
             let azuracast.autodj_retire_current = ref(fun () -> ())
+
+            # The clock gate supplies the song_id from the fully processed source
+            # that is actually feeding air. This identity has priority over the
+            # leaf request.dynamic current request, which may already have advanced
+            # while crossfade/processing still contains the audible predecessor.
+            def azuracast.set_autodj_retirement_song_hint(song_id) =
+                azuracast.autodj_retirement_song_hint := string.trim(song_id)
+            end
 
             # Replacement next-song callback. During a retirement transaction it
             # carries the exact excluded song. PHP resets all unplayed rows already
@@ -130,8 +139,14 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
 
                 def retire_dynamic_request() =
                     current = dynamic.current()
+                    hinted_song_id = azuracast.autodj_retirement_song_hint()
 
-                    if null.defined(current) then
+                    # The processed on-air identity wins. request.dynamic.current()
+                    # is only a fallback because it can point at the next request
+                    # after crossfade has already buffered/advanced the leaf source.
+                    if hinted_song_id != "" then
+                        azuracast.autodj_retired_song_id := hinted_song_id
+                    elsif null.defined(current) then
                         current_request = null.get(current)
                         current_song_id = list.assoc(
                             default=azuracast.autodj_current_song_id(),
@@ -141,12 +156,16 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                         if current_song_id != "" then
                             azuracast.autodj_retired_song_id := current_song_id
                         end
-
-                        # Destroy the exact active request object. This releases
-                        # its RID and temporary resources; it cannot be reused.
-                        request.destroy(force=true, current_request)
                     elsif azuracast.autodj_current_song_id() != "" then
                         azuracast.autodj_retired_song_id := azuracast.autodj_current_song_id()
+                    end
+                    azuracast.autodj_retirement_song_hint := ""
+
+                    # Destroy the exact active request object independently of
+                    # which song identity won above. This releases its RID and
+                    # temporary resources; the leaf request cannot be reused.
+                    if null.defined(current) then
+                        request.destroy(force=true, null.get(current))
                     end
 
                     # Establish the freshness baseline before clearing/skipping.
@@ -165,7 +184,7 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                     log(
                         level=2,
                         label="azuracast.autodj",
-                        "Retired current AutoDJ request, destroyed prefetched queue, and activated song quarantine."
+                        "Retired audible AutoDJ song, destroyed active/prefetched requests, and activated song quarantine."
                     )
                 end
                 azuracast.autodj_retire_current := retire_dynamic_request
