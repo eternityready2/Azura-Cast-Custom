@@ -36,7 +36,11 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('broadcast_clock_autodj_blocked = ref(false)', $config);
         self::assertStringContainsString('def broadcast_clock_block_autodj()', $config);
         self::assertStringContainsString('azuracast.discard_autodj_current()', $config);
-        self::assertStringContainsString('predicate.activates({broadcast_clock_base_available()})', $config);
+        self::assertStringContainsString('source.available(', $config);
+        self::assertStringContainsString('{broadcast_clock_base_available()}', $config);
+        self::assertStringNotContainsString('predicate.activates({broadcast_clock_base_available()})', $config);
+        self::assertStringContainsString('blank(id="broadcast_clock_hold")', $config);
+        self::assertStringContainsString('transition_length=0.0', $config);
         self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
         self::assertStringContainsString('Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin)', $config);
         self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
@@ -56,6 +60,8 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
 
         self::assertStringContainsString('id="broadcast_clock_autodj_gate"', $config);
         self::assertStringContainsString('rigid_schedule_active = ref(false)', $config);
+        self::assertStringContainsString('{broadcast_clock_base_available()}', $config);
+        self::assertStringNotContainsString('predicate.activates({broadcast_clock_base_available()})', $config);
         self::assertStringNotContainsString('id="rigid_schedule_runtime"', $config);
     }
 
