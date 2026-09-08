@@ -23,30 +23,24 @@ final class NextSongCommand extends AbstractCommand
         bool $asAutoDj = false,
         array $payload = []
     ): array {
+        $newRetirement = false;
+
         // Retirement is a transport-authority operation and may only be activated
         // by the authenticated Liquidsoap AutoDJ, never by an ordinary API caller.
+        // It is intentionally one-shot: subsequent fetches carrying the same
+        // exclusion must not reset fresh sent_to_autodj rows or rebuild them into
+        // duplicate requests.
         if ($asAutoDj) {
             $excludedSongId = trim((string)($payload['exclude_song_id'] ?? ''));
-
             if ('' !== $excludedSongId) {
-                $this->retirement->activate($station, $excludedSongId);
-            } else {
-                // Between Liquidsoap's on_track callback and PHP feedback there is
-                // a short window where the local payload may stop carrying the
-                // exclusion while the backend quarantine is still authoritative.
-                // Reconcile again here so any row inserted concurrently during that
-                // window cannot survive as a stale/sent queue entry.
-                $activeExcludedSongId = $this->retirement->getExcludedSongId($station);
-                if (null !== $activeExcludedSongId) {
-                    $this->retirement->activate($station, $activeExcludedSongId);
-                }
+                $newRetirement = $this->retirement->activate($station, $excludedSongId);
             }
         }
 
-        // Rebuild immediately after retirement reconciliation. The plugin-owned
-        // BuildQueue guard rejects the quarantined song on every selector attempt,
-        // including final retries and backend-merge batches.
-        if (null !== $this->retirement->getExcludedSongId($station)) {
+        // Reconcile/rebuild once at the instant a new retirement transaction is
+        // established. Normal request.dynamic prefetches after that consume each
+        // fresh queue row exactly once through Annotations::postAnnotation().
+        if ($newRetirement) {
             $this->queue->buildQueue($station);
         }
 
