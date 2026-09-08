@@ -85,7 +85,7 @@ let settings.azuracast.crossfade_smart_medium = settings.make(
 )
 
 let settings.azuracast.crossfade_smart_margin = settings.make(
-    description="Smart crossfade: the dB difference above which two tracks are considered too different to overlap.",
+    description="The dB difference above which two tracks are considered too different to overlap.",
     8.0
 )
 
@@ -144,6 +144,12 @@ let azuracast.autodj_queue_ready = ref(false)
 # through temporary switch/crossfade wrappers. The placeholder is never aired.
 let azuracast.autodj_transport = ref(blank(id="autodj_transport_placeholder", duration=0.))
 let azuracast.autodj_transport_ready = ref(false)
+
+# request.dynamic exposes fetch(), but the generic source reference above does
+# not retain that specialized method in its type. Publish a tiny callback so a
+# broadcast-clock owner can prepare the fresh request while its audio gate stays
+# closed. The default no-op is replaced when AutoDJ is initialized.
+let azuracast.autodj_fetch_next = ref(fun () -> ())
 
 # The username/display name of the last authenticated DJ.
 let azuracast.last_authenticated_dj = ref("")
@@ -360,7 +366,7 @@ def azuracast.autocue(
 
         let autocue_result = autocue.internal.implementation(
             request_metadata=request_metadata, 
-            file_metadata=file_metadata, 
+            file_metadata=file_metadata,
             filename
         )
 
@@ -504,6 +510,22 @@ def azuracast.discard_autodj_current() =
     end
 end
 
+# Prepare a fresh AutoDJ request without opening the broadcast-clock audio gate.
+# This is intentionally explicit rather than globally enabling request.dynamic
+# prefetch, which could pull a song across unrelated programme boundaries.
+def azuracast.prefetch_autodj_next() =
+    if azuracast.autodj_transport_ready() then
+        fetch_next = azuracast.autodj_fetch_next()
+        fetch_next()
+        log(level=2, label="azuracast.autodj", "Prefetch requested for fresh AutoDJ transport request.")
+    end
+end
+
+# True only when the direct AutoDJ transport has a request ready to produce.
+def azuracast.autodj_fresh_ready() =
+    azuracast.autodj_transport_ready() and source.is_ready(azuracast.autodj_transport())
+end
+
 def azuracast.enable_autodj(s) =
     dynamic = request.dynamic(
         id="next_song", 
@@ -517,6 +539,7 @@ def azuracast.enable_autodj(s) =
     # the source instead of relying on source.effective() through wrappers.
     azuracast.autodj_transport := dynamic
     azuracast.autodj_transport_ready := true
+    azuracast.autodj_fetch_next := fun () -> dynamic.fetch()
 
     dynamic_startup = fallback(
         id = "dynamic_startup",
