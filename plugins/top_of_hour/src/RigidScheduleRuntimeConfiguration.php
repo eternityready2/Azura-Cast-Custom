@@ -126,20 +126,13 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 azuracast.live_enabled() or not broadcast_clock_autodj_blocked()
             end
 
+            # source.available requires a level predicate: true for the whole time
+            # the underlying station graph should remain available. Do not wrap
+            # this in predicate.activates(), which is edge-triggered and would make
+            # the source available only for the instant false becomes true.
             broadcast_clock_base = source.available(
                 radio_before_broadcast_clock_gate,
-                predicate.activates({broadcast_clock_base_available()})
-            )
-
-            # Do not use an infinite blank here. A direct AutoDJ discard can leave
-            # the normal graph briefly unavailable while request.dynamic fetches
-            # and resolves a fresh request. If fallback enters an infinite blank
-            # during that readiness gap, some composed graphs can remain parked on
-            # it even after AutoDJ becomes ready. Short hold tracks force a regular
-            # readiness re-selection without allowing the discarded song back.
-            broadcast_clock_hold = blank(
-                id="broadcast_clock_hold",
-                duration=0.25
+                {broadcast_clock_base_available()}
             )
 
             radio = fallback(
@@ -148,7 +141,7 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 transition_length=0.0,
                 [
                     broadcast_clock_base,
-                    broadcast_clock_hold
+                    blank(id="broadcast_clock_hold")
                 ]
             )
             LIQ
