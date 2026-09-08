@@ -23,6 +23,12 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * resulting authority order is:
  *
  *     Top-of-Hour ID -> rigid scheduled programme -> live/AutoDJ
+ *
+ * There is deliberately no secondary AutoDJ availability gate. A wall-clock
+ * takeover retires the exact outgoing processed source synchronously inside the
+ * switch transition while that source is still clocked. This prevents a source
+ * from being parked under a TOH/rigid branch and waking up later with buffered
+ * pre-interruption audio.
  */
 final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterface
 {
@@ -96,110 +102,24 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             }
         }
 
-        // Shared broadcast-clock transport gate. The plugin-owned retirement
-        // transport permanently destroys the active request and any prefetched
-        // tail. fallback.skip also retires already-processed frames above
-        // request.dynamic. A live DJ is never gated.
+        // Shared clock-retirement helper used by both rigid and TOH transitions.
+        // Defining the helper has no effect on the audio graph by itself; when no
+        // rigid source exists and TOH is disabled, `radio` is not wrapped here.
         $event->appendBlock(
             <<<'LIQ'
-            # Broadcast-clock AutoDJ transport gate (Top-of-Hour plugin).
-            broadcast_clock_autodj_blocked = ref(false)
-            broadcast_clock_rejoin_waiting = ref(false)
+            # Broadcast-clock synchronous source retirement (Top-of-Hour plugin).
             rigid_schedule_active = ref(false)
-            radio_before_broadcast_clock_gate = radio
 
-            # Capture identity from the fully processed source before making that
-            # graph unavailable. request.dynamic may already have advanced into a
-            # prefetched successor while crossfade still contains the song that is
-            # actually being faded off air. The audible identity therefore wins.
-            def broadcast_clock_capture_retirement_song() =
-                audible_metadata = radio_before_broadcast_clock_gate.last_metadata()
-                if null.defined(audible_metadata) then
-                    audible_song_id = list.assoc(
-                        default="",
-                        "song_id",
-                        null.get(audible_metadata)
-                    )
-                    azuracast.set_autodj_retirement_song_hint(audible_song_id)
-                else
-                    azuracast.set_autodj_retirement_song_hint("")
-                end
-            end
-
-            def broadcast_clock_block_autodj() =
+            def broadcast_clock_retire_outgoing(source_to_retire) =
                 if not azuracast.live_enabled() then
-                    broadcast_clock_capture_retirement_song()
-                    broadcast_clock_autodj_blocked := true
-                    azuracast.discard_autodj_current()
-                    log("Broadcast Clock: blocked AutoDJ and retired its audible/active/prefetched requests.")
+                    # Retire the exact processed source that was feeding air while
+                    # it is still clocked. This is intentionally above stretch and
+                    # crossfade so any buffered frames belonging to the interrupted
+                    # track are part of the skipped track and cannot wake up later.
+                    source.skip(source_to_retire)
+                    log("Broadcast Clock: synchronously retired outgoing processed AutoDJ track.")
                 end
             end
-
-            def broadcast_clock_release_autodj() =
-                broadcast_clock_autodj_blocked := false
-                broadcast_clock_rejoin_waiting := false
-                log("Broadcast Clock: released AutoDJ transport gate.")
-            end
-
-            def broadcast_clock_prefetch_autodj() =
-                if not azuracast.live_enabled() and not azuracast.autodj_fresh_ready() then
-                    azuracast.prefetch_autodj_next()
-                    log("Broadcast Clock: requested a fresh AutoDJ rejoin track while gate remained closed.")
-                end
-            end
-
-            def broadcast_clock_rejoin_tick() =
-                if azuracast.live_enabled() then
-                    broadcast_clock_release_autodj()
-                    -1.0
-                elsif azuracast.autodj_fresh_ready() then
-                    broadcast_clock_release_autodj()
-                    log("Broadcast Clock: fresh AutoDJ request is ready; rejoin released.")
-                    -1.0
-                else
-                    # There is deliberately no time-based fail-open here. If the
-                    # backend cannot produce a non-retired request, silence/hold
-                    # is safer than violating the station's no-resume invariant.
-                    0.1
-                end
-            end
-
-            def broadcast_clock_release_when_fresh() =
-                if azuracast.live_enabled() then
-                    broadcast_clock_release_autodj()
-                elsif azuracast.autodj_fresh_ready() then
-                    broadcast_clock_release_autodj()
-                    log("Broadcast Clock: fresh AutoDJ request already ready at rejoin.")
-                elsif not broadcast_clock_rejoin_waiting() then
-                    broadcast_clock_rejoin_waiting := true
-                    broadcast_clock_prefetch_autodj()
-                    thread.run.recurrent(delay=0.1, broadcast_clock_rejoin_tick)
-                    log("Broadcast Clock: holding rejoin until a fresh AutoDJ request is ready; no fail-open.")
-                end
-            end
-
-            def broadcast_clock_base_available() =
-                azuracast.live_enabled() or not broadcast_clock_autodj_blocked()
-            end
-
-            # source.available requires a level predicate: true for the whole time
-            # the underlying station graph should remain available.
-            broadcast_clock_base = source.available(
-                radio_before_broadcast_clock_gate,
-                {broadcast_clock_base_available()}
-            )
-
-            broadcast_clock_hold = blank(id="broadcast_clock_hold")
-
-            # Unlike a plain fallback, fallback.skip explicitly skips the main
-            # source's current track before switching away. The main source here
-            # is the fully processed station graph (after stretch/crossfade), so
-            # this flushes stale frames that a leaf request.dynamic skip cannot.
-            radio = fallback.skip(
-                broadcast_clock_base,
-                fallback=broadcast_clock_hold
-            )
-            source.set_id(radio, "broadcast_clock_autodj_gate")
             LIQ
         );
 
@@ -218,13 +138,13 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             # Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin).
             radio_before_rigid_schedule = radio
 
-            def rigid_schedule_enter(_, new) =
+            def rigid_schedule_enter(old, new) =
                 rigid_schedule_active := true
 
-                # Destroy the exact request.dynamic AutoDJ request and hold the
-                # ordinary graph unavailable for the entire rigid programme.
-                # A live DJ stays connected and is never discarded or gated.
-                broadcast_clock_block_autodj()
+                # The wall-clock switch itself is the gate. Retire the outgoing
+                # processed track immediately instead of parking it beneath a
+                # second fallback/source.available gate.
+                broadcast_clock_retire_outgoing(old)
 
                 # The PHP strict-start path may have staged a duplicate copy in
                 # the interrupting queue. This native rigid lane is authoritative.
@@ -242,10 +162,6 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 interrupting_queue.set_queue([])
                 rigid_schedule_active := false
 
-                # Prepare and verify a fresh AutoDJ request before reopening the
-                # processed graph. This prevents a stale buffered programme/music
-                # frame from being used as a bridge out of the rigid lane.
-                broadcast_clock_release_when_fresh()
                 log("Rigid Schedule: scheduled programme released wall-clock authority.")
                 new
             end
