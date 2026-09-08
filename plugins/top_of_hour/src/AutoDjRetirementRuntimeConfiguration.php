@@ -159,6 +159,11 @@ final class AutoDjRetirementRuntimeConfiguration implements EventSubscriberInter
                         if current_song_id != "" then
                             azuracast.autodj_retired_song_id := current_song_id
                         end
+
+                        # Destroy the exact active request object as well as
+                        # skipping the source below. This releases the request RID
+                        # and any temporary resources; it cannot be reused later.
+                        request.destroy(force=true, current_request)
                     elsif azuracast.autodj_current_song_id() != "" then
                         azuracast.autodj_retired_song_id := azuracast.autodj_current_song_id()
                     end
