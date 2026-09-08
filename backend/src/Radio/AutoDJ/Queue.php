@@ -101,7 +101,15 @@ final class Queue
 
         $upcomingQueue = $this->queueRepo->getUnplayedQueue($station);
 
-        $lastSongId = null;
+        // The on-air song is already marked played when its feedback arrives, so
+        // it is normally absent from getUnplayedQueue(). Starting this cursor at
+        // null forgets the exact song AutoDJ is currently airing and lets a
+        // depleted/rebuilt queue select it again as the first "fresh" request.
+        // This is especially visible at TOH: the transport correctly discards
+        // the interrupted request, then prefetch can receive the same song as a
+        // brand-new request. Carry the actual on-air identity into BuildQueue so
+        // the existing immediate-repeat guard can reject it and choose another.
+        $lastSongId = $currentSong?->song_id;
         $queueLength = 0;
 
         foreach ($upcomingQueue as $queueRow) {
