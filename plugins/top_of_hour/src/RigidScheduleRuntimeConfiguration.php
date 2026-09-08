@@ -108,11 +108,30 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             rigid_schedule_active = ref(false)
             radio_before_broadcast_clock_gate = radio
 
+            # Capture identity from the fully processed source before making that
+            # graph unavailable. request.dynamic may already have advanced into a
+            # prefetched successor while crossfade still contains the song that is
+            # actually being faded off air. The audible identity therefore wins.
+            def broadcast_clock_capture_retirement_song() =
+                audible_metadata = radio_before_broadcast_clock_gate.last_metadata()
+                if null.defined(audible_metadata) then
+                    audible_song_id = list.assoc(
+                        default="",
+                        "song_id",
+                        null.get(audible_metadata)
+                    )
+                    azuracast.set_autodj_retirement_song_hint(audible_song_id)
+                else
+                    azuracast.set_autodj_retirement_song_hint("")
+                end
+            end
+
             def broadcast_clock_block_autodj() =
                 if not azuracast.live_enabled() then
+                    broadcast_clock_capture_retirement_song()
                     broadcast_clock_autodj_blocked := true
                     azuracast.discard_autodj_current()
-                    log("Broadcast Clock: blocked AutoDJ and retired its active/prefetched requests.")
+                    log("Broadcast Clock: blocked AutoDJ and retired its audible/active/prefetched requests.")
                 end
             end
 
