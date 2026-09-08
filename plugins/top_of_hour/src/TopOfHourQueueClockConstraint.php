@@ -38,6 +38,23 @@ final class TopOfHourQueueClockConstraint implements EventSubscriberInterface
             return;
         }
 
+        $start = CarbonImmutable::instance($event->getExpectedPlayAt());
+        $projectedEnd = CarbonImmutable::instance($event->getProjectedEndAt());
+
+        // Queue projection can inspect hundreds of rows (especially Linear Log).
+        // Do cheap clock math first and only invoke TopOfHourClock::plan() -- which
+        // performs ID selection/history queries -- for the one row that can
+        // actually cross the next TOH target.
+        $boundary = CarbonImmutable::instance($this->clock->getNextBoundary($station, $start));
+        $candidateTarget = $boundary
+            ->subMinute()
+            ->startOfMinute()
+            ->addSeconds($this->clock->getIdStartSecond($station));
+
+        if ($candidateTarget <= $start || $candidateTarget > $projectedEnd) {
+            return;
+        }
+
         $plan = $this->clock->plan($station, $event->getExpectedPlayAt());
         if (!$plan instanceof TopOfHourPlan) {
             return;
@@ -48,9 +65,6 @@ final class TopOfHourQueueClockConstraint implements EventSubscriberInterface
         }
 
         $target = CarbonImmutable::instance($plan->targetStartAt);
-        $start = CarbonImmutable::instance($event->getExpectedPlayAt());
-        $projectedEnd = CarbonImmutable::instance($event->getProjectedEndAt());
-
         if ($target <= $start || $target > $projectedEnd) {
             return;
         }
