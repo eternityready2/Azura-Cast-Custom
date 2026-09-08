@@ -187,8 +187,8 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             end
 
             def rigid_schedule_exit(_, new) =
-                // Anything staged into the legacy interrupting lane while the
-                // rigid source was on air is stale and must not follow it.
+                # Anything staged into the legacy interrupting lane while the
+                # rigid source was on air is stale and must not follow it.
                 interrupting_queue.skip()
                 interrupting_queue.set_queue([])
                 rigid_schedule_active := false
