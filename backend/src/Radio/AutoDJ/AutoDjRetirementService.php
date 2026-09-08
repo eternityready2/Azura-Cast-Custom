@@ -12,9 +12,10 @@ use Psr\SimpleCache\CacheInterface;
 /**
  * Generic transport-retirement state for wall-clock interruptions.
  *
- * The Top-of-Hour plugin activates this state only when it has actually retired
- * an AutoDJ request. Core AutoDJ then treats the interrupted song as quarantined
- * until a different ordinary music track is confirmed on air.
+ * A retirement transaction is one-shot. Repeated /nextsong fetches while the
+ * same song remains quarantined must never reset newly-sent queue rows back to
+ * unsent, otherwise the same fresh post-clock song can be handed to Liquidsoap
+ * repeatedly.
  */
 final class AutoDjRetirementService
 {
@@ -38,13 +39,23 @@ final class AutoDjRetirementService
         return '' !== $value ? $value : null;
     }
 
+    /**
+     * Activate a new retirement transaction.
+     *
+     * @return bool True only when a new/different quarantine was activated.
+     */
     public function activate(
         Station $station,
         string $songId,
-    ): void {
+    ): bool {
         $songId = trim($songId);
         if ('' === $songId) {
-            return;
+            return false;
+        }
+
+        $alreadyExcluded = $this->getExcludedSongId($station);
+        if (null !== $alreadyExcluded && hash_equals($alreadyExcluded, $songId)) {
+            return false;
         }
 
         $this->cache->set(
@@ -53,10 +64,9 @@ final class AutoDjRetirementService
             self::CACHE_TTL_SECONDS,
         );
 
-        // Every unplayed ordinary row previously marked sent_to_autodj belongs to
-        // transport state that has just been purged. Reset all of them, not only
-        // IDs visible in request metadata, so an unresolved/prefetched request can
-        // never become a ghost row that blocks a clean post-clock rebuild.
+        // Reconcile transport state exactly once for this retirement. Doing this
+        // on every subsequent /nextsong call can turn a freshly handed-out row
+        // back into sent_to_autodj=0 and cause it to be returned again.
         $this->em->createQuery(
             <<<'DQL'
                 UPDATE App\Entity\StationQueue sq
@@ -97,6 +107,7 @@ final class AutoDjRetirementService
         }
 
         $this->em->flush();
+        return true;
     }
 
     /**
