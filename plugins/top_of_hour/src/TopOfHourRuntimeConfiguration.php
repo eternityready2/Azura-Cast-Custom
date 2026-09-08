@@ -60,6 +60,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             top_of_hour_id_fade_seconds = ref({$fadeSeconds})
             top_of_hour_id_target_epoch = ref(0.0)
             top_of_hour_id_boundary_epoch = ref(0.0)
+            top_of_hour_hard_release_epoch = ref(0.0)
             top_of_hour_id_active = ref(false)
             top_of_hour_id_hard_boundary = ref(false)
 
@@ -133,15 +134,21 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             end
 
             def top_of_hour_release_gate_if_no_rigid() =
-                # Hard-boundary handoff fail-safe. A valid rigid branch takes
-                # authority immediately at :00 and keeps the gate closed. If no
-                # rigid source became active, fail open after one second rather
-                # than leaving the station parked on the hold source forever.
-                if rigid_schedule_active() then
+                # HARD means AutoDJ has no authority anywhere between the ID and
+                # the :00 programme boundary, even if a short ID ends naturally
+                # a fraction early. Give the rigid switch a small frame-level grace
+                # after the boundary, then fail open only if no rigid source owns air.
+                release_at = top_of_hour_hard_release_epoch()
+
+                if release_at > 0.0 and time() < release_at then
+                    0.1
+                elsif rigid_schedule_active() then
+                    top_of_hour_hard_release_epoch := 0.0
                     -1.0
                 else
-                    broadcast_clock_release_autodj()
-                    log("Top-of-Hour ID: no rigid source became active; released AutoDJ fail-safe.")
+                    top_of_hour_hard_release_epoch := 0.0
+                    broadcast_clock_release_when_fresh()
+                    log("Top-of-Hour ID: no rigid source became active; began clean AutoDJ fail-safe rejoin.")
                     -1.0
                 end
             end
@@ -153,8 +160,16 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 # gone before the ID owns air and cannot resume afterwards.
                 # Live audio is never discarded or gated.
                 broadcast_clock_block_autodj()
+
                 if not azuracast.live_enabled() then
                     log("Top-of-Hour ID: discarded and gated interrupted AutoDJ track.")
+
+                    # Open hour: prepare the post-ID request while the ID is on air.
+                    # HARD hours deliberately do not reserve music across a rigid
+                    # programme whose schedule context may be very different later.
+                    if not top_of_hour_id_hard_boundary() then
+                        broadcast_clock_prefetch_autodj()
+                    end
                 end
                 new
             end
@@ -162,7 +177,6 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             def top_of_hour_id_exit(_, new) =
                 was_hard = top_of_hour_id_hard_boundary()
                 boundary = top_of_hour_id_boundary_epoch()
-                exited_at_hard_boundary = was_hard and boundary > 0.0 and time() >= boundary
 
                 # HARD :00 may cut a long/mis-timed ID. Discard any current/tail
                 # request and empty the waiting queue so it cannot reappear.
@@ -176,15 +190,18 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_target_epoch := 0.0
                 top_of_hour_id_boundary_epoch := 0.0
 
-                if exited_at_hard_boundary then
-                    # Keep AutoDJ gated across the exact :00 transition. The rigid
-                    # lane releases it when the scheduled programme finishes.
-                    thread.run.recurrent(delay=1.0, top_of_hour_release_gate_if_no_rigid)
+                if was_hard and boundary > 0.0 then
+                    # Never reopen AutoDJ between a HARD ID and :00. This applies
+                    # whether the ID was cut at the boundary or ended naturally
+                    # just before it. The rigid lane keeps the gate closed once it
+                    # takes authority; the recurrent callback is only a fail-safe.
+                    top_of_hour_hard_release_epoch := boundary + 0.25
+                    thread.run.recurrent(delay=0.1, top_of_hour_release_gate_if_no_rigid)
+                    log("Top-of-Hour ID: HARD handoff is holding AutoDJ through the :00 boundary.")
                 else
-                    # Natural ID completion before :00 (or SOFT/open hour): resume
-                    # with a fresh AutoDJ request. The interrupted song was already
-                    # permanently discarded on entry.
-                    broadcast_clock_release_autodj()
+                    # Open hour: do not expose the processed graph until the fresh
+                    # post-ID request prepared during the ID is actually ready.
+                    broadcast_clock_release_when_fresh()
                 end
 
                 new
@@ -270,6 +287,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
                 top_of_hour_id_boundary_epoch := 0.0
+                top_of_hour_hard_release_epoch := 0.0
                 broadcast_clock_release_autodj()
                 "Done!"
             end
