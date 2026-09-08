@@ -8,13 +8,14 @@ use App\Cache\NowPlayingCache;
 use App\Container\EntityManagerAwareTrait;
 use App\Entity\Repository\SongHistoryRepository;
 use App\Entity\Repository\StationQueueRepository;
-use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
 use App\Entity\Song;
 use App\Entity\SongHistory;
 use App\Entity\Station;
 use App\Entity\StationMedia;
 use App\Entity\StationPlaylist;
 use App\Entity\StationQueue;
+use App\Radio\AutoDJ\AutoDjRetirementService;
+use App\Radio\AutoDJ\ClockWheel\ClockWheelLegalIdPlaybackService;
 use App\Utilities\Types;
 use RuntimeException;
 
@@ -27,6 +28,7 @@ final class FeedbackCommand extends AbstractCommand
         private readonly SongHistoryRepository $historyRepo,
         private readonly NowPlayingCache $nowPlayingCache,
         private readonly ClockWheelLegalIdPlaybackService $legalIdPlaybackService,
+        private readonly AutoDjRetirementService $retirement,
     ) {
     }
 
@@ -59,6 +61,19 @@ final class FeedbackCommand extends AbstractCommand
 
         $this->historyRepo->changeCurrentSong($station, $historyRow);
         $this->em->flush();
+
+        // A TOH ID, news bulletin or other non-music clock item must never clear
+        // the quarantine. Only a genuinely different ordinary music track taking
+        // air proves that the retired song can safely become eligible again.
+        $excludedSongId = $this->retirement->getExcludedSongId($station);
+        if (
+            null !== $excludedSongId
+            && $historyRow->media instanceof StationMedia
+            && 'music' === $historyRow->media->type
+            && !hash_equals($excludedSongId, $historyRow->song_id)
+        ) {
+            $this->retirement->clear($station);
+        }
 
         $this->nowPlayingCache->forceUpdate($station);
         return true;

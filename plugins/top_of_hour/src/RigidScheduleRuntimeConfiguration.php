@@ -96,30 +96,48 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             }
         }
 
-        // Shared broadcast-clock transport gate. The direct request.dynamic
-        // transport skip permanently retires the playing request. fallback.skip
-        // also retires the currently selected post-crossfade track when the gate
-        // switches away, flushing frames already buffered above request.dynamic.
-        // A live DJ is never gated and can remain connected underneath the clock
-        // lane until that lane releases authority.
+        // Shared broadcast-clock transport gate. The plugin-owned retirement
+        // transport permanently destroys the active request and any prefetched
+        // tail. fallback.skip also retires already-processed frames above
+        // request.dynamic. A live DJ is never gated.
         $event->appendBlock(
             <<<'LIQ'
             # Broadcast-clock AutoDJ transport gate (Top-of-Hour plugin).
             broadcast_clock_autodj_blocked = ref(false)
-            broadcast_clock_rejoin_deadline = ref(0.)
+            broadcast_clock_rejoin_waiting = ref(false)
             rigid_schedule_active = ref(false)
             radio_before_broadcast_clock_gate = radio
 
+            # Capture identity from the fully processed source before making that
+            # graph unavailable. request.dynamic may already have advanced into a
+            # prefetched successor while crossfade still contains the song that is
+            # actually being faded off air. The audible identity therefore wins.
+            def broadcast_clock_capture_retirement_song() =
+                audible_metadata = radio_before_broadcast_clock_gate.last_metadata()
+                if null.defined(audible_metadata) then
+                    audible_song_id = list.assoc(
+                        default="",
+                        "song_id",
+                        null.get(audible_metadata)
+                    )
+                    azuracast.set_autodj_retirement_song_hint(audible_song_id)
+                else
+                    azuracast.set_autodj_retirement_song_hint("")
+                end
+            end
+
             def broadcast_clock_block_autodj() =
                 if not azuracast.live_enabled() then
+                    broadcast_clock_capture_retirement_song()
                     broadcast_clock_autodj_blocked := true
                     azuracast.discard_autodj_current()
-                    log("Broadcast Clock: blocked AutoDJ and discarded its active request.")
+                    log("Broadcast Clock: blocked AutoDJ and retired its audible/active/prefetched requests.")
                 end
             end
 
             def broadcast_clock_release_autodj() =
                 broadcast_clock_autodj_blocked := false
+                broadcast_clock_rejoin_waiting := false
                 log("Broadcast Clock: released AutoDJ transport gate.")
             end
 
@@ -138,15 +156,10 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                     broadcast_clock_release_autodj()
                     log("Broadcast Clock: fresh AutoDJ request is ready; rejoin released.")
                     -1.0
-                elsif time() >= broadcast_clock_rejoin_deadline() then
-                    # Never expose a retired track to avoid silence. The direct
-                    # request and processed fallback.skip track are already dead;
-                    # this bounded fail-open only lets the normal fallback graph
-                    # recover if the API could not prepare a new request in time.
-                    broadcast_clock_release_autodj()
-                    log("Broadcast Clock: fresh AutoDJ rejoin timed out; fail-open released clean graph.")
-                    -1.0
                 else
+                    # There is deliberately no time-based fail-open here. If the
+                    # backend cannot produce a non-retired request, silence/hold
+                    # is safer than violating the station's no-resume invariant.
                     0.1
                 end
             end
@@ -157,11 +170,11 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
                 elsif azuracast.autodj_fresh_ready() then
                     broadcast_clock_release_autodj()
                     log("Broadcast Clock: fresh AutoDJ request already ready at rejoin.")
-                else
+                elsif not broadcast_clock_rejoin_waiting() then
+                    broadcast_clock_rejoin_waiting := true
                     broadcast_clock_prefetch_autodj()
-                    broadcast_clock_rejoin_deadline := time() + 5.0
                     thread.run.recurrent(delay=0.1, broadcast_clock_rejoin_tick)
-                    log("Broadcast Clock: holding rejoin until a fresh AutoDJ request is ready.")
+                    log("Broadcast Clock: holding rejoin until a fresh AutoDJ request is ready; no fail-open.")
                 end
             end
 

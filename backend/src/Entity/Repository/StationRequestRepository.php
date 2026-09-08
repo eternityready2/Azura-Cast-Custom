@@ -22,6 +22,7 @@ final class StationRequestRepository extends AbstractStationBasedRepository
 
     public function __construct(
         private readonly AutoDJ\DuplicatePrevention $duplicatePrevention,
+        private readonly AutoDJ\AutoDjRetirementService $retirement,
     ) {
     }
 
@@ -83,6 +84,7 @@ final class StationRequestRepository extends AbstractStationBasedRepository
     ): ?StationRequest {
         $tz = $station->getTimezoneObject();
         $now = Time::nowInTimezone($tz, $now);
+        $excludedSongId = $this->retirement->getExcludedSongId($station);
 
         // Look up all requests that have at least waited as long as the threshold.
         $requests = $this->em->createQuery(
@@ -99,6 +101,7 @@ final class StationRequestRepository extends AbstractStationBasedRepository
         return array_find(
             $requests,
             fn(StationRequest $request) => $request->shouldPlayNow($now)
+                && (null === $excludedSongId || !hash_equals($excludedSongId, $request->track->song_id))
                 && !$this->hasPlayedRecently($request->track, $station)
         );
     }
