@@ -32,7 +32,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
 
         TopOfHourQueueClockConstraint::applyPlan(
             $event,
-            $this->makePlan($station, TopOfHourMode::SoftEtm),
+            $this->makePlan(TopOfHourMode::SoftEtm),
         );
 
         self::assertTrue($event->hasConstraint());
@@ -63,7 +63,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
 
         TopOfHourQueueClockConstraint::applyPlan(
             $event,
-            $this->makePlan($station, TopOfHourMode::HardToh),
+            $this->makePlan(TopOfHourMode::HardToh),
         );
 
         self::assertTrue($event->hasConstraint());
@@ -89,7 +89,7 @@ final class TopOfHourQueueClockConstraintTest extends Unit
 
         TopOfHourQueueClockConstraint::applyPlan(
             $event,
-            $this->makePlan($station, TopOfHourMode::SoftEtm),
+            $this->makePlan(TopOfHourMode::SoftEtm),
         );
 
         self::assertFalse($event->hasConstraint());
@@ -132,12 +132,12 @@ final class TopOfHourQueueClockConstraintTest extends Unit
         return $station;
     }
 
-    private function makePlan(Station $station, TopOfHourMode $mode): TopOfHourPlan
+    private function makePlan(TopOfHourMode $mode): TopOfHourPlan
     {
-        $media = new StationMedia($station->media_storage_location, '/queue-clock-id.mp3');
-        $media->title = 'Station ID';
-        $media->artist = 'Station';
-        $media->length = 37.825;
+        // applyPlan() only consumes clock fields from TopOfHourPlan. Use a
+        // constructor-less StationMedia sentinel so this regression stays a pure
+        // clock-math test and never needs a persisted storage-location entity.
+        $media = (new ReflectionClass(StationMedia::class))->newInstanceWithoutConstructor();
 
         return new TopOfHourPlan(
             mode: $mode,
