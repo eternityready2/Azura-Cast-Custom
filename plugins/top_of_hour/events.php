@@ -6,14 +6,17 @@ use App\CallableEventDispatcherInterface;
 use App\Event\GetSyncTasks;
 use App\Sync\Task\StageTopOfHourStationIdTask;
 use Plugin\TopOfHour\RigidScheduleRuntimeConfiguration;
+use Plugin\TopOfHour\TopOfHourQueueClockConstraint;
 use Plugin\TopOfHour\TopOfHourRuntimeConfiguration;
 
 require_once __DIR__ . '/src/RigidScheduleRuntimeConfiguration.php';
+require_once __DIR__ . '/src/TopOfHourQueueClockConstraint.php';
 require_once __DIR__ . '/src/TopOfHourRuntimeConfiguration.php';
 
 return static function (CallableEventDispatcherInterface $dispatcher): void {
     $dispatcher->addServiceSubscriber([
         RigidScheduleRuntimeConfiguration::class,
+        TopOfHourQueueClockConstraint::class,
         TopOfHourRuntimeConfiguration::class,
     ]);
 
