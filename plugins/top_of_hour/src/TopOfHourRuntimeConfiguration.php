@@ -16,11 +16,10 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * PHP resolves the station-local :59:ss target into an absolute epoch and
  * pre-stages the request. Liquidsoap owns the actual wall-clock switch.
  *
- * The TOH switch itself is the transport authority. There is no nested
- * source.available/fallback gate underneath it: the outgoing processed source is
- * synchronously skipped in the transition callback while it is still clocked,
- * then the dedicated ID lane owns air. That removes the parked-source resume
- * race observed in live testing.
+ * The TOH switch itself owns the deadline. At takeover, the plugin tells the
+ * shared AutoDJ transport to perform a one-shot clean cut at its next cross
+ * boundary, then skips the real request.dynamic leaf. The cross operator can
+ * therefore discard its buffered old tail instead of replaying it after the ID.
  */
 final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 {
@@ -149,20 +148,20 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 end
             end
 
-            def top_of_hour_id_enter(old, new) =
+            def top_of_hour_id_enter(_, new) =
                 # Mark ownership synchronously; the request.queue on_track callback
                 # also sets this when metadata arrives, but must not be the timing
                 # primitive for a frame-accurate HARD hold.
                 top_of_hour_id_active := true
 
                 if not azuracast.live_enabled() then
-                    # The outgoing branch is the exact fully-processed source that
-                    # was feeding air. Skip it NOW, while it is still clocked and
-                    # after the pre-fade has reached zero. Crossfade/stretch buffers
-                    # belonging to the interrupted track are therefore retired with
-                    # the track instead of being parked beneath the ID.
-                    broadcast_clock_retire_outgoing(old)
-                    log("Top-of-Hour ID: permanently retired interrupted processed AutoDJ track at takeover.")
+                    # The pre-fade has already reached zero. Arm the actual cross
+                    # operator to reject its buffered old tail, then skip exactly
+                    # one request at the real request.dynamic AutoDJ transport.
+                    # Do not skip a switch/amplify/cross proxy: Liquidsoap can keep
+                    # the crossfade tail even when those wrappers are skipped.
+                    azuracast.discard_autodj_current_cleanly()
+                    log("Top-of-Hour ID: armed clean cross boundary and discarded interrupted AutoDJ request.")
                 end
 
                 new
@@ -186,7 +185,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 if was_hard then
                     log("Top-of-Hour ID: HARD lane released exactly at the :00 boundary to rigid authority.")
                 else
-                    log("Top-of-Hour ID: open-hour lane released directly to the already-retired underlying source.")
+                    log("Top-of-Hour ID: open-hour lane released to clean fresh AutoDJ boundary.")
                 end
 
                 new
