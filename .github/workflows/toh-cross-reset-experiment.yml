@@ -74,7 +74,9 @@ jobs:
           base = fallback(track_sensitive=false,[dynamic,blank(id="startup_blank")])
           base = stretch(ratio=1.0,base)
           def trans(old,new) =
-            log("EXP_CROSS_CALLBACK old=#{list.assoc(default="", "title", old.metadata)} new=#{list.assoc(default="", "title", new.metadata)}")
+            old_title = list.assoc(default="", "title", old.metadata)
+            new_title = list.assoc(default="", "title", new.metadata)
+            log("EXP_CROSS_CALLBACK old=#{old_title} new=#{new_title}")
             cross.simple(old.source,new.source,fade_in=1.0,fade_out=1.0)
           end
           crossed = cross(id="crossed",duration=5.0,trans,base)
@@ -120,6 +122,7 @@ jobs:
             set -e
             echo "===== ${variant} status=${status} ====="
             cat /tmp/${variant}.log
+            if [ "$status" -ne 0 ] && [ "$status" -ne 124 ] && [ "$status" -ne 137 ]; then exit "$status"; fi
           done
 
       - name: Analyze post-ID audio
@@ -136,7 +139,7 @@ jobs:
           for variant in ('cross_only','dynamic_then_cross'):
               p=pathlib.Path('/tmp/out/'+variant+'.pcm')
               if not p.exists():
-                  print('RESULT',variant,'NO_OUTPUT'); continue
+                  raise SystemExit('RESULT '+variant+' NO_OUTPUT')
               raw=p.read_bytes(); vals=struct.unpack('<'+'h'*(len(raw)//2),raw[:len(raw)//2*2]); samples=vals[0::2]
               win=RATE//10; hop=RATE//20; rows=[]
               for s in range(0,len(samples)-win+1,hop):
@@ -144,7 +147,7 @@ jobs:
                   rows.append((s/RATE,power(xs,440),power(xs,660),power(xs,880),power(xs,990),power(xs,1200)))
               ids=[r for r in rows if r[5] > 1e5 and r[5] > 20*(r[1]+r[2]+r[3]+r[4]+1)]
               if not ids:
-                  print('RESULT',variant,'NO_ID'); continue
+                  raise SystemExit('RESULT '+variant+' NO_ID')
               end=max(r[0] for r in ids)+win/RATE
               post=[r for r in rows if end+.05 <= r[0] <= end+1.5]
               old=any(r[1] > 1e5 and r[1] > 0.02*(r[2]+r[3]+r[4]+1) for r in post)
