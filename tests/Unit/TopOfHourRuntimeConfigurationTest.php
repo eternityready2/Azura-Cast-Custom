@@ -15,7 +15,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeCon
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohSwitchRetiresBufferedCrossSourceDirectly(): void
+    public function testTohPreservesCleanCutAndUsesDirectCleanupDriver(): void
     {
         $station = $this->makeStation();
 
@@ -23,40 +23,33 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
 
         $event = new WriteLiquidsoapConfiguration($station, false, false);
-        $runtime = new TopOfHourRuntimeConfiguration($clock);
-        $runtime->captureCrossSource($event);
-        $runtime->writeRuntime($event);
+        (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
         $config = $event->buildConfiguration();
 
-        self::assertStringContainsString('broadcast_clock_cross_source = radio', $config);
-        self::assertStringContainsString('Top-of-Hour Station ID exact wall-clock lane (plugin owned)', $config);
-        self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
-        self::assertStringContainsString('top_of_hour_id_active := true', $config);
-        self::assertStringContainsString('source.skip(broadcast_clock_cross_source)', $config);
+        self::assertStringContainsString('azuracast.discard_autodj_current_cleanly()', $config);
+        self::assertStringContainsString('top_of_hour_cleanup_driver = output.dummy(', $config);
+        self::assertStringContainsString('start=false', $config);
+        self::assertStringContainsString('top_of_hour_cleanup_driver.start()', $config);
+        self::assertStringContainsString('top_of_hour_cleanup_driver.stop()', $config);
         self::assertStringContainsString(
-            'directly retired buffered post-cross AutoDJ track.',
+            'clean cross boundary consumed; parked fresh AutoDJ successor.',
             $config,
         );
 
-        // Live incident under #161 proved that waiting on a cross callback can
-        // deadlock the TOH lane on silence. The direct post-cross reset owns the
-        // buffered tail, so TOH must not install or wait on a muted cleanup lane.
-        self::assertStringNotContainsString('top_of_hour_cleanup_underlay', $config);
-        self::assertStringNotContainsString('top_of_hour_cleanup_audio', $config);
-        self::assertStringNotContainsString('or azuracast.autodj_clean_cut_pending()', $config);
-        self::assertStringNotContainsString('azuracast.discard_autodj_current_cleanly()', $config);
+        // #162 cleared the clean-cut marker and skipped the post-cross wrapper;
+        // the 11 PM live test proved that reintroduced the interrupted-song tail.
+        self::assertStringNotContainsString('broadcast_clock_cross_source = radio', $config);
+        self::assertStringNotContainsString('source.skip(broadcast_clock_cross_source)', $config);
+        self::assertStringNotContainsString('azuracast.autodj_clean_cut_pending := false', $config);
 
-        // Older failed retirement/gating designs stay gone.
-        self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
-        self::assertStringNotContainsString('broadcast_clock_block_autodj()', $config);
-        self::assertStringNotContainsString('broadcast_clock_prefetch_autodj()', $config);
-        self::assertStringNotContainsString('broadcast_clock_release_when_fresh()', $config);
-        self::assertStringNotContainsString('broadcast_clock_retire_outgoing(', $config);
-        self::assertStringNotContainsString('top_of_hour_hard_release_epoch', $config);
-        self::assertStringNotContainsString('source.skip(source.effective(', $config);
+        // #161's conditional cleanup switch failed live because the inner cross
+        // callback never completed. The driver clocks the processed source
+        // directly, with no switch between the clock and the cross operator.
+        self::assertStringNotContainsString('top_of_hour_cleanup_underlay = switch(', $config);
+        self::assertStringNotContainsString('top_of_hour_clocked_lane = add(', $config);
     }
 
-    public function testOpenHourReleaseDependsOnlyOnIdReadiness(): void
+    public function testOpenHourReleaseNeverWaitsOnCleanupState(): void
     {
         $station = $this->makeStation();
 
@@ -64,13 +57,11 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
 
         $event = new WriteLiquidsoapConfiguration($station, false, false);
-        $runtime = new TopOfHourRuntimeConfiguration($clock);
-        $runtime->captureCrossSource($event);
-        $runtime->writeRuntime($event);
+        (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
         $config = $event->buildConfiguration();
 
         self::assertStringContainsString(
-            "# Open hour: the ID file itself is the only hold condition.",
+            '# Open hour: the ID file itself is the only hold condition.',
             $config,
         );
         self::assertStringContainsString('top_of_hour_id.is_ready()', $config);
@@ -79,7 +70,7 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
             $config,
         );
         self::assertStringContainsString(
-            'open-hour lane released directly to fresh AutoDJ audio.',
+            'open-hour lane released after clean-cut maintenance.',
             $config,
         );
     }
@@ -95,9 +86,6 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
         $config = $event->buildConfiguration();
 
-        // The ID source falls through to a blank within the SAME authoritative
-        // TOH lane. If a short HARD ID ends before :00, ordinary AutoDJ never
-        // becomes the selected branch during the gap.
         self::assertStringContainsString('top_of_hour_hard_hold = blank(id="top_of_hour_hard_hold")', $config);
         self::assertStringContainsString('top_of_hour_lane = fallback(', $config);
         self::assertStringContainsString('[top_of_hour_id, top_of_hour_hard_hold]', $config);
@@ -123,8 +111,6 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('if not top_of_hour_id_enabled() then', $config);
         self::assertStringContainsString('false', $config);
         self::assertStringContainsString('({true}, radio_before_top_of_hour)', $config);
-
-        // Disabled TOH must not install the old AutoDJ transport gate/quarantine.
         self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
         self::assertStringNotContainsString('autodj_retired_song_id', $config);
         self::assertStringNotContainsString('exclude_song_id', $config);
@@ -137,9 +123,6 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         );
 
         self::assertIsString($queueSource);
-
-        // PR #155's normal queue repeat guard remains the single backend owner of
-        // immediate-repeat rejection. No TOH-specific quarantine is needed.
         self::assertStringContainsString(
             '$recentPlayedMusic = $this->queueRepo->getPlayedMusicHistoryByTimeRange(',
             $queueSource,
