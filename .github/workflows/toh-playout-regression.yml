@@ -3,7 +3,8 @@ name: TOH Playout Regression
 on:
   push:
     branches:
-      - 'fix/toh-freeze-fresh-song-during-id'
+      - 'fix/toh-*'
+      - dev
   pull_request:
     branches: [dev]
     paths:
@@ -15,10 +16,22 @@ permissions:
   contents: read
 
 jobs:
-  no-resume:
+  no-resume-no-deadlock:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify runtime cannot wait forever on clean-cut state
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'captureCrossSource' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'broadcast_clock_cross_source = radio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'source.skip(broadcast_clock_cross_source)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'top_of_hour_cleanup_underlay' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'top_of_hour_cleanup_audio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'or azuracast.autodj_clean_cut_pending()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
 
       - name: Generate deterministic test audio
         shell: bash
@@ -36,16 +49,17 @@ jobs:
                   f.setsampwidth(2)
                   f.setframerate(RATE)
                   for hz, seconds in segments:
-                      frames = int(RATE * seconds)
-                      for i in range(frames):
+                      for i in range(int(RATE * seconds)):
                           s = int(10000 * math.sin(2 * math.pi * hz * i / RATE))
                           f.writeframesraw(struct.pack('<hh', s, s))
 
-          # OLD is the interrupted pre-ID song.
-          write_segments('/tmp/toh_old.wav', [(440, 10.0)])
-          # FRESH has a unique 880 Hz opening second, then 660 Hz. This proves the
-          # post-ID song starts at its beginning instead of advancing under the ID.
-          write_segments('/tmp/toh_fresh.wav', [(880, 1.0), (660, 9.0)])
+          # OLD is the song interrupted by the legal ID.
+          write_segments('/tmp/toh_old.wav', [(440, 20.0)])
+          # FRESH has a unique opening second. If it advances under the ID,
+          # the 880 Hz opening will be gone by the time the ID releases.
+          write_segments('/tmp/toh_fresh.wav', [(880, 1.0), (660, 19.0)])
+          # THIRD catches accidental double-skips of the fresh successor.
+          write_segments('/tmp/toh_third.wav', [(990, 20.0)])
           PY
           rm -rf /tmp/toh_regression_out
           mkdir -p /tmp/toh_regression_out
@@ -54,7 +68,7 @@ jobs:
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
 
-      - name: Run production-shaped TOH cleanup and release
+      - name: Run production-shaped direct cross retirement
         shell: bash
         run: |
           cat > /tmp/toh_resume_regression.liq <<'EOF'
@@ -65,7 +79,6 @@ jobs:
 
           request_index = ref(0)
           cut_target = ref(0.)
-          clean_cut_pending = ref(false)
           id_active = ref(false)
 
           def next_song() =
@@ -73,8 +86,10 @@ jobs:
             request_index := i + 1
             if i == 0 then
               request.create('annotate:title="OLD",song_id="old":/tmp/toh_old.wav')
-            else
+            elsif i == 1 then
               request.create('annotate:title="FRESH",song_id="fresh":/tmp/toh_fresh.wav')
+            else
+              request.create('annotate:title="THIRD",song_id="third":/tmp/toh_third.wav')
             end
           end
 
@@ -103,54 +118,26 @@ jobs:
           music = stretch(ratio=1.0, music)
 
           def test_cross(old, new) =
-            if clean_cut_pending() then
-              clean_cut_pending := false
-              if id_active() then
-                log("TOH_REGRESSION_CROSS clean-cut consumed while ID active")
-              else
-                log("TOH_REGRESSION_CROSS ERROR clean-cut consumed after ID release")
-              end
-              new.source
-            else
-              cross.simple(old.source, new.source, fade_in=1.0, fade_out=1.0)
-            end
+            old_title = list.assoc(default="", "title", old.metadata)
+            new_title = list.assoc(default="", "title", new.metadata)
+            log("TOH_REGRESSION_CROSS old=#{old_title} new=#{new_title}")
+            cross.simple(old.source, new.source, fade_in=1.0, fade_out=1.0)
           end
-          music = cross(duration=2.0, test_cross, music)
-          music_prefaded = amplify(1.0, music)
+          music = cross(id="production_cross_test", duration=5.0, test_cross, music)
 
-          # Clock the processed music graph only until the forced cross boundary
-          # has been consumed. Then switch to independent silence so FRESH remains
-          # parked at its beginning while the legal ID continues on air.
-          let {
-            audio=underlay_audio,
-            ...underlay_non_audio
-          } = source.tracks(music_prefaded)
-          ignore(underlay_non_audio)
-          cleanup_audio = source(id="cleanup_audio_test", {audio=underlay_audio})
-          cleanup_audio = amplify(0.0, cleanup_audio)
-          cleanup_idle = blank(id="cleanup_idle_test")
-          cleanup_underlay = switch(
-            id="cleanup_underlay_test",
-            track_sensitive=false,
-            replay_metadata=false,
-            transition_length=0.0,
-            [
-              ({clean_cut_pending()}, cleanup_audio),
-              ({true}, cleanup_idle)
-            ]
-          )
+          # This handle represents the plugin's priority-24 capture immediately
+          # after ConfigWriter installs the station cross operator.
+          broadcast_clock_cross_source = music
+          radio_before_top_of_hour = amplify(1.0, music)
 
           legal_id = sine(id="legal_id_test", duration=3.0, 1200.)
-          legal_id_clocked = add(
-            id="legal_id_clocked_test",
-            normalize=false,
-            [legal_id, cleanup_underlay]
-          )
 
           def id_due() =
             target = cut_target()
             if id_active() then
-              legal_id.is_ready() or clean_cut_pending()
+              # Open-hour release depends ONLY on ID readiness. No cleanup flag
+              # is allowed to hold this lane on silence after the file ends.
+              legal_id.is_ready()
             else
               target > 0.
               and time() >= target
@@ -161,15 +148,14 @@ jobs:
 
           def enter_id(_, new) =
             id_active := true
-            clean_cut_pending := true
-            source.skip(dynamic)
-            log("TOH_REGRESSION_ENTER clean-cut armed and direct dynamic skipped")
+            source.skip(broadcast_clock_cross_source)
+            log("TOH_REGRESSION_ENTER direct post-cross retirement")
             new
           end
 
           def leave_id(_, new) =
             id_active := false
-            log("TOH_REGRESSION_EXIT")
+            log("TOH_REGRESSION_EXIT released after ID")
             new
           end
 
@@ -179,7 +165,7 @@ jobs:
             replay_metadata=true,
             transition_length=0.0,
             transitions=[enter_id, leave_id],
-            [({id_due()}, legal_id_clocked), ({true}, music_prefaded)]
+            [({id_due()}, legal_id), ({true}, radio_before_top_of_hour)]
           )
 
           output.file(
@@ -195,6 +181,7 @@ jobs:
             -v /tmp/toh_resume_regression.liq:/tmp/toh_resume_regression.liq:ro \
             -v /tmp/toh_old.wav:/tmp/toh_old.wav:ro \
             -v /tmp/toh_fresh.wav:/tmp/toh_fresh.wav:ro \
+            -v /tmp/toh_third.wav:/tmp/toh_third.wav:ro \
             -v /tmp/toh_regression_out:/out \
             savonet/liquidsoap:v2.4.5 /tmp/toh_resume_regression.liq \
             > /tmp/toh_resume_regression.log 2>&1
@@ -208,13 +195,11 @@ jobs:
           fi
 
           grep -q 'TOH_REGRESSION_DYNAMIC_TRACK=OLD' /tmp/toh_resume_regression.log
-          test "$(grep -c 'TOH_REGRESSION_ENTER clean-cut armed and direct dynamic skipped' /tmp/toh_resume_regression.log)" -eq 1
-          grep -q 'TOH_REGRESSION_CROSS clean-cut consumed while ID active' /tmp/toh_resume_regression.log
-          ! grep -q 'TOH_REGRESSION_CROSS ERROR' /tmp/toh_resume_regression.log
-          grep -q 'TOH_REGRESSION_EXIT' /tmp/toh_resume_regression.log
+          test "$(grep -c 'TOH_REGRESSION_ENTER direct post-cross retirement' /tmp/toh_resume_regression.log)" -eq 1
+          test "$(grep -c 'TOH_REGRESSION_EXIT released after ID' /tmp/toh_resume_regression.log)" -eq 1
           test -s /tmp/toh_regression_out/output.pcm
 
-      - name: Assert no resume, no silent advance, and no post-ID gap
+      - name: Assert no resume, no silent advance, no dead air, and no double-skip
         shell: bash
         run: |
           python3 - <<'PY'
@@ -224,7 +209,7 @@ jobs:
 
           path = pathlib.Path('/tmp/toh_regression_out/output.pcm')
           raw = path.read_bytes()
-          if len(raw) < 44100 * 4 * 6:
+          if len(raw) < 44100 * 4 * 7:
               raise SystemExit(f'Output too short: {len(raw)} bytes')
 
           vals = struct.unpack('<' + 'h' * (len(raw) // 2), raw[:len(raw) // 2 * 2])
@@ -241,25 +226,21 @@ jobs:
               for x in xs:
                   s0 = x + coeff * s1 - s2
                   s2, s1 = s1, s0
-              power = s1 * s1 + s2 * s2 - coeff * s1 * s2
-              return power / (len(xs) * len(xs))
+              return (s1 * s1 + s2 * s2 - coeff * s1 * s2) / (len(xs) * len(xs))
 
           windows = []
           for start in range(0, len(samples) - win + 1, hop):
               xs = samples[start:start + win]
-              p440 = goertzel(xs, 440.0)
-              p660 = goertzel(xs, 660.0)
-              p880 = goertzel(xs, 880.0)
-              p1200 = goertzel(xs, 1200.0)
+              powers = [goertzel(xs, hz) for hz in (440.0, 660.0, 880.0, 990.0, 1200.0)]
               rms = math.sqrt(sum(float(x) * float(x) for x in xs) / len(xs))
-              windows.append((start / rate, p440, p660, p880, p1200, rms))
+              windows.append((start / rate, *powers, rms))
 
           id_windows = [
               w for w in windows
-              if w[4] > 20.0 * (w[1] + w[2] + w[3] + 1.0) and w[4] > 1e5
+              if w[5] > 20.0 * (w[1] + w[2] + w[3] + w[4] + 1.0) and w[5] > 1e5
           ]
           if not id_windows:
-              raise SystemExit('Could not locate deterministic 1200 Hz ID in recorded output')
+              raise SystemExit('Could not locate deterministic 1200 Hz ID')
 
           id_start = min(w[0] for w in id_windows)
           id_end = max(w[0] for w in id_windows) + win / rate
@@ -269,41 +250,39 @@ jobs:
           if not post:
               raise SystemExit('No post-ID analysis windows')
 
-          # 1) Interrupted OLD song must never reappear after ID.
-          old_leaks = []
-          for t, p440, p660, p880, p1200, rms in post:
-              if p440 > 1e5 and p440 > 0.02 * (p660 + p880 + 1.0):
-                  old_leaks.append((t, p440, p660, p880, p1200, rms))
+          # OLD 440 Hz must be permanently gone.
+          old_leaks = [
+              w for w in post
+              if w[1] > 1e5 and w[1] > 0.02 * (w[2] + w[3] + w[4] + 1.0)
+          ]
           if old_leaks:
-              for row in old_leaks:
-                  print('OLD_LEAK %.3fs p440=%.0f p660=%.0f p880=%.0f p1200=%.0f rms=%.0f' % row)
-              raise SystemExit('TOH_REGRESSION_FAIL: interrupted song exists after ID')
+              raise SystemExit('TOH_REGRESSION_FAIL: interrupted OLD song exists after ID')
 
-          # 2) Fresh song must begin immediately. Require audible non-ID signal
-          # within 250 ms of the end of the ID; this catches long post-ID silence.
+          # Audible fresh signal must return essentially immediately, proving the
+          # ID lane cannot deadlock into the #161 silent hard-hold failure.
           immediate = [w for w in post if w[0] <= id_end + 0.25]
-          if not immediate or not any(w[5] > 500.0 for w in immediate):
-              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not begin within 250 ms after ID')
+          if not immediate or not any(w[6] > 500.0 for w in immediate):
+              raise SystemExit('TOH_REGRESSION_FAIL: dead air after ID release')
 
-          # 3) Fresh song must still be at its unique 880 Hz opening. If 660 Hz
-          # is already dominant, the fresh song advanced silently beneath the ID.
+          # FRESH must still be at its unique 880 Hz opening after the ID.
           intro = [w for w in post if w[0] <= id_end + 0.55]
-          intro_880 = [
-              w for w in intro
-              if w[3] > 1e5 and w[3] > 5.0 * (w[1] + w[2] + w[4] + 1.0)
-          ]
-          if not intro_880:
-              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not start from its beginning')
+          if not any(
+              w[3] > 1e5 and w[3] > 5.0 * (w[1] + w[2] + w[4] + w[5] + 1.0)
+              for w in intro
+          ):
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh song advanced beneath ID')
 
-          # By roughly 1.3s post-ID the 660 Hz body should become dominant, which
-          # also proves the fresh source is advancing normally once released.
+          # The fresh body must then advance normally once it is actually on air.
           body = [w for w in post if id_end + 1.05 <= w[0] <= id_end + 1.55]
-          body_660 = [
-              w for w in body
-              if w[2] > 1e5 and w[2] > 5.0 * (w[1] + w[3] + w[4] + 1.0)
-          ]
-          if not body_660:
-              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not advance normally after release')
+          if not any(
+              w[2] > 1e5 and w[2] > 5.0 * (w[1] + w[3] + w[4] + w[5] + 1.0)
+              for w in body
+          ):
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not advance after release')
 
-          print('TOH_REGRESSION_PASS: old song gone, fresh song starts immediately at 0:00, no post-ID gap')
+          # THIRD 990 Hz would mean the direct retirement skipped FRESH too.
+          if any(w[4] > 1e5 for w in post):
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh successor was double-skipped')
+
+          print('TOH_REGRESSION_PASS: old gone; fresh starts at opening immediately; no dead air or double-skip')
           PY
