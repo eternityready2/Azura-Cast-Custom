@@ -47,7 +47,7 @@ jobs:
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
 
-      - name: Run current TOH handoff through request.dynamic, stretch and cross
+      - name: Run direct processed-source retirement through request.dynamic, stretch and cross
         shell: bash
         run: |
           cat > /tmp/toh_resume_regression.liq <<'EOF'
@@ -101,8 +101,6 @@ jobs:
           music_under_toh = music
           music_prefaded = amplify(1.0, music_under_toh)
 
-          # The ID has a third deterministic frequency so the recorded output can
-          # locate the exact ID interval without trusting metadata timing.
           legal_id = sine(id="legal_id_test", duration=1.0, 1200.)
 
           def id_due() =
@@ -110,11 +108,11 @@ jobs:
             target > 0. and time() >= target and time() < target + 1.0
           end
 
-          # Baseline: exactly the #157 strategy. If this leaks OLD audio after the
-          # ID, this test must fail before we touch production runtime code.
+          # Do not trust the switch transition's `old` proxy. Skip the direct,
+          # named post-cross source that the pre-fade wrapper actually consumes.
           def enter_id(old, new) =
-            source.skip(old)
-            log("TOH_REGRESSION_ENTER transition-old-skipped source=#{source.id(old)}")
+            source.skip(music_under_toh)
+            log("TOH_REGRESSION_ENTER direct-source-skipped direct=#{source.id(music_under_toh)} proxy=#{source.id(old)}")
             new
           end
 
@@ -175,7 +173,6 @@ jobs:
           if len(raw) < 44100 * 4 * 4:
               raise SystemExit(f'Output too short: {len(raw)} bytes')
 
-          # Raw 16-bit stereo PCM. Analyze only the left channel.
           vals = struct.unpack('<' + 'h' * (len(raw) // 2), raw[:len(raw) // 2 * 2])
           samples = vals[0::2]
           rate = 44100
