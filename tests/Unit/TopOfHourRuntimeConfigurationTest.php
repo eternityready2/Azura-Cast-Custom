@@ -107,10 +107,10 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
         $config = $event->buildConfiguration();
 
-        self::assertStringContainsString(
-            'top_of_hour_cleanup_driver_active()\n                    and top_of_hour_id_active()\n                    and not azuracast.autodj_clean_cut_pending()',
-            $config,
-        );
+        self::assertStringContainsString('top_of_hour_cleanup_driver_active()', $config);
+        self::assertStringContainsString('and top_of_hour_id_active()', $config);
+        self::assertStringContainsString('and not azuracast.autodj_clean_cut_pending()', $config);
+        self::assertStringContainsString('top_of_hour_cleanup_stop()', $config);
         self::assertStringNotContainsString(
             'top_of_hour_id_should_play() =\n                azuracast.autodj_clean_cut_pending()',
             $config,
