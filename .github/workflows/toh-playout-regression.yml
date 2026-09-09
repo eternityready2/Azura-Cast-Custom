@@ -42,6 +42,7 @@ jobs:
           PY
           rm -rf /tmp/toh_regression_out
           mkdir -p /tmp/toh_regression_out
+          chmod 0777 /tmp/toh_regression_out
 
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
@@ -178,8 +179,8 @@ jobs:
           vals = struct.unpack('<' + 'h' * (len(raw) // 2), raw[:len(raw) // 2 * 2])
           samples = vals[0::2]
           rate = 44100
-          win = rate // 10      # 100 ms; all three test tones are integer cycles.
-          hop = rate // 20      # 50 ms.
+          win = rate // 10
+          hop = rate // 20
 
           def goertzel(xs, freq):
               omega = 2.0 * math.pi * freq / rate
@@ -208,9 +209,6 @@ jobs:
           id_end = max(w[0] for w in id_windows) + win / rate
           print(f'ID detected from about {id_start:.3f}s to {id_end:.3f}s')
 
-          # Ignore one analysis hop at the exact cut to avoid a window straddling
-          # the ID boundary. From then on, OLD=440 Hz must be absent. FRESH=880 Hz
-          # must become the dominant music tone.
           post = [w for w in windows if id_end + 0.05 <= w[0] <= id_end + 1.25]
           if not post:
               raise SystemExit('No post-ID analysis windows')
@@ -220,8 +218,6 @@ jobs:
           for t, p440, p880, p1200 in post:
               if p880 > 1e5 and p880 > 5.0 * (p440 + p1200 + 1.0):
                   fresh_seen = True
-              # With integer-cycle windows, pure 880/1200 tones have essentially
-              # no 440 leakage. 2% relative power is intentionally conservative.
               if p440 > 1e5 and p440 > 0.02 * (p880 + 1.0):
                   leaks.append((t, p440, p880, p1200))
 
