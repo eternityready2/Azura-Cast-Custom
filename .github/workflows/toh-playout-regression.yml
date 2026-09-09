@@ -42,6 +42,9 @@ jobs:
           write_tone('/tmp/toh_fresh.wav', 880, 10)
           PY
 
+      - name: Pull production Liquidsoap image
+        run: docker pull savonet/liquidsoap:v2.4.5
+
       - name: Reproduce interrupted-song retirement through real request.dynamic and cross
         shell: bash
         run: |
@@ -147,7 +150,7 @@ jobs:
           EOF
 
           set +e
-          timeout -k 2s 8s docker run --rm \
+          timeout -k 2s 10s docker run --rm \
             -v /tmp/toh_resume_regression.liq:/tmp/toh_resume_regression.liq:ro \
             -v /tmp/toh_old.wav:/tmp/toh_old.wav:ro \
             -v /tmp/toh_fresh.wav:/tmp/toh_fresh.wav:ro \
