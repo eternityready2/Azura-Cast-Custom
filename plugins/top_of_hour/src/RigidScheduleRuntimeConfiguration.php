@@ -24,11 +24,10 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  *
  *     Top-of-Hour ID -> rigid scheduled programme -> live/AutoDJ
  *
- * There is deliberately no secondary AutoDJ availability gate. A wall-clock
- * takeover retires the exact outgoing processed source synchronously inside the
- * switch transition while that source is still clocked. This prevents a source
- * from being parked under a TOH/rigid branch and waking up later with buffered
- * pre-interruption audio.
+ * A rigid takeover uses the same one-shot clean AutoDJ cut as TOH: the real
+ * request.dynamic leaf is skipped once and the shared cross operator discards
+ * its buffered old tail at that forced boundary. There is no secondary gate or
+ * backend quarantine state machine.
  */
 final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterface
 {
@@ -102,24 +101,12 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             }
         }
 
-        // Shared clock-retirement helper used by both rigid and TOH transitions.
-        // Defining the helper has no effect on the audio graph by itself; when no
-        // rigid source exists and TOH is disabled, `radio` is not wrapped here.
+        // This state is only emitted as a helper definition. With no rigid
+        // branches below, this subscriber does not wrap or replace `radio`.
         $event->appendBlock(
             <<<'LIQ'
-            # Broadcast-clock synchronous source retirement (Top-of-Hour plugin).
+            # Rigid schedule state (Top-of-Hour plugin).
             rigid_schedule_active = ref(false)
-
-            def broadcast_clock_retire_outgoing(source_to_retire) =
-                if not azuracast.live_enabled() then
-                    # Retire the exact processed source that was feeding air while
-                    # it is still clocked. This is intentionally above stretch and
-                    # crossfade so any buffered frames belonging to the interrupted
-                    # track are part of the skipped track and cannot wake up later.
-                    source.skip(source_to_retire)
-                    log("Broadcast Clock: synchronously retired outgoing processed AutoDJ track.")
-                end
-            end
             LIQ
         );
 
@@ -138,13 +125,17 @@ final class RigidScheduleRuntimeConfiguration implements EventSubscriberInterfac
             # Rigid scheduled-programme wall-clock lane (Top-of-Hour plugin).
             radio_before_rigid_schedule = radio
 
-            def rigid_schedule_enter(old, new) =
+            def rigid_schedule_enter(_, new) =
                 rigid_schedule_active := true
 
-                # The wall-clock switch itself is the gate. Retire the outgoing
-                # processed track immediately instead of parking it beneath a
-                # second fallback/source.available gate.
-                broadcast_clock_retire_outgoing(old)
+                if not azuracast.live_enabled() then
+                    # Arm a one-shot destructive cross boundary and skip exactly
+                    # one real AutoDJ request. If a HARD TOH immediately preceded
+                    # this rigid item, the pending guard makes this a no-op so the
+                    # already-fresh successor cannot be skipped a second time.
+                    azuracast.discard_autodj_current_cleanly()
+                    log("Rigid Schedule: armed clean cross boundary for interrupted AutoDJ request.")
+                end
 
                 # The PHP strict-start path may have staged a duplicate copy in
                 # the interrupting queue. This native rigid lane is authoritative.
