@@ -15,7 +15,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeCon
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohSwitchArmsCrossfadeAwareCleanAutoDjCut(): void
+    public function testTohSwitchRetiresBufferedCrossSourceDirectly(): void
     {
         $station = $this->makeStation();
 
@@ -23,21 +23,30 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
 
         $event = new WriteLiquidsoapConfiguration($station, false, false);
-        (new TopOfHourRuntimeConfiguration($clock))->writeRuntime($event);
+        $runtime = new TopOfHourRuntimeConfiguration($clock);
+        $runtime->captureCrossSource($event);
+        $runtime->writeRuntime($event);
         $config = $event->buildConfiguration();
 
+        self::assertStringContainsString('broadcast_clock_cross_source = radio', $config);
         self::assertStringContainsString('Top-of-Hour Station ID exact wall-clock lane (plugin owned)', $config);
         self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
         self::assertStringContainsString('top_of_hour_id_active := true', $config);
-        self::assertStringContainsString('azuracast.discard_autodj_current_cleanly()', $config);
+        self::assertStringContainsString('source.skip(broadcast_clock_cross_source)', $config);
         self::assertStringContainsString(
-            'armed clean cross boundary and discarded interrupted AutoDJ request.',
+            'directly retired buffered post-cross AutoDJ track.',
             $config,
         );
 
-        // The old delayed inner gate and processed-wrapper skip strategies both
-        // failed live. TOH now retires the request.dynamic leaf and lets the
-        // shared cross operator consume exactly one clean-cut marker.
+        // Live incident under #161 proved that waiting on a cross callback can
+        // deadlock the TOH lane on silence. The direct post-cross reset owns the
+        // buffered tail, so TOH must not install or wait on a muted cleanup lane.
+        self::assertStringNotContainsString('top_of_hour_cleanup_underlay', $config);
+        self::assertStringNotContainsString('top_of_hour_cleanup_audio', $config);
+        self::assertStringNotContainsString('or azuracast.autodj_clean_cut_pending()', $config);
+        self::assertStringNotContainsString('azuracast.discard_autodj_current_cleanly()', $config);
+
+        // Older failed retirement/gating designs stay gone.
         self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
         self::assertStringNotContainsString('broadcast_clock_block_autodj()', $config);
         self::assertStringNotContainsString('broadcast_clock_prefetch_autodj()', $config);
@@ -45,6 +54,34 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         self::assertStringNotContainsString('broadcast_clock_retire_outgoing(', $config);
         self::assertStringNotContainsString('top_of_hour_hard_release_epoch', $config);
         self::assertStringNotContainsString('source.skip(source.effective(', $config);
+    }
+
+    public function testOpenHourReleaseDependsOnlyOnIdReadiness(): void
+    {
+        $station = $this->makeStation();
+
+        /** @var TopOfHourClock $clock */
+        $clock = (new ReflectionClass(TopOfHourClock::class))->newInstanceWithoutConstructor();
+
+        $event = new WriteLiquidsoapConfiguration($station, false, false);
+        $runtime = new TopOfHourRuntimeConfiguration($clock);
+        $runtime->captureCrossSource($event);
+        $runtime->writeRuntime($event);
+        $config = $event->buildConfiguration();
+
+        self::assertStringContainsString(
+            "# Open hour: the ID file itself is the only hold condition.",
+            $config,
+        );
+        self::assertStringContainsString('top_of_hour_id.is_ready()', $config);
+        self::assertStringNotContainsString(
+            'top_of_hour_id.is_ready()\n                        or azuracast.autodj_clean_cut_pending()',
+            $config,
+        );
+        self::assertStringContainsString(
+            'open-hour lane released directly to fresh AutoDJ audio.',
+            $config,
+        );
     }
 
     public function testHardTohOwnsEveryFrameUntilExactBoundary(): void
