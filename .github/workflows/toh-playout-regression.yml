@@ -35,17 +35,18 @@ jobs:
                   f.setframerate(rate)
                   for i in range(int(rate * seconds)):
                       s = int(10000 * math.sin(2 * math.pi * hz * i / rate))
-                      frame = struct.pack('<hh', s, s)
-                      f.writeframesraw(frame)
+                      f.writeframesraw(struct.pack('<hh', s, s))
 
           write_tone('/tmp/toh_old.wav', 440, 10)
           write_tone('/tmp/toh_fresh.wav', 880, 10)
           PY
+          rm -rf /tmp/toh_regression_out
+          mkdir -p /tmp/toh_regression_out
 
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
 
-      - name: Reproduce interrupted-song retirement through real request.dynamic and cross
+      - name: Run current TOH handoff through request.dynamic, stretch and cross
         shell: bash
         run: |
           cat > /tmp/toh_resume_regression.liq <<'EOF'
@@ -56,7 +57,6 @@ jobs:
 
           request_index = ref(0)
           cut_target = ref(0.)
-          current_dynamic_title = ref("")
 
           def next_song() =
             i = request_index()
@@ -76,24 +76,11 @@ jobs:
             next_song
           )
 
-          def check_after_id() =
-            title = current_dynamic_title()
-            elapsed = dynamic.elapsed()
-            log("TOH_REGRESSION_CURRENT=#{title} elapsed=#{elapsed}")
-            if title == "FRESH" and elapsed < 2.0 then
-              log("TOH_REGRESSION_PASS")
-            else
-              log("TOH_REGRESSION_FAIL")
-            end
-          end
-
           def dynamic_track(m) =
             title = list.assoc(default="", "title", m)
-            current_dynamic_title := title
             log("TOH_REGRESSION_DYNAMIC_TRACK=#{title}")
             if title == "OLD" and cut_target() == 0. then
               cut_target := time() + 2.0
-              thread.run(delay=3.4, check_after_id)
             end
           end
           source.methods(dynamic).on_track(synchronous=true, dynamic_track)
@@ -104,7 +91,7 @@ jobs:
             [dynamic, blank(id="startup_blank")]
           )
 
-          # Reproduce the production processing layers that can hold track state.
+          # Reproduce the production layers most relevant to stale audio state.
           music = stretch(ratio=1.0, music)
           def test_cross(old, new) =
             cross.simple(old.source, new.source, fade_in=1.0, fade_out=1.0)
@@ -113,6 +100,8 @@ jobs:
           music_under_toh = music
           music_prefaded = amplify(1.0, music_under_toh)
 
+          # The ID has a third deterministic frequency so the recorded output can
+          # locate the exact ID interval without trusting metadata timing.
           legal_id = sine(id="legal_id_test", duration=1.0, 1200.)
 
           def id_due() =
@@ -120,11 +109,11 @@ jobs:
             target > 0. and time() >= target and time() < target + 1.0
           end
 
-          # This is the current #157 retirement strategy. The executable test is
-          # intentionally against the transition argument, not a toy blank source.
+          # Baseline: exactly the #157 strategy. If this leaks OLD audio after the
+          # ID, this test must fail before we touch production runtime code.
           def enter_id(old, new) =
             source.skip(old)
-            log("TOH_REGRESSION_ENTER transition-old-skipped")
+            log("TOH_REGRESSION_ENTER transition-old-skipped source=#{source.id(old)}")
             new
           end
 
@@ -142,7 +131,12 @@ jobs:
             [({id_due()}, legal_id), ({true}, music_prefaded)]
           )
 
-          output.dummy(id="toh_regression_output", fallible=true, radio)
+          output.file(
+            %wav(header=false, samplesize=16),
+            "/out/output.pcm",
+            fallible=true,
+            radio
+          )
           EOF
 
           set +e
@@ -150,6 +144,7 @@ jobs:
             -v /tmp/toh_resume_regression.liq:/tmp/toh_resume_regression.liq:ro \
             -v /tmp/toh_old.wav:/tmp/toh_old.wav:ro \
             -v /tmp/toh_fresh.wav:/tmp/toh_fresh.wav:ro \
+            -v /tmp/toh_regression_out:/out \
             savonet/liquidsoap:v2.4.5 /tmp/toh_resume_regression.liq \
             > /tmp/toh_resume_regression.log 2>&1
           status=$?
@@ -164,5 +159,83 @@ jobs:
           grep -q 'TOH_REGRESSION_DYNAMIC_TRACK=OLD' /tmp/toh_resume_regression.log
           grep -q 'TOH_REGRESSION_ENTER' /tmp/toh_resume_regression.log
           grep -q 'TOH_REGRESSION_EXIT' /tmp/toh_resume_regression.log
-          grep -q 'TOH_REGRESSION_PASS' /tmp/toh_resume_regression.log
-          ! grep -q 'TOH_REGRESSION_FAIL' /tmp/toh_resume_regression.log
+          test -s /tmp/toh_regression_out/output.pcm
+
+      - name: Assert zero retired-song tone after the ID
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import math
+          import pathlib
+          import struct
+
+          path = pathlib.Path('/tmp/toh_regression_out/output.pcm')
+          raw = path.read_bytes()
+          if len(raw) < 44100 * 4 * 4:
+              raise SystemExit(f'Output too short: {len(raw)} bytes')
+
+          # Raw 16-bit stereo PCM. Analyze only the left channel.
+          vals = struct.unpack('<' + 'h' * (len(raw) // 2), raw[:len(raw) // 2 * 2])
+          samples = vals[0::2]
+          rate = 44100
+          win = rate // 10      # 100 ms; all three test tones are integer cycles.
+          hop = rate // 20      # 50 ms.
+
+          def goertzel(xs, freq):
+              omega = 2.0 * math.pi * freq / rate
+              coeff = 2.0 * math.cos(omega)
+              s1 = 0.0
+              s2 = 0.0
+              for x in xs:
+                  s0 = x + coeff * s1 - s2
+                  s2, s1 = s1, s0
+              power = s1 * s1 + s2 * s2 - coeff * s1 * s2
+              return power / (len(xs) * len(xs))
+
+          windows = []
+          for start in range(0, len(samples) - win + 1, hop):
+              xs = samples[start:start + win]
+              p440 = goertzel(xs, 440.0)
+              p880 = goertzel(xs, 880.0)
+              p1200 = goertzel(xs, 1200.0)
+              windows.append((start / rate, p440, p880, p1200))
+
+          id_windows = [w for w in windows if w[3] > 20.0 * (w[1] + w[2] + 1.0) and w[3] > 1e5]
+          if not id_windows:
+              raise SystemExit('Could not locate deterministic 1200 Hz ID in recorded output')
+
+          id_start = min(w[0] for w in id_windows)
+          id_end = max(w[0] for w in id_windows) + win / rate
+          print(f'ID detected from about {id_start:.3f}s to {id_end:.3f}s')
+
+          # Ignore one analysis hop at the exact cut to avoid a window straddling
+          # the ID boundary. From then on, OLD=440 Hz must be absent. FRESH=880 Hz
+          # must become the dominant music tone.
+          post = [w for w in windows if id_end + 0.05 <= w[0] <= id_end + 1.25]
+          if not post:
+              raise SystemExit('No post-ID analysis windows')
+
+          fresh_seen = False
+          leaks = []
+          for t, p440, p880, p1200 in post:
+              if p880 > 1e5 and p880 > 5.0 * (p440 + p1200 + 1.0):
+                  fresh_seen = True
+              # With integer-cycle windows, pure 880/1200 tones have essentially
+              # no 440 leakage. 2% relative power is intentionally conservative.
+              if p440 > 1e5 and p440 > 0.02 * (p880 + 1.0):
+                  leaks.append((t, p440, p880, p1200))
+
+          for row in post[:12]:
+              print('POST %.3fs p440=%.0f p880=%.0f p1200=%.0f' % row)
+
+          if leaks:
+              print('RETIRED SONG LEAK DETECTED:')
+              for row in leaks:
+                  print('LEAK %.3fs p440=%.0f p880=%.0f p1200=%.0f' % row)
+              raise SystemExit('TOH_REGRESSION_FAIL: OLD 440 Hz audio exists after ID')
+
+          if not fresh_seen:
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh 880 Hz song never became dominant after ID')
+
+          print('TOH_REGRESSION_PASS: no retired 440 Hz audio after ID; fresh 880 Hz audio took over')
+          PY
