@@ -16,10 +16,13 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * PHP resolves the station-local :59:ss target into an absolute epoch and
  * pre-stages the request. Liquidsoap owns the actual wall-clock switch.
  *
- * The TOH switch itself owns the deadline. At takeover, the plugin resets the
- * actual post-cross source, which is the component that owns any buffered old
- * tail. This retires the interrupted track without continuously clocking a
- * muted underlay and without making TOH release depend on a cross callback.
+ * The live-proven no-resume mechanism is the one-shot clean-cut callback in
+ * the normal AutoDJ cross operator. TOH arms that callback, skips the real
+ * request.dynamic leaf, and briefly clocks the existing processed music graph
+ * with a dedicated dummy output while the legal ID owns the air. As soon as
+ * cross consumes the old buffered tail, the dummy output stops so the fresh
+ * successor stays parked at its opening. TOH release never waits on cleanup,
+ * so cleanup state cannot deadlock the station on silence.
  */
 final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 {
@@ -31,27 +34,8 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            WriteLiquidsoapConfiguration::class => [
-                ['captureCrossSource', 24],
-                ['writeRuntime', 15],
-            ],
+            WriteLiquidsoapConfiguration::class => ['writeRuntime', 15],
         ];
-    }
-
-    /**
-     * ConfigWriter installs the normal AutoDJ cross operator at priority 25 and
-     * the live/harbor wrapper at priority 20. Capture `radio` between those two
-     * stages so a broadcast-clock event can reset the exact cross source that
-     * owns buffered transition audio without touching a live DJ source.
-     */
-    public function captureCrossSource(WriteLiquidsoapConfiguration $event): void
-    {
-        $event->appendBlock(
-            <<<'LIQ'
-            # Post-cross source handle for broadcast-clock retirement.
-            broadcast_clock_cross_source = radio
-            LIQ
-        );
     }
 
     public function writeRuntime(WriteLiquidsoapConfiguration $event): void
@@ -142,6 +126,51 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 radio
             )
 
+            # #160 proved live that clocking this exact processed graph makes the
+            # station `cross` callback permanently reject the interrupted song's
+            # buffered tail. #161 put that graph behind another switch and the
+            # callback never completed. Keep the cleanup source direct instead.
+            #
+            # The dummy output is normally stopped. At TOH entry it is started
+            # only after the clean-cut marker is armed and the current dynamic
+            # request is skipped. It computes muted frames until the normal cross
+            # callback clears that marker, then stops on the very next frame.
+            # This preserves #160/#161's no-resume behavior without clocking the
+            # fresh successor through the rest of the ID.
+            let {
+                audio=top_of_hour_cleanup_audio_track,
+                ...top_of_hour_cleanup_non_audio
+            } = source.tracks(radio_before_top_of_hour)
+            ignore(top_of_hour_cleanup_non_audio)
+            top_of_hour_cleanup_audio = source(
+                id="top_of_hour_cleanup_audio",
+                {audio=top_of_hour_cleanup_audio_track}
+            )
+            top_of_hour_cleanup_audio = amplify(
+                id="top_of_hour_cleanup_audio_gain",
+                override=null,
+                0.0,
+                top_of_hour_cleanup_audio
+            )
+            top_of_hour_cleanup_driver = output.dummy(
+                id="top_of_hour_cleanup_driver",
+                fallible=true,
+                register_telnet=false,
+                start=false,
+                top_of_hour_cleanup_audio
+            )
+
+            def top_of_hour_cleanup_after_frame() =
+                if not azuracast.autodj_clean_cut_pending() then
+                    top_of_hour_cleanup_driver.stop()
+                    log("Top-of-Hour ID: clean cross boundary consumed; parked fresh AutoDJ successor.")
+                end
+            end
+            source.methods(top_of_hour_cleanup_driver).on_frame(
+                synchronous=true,
+                top_of_hour_cleanup_after_frame
+            )
+
             def top_of_hour_id_should_play() =
                 now = time()
                 target = top_of_hour_id_target_epoch()
@@ -156,9 +185,9 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                         boundary > 0.0 and now < boundary
                     else
                         # Open hour: the ID file itself is the only hold condition.
-                        # Never wait on AutoDJ/cross cleanup state here; a cleanup
-                        # callback that does not run must not deadlock the station
-                        # on silence or leave legal-ID metadata stuck on air.
+                        # Cleanup is deliberately NOT part of this predicate. The
+                        # #161 live incident proved that waiting on it can deadlock
+                        # the lane on silence and leave legal-ID metadata stuck.
                         top_of_hour_id.is_ready()
                     end
                 else
@@ -177,16 +206,13 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 top_of_hour_id_active := true
 
                 if not azuracast.live_enabled() then
-                    # `cross` owns the buffered tail that caused the original
-                    # interrupted song to reappear. Reset that exact post-cross
-                    # source once. Liquidsoap parks the fresh successor while the
-                    # outer ID branch is selected, so it cannot advance silently.
-                    #
-                    # Clear any stale marker left by the older callback-driven
-                    # retirement path; TOH release never waits on that marker.
-                    azuracast.autodj_clean_cut_pending := false
-                    source.skip(broadcast_clock_cross_source)
-                    log("Top-of-Hour ID: directly retired buffered post-cross AutoDJ track.")
+                    # Preserve the live-proven clean-cut behavior from #160/#161.
+                    # Only the cross callback that actually rejects old.source is
+                    # allowed to clear the pending marker. #162 cleared it early
+                    # and the 11 PM live test proved the old song resumed.
+                    azuracast.discard_autodj_current_cleanly()
+                    top_of_hour_cleanup_driver.start()
+                    log("Top-of-Hour ID: armed clean cross boundary and started direct cleanup driver.")
                 end
 
                 new
@@ -202,6 +228,17 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 
                 {$newsAfterId}
 
+                # Normal path: the cross callback cleared pending near ID entry
+                # and the cleanup driver already stopped. Never hold the TOH lane
+                # here. If cleanup somehow remains pending after the entire ID,
+                # keep the station on air and log the failure instead of recreating
+                # #161's dead-air/stuck-metadata deadlock.
+                if azuracast.autodj_clean_cut_pending() then
+                    log("Top-of-Hour ID: ERROR clean cross still pending at ID release; TOH will release without waiting.")
+                else
+                    top_of_hour_cleanup_driver.stop()
+                end
+
                 top_of_hour_id_active := false
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
@@ -210,7 +247,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 if was_hard then
                     log("Top-of-Hour ID: HARD lane released exactly at the :00 boundary to rigid authority.")
                 else
-                    log("Top-of-Hour ID: open-hour lane released directly to fresh AutoDJ audio.")
+                    log("Top-of-Hour ID: open-hour lane released after clean-cut maintenance.")
                 end
 
                 new
@@ -292,6 +329,7 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
             def top_of_hour_clear_queue(_) =
                 top_of_hour_id.skip()
                 top_of_hour_id.set_queue([])
+                top_of_hour_cleanup_driver.stop()
                 top_of_hour_id_active := false
                 top_of_hour_id_hard_boundary := false
                 top_of_hour_id_target_epoch := 0.0
