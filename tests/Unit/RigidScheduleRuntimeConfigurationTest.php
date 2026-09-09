@@ -17,7 +17,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/RigidScheduleRuntim
 
 final class RigidScheduleRuntimeConfigurationTest extends Unit
 {
-    public function testStrictSongPlaylistGetsDedicatedNativeSourceAndSynchronousRetirement(): void
+    public function testStrictSongPlaylistGetsDedicatedNativeSourceAndCleanAutoDjCut(): void
     {
         [$station] = $this->makeScheduledProgram(true);
 
@@ -33,15 +33,14 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         self::assertStringContainsString('mode="randomize"', $config);
         self::assertStringContainsString('11h0m-12h0m', $config);
 
-        // The wall-clock switch owns the handoff. The exact processed outgoing
-        // source is skipped synchronously while still clocked; there is no nested
-        // availability/fallback gate that can wake up after the rigid item ends.
-        self::assertStringContainsString('def broadcast_clock_retire_outgoing(source_to_retire)', $config);
-        self::assertStringContainsString('source.skip(source_to_retire)', $config);
-        self::assertStringContainsString('def rigid_schedule_enter(old, new)', $config);
-        self::assertStringContainsString('broadcast_clock_retire_outgoing(old)', $config);
+        // The wall-clock switch owns the handoff. It arms the shared one-shot
+        // cross clean-cut and skips exactly one real AutoDJ request; there is no
+        // nested availability/fallback gate that can wake up afterward.
+        self::assertStringContainsString('def rigid_schedule_enter(_, new)', $config);
+        self::assertStringContainsString('azuracast.discard_autodj_current_cleanly()', $config);
         self::assertStringContainsString('id="rigid_schedule_runtime"', $config);
 
+        self::assertStringNotContainsString('broadcast_clock_retire_outgoing(', $config);
         self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
         self::assertStringNotContainsString('broadcast_clock_autodj_blocked', $config);
         self::assertStringNotContainsString('fallback.skip(', $config);
@@ -59,11 +58,11 @@ final class RigidScheduleRuntimeConfigurationTest extends Unit
         (new RigidScheduleRuntimeConfiguration())->writeRuntime($event);
         $config = $event->buildConfiguration();
 
-        // Helper definitions are inert. With no rigid schedule this subscriber
-        // must not replace `radio` with any gate/switch/fallback at all.
-        self::assertStringContainsString('def broadcast_clock_retire_outgoing(source_to_retire)', $config);
+        // Helper state is inert. With no rigid schedule this subscriber must not
+        // replace `radio` with any gate/switch/fallback at all.
         self::assertStringContainsString('rigid_schedule_active = ref(false)', $config);
         self::assertStringNotContainsString('id="rigid_schedule_runtime"', $config);
+        self::assertStringNotContainsString('azuracast.discard_autodj_current_cleanly()', $config);
         self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
         self::assertStringNotContainsString('fallback.skip(', $config);
         self::assertStringNotContainsString('source.available(', $config);

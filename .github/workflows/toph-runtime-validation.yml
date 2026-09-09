@@ -94,14 +94,22 @@ jobs:
           ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
           ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php
 
-          # One wall-clock authority: the outer switch synchronously skips the
-          # exact processed outgoing source while it is still clocked.
-          grep -q 'def broadcast_clock_retire_outgoing(source_to_retire)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'source.skip(source_to_retire)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'def top_of_hour_id_enter(old, new)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'broadcast_clock_retire_outgoing(old)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'def rigid_schedule_enter(old, new)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          grep -q 'broadcast_clock_retire_outgoing(old)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          # One wall-clock authority: the plugin switch owns the deadline while
+          # the shared AutoDJ request.dynamic/cross pair owns destructive track
+          # retirement. The cross operator must be explicitly aware of the one
+          # forced clean-cut boundary or its buffered old tail can reappear.
+          grep -q 'let azuracast.autodj_clean_cut_pending = ref(false)' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'def azuracast.discard_autodj_current_cleanly()' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'azuracast.autodj_clean_cut_pending := true' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'source.skip(azuracast.autodj_transport())' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'if azuracast.autodj_clean_cut_pending() then' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'Broadcast-clock clean cut: discarded buffered old crossfade tail.' util/docker/stations/liquidsoap/azuracast.liq
+          grep -q 'def top_of_hour_id_enter(_, new)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'def rigid_schedule_enter(_, new)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
+          ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
 
           # The delayed inner gate seen in the live log must never return.
           ! grep -q 'broadcast_clock_autodj_gate' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
