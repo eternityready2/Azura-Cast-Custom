@@ -94,34 +94,51 @@ jobs:
           ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
           ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php
 
-          # TOH now targets the actual cross operator that owns buffered old-tail
-          # audio. It captures the graph immediately after ConfigWriter's priority
-          # 25 cross stage and before the priority 20 live/harbor stage, then calls
-          # cross.skip() once at takeover. The open-hour lane MUST NOT wait for a
-          # callback/pending marker; the #161 live incident proved that can deadlock
-          # on hard-hold silence and leave legal-ID metadata stuck indefinitely.
-          grep -q "\['captureCrossSource', 24\]" plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'broadcast_clock_cross_source = radio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'source.skip(broadcast_clock_cross_source)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'def top_of_hour_id_enter(_, new)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          ! grep -q 'top_of_hour_cleanup_underlay' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          ! grep -q 'top_of_hour_cleanup_audio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          # #160's live-proven contract is non-negotiable: arm the real AutoDJ
+          # clean-cut, keep the same processed graph continuously activated across
+          # takeover, and let cross reject old.source. The maintenance output is
+          # pre-armed before the outer switch and stopped immediately after cross
+          # clears the marker, parking FRESH instead of advancing it through ID.
+          grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'source.methods(radio_before_top_of_hour).on_frame' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'id="top_of_hour_cleanup_driver"' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'register_telnet=true' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'start=false' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'server.execute("top_of_hour_cleanup_driver.start")' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'server.execute("top_of_hour_cleanup_driver.stop")' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'pre-armed continuous #160 cleanup clock before takeover.' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'clean cross boundary consumed; parked fresh AutoDJ successor.' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # #161 must never return: its activation-changing cleanup switch could
+          # fail to run cross, and its pending marker then held TOH on silence.
+          ! grep -q 'top_of_hour_cleanup_underlay = switch' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           ! grep -q 'or azuracast.autodj_clean_cut_pending()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          ! grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # #162 must never return: bypassing/clearing the cross clean-cut before
+          # the callback ran reintroduced the interrupted-song resume live.
+          ! grep -q 'broadcast_clock_cross_source = radio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'source.skip(broadcast_clock_cross_source)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'azuracast.autodj_clean_cut_pending := false' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
 
-          # Rigid scheduled takeovers still use their existing one-shot clean-cut
-          # path. Their switch never waits on the pending marker, so the #161 TOH
-          # deadlock condition is not present there.
+          # output.dummy returns unit in Liquidsoap 2.4.5. Never assign it and then
+          # call source methods on the result; lifecycle uses registered commands.
+          ! grep -q 'top_of_hour_cleanup_driver = output.dummy' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # Shared common-runtime cross callback remains the sole normal owner of
+          # marker consumption and old.source rejection.
           grep -q 'let azuracast.autodj_clean_cut_pending = ref(false)' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'def azuracast.discard_autodj_current_cleanly()' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'if azuracast.autodj_clean_cut_pending() then' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'Broadcast-clock clean cut: discarded buffered old crossfade tail.' util/docker/stations/liquidsoap/azuracast.liq
+
+          # Rigid scheduled takeovers still use their existing one-shot clean-cut
+          # path. Their switch never waits on the pending marker.
           grep -q 'def rigid_schedule_enter(_, new)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
 
-          # The delayed inner gate seen in the earlier live log must never return.
+          # The delayed inner gate seen in earlier live logs must never return.
           ! grep -q 'broadcast_clock_autodj_gate' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'broadcast_clock_autodj_blocked' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'fallback.skip(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
@@ -162,47 +179,42 @@ jobs:
             -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
             -w /liq savonet/liquidsoap:v2.4.5 --check azuracast.liq
 
-      - name: Liquidsoap 2.4.5 direct cross handoff smoke
+      - name: Liquidsoap 2.4.5 cleanup lifecycle smoke
         shell: bash
         run: |
           set -euo pipefail
-          cat > /tmp/toh-handoff-smoke.liq <<'EOF'
+          cat > /tmp/toh-cleanup-lifecycle-smoke.liq <<'EOF'
           init.daemon := false
 
-          dynamic = blank(id="autodj_leaf")
-          crossed = cross(duration=2.0, fun (old, new) -> new.source, dynamic)
-          broadcast_clock_cross_source = crossed
-          legal_id = blank(id="legal_id", duration=1.0)
+          music = blank(id="music")
           active = ref(false)
 
-          def should_play() =
-            if active() then legal_id.is_ready() else false end
+          def maintenance() =
+            if active() then
+              active := false
+              ignore(server.execute("cleanup_smoke.stop"))
+            end
           end
+          source.methods(music).on_frame(synchronous=false, maintenance)
 
-          def enter(_, new) =
-            active := true
-            source.skip(broadcast_clock_cross_source)
-            new
-          end
-
-          def leave(_, new) =
-            active := false
-            new
-          end
-
-          radio = switch(
-            id="toh_switch",
-            track_sensitive=false,
-            replay_metadata=true,
-            transition_length=0.0,
-            transitions=[enter, leave],
-            [({should_play()}, legal_id), ({true}, crossed)]
+          output.dummy(
+            id="cleanup_smoke",
+            fallible=true,
+            register_telnet=true,
+            start=false,
+            music
           )
-          output.dummy(radio)
+
+          def start_once() =
+            active := true
+            ignore(server.execute("cleanup_smoke.start"))
+          end
+          thread.run(start_once)
+          output.dummy(music)
           EOF
           docker run --rm --entrypoint liquidsoap \
-            -v /tmp/toh-handoff-smoke.liq:/tmp/toh-handoff-smoke.liq:ro \
-            savonet/liquidsoap:v2.4.5 --check /tmp/toh-handoff-smoke.liq
+            -v /tmp/toh-cleanup-lifecycle-smoke.liq:/tmp/toh-cleanup-lifecycle-smoke.liq:ro \
+            savonet/liquidsoap:v2.4.5 --check /tmp/toh-cleanup-lifecycle-smoke.liq
 
       - name: Install PHP analysis dependencies
         run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-reqs
