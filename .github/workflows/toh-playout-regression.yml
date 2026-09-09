@@ -3,7 +3,7 @@ name: TOH Playout Regression
 on:
   push:
     branches:
-      - 'fix/toh-keep-underlay-clocked'
+      - 'fix/toh-freeze-fresh-song-during-id'
   pull_request:
     branches: [dev]
     paths:
@@ -28,17 +28,24 @@ jobs:
           import struct
           import wave
 
-          def write_tone(path, hz, seconds, rate=44100):
+          RATE = 44100
+
+          def write_segments(path, segments):
               with wave.open(path, 'wb') as f:
                   f.setnchannels(2)
                   f.setsampwidth(2)
-                  f.setframerate(rate)
-                  for i in range(int(rate * seconds)):
-                      s = int(10000 * math.sin(2 * math.pi * hz * i / rate))
-                      f.writeframesraw(struct.pack('<hh', s, s))
+                  f.setframerate(RATE)
+                  for hz, seconds in segments:
+                      frames = int(RATE * seconds)
+                      for i in range(frames):
+                          s = int(10000 * math.sin(2 * math.pi * hz * i / RATE))
+                          f.writeframesraw(struct.pack('<hh', s, s))
 
-          write_tone('/tmp/toh_old.wav', 440, 10)
-          write_tone('/tmp/toh_fresh.wav', 880, 10)
+          # OLD is the interrupted pre-ID song.
+          write_segments('/tmp/toh_old.wav', [(440, 10.0)])
+          # FRESH has a unique 880 Hz opening second, then 660 Hz. This proves the
+          # post-ID song starts at its beginning instead of advancing under the ID.
+          write_segments('/tmp/toh_fresh.wav', [(880, 1.0), (660, 9.0)])
           PY
           rm -rf /tmp/toh_regression_out
           mkdir -p /tmp/toh_regression_out
@@ -47,7 +54,7 @@ jobs:
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
 
-      - name: Run production-shaped TOH clean cut with clocked silent underlay
+      - name: Run production-shaped TOH cleanup and release
         shell: bash
         run: |
           cat > /tmp/toh_resume_regression.liq <<'EOF'
@@ -93,7 +100,6 @@ jobs:
             track_sensitive=false,
             [dynamic, blank(id="startup_blank")]
           )
-
           music = stretch(ratio=1.0, music)
 
           def test_cross(old, new) =
@@ -112,28 +118,42 @@ jobs:
           music = cross(duration=2.0, test_cross, music)
           music_prefaded = amplify(1.0, music)
 
-          # Production TOH fix: when the outer switch owns the ID branch, keep
-          # pulling the existing processed music graph at exactly zero gain.
-          # Rebuild only its audio track so underlying metadata/track marks do
-          # not leak into the legal ID lane.
+          # Clock the processed music graph only until the forced cross boundary
+          # has been consumed. Then switch to independent silence so FRESH remains
+          # parked at its beginning while the legal ID continues on air.
           let {
             audio=underlay_audio,
             ...underlay_non_audio
           } = source.tracks(music_prefaded)
           ignore(underlay_non_audio)
-          muted_underlay = source(id="muted_underlay_test", {audio=underlay_audio})
-          muted_underlay = amplify(0.0, muted_underlay)
+          cleanup_audio = source(id="cleanup_audio_test", {audio=underlay_audio})
+          cleanup_audio = amplify(0.0, cleanup_audio)
+          cleanup_idle = blank(id="cleanup_idle_test")
+          cleanup_underlay = switch(
+            id="cleanup_underlay_test",
+            track_sensitive=false,
+            replay_metadata=false,
+            transition_length=0.0,
+            [
+              ({clean_cut_pending()}, cleanup_audio),
+              ({true}, cleanup_idle)
+            ]
+          )
 
-          legal_id = sine(id="legal_id_test", duration=1.0, 1200.)
+          legal_id = sine(id="legal_id_test", duration=3.0, 1200.)
           legal_id_clocked = add(
             id="legal_id_clocked_test",
             normalize=false,
-            [legal_id, muted_underlay]
+            [legal_id, cleanup_underlay]
           )
 
           def id_due() =
             target = cut_target()
-            target > 0. and time() >= target and time() < target + 1.0
+            if id_active() then
+              legal_id.is_ready() or clean_cut_pending()
+            else
+              target > 0. and time() >= target and time() < target + 4.0
+            end
           end
 
           def enter_id(_, new) =
@@ -168,7 +188,7 @@ jobs:
           EOF
 
           set +e
-          timeout -k 2s 10s docker run --rm \
+          timeout -k 2s 12s docker run --rm \
             -v /tmp/toh_resume_regression.liq:/tmp/toh_resume_regression.liq:ro \
             -v /tmp/toh_old.wav:/tmp/toh_old.wav:ro \
             -v /tmp/toh_fresh.wav:/tmp/toh_fresh.wav:ro \
@@ -191,7 +211,7 @@ jobs:
           grep -q 'TOH_REGRESSION_EXIT' /tmp/toh_resume_regression.log
           test -s /tmp/toh_regression_out/output.pcm
 
-      - name: Assert zero retired-song tone after the ID
+      - name: Assert no resume, no silent advance, and no post-ID gap
         shell: bash
         run: |
           python3 - <<'PY'
@@ -201,7 +221,7 @@ jobs:
 
           path = pathlib.Path('/tmp/toh_regression_out/output.pcm')
           raw = path.read_bytes()
-          if len(raw) < 44100 * 4 * 4:
+          if len(raw) < 44100 * 4 * 6:
               raise SystemExit(f'Output too short: {len(raw)} bytes')
 
           vals = struct.unpack('<' + 'h' * (len(raw) // 2), raw[:len(raw) // 2 * 2])
@@ -225,11 +245,16 @@ jobs:
           for start in range(0, len(samples) - win + 1, hop):
               xs = samples[start:start + win]
               p440 = goertzel(xs, 440.0)
+              p660 = goertzel(xs, 660.0)
               p880 = goertzel(xs, 880.0)
               p1200 = goertzel(xs, 1200.0)
-              windows.append((start / rate, p440, p880, p1200))
+              rms = math.sqrt(sum(float(x) * float(x) for x in xs) / len(xs))
+              windows.append((start / rate, p440, p660, p880, p1200, rms))
 
-          id_windows = [w for w in windows if w[3] > 20.0 * (w[1] + w[2] + 1.0) and w[3] > 1e5]
+          id_windows = [
+              w for w in windows
+              if w[4] > 20.0 * (w[1] + w[2] + w[3] + 1.0) and w[4] > 1e5
+          ]
           if not id_windows:
               raise SystemExit('Could not locate deterministic 1200 Hz ID in recorded output')
 
@@ -237,29 +262,45 @@ jobs:
           id_end = max(w[0] for w in id_windows) + win / rate
           print(f'ID detected from about {id_start:.3f}s to {id_end:.3f}s')
 
-          post = [w for w in windows if id_end + 0.05 <= w[0] <= id_end + 1.25]
+          post = [w for w in windows if id_end + 0.02 <= w[0] <= id_end + 1.75]
           if not post:
               raise SystemExit('No post-ID analysis windows')
 
-          fresh_seen = False
-          leaks = []
-          for t, p440, p880, p1200 in post:
-              if p880 > 1e5 and p880 > 5.0 * (p440 + p1200 + 1.0):
-                  fresh_seen = True
-              if p440 > 1e5 and p440 > 0.02 * (p880 + 1.0):
-                  leaks.append((t, p440, p880, p1200))
+          # 1) Interrupted OLD song must never reappear after ID.
+          old_leaks = []
+          for t, p440, p660, p880, p1200, rms in post:
+              if p440 > 1e5 and p440 > 0.02 * (p660 + p880 + 1.0):
+                  old_leaks.append((t, p440, p660, p880, p1200, rms))
+          if old_leaks:
+              for row in old_leaks:
+                  print('OLD_LEAK %.3fs p440=%.0f p660=%.0f p880=%.0f p1200=%.0f rms=%.0f' % row)
+              raise SystemExit('TOH_REGRESSION_FAIL: interrupted song exists after ID')
 
-          for row in post[:12]:
-              print('POST %.3fs p440=%.0f p880=%.0f p1200=%.0f' % row)
+          # 2) Fresh song must begin immediately. Require audible non-ID signal
+          # within 250 ms of the end of the ID; this catches long post-ID silence.
+          immediate = [w for w in post if w[0] <= id_end + 0.25]
+          if not immediate or not any(w[5] > 500.0 for w in immediate):
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not begin within 250 ms after ID')
 
-          if leaks:
-              print('RETIRED SONG LEAK DETECTED:')
-              for row in leaks:
-                  print('LEAK %.3fs p440=%.0f p880=%.0f p1200=%.0f' % row)
-              raise SystemExit('TOH_REGRESSION_FAIL: OLD 440 Hz audio exists after ID')
+          # 3) Fresh song must still be at its unique 880 Hz opening. If 660 Hz
+          # is already dominant, the fresh song advanced silently beneath the ID.
+          intro = [w for w in post if w[0] <= id_end + 0.55]
+          intro_880 = [
+              w for w in intro
+              if w[3] > 1e5 and w[3] > 5.0 * (w[1] + w[2] + w[4] + 1.0)
+          ]
+          if not intro_880:
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not start from its beginning')
 
-          if not fresh_seen:
-              raise SystemExit('TOH_REGRESSION_FAIL: fresh 880 Hz song never became dominant after ID')
+          # By roughly 1.3s post-ID the 660 Hz body should become dominant, which
+          # also proves the fresh source is advancing normally once released.
+          body = [w for w in post if id_end + 1.05 <= w[0] <= id_end + 1.55]
+          body_660 = [
+              w for w in body
+              if w[2] > 1e5 and w[2] > 5.0 * (w[1] + w[3] + w[4] + 1.0)
+          ]
+          if not body_660:
+              raise SystemExit('TOH_REGRESSION_FAIL: fresh song did not advance normally after release')
 
-          print('TOH_REGRESSION_PASS: no retired 440 Hz audio after ID; fresh 880 Hz audio took over')
+          print('TOH_REGRESSION_PASS: old song gone, fresh song starts immediately at 0:00, no post-ID gap')
           PY
