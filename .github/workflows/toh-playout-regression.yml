@@ -3,7 +3,7 @@ name: TOH Playout Regression
 on:
   push:
     branches:
-      - 'fix/toh-direct-source-retirement'
+      - 'fix/toh-keep-underlay-clocked'
   pull_request:
     branches: [dev]
     paths:
@@ -47,7 +47,7 @@ jobs:
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
 
-      - name: Run crossfade-aware clean cut through request.dynamic, stretch and cross
+      - name: Run production-shaped TOH clean cut with clocked silent underlay
         shell: bash
         run: |
           cat > /tmp/toh_resume_regression.liq <<'EOF'
@@ -59,6 +59,7 @@ jobs:
           request_index = ref(0)
           cut_target = ref(0.)
           clean_cut_pending = ref(false)
+          id_active = ref(false)
 
           def next_song() =
             i = request_index()
@@ -70,11 +71,11 @@ jobs:
             end
           end
 
+          # Match production AutoDJ: no synthetic prefetch parameter.
           dynamic = request.dynamic(
             id="next_song_test",
             timeout=5.,
             retry_delay=0.1,
-            prefetch=1,
             next_song
           )
 
@@ -95,13 +96,14 @@ jobs:
 
           music = stretch(ratio=1.0, music)
 
-          # The only way to guarantee a clean forced boundary through Liquidsoap
-          # cross is for the cross function itself to know this boundary is a
-          # broadcast-clock retirement and omit old.source entirely.
           def test_cross(old, new) =
             if clean_cut_pending() then
               clean_cut_pending := false
-              log("TOH_REGRESSION_CROSS clean-cut consumed")
+              if id_active() then
+                log("TOH_REGRESSION_CROSS clean-cut consumed while ID active")
+              else
+                log("TOH_REGRESSION_CROSS ERROR clean-cut consumed after ID release")
+              end
               new.source
             else
               cross.simple(old.source, new.source, fade_in=1.0, fade_out=1.0)
@@ -110,7 +112,24 @@ jobs:
           music = cross(duration=2.0, test_cross, music)
           music_prefaded = amplify(1.0, music)
 
+          # Production TOH fix: when the outer switch owns the ID branch, keep
+          # pulling the existing processed music graph at exactly zero gain.
+          # Rebuild only its audio track so underlying metadata/track marks do
+          # not leak into the legal ID lane.
+          let {
+            audio=underlay_audio,
+            ...underlay_non_audio
+          } = source.tracks(music_prefaded)
+          ignore(underlay_non_audio)
+          muted_underlay = source(id="muted_underlay_test", {audio=underlay_audio})
+          muted_underlay = amplify(0.0, muted_underlay)
+
           legal_id = sine(id="legal_id_test", duration=1.0, 1200.)
+          legal_id_clocked = add(
+            id="legal_id_clocked_test",
+            normalize=false,
+            [legal_id, muted_underlay]
+          )
 
           def id_due() =
             target = cut_target()
@@ -118,8 +137,7 @@ jobs:
           end
 
           def enter_id(_, new) =
-            # Mark the very next cross boundary as destructive, then skip only
-            # the real request.dynamic leaf. Do not skip any cross/amplify proxy.
+            id_active := true
             clean_cut_pending := true
             source.skip(dynamic)
             log("TOH_REGRESSION_ENTER clean-cut armed and direct dynamic skipped")
@@ -127,6 +145,7 @@ jobs:
           end
 
           def leave_id(_, new) =
+            id_active := false
             log("TOH_REGRESSION_EXIT")
             new
           end
@@ -137,7 +156,7 @@ jobs:
             replay_metadata=true,
             transition_length=0.0,
             transitions=[enter_id, leave_id],
-            [({id_due()}, legal_id), ({true}, music_prefaded)]
+            [({id_due()}, legal_id_clocked), ({true}, music_prefaded)]
           )
 
           output.file(
@@ -167,7 +186,8 @@ jobs:
 
           grep -q 'TOH_REGRESSION_DYNAMIC_TRACK=OLD' /tmp/toh_resume_regression.log
           grep -q 'TOH_REGRESSION_ENTER clean-cut armed and direct dynamic skipped' /tmp/toh_resume_regression.log
-          grep -q 'TOH_REGRESSION_CROSS clean-cut consumed' /tmp/toh_resume_regression.log
+          grep -q 'TOH_REGRESSION_CROSS clean-cut consumed while ID active' /tmp/toh_resume_regression.log
+          ! grep -q 'TOH_REGRESSION_CROSS ERROR' /tmp/toh_resume_regression.log
           grep -q 'TOH_REGRESSION_EXIT' /tmp/toh_resume_regression.log
           test -s /tmp/toh_regression_out/output.pcm
 
