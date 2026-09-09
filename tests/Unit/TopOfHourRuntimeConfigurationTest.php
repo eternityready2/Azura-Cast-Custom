@@ -15,7 +15,7 @@ require_once dirname(__DIR__, 2) . '/plugins/top_of_hour/src/TopOfHourRuntimeCon
 
 final class TopOfHourRuntimeConfigurationTest extends Unit
 {
-    public function testTohSwitchSynchronouslyRetiresProcessedOutgoingTrack(): void
+    public function testTohSwitchArmsCrossfadeAwareCleanAutoDjCut(): void
     {
         $station = $this->makeStation();
 
@@ -27,20 +27,22 @@ final class TopOfHourRuntimeConfigurationTest extends Unit
         $config = $event->buildConfiguration();
 
         self::assertStringContainsString('Top-of-Hour Station ID exact wall-clock lane (plugin owned)', $config);
-        self::assertStringContainsString('def top_of_hour_id_enter(old, new)', $config);
+        self::assertStringContainsString('def top_of_hour_id_enter(_, new)', $config);
         self::assertStringContainsString('top_of_hour_id_active := true', $config);
-        self::assertStringContainsString('broadcast_clock_retire_outgoing(old)', $config);
+        self::assertStringContainsString('azuracast.discard_autodj_current_cleanly()', $config);
         self::assertStringContainsString(
-            'permanently retired interrupted processed AutoDJ track at takeover.',
+            'armed clean cross boundary and discarded interrupted AutoDJ request.',
             $config,
         );
 
-        // The old delayed inner gate was the live failure: it did not switch to
-        // hold until the ID ended, allowing the parked processed track to wake up.
+        // The old delayed inner gate and processed-wrapper skip strategies both
+        // failed live. TOH now retires the request.dynamic leaf and lets the
+        // shared cross operator consume exactly one clean-cut marker.
         self::assertStringNotContainsString('broadcast_clock_autodj_gate', $config);
         self::assertStringNotContainsString('broadcast_clock_block_autodj()', $config);
         self::assertStringNotContainsString('broadcast_clock_prefetch_autodj()', $config);
         self::assertStringNotContainsString('broadcast_clock_release_when_fresh()', $config);
+        self::assertStringNotContainsString('broadcast_clock_retire_outgoing(', $config);
         self::assertStringNotContainsString('top_of_hour_hard_release_epoch', $config);
         self::assertStringNotContainsString('source.skip(source.effective(', $config);
     }
