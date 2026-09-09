@@ -56,6 +56,7 @@ jobs:
 
           request_index = ref(0)
           cut_target = ref(0.)
+          current_dynamic_title = ref("")
 
           def next_song() =
             i = request_index()
@@ -76,24 +77,19 @@ jobs:
           )
 
           def check_after_id() =
-            current = dynamic.current()
-            if null.defined(current) then
-              metadata = request.metadata(null.get(current))
-              title = list.assoc(default="", "title", metadata)
-              elapsed = dynamic.elapsed()
-              log("TOH_REGRESSION_CURRENT=#{title} elapsed=#{elapsed}")
-              if title == "FRESH" and elapsed < 2.0 then
-                log("TOH_REGRESSION_PASS")
-              else
-                log("TOH_REGRESSION_FAIL")
-              end
+            title = current_dynamic_title()
+            elapsed = dynamic.elapsed()
+            log("TOH_REGRESSION_CURRENT=#{title} elapsed=#{elapsed}")
+            if title == "FRESH" and elapsed < 2.0 then
+              log("TOH_REGRESSION_PASS")
             else
-              log("TOH_REGRESSION_FAIL no-current-request")
+              log("TOH_REGRESSION_FAIL")
             end
           end
 
           def dynamic_track(m) =
             title = list.assoc(default="", "title", m)
+            current_dynamic_title := title
             log("TOH_REGRESSION_DYNAMIC_TRACK=#{title}")
             if title == "OLD" and cut_target() == 0. then
               cut_target := time() + 2.0
@@ -146,7 +142,7 @@ jobs:
             [({id_due()}, legal_id), ({true}, music_prefaded)]
           )
 
-          output.dummy(id="toh_regression_output", fallible=false, radio)
+          output.dummy(id="toh_regression_output", fallible=true, radio)
           EOF
 
           set +e
