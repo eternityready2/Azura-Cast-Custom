@@ -777,7 +777,7 @@ def azuracast.send_feedback(m) =
             for item = list.iterator(feedback_meta) do
                 let (tag, value) = item
                 j.add(tag, value)
-            done
+            end
 
             _ = azuracast.api_call(
                 "feedback",
