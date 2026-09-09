@@ -18,10 +18,10 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  *
  * The TOH switch itself owns the deadline. At takeover, the plugin tells the
  * shared AutoDJ transport to perform a one-shot clean cut at its next cross
- * boundary, then skips the real request.dynamic leaf. While the ID owns the
- * air, the processed station underlay remains clocked at zero gain so the
- * inner cross operator can actually consume that clean-cut boundary instead
- * of being parked and replaying its buffered old tail after the ID.
+ * boundary, then skips the real request.dynamic leaf. The processed station
+ * underlay is clocked at zero gain only until the inner cross operator consumes
+ * that clean-cut boundary. It is then parked immediately so the fresh successor
+ * cannot advance silently underneath the station ID.
  */
 final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
 {
@@ -125,35 +125,45 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                 radio
             )
 
-            # Keep the processed underlay alive while the ID owns the air. The
-            # previous implementation switched completely away from this graph,
-            # parking the inner `cross` operator before its clean-cut callback
-            # could consume the skipped AutoDJ request. On release, that parked
-            # cross could therefore replay the buffered tail of the cut song.
+            # Clock the processed underlay only while the destructive AutoDJ cross
+            # boundary is still pending. This gives `cross` enough clock to discard
+            # the interrupted song's buffered tail, but stops pulling immediately
+            # after that callback runs. The fresh successor therefore remains
+            # parked at its beginning instead of silently advancing during the ID.
             #
-            # Only the audio track is retained here, then hard-muted to zero.
-            # Metadata and track marks from the underlay cannot leak through the
-            # legal ID, but the complete upstream graph remains clocked.
+            # Only audio is retained on this maintenance path. Metadata and track
+            # marks from the underlay cannot leak through the legal ID.
             let {
                 audio=top_of_hour_underlay_audio,
                 ...top_of_hour_underlay_non_audio
             } = source.tracks(radio_before_top_of_hour)
             ignore(top_of_hour_underlay_non_audio)
-            top_of_hour_clocked_underlay = source(
-                id="top_of_hour_clocked_underlay",
+            top_of_hour_cleanup_audio = source(
+                id="top_of_hour_cleanup_audio",
                 {audio=top_of_hour_underlay_audio}
             )
-            top_of_hour_clocked_underlay = amplify(
-                id="top_of_hour_clocked_underlay_gain",
+            top_of_hour_cleanup_audio = amplify(
+                id="top_of_hour_cleanup_audio_gain",
                 override=null,
                 0.0,
-                top_of_hour_clocked_underlay
+                top_of_hour_cleanup_audio
+            )
+            top_of_hour_cleanup_idle = blank(id="top_of_hour_cleanup_idle")
+            top_of_hour_cleanup_underlay = switch(
+                id="top_of_hour_cleanup_underlay",
+                track_sensitive=false,
+                replay_metadata=false,
+                transition_length=0.0,
+                [
+                    ({azuracast.autodj_clean_cut_pending()}, top_of_hour_cleanup_audio),
+                    ({true}, top_of_hour_cleanup_idle)
+                ]
             )
 
             top_of_hour_clocked_lane = add(
                 id="top_of_hour_clocked_lane",
                 normalize=false,
-                [top_of_hour_lane, top_of_hour_clocked_underlay]
+                [top_of_hour_lane, top_of_hour_cleanup_underlay]
             )
 
             def top_of_hour_id_should_play() =
@@ -169,8 +179,11 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                         # frame until :00 even after the ID file itself ends.
                         boundary > 0.0 and now < boundary
                     else
-                        # Open hour: release as soon as the one ID finishes.
+                        # Open hour: after the ID file ends, keep this lane on
+                        # silence only if the destructive cross boundary still has
+                        # not completed. Never expose the parked old graph again.
                         top_of_hour_id.is_ready()
+                        or azuracast.autodj_clean_cut_pending()
                     end
                 else
                     target > 0.0
@@ -191,8 +204,8 @@ final class TopOfHourRuntimeConfiguration implements EventSubscriberInterface
                     # The pre-fade has already reached zero. Arm the actual cross
                     # operator to reject its buffered old tail, then skip exactly
                     # one request at the real request.dynamic AutoDJ transport.
-                    # The muted underlay keeps that cross operator clocked while
-                    # the ID is on air, so this boundary is consumed immediately.
+                    # The cleanup underlay clocks only until that cross callback
+                    # consumes the boundary, then immediately parks the fresh song.
                     azuracast.discard_autodj_current_cleanly()
                     log("Top-of-Hour ID: armed clean cross boundary and discarded interrupted AutoDJ request.")
                 end
