@@ -47,7 +47,7 @@ jobs:
       - name: Pull production Liquidsoap image
         run: docker pull savonet/liquidsoap:v2.4.5
 
-      - name: Run direct processed-source retirement through request.dynamic, stretch and cross
+      - name: Run crossfade-aware clean cut through request.dynamic, stretch and cross
         shell: bash
         run: |
           cat > /tmp/toh_resume_regression.liq <<'EOF'
@@ -58,6 +58,7 @@ jobs:
 
           request_index = ref(0)
           cut_target = ref(0.)
+          clean_cut_pending = ref(false)
 
           def next_song() =
             i = request_index()
@@ -92,14 +93,22 @@ jobs:
             [dynamic, blank(id="startup_blank")]
           )
 
-          # Reproduce the production layers most relevant to stale audio state.
           music = stretch(ratio=1.0, music)
+
+          # The only way to guarantee a clean forced boundary through Liquidsoap
+          # cross is for the cross function itself to know this boundary is a
+          # broadcast-clock retirement and omit old.source entirely.
           def test_cross(old, new) =
-            cross.simple(old.source, new.source, fade_in=1.0, fade_out=1.0)
+            if clean_cut_pending() then
+              clean_cut_pending := false
+              log("TOH_REGRESSION_CROSS clean-cut consumed")
+              new.source
+            else
+              cross.simple(old.source, new.source, fade_in=1.0, fade_out=1.0)
+            end
           end
           music = cross(duration=2.0, test_cross, music)
-          music_under_toh = music
-          music_prefaded = amplify(1.0, music_under_toh)
+          music_prefaded = amplify(1.0, music)
 
           legal_id = sine(id="legal_id_test", duration=1.0, 1200.)
 
@@ -108,11 +117,12 @@ jobs:
             target > 0. and time() >= target and time() < target + 1.0
           end
 
-          # Do not trust the switch transition's `old` proxy. Skip the direct,
-          # named post-cross source that the pre-fade wrapper actually consumes.
-          def enter_id(old, new) =
-            source.skip(music_under_toh)
-            log("TOH_REGRESSION_ENTER direct-source-skipped direct=#{source.id(music_under_toh)} proxy=#{source.id(old)}")
+          def enter_id(_, new) =
+            # Mark the very next cross boundary as destructive, then skip only
+            # the real request.dynamic leaf. Do not skip any cross/amplify proxy.
+            clean_cut_pending := true
+            source.skip(dynamic)
+            log("TOH_REGRESSION_ENTER clean-cut armed and direct dynamic skipped")
             new
           end
 
@@ -156,7 +166,8 @@ jobs:
           fi
 
           grep -q 'TOH_REGRESSION_DYNAMIC_TRACK=OLD' /tmp/toh_resume_regression.log
-          grep -q 'TOH_REGRESSION_ENTER' /tmp/toh_resume_regression.log
+          grep -q 'TOH_REGRESSION_ENTER clean-cut armed and direct dynamic skipped' /tmp/toh_resume_regression.log
+          grep -q 'TOH_REGRESSION_CROSS clean-cut consumed' /tmp/toh_resume_regression.log
           grep -q 'TOH_REGRESSION_EXIT' /tmp/toh_resume_regression.log
           test -s /tmp/toh_regression_out/output.pcm
 
