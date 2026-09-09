@@ -145,6 +145,10 @@ let azuracast.autodj_queue_ready = ref(false)
 let azuracast.autodj_transport = ref(blank(id="autodj_transport_placeholder", duration=0.))
 let azuracast.autodj_transport_ready = ref(false)
 
+# One-shot marker consumed by the cross operator after a broadcast-clock cut.
+# Normal track transitions never set this flag and keep their configured fade.
+let azuracast.autodj_clean_cut_pending = ref(false)
+
 # request.dynamic exposes fetch(), but the generic source reference above does
 # not retain that specialized method in its type. Publish a tiny callback so a
 # broadcast-clock owner can prepare the fresh request while its audio gate stays
@@ -510,6 +514,19 @@ def azuracast.discard_autodj_current() =
     end
 end
 
+# Broadcast-clock discard. Arm the cross operator before skipping the real
+# request.dynamic leaf. The next cross boundary must omit old.source entirely;
+# otherwise Liquidsoap deliberately overlaps the buffered old tail with the new
+# request and the interrupted song becomes audible again after the clock item.
+# The pending guard also prevents TOH->rigid handoff from skipping two songs.
+def azuracast.discard_autodj_current_cleanly() =
+    if azuracast.autodj_transport_ready() and not azuracast.autodj_clean_cut_pending() then
+        azuracast.autodj_clean_cut_pending := true
+        source.skip(azuracast.autodj_transport())
+        log(level=2, label="azuracast.autodj", "Armed clean cross boundary and discarded current AutoDJ transport request.")
+    end
+end
+
 # Prepare a fresh AutoDJ request without opening the broadcast-clock audio gate.
 # This is intentionally explicit rather than globally enabling request.dynamic
 # prefetch, which could pull a song across unrelated programme boundaries.
@@ -673,7 +690,16 @@ def azuracast.live_aware_crossfade_impl(old, new) =
         metadata.cover.remove(new.metadata)
     )
 
-    if azuracast.to_live() then
+    if azuracast.autodj_clean_cut_pending() then
+        # A broadcast-clock owner already faded the old programme to zero and
+        # directly skipped its request.dynamic request. `cross` normally retains
+        # and overlaps the buffered old tail at this boundary, which is exactly
+        # what makes a cut song briefly reappear after TOH. Consume the one-shot
+        # marker and expose only the fresh source. No old frames are mixed.
+        azuracast.autodj_clean_cut_pending := false
+        log.info(label="azuracast.crossfade", "Broadcast-clock clean cut: discarded buffered old crossfade tail.")
+        new.source
+    elsif azuracast.to_live() then
         # If going to the live show, play a simple sequence
         # fade out AutoDJ, do (almost) not fade in streamer
         log.info(label="azuracast.crossfade", "Fading to live...")
@@ -751,7 +777,7 @@ def azuracast.send_feedback(m) =
             for item = list.iterator(feedback_meta) do
                 let (tag, value) = item
                 j.add(tag, value)
-            end
+            done
 
             _ = azuracast.api_call(
                 "feedback",
