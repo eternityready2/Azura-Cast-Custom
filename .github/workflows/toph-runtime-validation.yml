@@ -94,24 +94,34 @@ jobs:
           ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/NextSongCommand.php
           ! grep -q 'AutoDjRetirementService' backend/src/Radio/Backend/Liquidsoap/Command/FeedbackCommand.php
 
-          # One wall-clock authority: the plugin switch owns the deadline while
-          # the shared AutoDJ request.dynamic/cross pair owns destructive track
-          # retirement. The cross operator must be explicitly aware of the one
-          # forced clean-cut boundary or its buffered old tail can reappear.
+          # TOH now targets the actual cross operator that owns buffered old-tail
+          # audio. It captures the graph immediately after ConfigWriter's priority
+          # 25 cross stage and before the priority 20 live/harbor stage, then calls
+          # cross.skip() once at takeover. The open-hour lane MUST NOT wait for a
+          # callback/pending marker; the #161 live incident proved that can deadlock
+          # on hard-hold silence and leave legal-ID metadata stuck indefinitely.
+          grep -q "\['captureCrossSource', 24\]" plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'broadcast_clock_cross_source = radio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'source.skip(broadcast_clock_cross_source)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          grep -q 'def top_of_hour_id_enter(_, new)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'top_of_hour_cleanup_underlay' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'top_of_hour_cleanup_audio' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'or azuracast.autodj_clean_cut_pending()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+          ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
+
+          # Rigid scheduled takeovers still use their existing one-shot clean-cut
+          # path. Their switch never waits on the pending marker, so the #161 TOH
+          # deadlock condition is not present there.
           grep -q 'let azuracast.autodj_clean_cut_pending = ref(false)' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'def azuracast.discard_autodj_current_cleanly()' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'azuracast.autodj_clean_cut_pending := true' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'source.skip(azuracast.autodj_transport())' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'if azuracast.autodj_clean_cut_pending() then' util/docker/stations/liquidsoap/azuracast.liq
           grep -q 'Broadcast-clock clean cut: discarded buffered old crossfade tail.' util/docker/stations/liquidsoap/azuracast.liq
-          grep -q 'def top_of_hour_id_enter(_, new)' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
-          grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           grep -q 'def rigid_schedule_enter(_, new)' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           grep -q 'azuracast.discard_autodj_current_cleanly()' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
-          ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/TopOfHourRuntimeConfiguration.php
           ! grep -q 'broadcast_clock_retire_outgoing' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
 
-          # The delayed inner gate seen in the live log must never return.
+          # The delayed inner gate seen in the earlier live log must never return.
           ! grep -q 'broadcast_clock_autodj_gate' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'broadcast_clock_autodj_blocked' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
           ! grep -q 'fallback.skip(' plugins/top_of_hour/src/RigidScheduleRuntimeConfiguration.php
@@ -152,41 +162,26 @@ jobs:
             -v "$PWD/util/docker/stations/liquidsoap:/liq:ro" \
             -w /liq savonet/liquidsoap:v2.4.5 --check azuracast.liq
 
-      - name: Liquidsoap 2.4.5 synchronous handoff smoke
+      - name: Liquidsoap 2.4.5 direct cross handoff smoke
         shell: bash
         run: |
           set -euo pipefail
           cat > /tmp/toh-handoff-smoke.liq <<'EOF'
           init.daemon := false
 
-          live_enabled = ref(false)
-          hard = ref(true)
+          dynamic = blank(id="autodj_leaf")
+          crossed = cross(duration=2.0, fun (old, new) -> new.source, dynamic)
+          broadcast_clock_cross_source = crossed
+          legal_id = blank(id="legal_id", duration=1.0)
           active = ref(false)
-          boundary = ref(time() + 60.)
-
-          music = blank(id="processed_music")
-          id_source = blank(id="legal_id", duration=1.)
-          hard_hold = blank(id="hard_hold")
-          id_lane = fallback(
-            id="id_lane",
-            track_sensitive=false,
-            transition_length=0.,
-            [id_source, hard_hold]
-          )
-
-          def retire_outgoing(s) =
-            if not live_enabled() then source.skip(s) end
-          end
 
           def should_play() =
-            if active() and hard() then time() < boundary()
-            else false
-            end
+            if active() then legal_id.is_ready() else false end
           end
 
-          def enter(old, new) =
+          def enter(_, new) =
             active := true
-            retire_outgoing(old)
+            source.skip(broadcast_clock_cross_source)
             new
           end
 
@@ -199,9 +194,9 @@ jobs:
             id="toh_switch",
             track_sensitive=false,
             replay_metadata=true,
-            transition_length=0.,
+            transition_length=0.0,
             transitions=[enter, leave],
-            [({should_play()}, id_lane), ({true}, music)]
+            [({should_play()}, legal_id), ({true}, crossed)]
           )
           output.dummy(radio)
           EOF
